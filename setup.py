@@ -8,26 +8,46 @@ readme_file = Path(__file__).parent / "README.md"
 long_description = readme_file.read_text(encoding="utf-8") if readme_file.exists() else ""
 
 setup(
-    name="doc-fetcher",
+    name="docpull",
     version="1.0.0",
-    author="Your Name",
-    author_email="your.email@example.com",
-    description="A flexible documentation fetching and conversion tool",
+    author="Zachary Roth",
+    author_email="support@raintree.technology",
+    description="Pull documentation from the web and convert to clean markdown",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/yourusername/doc-fetcher",
+    url="https://github.com/Raintree-Technology/docpull",
     packages=find_packages(),
     classifiers=[
+        # Development Status
         "Development Status :: 4 - Beta",
+        # Intended Audience
         "Intended Audience :: Developers",
+        "Intended Audience :: Information Technology",
+        "Intended Audience :: Science/Research",
+        # Environment
+        "Environment :: Console",
+        # Topic
+        "Topic :: Documentation",
+        "Topic :: Internet :: WWW/HTTP :: Indexing/Search",
         "Topic :: Software Development :: Documentation",
-        "License :: OSI Approved :: MIT License",
+        "Topic :: Text Processing :: Markup :: HTML",
+        "Topic :: Text Processing :: Markup :: Markdown",
+        "Topic :: Utilities",
+        # Natural Language
+        "Natural Language :: English",
+        # Operating System
+        "Operating System :: OS Independent",
+        # Programming Language
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
+        "Programming Language :: Python :: 3 :: Only",
+        # Typing
+        "Typing :: Typed",
     ],
     python_requires=">=3.8",
     install_requires=[
@@ -46,7 +66,7 @@ setup(
     },
     entry_points={
         "console_scripts": [
-            "doc-fetcher=doc_fetcher.cli:main",
+            "docpull=doc_fetcher.cli:main",
         ],
     },
 )

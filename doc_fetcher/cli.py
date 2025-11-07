@@ -21,25 +21,25 @@ from .utils.logging_config import setup_logging
 def create_parser() -> argparse.ArgumentParser:
     """Create argument parser for CLI."""
     parser = argparse.ArgumentParser(
-        prog="doc-fetcher",
+        prog="docpull",
         description="Fetch and convert documentation from various sources to markdown",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
   # Fetch all sources with default settings
-  doc-fetcher
+  docpull
 
   # Fetch only Stripe docs
-  doc-fetcher --sources stripe
+  docpull --sources stripe
 
   # Fetch with custom output directory and rate limit
-  doc-fetcher --output-dir ./my-docs --rate-limit 1.0
+  docpull --output-dir ./my-docs --rate-limit 1.0
 
   # Use a config file
-  doc-fetcher --config config.yaml
+  docpull --config config.yaml
 
   # Generate a sample config file
-  doc-fetcher --generate-config config.yaml
+  docpull --generate-config config.yaml
         """,
     )
 

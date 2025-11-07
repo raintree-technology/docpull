@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+requires = ["setuptools>=77.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -8,22 +8,53 @@ version = "1.0.0"
 description = "Pull documentation from the web and convert to clean markdown"
 readme = "README.md"
 requires-python = ">=3.8"
-license = {text = "MIT"}
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [
-    {name = "Zach", email = "zach@example.com"}
+    {name = "Zachary Roth", email = "support@raintree.technology"}
 ]
-keywords = ["documentation", "markdown", "web-scraping", "docs", "converter"]
+maintainers = [
+    {name = "Raintree Technology", email = "support@raintree.technology"}
+]
+keywords = ["documentation", "markdown", "web-scraping", "docs", "converter", "html2markdown", "sitemap", "documentation-tool"]
 classifiers = [
+    # Development Status
     "Development Status :: 4 - Beta",
+
+    # Intended Audience
     "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "Intended Audience :: Science/Research",
+
+    # Environment
+    "Environment :: Console",
+
+    # Topic
+    "Topic :: Documentation",
+    "Topic :: Internet :: WWW/HTTP :: Indexing/Search",
     "Topic :: Software Development :: Documentation",
-    "License :: OSI Approved :: MIT License",
+    "Topic :: Text Processing :: Markup :: HTML",
+    "Topic :: Text Processing :: Markup :: Markdown",
+    "Topic :: Utilities",
+
+    # Natural Language
+    "Natural Language :: English",
+
+    # Operating System
+    "Operating System :: OS Independent",
+
+    # Programming Language
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3 :: Only",
+
+    # Typing
+    "Typing :: Typed",
 ]
 dependencies = [
     "requests>=2.31.0",
@@ -44,10 +75,12 @@ dev = [
 docpull = "doc_fetcher.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/zachshallbetter/docpull"
-Repository = "https://github.com/zachshallbetter/docpull"
-Issues = "https://github.com/zachshallbetter/docpull/issues"
-Documentation = "https://github.com/zachshallbetter/docpull#readme"
+Homepage = "https://github.com/Raintree-Technology/docpull"
+Documentation = "https://github.com/Raintree-Technology/docpull#readme"
+Repository = "https://github.com/Raintree-Technology/docpull"
+"Source Code" = "https://github.com/Raintree-Technology/docpull"
+"Bug Tracker" = "https://github.com/Raintree-Technology/docpull/issues"
+"Changelog" = "https://github.com/Raintree-Technology/docpull/releases"
 
 [tool.black]
 line-length = 110
