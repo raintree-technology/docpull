@@ -19,7 +19,7 @@ jobs:
     steps:
       - name: Label bug reports
         if: contains(github.event.issue.body, 'bug') || contains(github.event.issue.title, 'bug') || contains(github.event.issue.title, 'error') || contains(github.event.issue.title, 'fix')
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             github.rest.issues.addLabels({
@@ -31,7 +31,7 @@ jobs:
 
       - name: Label feature requests
         if: contains(github.event.issue.body, 'feature') || contains(github.event.issue.title, 'feature') || contains(github.event.issue.title, 'add') || contains(github.event.issue.title, 'support')
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             github.rest.issues.addLabels({
@@ -43,7 +43,7 @@ jobs:
 
       - name: Label documentation issues
         if: contains(github.event.issue.body, 'documentation') || contains(github.event.issue.title, 'docs') || contains(github.event.issue.title, 'documentation')
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             github.rest.issues.addLabels({
@@ -55,7 +55,7 @@ jobs:
 
       - name: Label new source requests
         if: contains(github.event.issue.body, 'SOURCE') || contains(github.event.issue.title, 'source') || contains(github.event.issue.title, 'fetcher')
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             github.rest.issues.addLabels({
