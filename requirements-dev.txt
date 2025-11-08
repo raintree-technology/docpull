@@ -1,14 +1,14 @@
 -r requirements.txt
 
 # Security scanning
-bandit[toml]==1.7.10
-pip-audit==2.7.3
+bandit[toml]==1.8.6
+pip-audit==2.9.0
 safety==3.2.11
 
 # Code quality
-ruff==0.8.4
-mypy==1.13.0
+ruff==0.14.4
+mypy==1.18.2
 
 # Testing
-pytest==8.3.4
+pytest==8.4.2
 pytest-cov==6.0.0
