@@ -3,7 +3,7 @@
 # Security scanning
 bandit[toml]==1.8.6
 pip-audit==2.9.0
-safety==3.2.11
+safety==3.7.0
 
 # Code quality
 ruff==0.14.4
