@@ -69,7 +69,7 @@ jobs:
           path: dist/
 
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           body: |
             See [CHANGELOG.md](https://github.com/raintree-technology/docpull/blob/main/CHANGELOG.md) for details.
