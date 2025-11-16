@@ -6,11 +6,15 @@ from .markdown import MarkdownFormatter
 from .sqlite import SqliteFormatter
 from .toon import ToonFormatter
 
+# Alias for backward compatibility with tests
+JSONFormatter = JsonFormatter
+
 __all__ = [
     "BaseFormatter",
     "MarkdownFormatter",
     "ToonFormatter",
     "JsonFormatter",
+    "JSONFormatter",
     "SqliteFormatter",
 ]
 
