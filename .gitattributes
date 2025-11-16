@@ -46,10 +46,15 @@ Makefile text eol=lf
 .gitattributes export-ignore
 .gitignore export-ignore
 .github/ export-ignore
+.pre-commit-config.yaml export-ignore
+.editorconfig export-ignore
+Makefile export-ignore
+CONTRIBUTING.md export-ignore
 tests/ export-ignore
 test*.py export-ignore
 .venv/ export-ignore
 CODE_QUALITY_REPORT.md export-ignore
 QUALITY_IMPROVEMENTS.md export-ignore
 TEST_REPORT.md export-ignore
+new.md export-ignore
 *.egg-info/ export-ignore

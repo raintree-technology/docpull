@@ -1,0 +1,26 @@
+# Selective crawling example
+# Only fetch specific sections of documentation
+
+sources:
+  aptos-guides-only:
+    url: https://aptos.dev
+    include_paths:
+      - "build/guides/*"
+      - "build/tutorials/*"
+    exclude_paths:
+      - "*/changelog"
+      - "*/release-notes"
+      - "*/api-reference"
+    create_index: true
+
+  anthropic-api-only:
+    url: https://docs.anthropic.com
+    include_paths:
+      - "*/api/*"
+      - "*/reference/*"
+    language: en
+    create_index: true
+
+output_dir: ./docs-selective
+rate_limit: 0.5
+log_level: INFO

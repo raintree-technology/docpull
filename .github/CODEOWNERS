@@ -1,0 +1,15 @@
+# Code owners for docpull
+# These owners will be requested for review when someone opens a pull request
+
+# Default owners for everything in the repo
+*       @raintree-technology
+
+# GitHub Actions and CI/CD
+/.github/       @raintree-technology
+
+# Core package
+/docpull/       @raintree-technology
+
+# Documentation
+*.md            @raintree-technology
+/docs/          @raintree-technology

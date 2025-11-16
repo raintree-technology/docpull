@@ -23,7 +23,12 @@ aiohttp>=3.9.0
 # Terminal formatting and progress bars
 rich>=13.0.0
 
+# YAML support (now required for sources-file feature)
+pyyaml>=6.0
+
+# Git integration (now required for version control features)
+gitpython>=3.1.40
+
 # Optional dependencies (install separately if needed):
-# - YAML support: pip install pyyaml>=6.0
 # - JavaScript rendering: pip install playwright>=1.40.0
 # - All optional: pip install docpull[all]

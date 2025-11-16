@@ -50,6 +50,7 @@ from .fetchers import (
     TurborepoFetcher,
 )
 from .fetchers.generic_async import GenericAsyncFetcher
+from .orchestrator import create_orchestrator
 from .utils.logging_config import setup_logging
 
 
@@ -225,6 +226,126 @@ Examples:
         help="Run diagnostic checks to verify installation",
     )
 
+    # ===== New Features (v1.2.0) =====
+
+    # Multi-Source Configuration
+    multisource_group = parser.add_argument_group(
+        "multi-source configuration", "Fetch from multiple sources with one command"
+    )
+    multisource_group.add_argument(
+        "--sources-file",
+        type=Path,
+        metavar="PATH",
+        help="YAML config file with multiple sources and their individual settings",
+    )
+
+    # Language Filtering
+    language_group = parser.add_argument_group("language filtering")
+    language_group.add_argument(
+        "--language", type=str, metavar="CODE", help='Include only this language (e.g., "en")'
+    )
+    language_group.add_argument(
+        "--exclude-languages", nargs="+", metavar="CODE", help="Exclude these languages"
+    )
+
+    # Deduplication
+    dedup_group = parser.add_argument_group("deduplication")
+    dedup_group.add_argument(
+        "--deduplicate", action="store_true", help="Remove duplicate files based on content"
+    )
+    dedup_group.add_argument(
+        "--keep-variant",
+        type=str,
+        metavar="PATTERN",
+        help="When deduplicating, keep files matching this pattern",
+    )
+
+    # Size Limits
+    size_group = parser.add_argument_group("size limits")
+    size_group.add_argument(
+        "--max-file-size", type=str, metavar="SIZE", help='Maximum size per file (e.g., "200kb", "1mb")'
+    )
+    size_group.add_argument("--max-total-size", type=str, metavar="SIZE", help="Maximum total download size")
+
+    # Content Filtering
+    content_group = parser.add_argument_group("content filtering")
+    content_group.add_argument(
+        "--exclude-sections", nargs="+", metavar="NAME", help="Remove sections with these header names"
+    )
+    content_group.add_argument(
+        "--include-paths", nargs="+", metavar="PATTERN", help="Only crawl URLs matching these patterns"
+    )
+    content_group.add_argument(
+        "--exclude-paths", nargs="+", metavar="PATTERN", help="Skip URLs matching these patterns"
+    )
+
+    # Output Format
+    format_group = parser.add_argument_group("output format")
+    format_group.add_argument(
+        "--format",
+        choices=["markdown", "toon", "json", "sqlite"],
+        default="markdown",
+        help="Output format (default: markdown)",
+    )
+    format_group.add_argument(
+        "--naming-strategy",
+        choices=["full", "short", "flat", "hierarchical"],
+        default="full",
+        help="File naming strategy",
+    )
+
+    # Index Generation
+    index_group = parser.add_argument_group("index generation")
+    index_group.add_argument(
+        "--create-index", action="store_true", help="Create INDEX.md with file tree and navigation"
+    )
+    index_group.add_argument(
+        "--extract-metadata", action="store_true", help="Extract metadata to metadata.json"
+    )
+
+    # Update Detection
+    cache_group = parser.add_argument_group("update detection & caching")
+    cache_group.add_argument(
+        "--update-only-changed", action="store_true", help="Only download files that have changed"
+    )
+    cache_group.add_argument(
+        "--incremental", action="store_true", help="Enable incremental mode (resume interrupted downloads)"
+    )
+    cache_group.add_argument(
+        "--cache-dir", type=Path, metavar="PATH", help="Cache directory (default: .docpull-cache)"
+    )
+
+    # Git Integration
+    git_group = parser.add_argument_group("git integration")
+    git_group.add_argument(
+        "--git-commit", action="store_true", help="Automatically commit changes after fetch"
+    )
+    git_group.add_argument(
+        "--git-message",
+        type=str,
+        default="Update docs - {date}",
+        metavar="MSG",
+        help="Commit message template",
+    )
+
+    # Archive Mode
+    archive_group = parser.add_argument_group("archive mode")
+    archive_group.add_argument(
+        "--archive", action="store_true", help="Create compressed archive after fetching"
+    )
+    archive_group.add_argument(
+        "--archive-format",
+        choices=["tar.gz", "tar.bz2", "tar.xz", "zip"],
+        default="tar.gz",
+        help="Archive format",
+    )
+
+    # Hooks
+    hooks_group = parser.add_argument_group("hooks & plugins")
+    hooks_group.add_argument(
+        "--post-process-hook", type=Path, metavar="PATH", help="Python file with post-processing hooks"
+    )
+
     return parser
 
 
@@ -319,6 +440,50 @@ def get_config(args: argparse.Namespace) -> FetcherConfig:
     # Store dry-run flag in config
     config.dry_run = args.dry_run
 
+    # v1.2.0 features - map CLI arguments to config
+    if hasattr(args, "language") and args.language:
+        config.language = args.language
+    if hasattr(args, "exclude_languages") and args.exclude_languages:
+        config.exclude_languages = args.exclude_languages
+    if hasattr(args, "deduplicate") and args.deduplicate:
+        config.deduplicate = args.deduplicate
+    if hasattr(args, "keep_variant") and args.keep_variant:
+        config.keep_variant = args.keep_variant
+    if hasattr(args, "max_file_size") and args.max_file_size:
+        config.max_file_size = args.max_file_size
+    if hasattr(args, "max_total_size") and args.max_total_size:
+        config.max_total_size = args.max_total_size
+    if hasattr(args, "exclude_sections") and args.exclude_sections:
+        config.exclude_sections = args.exclude_sections
+    if hasattr(args, "include_paths") and args.include_paths:
+        config.include_paths = args.include_paths
+    if hasattr(args, "exclude_paths") and args.exclude_paths:
+        config.exclude_paths = args.exclude_paths
+    if hasattr(args, "format") and args.format:
+        config.output_format = args.format
+    if hasattr(args, "naming_strategy") and args.naming_strategy:
+        config.naming_strategy = args.naming_strategy
+    if hasattr(args, "create_index") and args.create_index:
+        config.create_index = args.create_index
+    if hasattr(args, "extract_metadata") and args.extract_metadata:
+        config.extract_metadata = args.extract_metadata
+    if hasattr(args, "update_only_changed") and args.update_only_changed:
+        config.update_only_changed = args.update_only_changed
+    if hasattr(args, "incremental") and args.incremental:
+        config.incremental = args.incremental
+    if hasattr(args, "cache_dir") and args.cache_dir:
+        config.cache_dir = args.cache_dir
+    if hasattr(args, "git_commit") and args.git_commit:
+        config.git_commit = args.git_commit
+    if hasattr(args, "git_message") and args.git_message:
+        config.git_message = args.git_message
+    if hasattr(args, "archive") and args.archive:
+        config.archive = args.archive
+    if hasattr(args, "archive_format") and args.archive_format:
+        config.archive_format = args.archive_format
+    if hasattr(args, "post_process_hook") and args.post_process_hook:
+        config.post_process_hook = str(args.post_process_hook)
+
     return config
 
 
@@ -379,6 +544,18 @@ def run_fetchers(config: FetcherConfig) -> int:
                 logger=logger,
             )
             fetcher.fetch()
+
+            # v1.2.0: Run post-fetch pipeline
+            try:
+                orchestrator = create_orchestrator(config)
+                files = list(config.output_dir.rglob("*.md"))
+                if files:
+                    processed_files = orchestrator.run_post_fetch_pipeline(files)
+                    logger.info(f"{source}: {len(processed_files)} files after processing")
+            except Exception as pipeline_error:
+                logger.error(f"Post-fetch pipeline error for {source}: {pipeline_error}", exc_info=True)
+                # Don't increment errors - fetching succeeded, post-processing failed
+
         except Exception as e:
             logger.error(f"Error fetching {source}: {e}", exc_info=True)
             errors += 1
@@ -402,21 +579,28 @@ def run_generic_fetchers(args: argparse.Namespace) -> int:
     Returns:
         Exit code (0 for success, 1 for error)
     """
+    # Create config from args (reuse get_config logic)
+    try:
+        config = get_config(args)
+    except Exception as e:
+        print(f"Error loading configuration: {e}", file=sys.stderr)
+        return 1
+
     # Setup logging
-    log_level = args.log_level_override or args.log_level or "INFO"
     logger = setup_logging(
-        level=log_level,
-        log_file=args.log_file,
+        level=config.log_level,
+        log_file=config.log_file,
     )
 
-    output_dir = Path(args.output_dir) if args.output_dir else Path("./docs")
-    rate_limit = args.rate_limit if args.rate_limit is not None else 0.5
-    skip_existing = not args.no_skip_existing
-    max_pages = args.max_pages
-    max_depth = args.max_depth
-    max_concurrent = args.max_concurrent
-    use_js = args.use_js
-    show_progress = not args.no_progress
+    # Extract generic-specific args
+    output_dir = config.output_dir
+    rate_limit = config.rate_limit
+    skip_existing = config.skip_existing
+    max_pages = args.max_pages if hasattr(args, "max_pages") else None
+    max_depth = args.max_depth if hasattr(args, "max_depth") else 5
+    max_concurrent = args.max_concurrent if hasattr(args, "max_concurrent") else 10
+    use_js = args.use_js if hasattr(args, "use_js") else False
+    show_progress = not (args.no_progress if hasattr(args, "no_progress") else False)
 
     logger.info("docpull - Universal Documentation Fetcher")
     logger.info(f"Targets: {', '.join(args.targets)}")
@@ -436,9 +620,13 @@ def run_generic_fetchers(args: argparse.Namespace) -> int:
     for target in args.targets:
         try:
             logger.info(f"Fetching: {target}")
+
+            # Create per-target output dir
+            target_output = output_dir
+
             fetcher = GenericAsyncFetcher(
                 url_or_profile=target,
-                output_dir=output_dir,
+                output_dir=target_output,
                 rate_limit=rate_limit,
                 skip_existing=skip_existing,
                 logger=logger,
@@ -449,6 +637,17 @@ def run_generic_fetchers(args: argparse.Namespace) -> int:
                 show_progress=show_progress,
             )
             fetcher.fetch()  # This calls asyncio.run() internally
+
+            # v1.2.0: Run post-fetch pipeline
+            try:
+                orchestrator = create_orchestrator(config)
+                files = list(target_output.rglob("*.md"))
+                if files:
+                    processed_files = orchestrator.run_post_fetch_pipeline(files)
+                    logger.info(f"{target}: {len(processed_files)} files after processing")
+            except Exception as pipeline_error:
+                logger.error(f"Post-fetch pipeline error for {target}: {pipeline_error}", exc_info=True)
+
         except Exception as e:
             logger.error(f"Error fetching {target}: {e}", exc_info=True)
             errors += 1
@@ -459,6 +658,136 @@ def run_generic_fetchers(args: argparse.Namespace) -> int:
         return 1
     else:
         logger.info("All documentation fetched successfully")
+        return 0
+
+
+def run_multi_source_fetch(args: argparse.Namespace) -> int:
+    """
+    Run multi-source fetch from sources file.
+
+    Args:
+        args: Parsed command-line arguments
+
+    Returns:
+        Exit code (0 for success, 1 for error)
+    """
+    from .sources_config import SourcesConfiguration
+
+    # Setup logging
+    log_level = (
+        args.log_level_override
+        if hasattr(args, "log_level_override") and args.log_level_override
+        else (args.log_level if hasattr(args, "log_level") and args.log_level else "INFO")
+    )
+    logger = setup_logging(
+        level=log_level,
+        log_file=args.log_file if hasattr(args, "log_file") else None,
+    )
+
+    # Load sources configuration
+    try:
+        sources_config = SourcesConfiguration.load(args.sources_file)
+    except Exception as e:
+        logger.error(f"Failed to load sources file: {e}", exc_info=True)
+        return 1
+
+    logger.info("Multi-Source Fetch")
+    logger.info(f"Sources file: {args.sources_file}")
+    logger.info(f"Number of sources: {len(sources_config.sources)}")
+    logger.info("")
+
+    # Fetch each source
+    all_files = []
+    errors = 0
+
+    for source_name, source_config in sources_config.sources.items():
+        logger.info("=" * 70)
+        logger.info(f"Fetching source: {source_name}")
+        logger.info("=" * 70)
+
+        try:
+            # Create fetcher config for this source
+            config = FetcherConfig(
+                output_dir=source_config.output,
+                rate_limit=source_config.rate_limit or 0.5,
+                skip_existing=True,
+                log_level=log_level,
+                log_file=args.log_file if hasattr(args, "log_file") else None,
+                language=source_config.language,
+                exclude_languages=source_config.exclude_languages,
+                deduplicate=source_config.deduplicate,
+                keep_variant=source_config.keep_variant,
+                max_file_size=source_config.max_file_size,
+                max_total_size=source_config.max_total_size,
+                exclude_sections=source_config.exclude_sections,
+                include_paths=source_config.include_paths,
+                exclude_paths=source_config.exclude_paths,
+                output_format=source_config.output_format,
+                naming_strategy=source_config.naming_strategy,
+                create_index=source_config.create_index,
+                update_only_changed=source_config.update_only_changed,
+                cache_dir=str(Path(".docpull-cache") / source_name),
+            )
+
+            # Create generic fetcher
+            fetcher = GenericAsyncFetcher(
+                url_or_profile=source_config.url,
+                output_dir=Path(source_config.output),
+                rate_limit=source_config.rate_limit or 0.5,
+                skip_existing=True,
+                logger=logger,
+                max_pages=source_config.max_pages,
+                max_depth=source_config.max_depth or 5,
+                max_concurrent=source_config.max_concurrent or 10,
+                use_js=source_config.javascript,
+                show_progress=True,
+            )
+
+            # Fetch
+            fetcher.fetch()
+
+            # Run post-fetch pipeline
+            orchestrator = create_orchestrator(config)
+            files = list(Path(source_config.output).rglob("*.md"))
+            if files:
+                processed_files = orchestrator.run_post_fetch_pipeline(files)
+                all_files.extend(processed_files)
+                logger.info(f"{source_name}: {len(processed_files)} files")
+            else:
+                logger.warning(f"{source_name}: No files found")
+
+        except Exception as e:
+            logger.error(f"Error fetching {source_name}: {e}", exc_info=True)
+            errors += 1
+
+    # Global post-processing (git, archive)
+    if all_files and errors == 0:
+        logger.info("")
+        logger.info("=" * 70)
+        logger.info("Running global post-processing")
+        logger.info("=" * 70)
+
+        # Create global config for git/archive
+        global_config = FetcherConfig(
+            output_dir=Path("."),
+            git_commit=sources_config.git_commit,
+            git_message=sources_config.git_message,
+            archive=sources_config.archive,
+            archive_format=sources_config.archive_format,
+        )
+
+        orchestrator = create_orchestrator(global_config)
+        if sources_config.git_commit:
+            orchestrator.commit_to_git()
+        if sources_config.archive:
+            orchestrator.create_archive()
+
+    logger.info("")
+    if errors > 0:
+        logger.error(f"Completed with {errors} error(s)")
+        return 1
+    else:
+        logger.info(f"All sources fetched successfully ({len(all_files)} total files)")
         return 0
 
 
@@ -490,6 +819,10 @@ def main(argv: Optional[list[str]] = None) -> int:
         except Exception as e:
             print(f"Error generating config: {e}", file=sys.stderr)
             return 1
+
+    # NEW: Handle --sources-file (multi-source mode)
+    if hasattr(args, "sources_file") and args.sources_file:
+        return run_multi_source_fetch(args)
 
     # Determine if using new URL-based interface or legacy source-based
     use_generic = bool(args.targets)

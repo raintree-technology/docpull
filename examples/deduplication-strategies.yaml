@@ -1,0 +1,29 @@
+# Deduplication strategies example
+# Remove duplicate files with different keep strategies
+
+sources:
+  aptos-mainnet:
+    url: https://aptos.dev
+    deduplicate: true
+    keep_variant: mainnet  # Keep mainnet version, skip testnet/devnet
+    max_file_size: 200kb
+    create_index: true
+
+  # Alternative: keep shortest variant
+  aptos-shortest:
+    url: https://aptos.dev
+    deduplicate: true
+    keep_variant: shortest  # Keep shortest file
+    max_file_size: 200kb
+    output_dir: ./docs-shortest
+
+  # Alternative: keep first encountered
+  aptos-first:
+    url: https://aptos.dev
+    deduplicate: true
+    keep_variant: first  # Keep first file encountered
+    max_file_size: 200kb
+    output_dir: ./docs-first
+
+rate_limit: 0.5
+log_level: INFO

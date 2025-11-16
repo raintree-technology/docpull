@@ -1,0 +1,24 @@
+# Label PRs based on files changed
+
+documentation:
+  - '**/*.md'
+  - 'docs/**/*'
+
+tests:
+  - 'tests/**/*'
+  - '**/*test*.py'
+
+dependencies:
+  - 'pyproject.toml'
+  - 'requirements.txt'
+
+ci-cd:
+  - '.github/workflows/**/*'
+  - '.github/**/*'
+
+fetchers:
+  - 'docpull/fetchers/**/*'
+
+core:
+  - 'docpull/**/*.py'
+  - '!docpull/fetchers/**/*'

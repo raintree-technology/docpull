@@ -1,0 +1,25 @@
+# Format conversion examples
+# Convert documentation to different output formats
+
+sources:
+  anthropic-toon:
+    url: https://docs.anthropic.com
+    language: en
+    format: toon  # 40-60% size reduction, optimized for LLMs
+    naming_strategy: hierarchical
+    output_dir: ./docs-toon
+
+  anthropic-json:
+    url: https://docs.anthropic.com
+    language: en
+    format: json  # Structured JSON with sections
+    output_dir: ./docs-json
+
+  anthropic-sqlite:
+    url: https://docs.anthropic.com
+    language: en
+    format: sqlite  # Searchable database with FTS5
+    output_dir: ./docs-db
+
+rate_limit: 0.5
+log_level: INFO

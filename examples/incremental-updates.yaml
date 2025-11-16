@@ -1,0 +1,26 @@
+# Incremental update configuration
+# Only downloads changed files, resume capability
+
+sources:
+  anthropic:
+    url: https://docs.anthropic.com
+    language: en
+    create_index: true
+
+  claude-code:
+    url: https://code.claude.com/docs
+    language: en
+    create_index: true
+
+output_dir: ./docs
+rate_limit: 0.5
+log_level: INFO
+
+# Incremental features
+incremental: true
+update_only_changed: true
+cache_dir: .docpull-cache
+
+# Auto-commit changes
+git_commit: true
+git_message: "Update docs - {datetime}"

@@ -20,6 +20,28 @@ class FetcherConfig:
         log_file: Optional[str] = None,
         sources: Optional[list[str]] = None,
         dry_run: bool = False,
+        # v1.2.0 features
+        language: Optional[str] = None,
+        exclude_languages: Optional[list[str]] = None,
+        deduplicate: bool = False,
+        keep_variant: Optional[str] = None,
+        max_file_size: Optional[str] = None,
+        max_total_size: Optional[str] = None,
+        exclude_sections: Optional[list[str]] = None,
+        include_paths: Optional[list[str]] = None,
+        exclude_paths: Optional[list[str]] = None,
+        output_format: str = "markdown",
+        naming_strategy: str = "full",
+        create_index: bool = False,
+        extract_metadata: bool = False,
+        update_only_changed: bool = False,
+        incremental: bool = False,
+        cache_dir: str = ".docpull-cache",
+        git_commit: bool = False,
+        git_message: str = "Update docs - {date}",
+        archive: bool = False,
+        archive_format: str = "tar.gz",
+        post_process_hook: Optional[str] = None,
     ):
         """
         Initialize configuration.
@@ -32,6 +54,27 @@ class FetcherConfig:
             log_file: Optional log file path
             sources: List of sources to fetch (e.g., ['stripe', 'plaid'])
             dry_run: Dry run mode (don't download files)
+            language: Include only this language (e.g., 'en')
+            exclude_languages: Exclude these languages
+            deduplicate: Remove duplicate files
+            keep_variant: Keep files matching this pattern when deduplicating
+            max_file_size: Maximum file size (e.g., '200kb')
+            max_total_size: Maximum total download size
+            exclude_sections: Remove sections with these header names
+            include_paths: Only crawl URLs matching these patterns
+            exclude_paths: Skip URLs matching these patterns
+            format: Output format (markdown, toon, json, sqlite)
+            naming_strategy: File naming strategy (full, short, flat, hierarchical)
+            create_index: Create INDEX.md with navigation
+            extract_metadata: Extract metadata to metadata.json
+            update_only_changed: Only download changed files
+            incremental: Enable incremental mode
+            cache_dir: Cache directory for update detection
+            git_commit: Automatically commit changes
+            git_message: Commit message template
+            archive: Create compressed archive
+            archive_format: Archive format (tar.gz, tar.bz2, tar.xz, zip)
+            post_process_hook: Path to post-processing hook script
         """
         self.output_dir = Path(output_dir)
         self.rate_limit = rate_limit
@@ -40,6 +83,29 @@ class FetcherConfig:
         self.log_file = log_file
         self.sources = sources or ["plaid", "stripe"]
         self.dry_run = dry_run
+
+        # v1.2.0 features
+        self.language = language
+        self.exclude_languages = exclude_languages or []
+        self.deduplicate = deduplicate
+        self.keep_variant = keep_variant
+        self.max_file_size = max_file_size
+        self.max_total_size = max_total_size
+        self.exclude_sections = exclude_sections or []
+        self.include_paths = include_paths or []
+        self.exclude_paths = exclude_paths or []
+        self.output_format = output_format
+        self.naming_strategy = naming_strategy
+        self.create_index = create_index
+        self.extract_metadata = extract_metadata
+        self.update_only_changed = update_only_changed
+        self.incremental = incremental
+        self.cache_dir = Path(cache_dir)
+        self.git_commit = git_commit
+        self.git_message = git_message
+        self.archive = archive
+        self.archive_format = archive_format
+        self.post_process_hook = post_process_hook
 
     @classmethod
     def from_dict(cls, config_dict: dict[str, Any]) -> "FetcherConfig":
@@ -162,7 +228,7 @@ class FetcherConfig:
         Returns:
             Configuration as dictionary
         """
-        return {
+        config = {
             "output_dir": str(self.output_dir),
             "rate_limit": self.rate_limit,
             "skip_existing": self.skip_existing,
@@ -171,6 +237,52 @@ class FetcherConfig:
             "sources": self.sources,
             "dry_run": self.dry_run,
         }
+
+        # Add v1.2.0 fields if set
+        if self.language:
+            config["language"] = self.language
+        if self.exclude_languages:
+            config["exclude_languages"] = self.exclude_languages
+        if self.deduplicate:
+            config["deduplicate"] = self.deduplicate
+        if self.keep_variant:
+            config["keep_variant"] = self.keep_variant
+        if self.max_file_size:
+            config["max_file_size"] = self.max_file_size
+        if self.max_total_size:
+            config["max_total_size"] = self.max_total_size
+        if self.exclude_sections:
+            config["exclude_sections"] = self.exclude_sections
+        if self.include_paths:
+            config["include_paths"] = self.include_paths
+        if self.exclude_paths:
+            config["exclude_paths"] = self.exclude_paths
+        if self.output_format != "markdown":
+            config["format"] = self.output_format
+        if self.naming_strategy != "full":
+            config["naming_strategy"] = self.naming_strategy
+        if self.create_index:
+            config["create_index"] = self.create_index
+        if self.extract_metadata:
+            config["extract_metadata"] = self.extract_metadata
+        if self.update_only_changed:
+            config["update_only_changed"] = self.update_only_changed
+        if self.incremental:
+            config["incremental"] = self.incremental
+        if str(self.cache_dir) != ".docpull-cache":
+            config["cache_dir"] = str(self.cache_dir)
+        if self.git_commit:
+            config["git_commit"] = self.git_commit
+        if self.git_message != "Update docs - {date}":
+            config["git_message"] = self.git_message
+        if self.archive:
+            config["archive"] = self.archive
+        if self.archive_format != "tar.gz":
+            config["archive_format"] = self.archive_format
+        if self.post_process_hook:
+            config["post_process_hook"] = self.post_process_hook
+
+        return config
 
     def save_yaml(self, yaml_path: Path) -> None:
         """

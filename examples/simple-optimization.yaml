@@ -1,0 +1,14 @@
+# Simple optimization example
+# Fetches documentation with basic optimizations
+
+sources:
+  anthropic:
+    url: https://docs.anthropic.com
+    language: en
+    max_file_size: 200kb
+    create_index: true
+    extract_metadata: true
+
+output_dir: ./docs
+rate_limit: 0.5
+log_level: INFO

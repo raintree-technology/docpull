@@ -28,6 +28,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install build twine
 
+      - name: Clean before build
+        run: |
+          rm -rf dist/ build/ *.egg-info/
+          find . -type d -name __pycache__ -exec rm -rf {} + || true
+
       - name: Build package
         run: python -m build
 

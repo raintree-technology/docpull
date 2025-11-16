@@ -1,0 +1,108 @@
+name: Create Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (e.g., 1.2.0)'
+        required: true
+        type: string
+      release-type:
+        description: 'Release type'
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Update version in files
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+
+          # Update pyproject.toml
+          sed -i "s/^version = .*/version = \"$VERSION\"/" pyproject.toml
+
+          # Update __init__.py
+          sed -i "s/__version__ = .*/__version__ = \"$VERSION\"/" docpull/__init__.py
+
+          echo "Updated version to $VERSION"
+
+      - name: Update CHANGELOG.md
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          DATE=$(date +%Y-%m-%d)
+
+          # Create temporary file with new entry
+          echo "## [$VERSION] - $DATE" > /tmp/changelog_entry.md
+          echo "" >> /tmp/changelog_entry.md
+          echo "### Added" >> /tmp/changelog_entry.md
+          echo "- (Add your changes here)" >> /tmp/changelog_entry.md
+          echo "" >> /tmp/changelog_entry.md
+
+          # Insert after line 7 (after the header)
+          head -n 7 CHANGELOG.md > /tmp/changelog_new.md
+          echo "" >> /tmp/changelog_new.md
+          cat /tmp/changelog_entry.md >> /tmp/changelog_new.md
+          tail -n +8 CHANGELOG.md >> /tmp/changelog_new.md
+          mv /tmp/changelog_new.md CHANGELOG.md
+
+          echo "Updated CHANGELOG.md"
+
+      - name: Commit version bump
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          git add pyproject.toml docpull/__init__.py CHANGELOG.md
+          git commit -m "chore: bump version to $VERSION"
+          git push origin main
+
+      - name: Create git tag
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          git tag -a "v$VERSION" -m "Release v$VERSION"
+          git push origin "v$VERSION"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+
+          # Extract changelog for this version
+          sed -n "/## \[$VERSION\]/,/## \[/p" CHANGELOG.md | sed '$d' > /tmp/release_notes.md
+
+          gh release create "v$VERSION" \
+            --title "v$VERSION" \
+            --notes-file /tmp/release_notes.md \
+            --draft=false \
+            --latest
+
+      - name: Trigger publish workflow
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # The publish workflow will automatically trigger on release:published
+          echo "Release created. Publish workflow will automatically trigger."

@@ -43,3 +43,7 @@ jobs:
 
       - name: Run pip-audit
         run: pip-audit
+
+      - name: Cleanup artifacts
+        if: always()
+        run: make clean-pyc || true

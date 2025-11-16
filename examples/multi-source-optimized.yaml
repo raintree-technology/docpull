@@ -1,0 +1,45 @@
+# Multi-source configuration with full optimization
+# Real-world example: 31 MB → 13 MB (58% reduction)
+
+sources:
+  anthropic:
+    url: https://docs.anthropic.com
+    language: en
+    max_file_size: 200kb
+    create_index: true
+    exclude_sections:
+      - "Changelog"
+      - "Examples"
+
+  claude-code:
+    url: https://code.claude.com/docs
+    language: en  # Skips 352 translation files!
+    create_index: true
+    max_file_size: 200kb
+
+  aptos:
+    url: https://aptos.dev
+    deduplicate: true
+    keep_variant: mainnet  # Skips 304 duplicates!
+    max_file_size: 200kb
+    include_paths:
+      - "build/guides/*"
+      - "build/apis/*"
+    exclude_paths:
+      - "*/changelog"
+      - "*/release-notes"
+
+  shelby:
+    url: https://docs.shelby.xyz
+    create_index: true
+    max_file_size: 200kb
+
+# Global settings
+output_dir: ./optimized-docs
+rate_limit: 0.5
+log_level: INFO
+git_commit: true
+git_message: "Update docs - {date}"
+extract_metadata: true
+archive: true
+archive_format: tar.gz

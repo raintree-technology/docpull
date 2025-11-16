@@ -50,3 +50,9 @@ jobs:
         with:
           file: ./coverage.xml
           fail_ci_if_error: false
+
+      - name: Cleanup artifacts
+        if: always()
+        run: |
+          make clean-test || true
+          make clean-build || true
