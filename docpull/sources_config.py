@@ -97,6 +97,11 @@ class SourceConfig:
         if "url" not in data:
             raise ValueError("Source configuration must contain 'url' field")
 
+        # Handle output_dir alias (map to output field)
+        data = data.copy()  # Don't modify original
+        if "output_dir" in data:
+            data["output"] = data.pop("output_dir")
+
         # Filter out unknown keys
         valid_keys = {f.name for f in cls.__dataclass_fields__.values()}
         filtered_data = {k: v for k, v in data.items() if k in valid_keys}
@@ -340,6 +345,16 @@ def create_example_config(output_file: Path):
     config = SourcesConfiguration()
 
     # Add example sources
+    config.add_source(
+        "example",
+        SourceConfig(
+            url="https://example.com/docs",
+            output="./docs/example",
+            language="en",
+            create_index=True,
+        ),
+    )
+
     config.add_source(
         "anthropic",
         SourceConfig(
