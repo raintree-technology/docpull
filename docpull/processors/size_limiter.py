@@ -1,7 +1,7 @@
 """Size limiter processor - enforces file and total size limits."""
 
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 from .base import BaseProcessor, ProcessorContext, ProcessorResult
 
@@ -26,7 +26,7 @@ class SizeLimiter(BaseProcessor):
         SizeLimiter({'max_total_size': '500mb'})
     """
 
-    def __init__(self, config: Optional[dict[str, any]] = None):
+    def __init__(self, config: Optional[dict[str, Union[str, int, bool, list[str], None]]] = None):
         """Initialize size limiter.
 
         Args:

@@ -5,7 +5,7 @@ import logging
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,7 @@ class MetadataExtractor:
         """
         self.output_dir = Path(output_dir)
 
-    def extract_from_file(self, file_path: Path) -> dict[str, any]:
+    def extract_from_file(self, file_path: Path) -> dict[str, Union[str, int, None]]:
         """Extract metadata from a single file.
 
         Args:
@@ -98,7 +98,9 @@ class MetadataExtractor:
 
         return metadata
 
-    def extract_from_directory(self, include_patterns: Optional[list[str]] = None) -> list[dict[str, any]]:
+    def extract_from_directory(
+        self, include_patterns: Optional[list[str]] = None
+    ) -> list[dict[str, Union[str, int, None]]]:
         """Extract metadata from all files in output directory.
 
         Args:
@@ -118,7 +120,7 @@ class MetadataExtractor:
 
         return all_metadata
 
-    def aggregate_stats(self, all_metadata: list[dict[str, any]]) -> dict[str, any]:
+    def aggregate_stats(self, all_metadata: list[dict[str, Union[str, int, None]]]) -> dict[str, any]:
         """Aggregate statistics from metadata list.
 
         Args:

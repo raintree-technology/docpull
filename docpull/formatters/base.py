@@ -3,7 +3,7 @@
 import logging
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 
 class BaseFormatter(ABC):
@@ -13,19 +13,21 @@ class BaseFormatter(ABC):
     (markdown, TOON, JSON, SQLite, etc.).
     """
 
-    def __init__(self, output_dir: Path, **kwargs):
+    def __init__(self, output_dir: Optional[Path] = None, **kwargs: Union[str, int, bool]):
         """Initialize formatter.
 
         Args:
             output_dir: Output directory for formatted files
             **kwargs: Formatter-specific options
         """
-        self.output_dir = Path(output_dir)
+        self.output_dir = Path(output_dir) if output_dir else Path(".")
         self.options = kwargs
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
 
     @abstractmethod
-    def format_content(self, content: str, metadata: Optional[dict[str, any]] = None) -> str:
+    def format_content(
+        self, content: str, metadata: Optional[dict[str, Union[str, int, None]]] = None
+    ) -> str:
         """Format content to target format.
 
         Args:
@@ -47,7 +49,7 @@ class BaseFormatter(ABC):
         pass
 
     def save_formatted(
-        self, content: str, file_path: Path, metadata: Optional[dict[str, any]] = None
+        self, content: str, file_path: Path, metadata: Optional[dict[str, Union[str, int, None]]] = None
     ) -> Path:
         """Format and save content to file.
 

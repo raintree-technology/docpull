@@ -88,7 +88,7 @@ class SourcesConfiguration:
     archive: bool = False
     archive_format: str = "tar.gz"
 
-    def add_source(self, name: str, config: SourceConfig):
+    def add_source(self, name: str, config: SourceConfig) -> None:
         """Add a source configuration.
 
         Args:
@@ -108,7 +108,7 @@ class SourcesConfiguration:
         """
         return self.sources.get(name)
 
-    def apply_global_settings(self):
+    def apply_global_settings(self) -> None:
         """Apply global settings to all sources that don't override them."""
         for source_config in self.sources.values():
             for key, value in self.global_settings.items():
@@ -160,7 +160,7 @@ class SourcesConfiguration:
             archive_format=data.get("archive_format", "tar.gz"),
         )
 
-    def save(self, file_path: Path):
+    def save(self, file_path: Path) -> None:
         """Save configuration to YAML file.
 
         Args:

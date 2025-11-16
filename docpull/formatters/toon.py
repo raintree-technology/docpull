@@ -1,7 +1,7 @@
 """TOON (Terser Object Oriented Notation) formatter - compact format for LLMs."""
 
 import re
-from typing import Optional
+from typing import Optional, Union
 
 from .base import BaseFormatter
 
@@ -13,7 +13,9 @@ class ToonFormatter(BaseFormatter):
     reducing file sizes significantly while preserving meaning.
     """
 
-    def format_content(self, content: str, metadata: Optional[dict[str, any]] = None) -> str:
+    def format_content(
+        self, content: str, metadata: Optional[dict[str, Union[str, int, None]]] = None
+    ) -> str:
         """Convert markdown to TOON format.
 
         Args:

@@ -4,7 +4,7 @@ import logging
 import re
 from collections import defaultdict
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 logger = logging.getLogger(__name__)
 
@@ -114,7 +114,7 @@ class DocIndexer:
         lines = ["## File Tree\n"]
 
         # Build tree structure
-        tree: dict[str, any] = {}
+        tree: dict[str, Union[str, int, None]] = {}
 
         for file_path in sorted(files):
             try:
@@ -358,7 +358,7 @@ class DocIndexer:
 
         return created_indexes
 
-    def create_all_indexes(self, files: list[Path]) -> dict[str, any]:
+    def create_all_indexes(self, files: list[Path]) -> dict[str, Union[str, int, None]]:
         """Create all configured indexes.
 
         Args:

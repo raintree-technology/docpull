@@ -4,7 +4,7 @@ import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +17,7 @@ class ProcessorContext:
     files: list[Path] = field(default_factory=list)
 
     # Metadata for each file (URL, size, checksum, etc.)
-    metadata: dict[Path, dict[str, any]] = field(default_factory=dict)
+    metadata: dict[Path, dict[str, Union[str, int, None]]] = field(default_factory=dict)
 
     # Output directory
     output_dir: Path = Path("./docs")
@@ -37,13 +37,13 @@ class ProcessorResult:
     files: list[Path]
 
     # Updated metadata
-    metadata: dict[Path, dict[str, any]]
+    metadata: dict[Path, dict[str, Union[str, int, None]]]
 
     # Files that were removed/skipped
     removed_files: list[Path] = field(default_factory=list)
 
     # Processor-specific stats
-    stats: dict[str, any] = field(default_factory=dict)
+    stats: dict[str, Union[int, str, float]] = field(default_factory=dict)
 
     # Messages/warnings
     messages: list[str] = field(default_factory=list)
@@ -56,7 +56,7 @@ class BaseProcessor(ABC):
     They operate on batches of files and can remove, modify, or annotate them.
     """
 
-    def __init__(self, config: Optional[dict[str, any]] = None):
+    def __init__(self, config: Optional[dict[str, Union[str, int, bool, list[str], None]]] = None):
         """Initialize processor with optional configuration.
 
         Args:

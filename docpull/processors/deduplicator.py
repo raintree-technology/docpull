@@ -3,7 +3,7 @@
 import hashlib
 from collections import defaultdict
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 from .base import BaseProcessor, ProcessorContext, ProcessorResult
 
@@ -30,7 +30,7 @@ class Deduplicator(BaseProcessor):
         Deduplicator({'remove_patterns': ['*_testnet_*', '*_devnet_*']})
     """
 
-    def __init__(self, config: Optional[dict[str, any]] = None):
+    def __init__(self, config: Optional[dict[str, Union[str, int, bool, list[str], None]]] = None):
         """Initialize deduplicator.
 
         Args:

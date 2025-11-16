@@ -2,7 +2,7 @@
 
 import re
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 from .base import BaseProcessor, ProcessorContext, ProcessorResult
 
@@ -36,7 +36,7 @@ class LanguageFilter(BaseProcessor):
         r"\.(?P<lang>[a-z]{2})\.",  # .en., .de.
     ]
 
-    def __init__(self, config: Optional[dict[str, any]] = None):
+    def __init__(self, config: Optional[dict[str, Union[str, int, bool, list[str], None]]] = None):
         """Initialize language filter.
 
         Args:
@@ -57,7 +57,7 @@ class LanguageFilter(BaseProcessor):
             if overlap:
                 raise ValueError(f"Language codes appear in both include and exclude: {overlap}")
 
-    def detect_language(self, file_path: Path, metadata: dict[str, any]) -> Optional[str]:
+    def detect_language(self, file_path: Path, metadata: dict[str, Union[int, str, float]]) -> Optional[str]:
         """Detect language code from file path and metadata.
 
         Args:
@@ -84,7 +84,7 @@ class LanguageFilter(BaseProcessor):
 
         return None
 
-    def should_keep_file(self, file_path: Path, metadata: dict[str, any]) -> bool:
+    def should_keep_file(self, file_path: Path, metadata: dict[str, Union[int, str, float]]) -> bool:
         """Determine if file should be kept based on language.
 
         Args:

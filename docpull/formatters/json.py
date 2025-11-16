@@ -2,7 +2,7 @@
 
 import json
 import re
-from typing import Optional
+from typing import Optional, Union
 
 from .base import BaseFormatter
 
@@ -14,7 +14,7 @@ class JsonFormatter(BaseFormatter):
     headers, and content sections.
     """
 
-    def extract_sections(self, content: str) -> list[dict[str, any]]:
+    def extract_sections(self, content: str) -> list[dict[str, Union[str, int, None]]]:
         """Extract sections from markdown content.
 
         Args:
@@ -64,7 +64,9 @@ class JsonFormatter(BaseFormatter):
 
         return sections
 
-    def format_content(self, content: str, metadata: Optional[dict[str, any]] = None) -> str:
+    def format_content(
+        self, content: str, metadata: Optional[dict[str, Union[str, int, None]]] = None
+    ) -> str:
         """Convert to JSON format.
 
         Args:

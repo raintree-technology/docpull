@@ -4,7 +4,7 @@ import hashlib
 import re
 import sqlite3
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 from .base import BaseFormatter
 
@@ -172,7 +172,9 @@ class SqliteFormatter(BaseFormatter):
         # Convert to tuples
         return [(lvl, title, "\n".join(content).strip(), order) for lvl, title, content, order in sections]
 
-    def format_content(self, content: str, metadata: Optional[dict[str, any]] = None) -> str:
+    def format_content(
+        self, content: str, metadata: Optional[dict[str, Union[str, int, None]]] = None
+    ) -> str:
         """Insert content into SQLite database.
 
         Args:
@@ -234,7 +236,7 @@ class SqliteFormatter(BaseFormatter):
             conn.close()
 
     def save_formatted(
-        self, content: str, file_path: Path, metadata: Optional[dict[str, any]] = None
+        self, content: str, file_path: Path, metadata: Optional[dict[str, Union[str, int, None]]] = None
     ) -> Path:
         """Save to SQLite database (overrides base method).
 

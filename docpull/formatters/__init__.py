@@ -1,5 +1,7 @@
 """Output format converters for documentation."""
 
+from typing import Union
+
 from .base import BaseFormatter
 from .json import JsonFormatter
 from .markdown import MarkdownFormatter
@@ -19,7 +21,7 @@ __all__ = [
 ]
 
 
-def get_formatter(format_name: str, **kwargs) -> BaseFormatter:
+def get_formatter(format_name: str, **kwargs: Union[str, int, bool]) -> BaseFormatter:
     """Get formatter instance by name.
 
     Args:

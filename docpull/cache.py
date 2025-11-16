@@ -5,7 +5,7 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ class CacheManager:
         self.state_file = self.cache_dir / "state.json"
 
         self.manifest: dict[str, dict] = self._load_manifest()
-        self.state: dict[str, any] = self._load_state()
+        self.state: dict[str, Union[str, int, None]] = self._load_state()
 
     def _load_manifest(self) -> dict[str, dict]:
         """Load manifest from disk.
@@ -51,7 +51,7 @@ class CacheManager:
         except Exception as e:
             logger.error(f"Could not save manifest: {e}")
 
-    def _load_state(self) -> dict[str, any]:
+    def _load_state(self) -> dict[str, Union[str, int, None]]:
         """Load state from disk.
 
         Returns:
@@ -210,7 +210,7 @@ class CacheManager:
         self._save_state()
         logger.info("Cleared incremental state")
 
-    def get_cache_stats(self) -> dict[str, any]:
+    def get_cache_stats(self) -> dict[str, Union[str, int, None]]:
         """Get cache statistics.
 
         Returns:

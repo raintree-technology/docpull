@@ -2,7 +2,7 @@
 
 import re
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 from .base import BaseProcessor, ProcessorContext, ProcessorResult
 
@@ -32,7 +32,7 @@ class ContentFilter(BaseProcessor):
         })
     """
 
-    def __init__(self, config: Optional[dict[str, any]] = None):
+    def __init__(self, config: Optional[dict[str, Union[str, int, bool, list[str], None]]] = None):
         """Initialize content filter.
 
         Args:
@@ -135,7 +135,7 @@ class ContentFilter(BaseProcessor):
 
         return content, stats
 
-    def filter_file(self, file_path: Path) -> Optional[dict[str, any]]:
+    def filter_file(self, file_path: Path) -> Optional[dict[str, Union[str, int, bool, list[str], None]]]:
         """Filter content in a single file.
 
         Args:

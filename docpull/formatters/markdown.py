@@ -1,6 +1,6 @@
 """Markdown formatter (default format)."""
 
-from typing import Optional
+from typing import Optional, Union
 
 from .base import BaseFormatter
 
@@ -11,7 +11,9 @@ class MarkdownFormatter(BaseFormatter):
     This is the default format used by docpull.
     """
 
-    def format_content(self, content: str, metadata: Optional[dict[str, any]] = None) -> str:
+    def format_content(
+        self, content: str, metadata: Optional[dict[str, Union[str, int, None]]] = None
+    ) -> str:
         """Format as markdown with optional frontmatter.
 
         Args:
