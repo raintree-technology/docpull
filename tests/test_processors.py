@@ -254,11 +254,7 @@ class TestSizeLimiter:
 
     def test_total_size_limit(self, tmp_path):
         """Test total size limiting."""
-        processor = SizeLimiter(
-            {
-                "max_total_size": "150"  # 150 bytes total
-            }
-        )
+        processor = SizeLimiter({"max_total_size": "150"})  # 150 bytes total
 
         # Create files (total > 150 bytes)
         file1 = tmp_path / "file1.md"

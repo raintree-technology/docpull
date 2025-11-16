@@ -1,6 +1,5 @@
 """Tests for formatter modules."""
 
-
 import pytest
 
 from docpull.formatters import JSONFormatter, MarkdownFormatter, ToonFormatter, get_formatter
