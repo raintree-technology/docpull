@@ -48,6 +48,8 @@ class SourceConfig:
     # Advanced
     cache_enabled: bool = True
     update_only_changed: bool = False
+    incremental: bool = False
+    extract_metadata: bool = False
     hooks: Optional[str] = None
 
     def __getitem__(self, key: str) -> Any:
@@ -60,6 +62,15 @@ class SourceConfig:
             Attribute value
         """
         return getattr(self, key)
+
+    @property
+    def output_dir(self) -> Optional[str]:
+        """Alias for output field for backward compatibility.
+
+        Returns:
+            Output directory path
+        """
+        return self.output
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary.
@@ -78,7 +89,14 @@ class SourceConfig:
 
         Returns:
             SourceConfig instance
+
+        Raises:
+            ValueError: If required url field is missing
         """
+        # Validate required url field
+        if "url" not in data:
+            raise ValueError("Source configuration must contain 'url' field")
+
         # Filter out unknown keys
         valid_keys = {f.name for f in cls.__dataclass_fields__.values()}
         filtered_data = {k: v for k, v in data.items() if k in valid_keys}
@@ -89,13 +107,15 @@ class SourceConfig:
 class GlobalConfig:
     """Wrapper for global configuration settings with attribute access."""
 
-    def __init__(self, settings: dict[str, Any]):
-        """Initialize with settings dict.
+    def __init__(self, settings: dict[str, Any], parent: Optional["SourcesConfiguration"] = None):
+        """Initialize with settings dict and optional parent config.
 
         Args:
             settings: Global settings dictionary
+            parent: Parent SourcesConfiguration instance
         """
         self._settings = settings
+        self._parent = parent
 
     def __getattr__(self, name: str) -> Any:
         """Get setting by attribute name.
@@ -111,6 +131,12 @@ class GlobalConfig:
         """
         if name.startswith("_"):
             raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
+
+        # Check parent SourcesConfiguration attributes first
+        if self._parent is not None and hasattr(self._parent, name):
+            return getattr(self._parent, name)
+
+        # Then check global_settings
         if name in self._settings:
             value = self._settings[name]
             # Convert string paths to Path objects
@@ -142,7 +168,7 @@ class SourcesConfiguration:
         Returns:
             GlobalConfig wrapper
         """
-        return GlobalConfig(self.global_settings)
+        return GlobalConfig(self.global_settings, parent=self)
 
     def add_source(self, name: str, config: SourceConfig) -> None:
         """Add a source configuration.
@@ -201,10 +227,21 @@ class SourcesConfiguration:
 
         Returns:
             SourcesConfiguration instance
+
+        Raises:
+            ValueError: If sources key is missing or empty
         """
+        # Validate sources key exists
+        if "sources" not in data:
+            raise ValueError("Configuration must contain 'sources' key")
+
+        # Validate sources is not empty
+        if not data["sources"]:
+            raise ValueError("Sources cannot be empty")
+
         sources = {}
 
-        for name, source_data in data.get("sources", {}).items():
+        for name, source_data in data["sources"].items():
             sources[name] = SourceConfig.from_dict(source_data)
 
         # Build global settings from explicit global_settings or top-level settings
@@ -321,7 +358,7 @@ def create_example_config(output_file: Path):
             url="https://code.claude.com/docs",
             output="./docs/claude-code",
             language="en",
-            format="markdown",
+            output_format="markdown",
             create_index=True,
         ),
     )
