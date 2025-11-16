@@ -48,7 +48,11 @@ class BaseFormatter(ABC):
         """
         pass
 
-    def format(self, content: str, metadata: Optional[dict[str, Union[str, int, None]]] = None) -> str:  # noqa: A003
+    def format(  # noqa: A003
+        self,
+        content: str,
+        metadata: Optional[dict[str, Union[str, int, None]]] = None,
+    ) -> str:
         """Alias for format_content() for backward compatibility.
 
         Args:
@@ -69,7 +73,10 @@ class BaseFormatter(ABC):
         return self.get_file_extension()
 
     def save_formatted(
-        self, content: str, file_path: Path, metadata: Optional[dict[str, Union[str, int, None]]] = None
+        self,
+        content: str,
+        file_path: Path,
+        metadata: Optional[dict[str, Union[str, int, None]]] = None,
     ) -> Path:
         """Format and save content to file.
 
