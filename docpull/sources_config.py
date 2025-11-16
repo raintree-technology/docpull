@@ -63,7 +63,10 @@ class SourceConfig:
 
         Raises:
             KeyError: If key not found
+            TypeError: If key is not a string
         """
+        if not isinstance(key, str):
+            raise TypeError(f"attribute indices must be strings, not {type(key).__name__}")
         try:
             return getattr(self, key)
         except AttributeError as e:
