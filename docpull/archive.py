@@ -63,7 +63,7 @@ class Archiver:
         logger.info(f"Creating tarball with {len(files)} files")
 
         # Create archive
-        with tarfile.open(str(archive_path), mode) as tar:
+        with tarfile.open(str(archive_path), mode=mode) as tar:  # type: ignore[call-overload]
             for file_path in files:
                 # Get path relative to output dir
                 arcname = file_path.relative_to(self.output_dir.parent)

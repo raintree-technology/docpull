@@ -261,7 +261,7 @@ class DocIndexer:
         lines = ["## Statistics\n"]
 
         total_size = 0
-        file_types = defaultdict(int)
+        file_types: defaultdict[str, int] = defaultdict(int)
 
         for file_path in files:
             try:

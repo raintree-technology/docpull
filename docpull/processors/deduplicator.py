@@ -37,8 +37,8 @@ class Deduplicator(BaseProcessor):
             config: Configuration dict
         """
         super().__init__(config)
-        self.enabled: bool = self.config.get("enabled", True)
-        self.keep_variant: Optional[str] = self.config.get("keep_variant")
+        self.enabled: bool = self.config.get("enabled", True)  # type: ignore[assignment]
+        self.keep_variant: Optional[str] = self.config.get("keep_variant")  # type: ignore[assignment]
 
         # Determine strategy: if keep_variant is a known strategy, use it
         # Otherwise, treat it as a pattern to match
@@ -50,9 +50,9 @@ class Deduplicator(BaseProcessor):
         else:
             default_strategy = "first"
 
-        self.keep_strategy: str = self.config.get("keep_strategy", default_strategy)
-        self.remove_patterns: list[str] = self.config.get("remove_patterns", [])
-        self.hash_algorithm: str = self.config.get("hash_algorithm", "sha256")
+        self.keep_strategy: str = self.config.get("keep_strategy", default_strategy)  # type: ignore[assignment]
+        self.remove_patterns: list[str] = self.config.get("remove_patterns", [])  # type: ignore[assignment]
+        self.hash_algorithm: str = self.config.get("hash_algorithm", "sha256")  # type: ignore[assignment]
 
     def _compute_hash(self, file_path: Path) -> str:
         """Compute hash of file content (private method for testing).
@@ -208,7 +208,7 @@ class Deduplicator(BaseProcessor):
                     self.logger.debug(f"Removing duplicate: {file_path} (keeping {to_keep})")
 
         # Calculate stats
-        size_saved = sum(context.metadata.get(f, {}).get("size", 0) for f in removed_files)
+        size_saved = sum(context.metadata.get(f, {}).get("size", 0) for f in removed_files)  # type: ignore[misc]
 
         messages = [
             f"Deduplication: found {len(duplicates_found)} sets of duplicates",

@@ -196,7 +196,7 @@ class DocpullOrchestrator:
 
         archiver = Archiver(self.config.output_dir)
         archive_path = archiver.create_archive(
-            format=self.config.archive_format,
+            archive_format=self.config.archive_format,
             include_patterns=["**/*.md", "**/*.json", "**/INDEX.md", "**/metadata.json"],
         )
 

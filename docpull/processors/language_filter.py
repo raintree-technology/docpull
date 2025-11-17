@@ -43,13 +43,13 @@ class LanguageFilter(BaseProcessor):
             config: Configuration dict with 'include', 'exclude', 'patterns', 'default_keep'
         """
         super().__init__(config)
-        self.include_langs: set[str] = set(self.config.get("include", []))
-        self.exclude_langs: set[str] = set(self.config.get("exclude", []))
-        self.default_keep: bool = self.config.get("default_keep", True)
+        self.include_langs: set[str] = set(self.config.get("include", []))  # type: ignore[arg-type]
+        self.exclude_langs: set[str] = set(self.config.get("exclude", []))  # type: ignore[arg-type]
+        self.default_keep: bool = self.config.get("default_keep", True)  # type: ignore[assignment]
 
         # Compile patterns
         pattern_strings = self.config.get("patterns", self.DEFAULT_PATTERNS)
-        self.patterns = [re.compile(p, re.IGNORECASE) for p in pattern_strings]
+        self.patterns = [re.compile(p, re.IGNORECASE) for p in pattern_strings]  # type: ignore[union-attr]
 
         # Validation
         if self.include_langs and self.exclude_langs:
@@ -155,7 +155,7 @@ class LanguageFilter(BaseProcessor):
                 self.logger.debug(f"Filtered out: {file_path}")
 
         # Calculate size saved
-        size_saved = sum(context.metadata.get(f, {}).get("size", 0) for f in removed_files)
+        size_saved = sum(context.metadata.get(f, {}).get("size", 0) for f in removed_files)  # type: ignore[misc]
 
         messages = [
             f"Language filter: kept {len(kept_files)}/{len(context.files)} files",
@@ -175,7 +175,7 @@ class LanguageFilter(BaseProcessor):
                 "kept": len(kept_files),
                 "filtered": len(removed_files),
                 "size_saved_bytes": size_saved,
-                "languages": lang_stats,
+                "languages": lang_stats,  # type: ignore[dict-item]
             },
             messages=messages,
         )
