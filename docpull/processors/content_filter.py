@@ -39,9 +39,9 @@ class ContentFilter(BaseProcessor):
             config: Configuration dict
         """
         super().__init__(config)
-        self.exclude_sections: list[str] = self.config.get("exclude_sections", [])
-        self.regex_filters: list[dict] = self.config.get("regex_filters", [])
-        self.case_sensitive: bool = self.config.get("case_sensitive", False)
+        self.exclude_sections: list[str] = self.config.get("exclude_sections", [])  # type: ignore[assignment]
+        self.regex_filters: list[dict] = self.config.get("regex_filters", [])  # type: ignore[assignment]
+        self.case_sensitive: bool = self.config.get("case_sensitive", False)  # type: ignore[assignment]
 
         # Compile regex patterns
         self.compiled_patterns: list[tuple[re.Pattern, str, int]] = []
@@ -167,7 +167,7 @@ class ContentFilter(BaseProcessor):
 
             elif action == "truncate":
 
-                def truncate_match(match, max_len=max_length):
+                def truncate_match(match: re.Match[str], max_len: int = max_length) -> str:
                     matched_text = match.group(0)
                     if len(matched_text) > max_len:
                         stats["truncated"] += 1
@@ -178,14 +178,14 @@ class ContentFilter(BaseProcessor):
 
         return content, stats
 
-    def filter_file(self, file_path: Path) -> Optional[dict[str, Union[str, int, bool, list[str], None]]]:
+    def filter_file(self, file_path: Path) -> Optional[dict[str, int]]:
         """Filter content in a single file.
 
         Args:
             file_path: Path to file to filter
 
         Returns:
-            Dict with filtering stats or None if error
+            Dict with filtering stats (all int values) or None if error
         """
         try:
             # Read file

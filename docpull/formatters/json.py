@@ -26,9 +26,9 @@ class JSONFormatter(BaseFormatter):
         # Remove frontmatter
         content = re.sub(r"^---\n.*?\n---\n", "", content, flags=re.DOTALL)
 
-        sections = []
+        sections: list[dict[str, Union[str, int, list[str]]]] = []
         lines = content.split("\n")
-        current_section = None
+        current_section: Optional[dict[str, Union[str, int, list[str]]]] = None
 
         for line in lines:
             # Check for header
@@ -46,13 +46,13 @@ class JSONFormatter(BaseFormatter):
                 current_section = {"level": level, "title": title, "content": []}
             elif current_section:
                 # Add to current section
-                current_section["content"].append(line)
+                current_section["content"].append(line)  # type: ignore[union-attr]
             else:
                 # Content before first header
                 if not sections:
                     sections.append({"level": 0, "title": "", "content": [line]})
                 else:
-                    sections[0]["content"].append(line)
+                    sections[0]["content"].append(line)  # type: ignore[union-attr]
 
         # Save last section
         if current_section:
@@ -60,9 +60,9 @@ class JSONFormatter(BaseFormatter):
 
         # Join content lines
         for section in sections:
-            section["content"] = "\n".join(section["content"]).strip()
+            section["content"] = "\n".join(section["content"]).strip()  # type: ignore[arg-type]
 
-        return sections
+        return sections  # type: ignore[return-value]
 
     def format_content(
         self, content: str, metadata: Optional[dict[str, Union[str, int, None]]] = None

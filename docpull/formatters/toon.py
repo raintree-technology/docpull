@@ -43,7 +43,7 @@ class ToonFormatter(BaseFormatter):
 
         # Compact code blocks
         # ```lang\ncode\n``` -> [CODE:lang]code[/CODE]
-        def compact_code(match):
+        def compact_code(match: re.Match[str]) -> str:
             lang = match.group(1) or ""
             code = match.group(2).strip()
             return f"[CODE:{lang}]{code}[/CODE]"

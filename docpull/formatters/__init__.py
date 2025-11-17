@@ -47,4 +47,4 @@ def get_formatter(format_name: str, **kwargs: Union[str, int, bool]) -> BaseForm
             f"Unknown format: {format_name}. " f"Available formats: {', '.join(formatters.keys())}"
         )
 
-    return formatter_class(**kwargs)
+    return formatter_class(**kwargs)  # type: ignore[no-any-return,abstract,arg-type]

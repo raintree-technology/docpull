@@ -708,7 +708,7 @@ def run_multi_source_fetch(args: argparse.Namespace) -> int:
         try:
             # Create fetcher config for this source
             config = FetcherConfig(
-                output_dir=source_config.output,
+                output_dir=source_config.output or f"./docs/{source_name}",
                 rate_limit=source_config.rate_limit or 0.5,
                 skip_existing=True,
                 log_level=log_level,
@@ -732,7 +732,7 @@ def run_multi_source_fetch(args: argparse.Namespace) -> int:
             # Create generic fetcher
             fetcher = GenericAsyncFetcher(
                 url_or_profile=source_config.url,
-                output_dir=Path(source_config.output),
+                output_dir=Path(source_config.output or f"./docs/{source_name}"),
                 rate_limit=source_config.rate_limit or 0.5,
                 skip_existing=True,
                 logger=logger,
@@ -748,7 +748,7 @@ def run_multi_source_fetch(args: argparse.Namespace) -> int:
 
             # Run post-fetch pipeline
             orchestrator = create_orchestrator(config)
-            files = list(Path(source_config.output).rglob("*.md"))
+            files = list(Path(source_config.output or f"./docs/{source_name}").rglob("*.md"))
             if files:
                 processed_files = orchestrator.run_post_fetch_pipeline(files)
                 all_files.extend(processed_files)
@@ -769,7 +769,7 @@ def run_multi_source_fetch(args: argparse.Namespace) -> int:
 
         # Create global config for git/archive
         global_config = FetcherConfig(
-            output_dir=Path("."),
+            output_dir=".",
             git_commit=sources_config.git_commit,
             git_message=sources_config.git_message,
             archive=sources_config.archive,

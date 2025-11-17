@@ -16,7 +16,7 @@ class SqliteFormatter(BaseFormatter):
     All documents are stored in a single database file.
     """
 
-    def __init__(self, output_dir: Path, **kwargs):
+    def __init__(self, output_dir: Optional[Path] = None, **kwargs: Union[str, int, bool]):
         """Initialize SQLite formatter.
 
         Args:
@@ -25,12 +25,12 @@ class SqliteFormatter(BaseFormatter):
         """
         super().__init__(output_dir, **kwargs)
 
-        self.db_name = self.options.get("db_name", "docs.db")
+        self.db_name = str(self.options.get("db_name", "docs.db"))
         self.db_path = self.output_dir / self.db_name
 
         self._init_database()
 
-    def _init_database(self):
+    def _init_database(self) -> None:
         """Initialize database schema."""
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -134,21 +134,21 @@ class SqliteFormatter(BaseFormatter):
         match = re.search(r"^#\s+(.+)$", content, re.MULTILINE)
         return match.group(1).strip() if match else None
 
-    def _extract_sections(self, content: str) -> list:
+    def _extract_sections(self, content: str) -> list[tuple[int, str, str, int]]:
         """Extract sections for section table.
 
         Args:
             content: Markdown content
 
         Returns:
-            List of (level, title, content) tuples
+            List of (level, title, content, section_order) tuples
         """
         # Remove frontmatter
         content = re.sub(r"^---\n.*?\n---\n", "", content, flags=re.DOTALL)
 
-        sections = []
+        sections: list[tuple[int, str, list[str], int]] = []
         lines = content.split("\n")
-        current_section = None
+        current_section: Optional[tuple[int, str, list[str], int]] = None
         section_order = 0
 
         for line in lines:

@@ -15,6 +15,7 @@ from .hooks import HookManager, HookType
 from .indexer import DocIndexer
 from .metadata import MetadataExtractor
 from .processors import (
+    BaseProcessor,
     ContentFilter,
     Deduplicator,
     LanguageFilter,
@@ -54,7 +55,7 @@ class DocpullOrchestrator:
         Returns:
             ProcessorPipeline with configured processors
         """
-        processors = []
+        processors: list[BaseProcessor] = []
 
         # Language filtering
         if self.config.language or self.config.exclude_languages:
@@ -63,7 +64,7 @@ class DocpullOrchestrator:
                 lang_config["include"] = [self.config.language]
             if self.config.exclude_languages:
                 lang_config["exclude"] = self.config.exclude_languages
-            processors.append(LanguageFilter(lang_config))
+            processors.append(LanguageFilter(lang_config))  # type: ignore[arg-type]
 
         # Deduplication
         if self.config.deduplicate:
@@ -71,7 +72,7 @@ class DocpullOrchestrator:
                 "enabled": True,
                 "keep_variant": self.config.keep_variant,
             }
-            processors.append(Deduplicator(dedup_config))
+            processors.append(Deduplicator(dedup_config))  # type: ignore[arg-type]
 
         # Size limits
         if self.config.max_file_size or self.config.max_total_size:
@@ -80,14 +81,14 @@ class DocpullOrchestrator:
                 size_config["max_file_size"] = self.config.max_file_size
             if self.config.max_total_size:
                 size_config["max_total_size"] = self.config.max_total_size
-            processors.append(SizeLimiter(size_config))
+            processors.append(SizeLimiter(size_config))  # type: ignore[arg-type]
 
         # Content filtering
         if self.config.exclude_sections:
             content_config = {
                 "exclude_sections": self.config.exclude_sections,
             }
-            processors.append(ContentFilter(content_config))
+            processors.append(ContentFilter(content_config))  # type: ignore[arg-type]
 
         return ProcessorPipeline(processors)
 
@@ -128,7 +129,7 @@ class DocpullOrchestrator:
 
         return context.files
 
-    def generate_index(self, files: list[Path]):
+    def generate_index(self, files: list[Path]) -> None:
         """Generate index files if configured.
 
         Args:
@@ -149,7 +150,7 @@ class DocpullOrchestrator:
         result = indexer.create_all_indexes(files)
         logger.info(f"Created {len(result['directory_indexes']) + 1} index files")
 
-    def extract_metadata(self, files: list[Path]):
+    def extract_metadata(self, files: list[Path]) -> None:
         """Extract metadata if configured.
 
         Args:
@@ -164,7 +165,7 @@ class DocpullOrchestrator:
         metadata_file = extractor.save_metadata()
         logger.info(f"Saved metadata to {metadata_file}")
 
-    def commit_to_git(self):
+    def commit_to_git(self) -> None:
         """Commit changes to git if configured."""
         if not self.config.git_commit:
             return
@@ -186,7 +187,7 @@ class DocpullOrchestrator:
         else:
             logger.warning("Git commit failed or no changes to commit")
 
-    def create_archive(self):
+    def create_archive(self) -> None:
         """Create archive if configured."""
         if not self.config.archive:
             return
