@@ -283,7 +283,8 @@ class TestArchiveCreation:
 
         mock_archiver.assert_called_once()
         mock_instance.create_archive.assert_called_once_with(
-            format="tar.gz", include_patterns=["**/*.md", "**/*.json", "**/INDEX.md", "**/metadata.json"]
+            archive_format="tar.gz",
+            include_patterns=["**/*.md", "**/*.json", "**/INDEX.md", "**/metadata.json"],
         )
 
 
