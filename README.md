@@ -1,402 +1,130 @@
 # docpull
 
-**Pull documentation from any website and converts it into clean, AI-ready Markdown.**
-Fast, type-safe, secure, and optimized for building knowledge bases or training datasets.
-
-**NEW in v1.5.0**: Proxy support, retry with exponential backoff, custom User-Agent, and mandatory robots.txt compliance for TOS-friendly scraping.
-
-**v1.3.0**: Rich structured metadata extraction (Open Graph, JSON-LD) for enhanced AI/RAG integration.
-
-**v1.2.0**: 15 major features including language filtering, deduplication, auto-indexing, multi-source configuration, and more. Real-world testing shows **58% size reduction** with automatic optimization.
+**Pull documentation from any website and convert it to clean, AI-ready Markdown.**
 
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![PyPI version](https://badge.fury.io/py/docpull.svg)](https://badge.fury.io/py/docpull)
 [![License: MIT](https://img.shields.io/github/license/raintree-technology/docpull)](https://github.com/raintree-technology/docpull/blob/main/LICENSE)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-[![Type checked: mypy](https://img.shields.io/badge/type%20checked-mypy-blue.svg)](http://mypy-lang.org/)
-[![Security: bandit](https://img.shields.io/badge/security-bandit-yellow.svg)](https://github.com/PyCQA/bandit)
 
-## Why docpull?
-
-Unlike tools like wget or httrack, docpull extracts only the main content, removing ads, navbars, and clutter. Output is clean Markdown with optional YAML frontmatter—ideal for RAG systems, offline docs, or ML pipelines.
-
-## Key Features
-
-### Core Features (v1.0+)
-- Works on any documentation site
-- Smart extraction of main content
-- Async + parallel fetching (up to 10× faster)
-- Optional JavaScript rendering via Playwright
-- Sitemap + link crawling
-- Rate limiting, timeouts, content-type checks
-- Saves docs in structured Markdown with YAML metadata
-- **Mandatory robots.txt compliance** for TOS-friendly scraping
-
-### NEW in v1.5.0: Network & Reliability
-- **Proxy Support**: HTTP, HTTPS, and SOCKS5 proxies via `--proxy` or env vars
-- **Retry with Exponential Backoff**: Configurable retries for transient failures
-- **Custom User-Agent**: Set custom User-Agent strings for requests
-- **Crawl-delay Compliance**: Automatically respects robots.txt Crawl-delay directives
-- **Better Encoding Detection**: Intelligent charset detection for international docs
-
-### v1.3.0: Rich Metadata Extraction
-- **Structured Metadata**: Extract Open Graph, JSON-LD, and microdata during fetch
-- **Enhanced Frontmatter**: Adds author, description, keywords, images, publish dates, and more
-- **AI/RAG Ready**: Richer context for embeddings and retrieval systems
-- **Opt-in Feature**: Enabled with `--rich-metadata` flag
-
-### v1.2.0: Advanced Optimization
-- **Language Filtering**: Auto-detect and filter by language (skip 352+ translation files)
-- **Deduplication**: Remove duplicates with SHA-256 hashing (save 10+ MB on duplicate content)
-- **Auto-Index Generation**: Create navigable INDEX.md with tree/TOC/categories/stats
-- **Size Limits**: Control file and total download size (skip/truncate oversized files)
-- **Multi-Source Configuration**: Configure multiple docs in one YAML file
-- **Selective Crawling**: Include/exclude URL patterns for targeted fetching
-- **Content Filtering**: Remove verbose sections (Examples, Changelog, etc.)
-- **Format Conversion**: Output to Markdown, TOON (compact), JSON, or SQLite
-- **Smart Naming**: 4 naming strategies (full, short, flat, hierarchical)
-- **Metadata Extraction**: Extract titles, URLs, stats to metadata.json
-- **Update Detection**: Only download changed files (checksums, ETags)
-- **Incremental Mode**: Resume interrupted downloads with checkpointing
-- **Hooks & Plugins**: Python plugin system for custom processing
-- **Git Integration**: Auto-commit changes with customizable messages
-- **Archive Mode**: Create tar.gz/zip archives for distribution
-
-**Real-world impact**: Testing with 1,914 files (31 MB) → **13 MB (58% reduction)** with all optimizations enabled.
-
-## Quick Start
+## Install
 
 ```bash
 pip install docpull
-docpull --doctor         # verify installation
-
-# Basic usage
-docpull https://aptos.dev
-docpull https://docs.anthropic.com
-
-# NEW: Simple optimization (v1.2.0)
-docpull https://code.claude.com/docs --language en --create-index
-
-# NEW: Rich metadata extraction (v1.3.0)
-docpull https://docs.anthropic.com --rich-metadata --create-index
-
-# NEW: Advanced optimization (v1.2.0)
-docpull https://aptos.dev \
-  --deduplicate \
-  --keep-variant mainnet \
-  --max-file-size 200kb \
-  --create-index
-
-# NEW: Multi-source configuration (v1.2.0)
-docpull --sources-file examples/multi-source-optimized.yaml
 ```
 
-### JavaScript-heavy sites
+## Usage
 
 ```bash
+# Basic fetch
+docpull https://docs.example.com
+
+# With options
+docpull https://aptos.dev --max-pages 100 --output-dir ./docs
+
+# Filter paths
+docpull https://docs.example.com --include-paths "/api/*" --exclude-paths "/changelog/*"
+
+# Enable caching for incremental updates
+docpull https://docs.example.com --cache
+
+# JavaScript-heavy sites
 pip install docpull[js]
-python -m playwright install chromium
-docpull https://site.com --js
+docpull https://spa-site.com --js
 ```
+
+## Profiles
+
+```bash
+docpull https://site.com --profile rag      # Optimized for RAG/LLM (default)
+docpull https://site.com --profile mirror   # Full site archive with caching
+docpull https://site.com --profile quick    # Fast sampling (50 pages, depth 2)
+```
+
+## Options
+
+```
+Crawl:
+  --max-pages N           Maximum pages to fetch
+  --max-depth N           Maximum crawl depth
+  --include-paths P       Only crawl matching URL patterns
+  --exclude-paths P       Skip matching URL patterns
+  --js                    Enable JavaScript rendering
+
+Cache:
+  --cache                 Enable caching for incremental updates
+  --cache-dir DIR         Cache directory (default: .docpull-cache)
+  --cache-ttl DAYS        Days before cache expires (default: 30)
+
+Content:
+  --streaming-dedup       Real-time duplicate detection
+  --language CODE         Filter by language (e.g., en)
+
+Output:
+  --output-dir, -o DIR    Output directory (default: ./docs)
+  --dry-run               Show what would be fetched
+  --verbose, -v           Verbose output
+```
+
+See `docpull --help` for all options.
 
 ## Python API
 
 ```python
-from docpull import GenericAsyncFetcher
+import asyncio
+from docpull import Fetcher, DocpullConfig, ProfileName, EventType
 
-fetcher = GenericAsyncFetcher(
-    url="https://aptos.dev",
-    output_dir="./docs",
-    max_pages=100,
-    max_concurrent=20,
-)
-fetcher.fetch()
+async def main():
+    config = DocpullConfig(
+        url="https://docs.example.com",
+        profile=ProfileName.RAG,
+        crawl={"max_pages": 100},
+        cache={"enabled": True},
+    )
+
+    async with Fetcher(config) as fetcher:
+        async for event in fetcher.run():
+            if event.type == EventType.FETCH_PROGRESS:
+                print(f"{event.current}/{event.total}: {event.url}")
+
+        print(f"Done: {fetcher.stats.pages_fetched} pages")
+
+asyncio.run(main())
 ```
 
-## Common Options
+## Output
 
-### Core Options
-- `--doctor` – verify installation and dependencies
-- `--max-pages N` – limit crawl size
-- `--max-depth N` – restrict link depth
-- `--max-concurrent N` – control parallel fetches
-- `--js` – enable Playwright rendering
-- `--output-dir DIR` – output directory
-- `--rate-limit X` – seconds between requests
-- `--no-skip-existing` – re-download existing files
-- `--dry-run` – test without downloading
-
-### NEW in v1.2.0: Optimization Options
-- `--language LANG` – filter by language (e.g., `en`)
-- `--exclude-languages LANG [LANG ...]` – exclude languages
-- `--deduplicate` – remove duplicate files
-- `--keep-variant PATTERN` – keep files matching pattern when deduplicating
-- `--max-file-size SIZE` – max file size (e.g., `200kb`, `1mb`)
-- `--max-total-size SIZE` – max total download size
-- `--include-paths PATTERN [PATTERN ...]` – only crawl matching URLs
-- `--exclude-paths PATTERN [PATTERN ...]` – skip matching URLs
-- `--exclude-sections NAME [NAME ...]` – remove sections by header name
-- `--format {markdown,toon,json,sqlite}` – output format
-- `--naming-strategy {full,short,flat,hierarchical}` – file naming strategy
-- `--create-index` – generate INDEX.md with navigation
-- `--extract-metadata` – extract metadata to metadata.json
-- `--rich-metadata` – extract rich structured metadata (Open Graph, JSON-LD) during fetch
-- `--update-only-changed` – only download changed files
-- `--incremental` – enable incremental mode with resume
-- `--git-commit` – auto-commit changes
-- `--git-message MSG` – commit message template
-- `--archive` – create compressed archive
-- `--archive-format {tar.gz,tar.bz2,tar.xz,zip}` – archive format
-- `--sources-file PATH` – multi-source configuration file
-
-### NEW in v1.5.0: Network Options
-- `--proxy URL` – proxy URL (HTTP, HTTPS, SOCKS5)
-- `--user-agent STRING` – custom User-Agent string
-- `--max-retries N` – max retry attempts for failed requests (default: 3)
-- `--retry-base-delay SECONDS` – base delay for exponential backoff (default: 1.0)
-
-See `docpull --help` for complete list of options.
-
-## Performance
-
-Async fetching drastically reduces runtime:
-
-| Pages | Sync | Async | Speedup |
-|-------|------|-------|---------|
-| 50 | ~50s | ~6s | 8× faster |
-
-Higher concurrency yields even better results.
-
-## Output Format
-
-Each downloaded page becomes a Markdown file:
+Each page becomes a Markdown file with YAML frontmatter:
 
 ```markdown
 ---
-url: https://aptos.dev/build/guides/first-transaction
-fetched: 2025-11-28
+title: "Getting Started"
+source: https://docs.example.com/guide
 ---
-# Your First Transaction
+
+# Getting Started
 ...
 ```
-
-With `--rich-metadata`, the frontmatter includes Open Graph, JSON-LD, and other structured metadata:
-
-```markdown
----
-url: https://aptos.dev/build/guides/first-transaction
-fetched: 2025-11-28
-title: Your First Transaction
-description: Learn how to submit your first transaction on Aptos
-author: Aptos Foundation
-keywords: [aptos, blockchain, transaction, guide]
-image: https://aptos.dev/img/docs-preview.png
-type: article
-site_name: Aptos Documentation
----
-# Your First Transaction
-...
-```
-
-Directory layout mirrors the target site's structure.
-
-## Configuration File
-
-### Multi-Source Configuration
-
-```yaml
-sources:
-  anthropic:
-    url: https://docs.anthropic.com
-    language: en
-    max_file_size: 200kb
-    create_index: true
-    rich_metadata: true  # Extract Open Graph, JSON-LD metadata
-
-  claude-code:
-    url: https://code.claude.com/docs
-    language: en  # Skips 352 translation files!
-    create_index: true
-
-  aptos:
-    url: https://aptos.dev
-    deduplicate: true
-    keep_variant: mainnet  # Skips 304 duplicates!
-    max_file_size: 200kb
-    include_paths:
-      - "build/guides/*"
-
-output_dir: ./docs
-rate_limit: 0.5
-git_commit: true
-git_message: "Update docs - {date}"
-extract_metadata: true
-archive: true
-```
-
-Run with:
-```bash
-docpull --sources-file config.yaml
-```
-
-See `examples/` directory for more configuration examples.
 
 ## Security
 
-- HTTPS-only (HTTP rejected)
-- **Mandatory robots.txt compliance** (cannot be disabled)
-- Respects Crawl-delay directives
+- HTTPS-only, mandatory robots.txt compliance
 - Blocks private/internal network IPs
-- 50MB page size limit
-- Timeout controls (30s connection, 5min download)
-- Validates content-type headers
-- Playwright sandboxing for JS rendering
-- Path traversal protection
+- Path traversal and XXE protection
 
 ## Troubleshooting
 
-- **Installation issues**: Run `docpull --doctor` to diagnose problems
-- **Missing dependencies**: `pip install docpull[all]` for all optional dependencies
-- **Site requires JS**: `pip install docpull[js]` then `python -m playwright install chromium`
-- **Slow or rate limited**: Lower `--max-concurrent` or raise `--rate-limit`
-- **Large sites**: Set `--max-pages` to limit crawl size
-- **Proxy issues**: Use `--proxy URL` or set `DOCPULL_PROXY` / `HTTPS_PROXY` env var
-- **Transient failures**: Increase `--max-retries` (default: 3)
-
-## v1.2.0 Feature Examples
-
-### Language Filtering
-Automatically detect and filter documentation by language:
 ```bash
-# English only (auto-detects /en/, _en_, docs_en_, etc.)
-docpull https://code.claude.com/docs --language en --create-index
+docpull --doctor              # Check installation
+docpull URL --verbose         # Verbose output
+docpull URL --dry-run         # Test without downloading
 ```
-**Impact**: Claude Code docs downloaded in 9 languages = 352 unnecessary files for English-only users.
-
-### Deduplication
-Remove duplicate files based on content hash:
-```bash
-# Keep mainnet version, skip testnet/devnet duplicates
-docpull https://aptos.dev --deduplicate --keep-variant mainnet --create-index
-```
-**Impact**: Aptos Move reference docs across 3 environments = 304 duplicate files (~10 MB saved).
-
-### Format Conversion
-Convert to different formats for various use cases:
-```bash
-# TOON format (40-60% size reduction, optimized for LLMs)
-docpull https://docs.anthropic.com --format toon --language en
-
-# SQLite database with full-text search
-docpull https://docs.anthropic.com --format sqlite --language en
-
-# Structured JSON
-docpull https://docs.anthropic.com --format json --language en
-```
-
-### Incremental Updates
-Only download changed files:
-```bash
-docpull https://docs.anthropic.com \
-  --incremental \
-  --update-only-changed \
-  --git-commit \
-  --git-message "Update docs - {date}"
-```
-**Use case**: Regular documentation updates with minimal bandwidth usage.
-
-### Complete Optimization Pipeline
-Combine all optimizations:
-```bash
-docpull --sources-file examples/multi-source-optimized.yaml
-```
-See `examples/` directory for comprehensive configuration examples.
-
-**Real-world results**: Testing with 4 documentation sources (Anthropic, Claude Code, Aptos, Shelby):
-- **Before**: 1,914 files, 31 MB, no navigation
-- **After**: 1,250 files, 13 MB (58% reduction), full indexes generated
-- **One command** instead of 4+ separate commands with manual optimization
-
-## What's New in v1.5.0
-
-This release focuses on network reliability, proxy support, and TOS compliance.
-
-**New Features**:
-- **Proxy Support**: HTTP, HTTPS, and SOCKS5 proxies
-  - Use `--proxy URL` or set `DOCPULL_PROXY` / `HTTPS_PROXY` environment variables
-  - Install SOCKS support: `pip install docpull[proxy]`
-- **Retry with Exponential Backoff**: Automatic retries for transient failures
-  - `--max-retries N` (default: 3)
-  - `--retry-base-delay SECONDS` (default: 1.0)
-  - Handles 429, 500, 502, 503, 504 status codes
-- **Custom User-Agent**: `--user-agent STRING` for custom identification
-- **Better Encoding Detection**: Intelligent charset detection using charset-normalizer
-- **Crawl-delay Compliance**: Automatically respects robots.txt Crawl-delay directives
-
-**Security Enhancement**:
-- **Mandatory robots.txt Compliance**: robots.txt is now always respected (cannot be disabled)
-  - Ensures TOS-friendly scraping behavior
-  - Automatically adjusts rate limiting based on Crawl-delay
-
-**Codebase Simplification**:
-- Removed built-in profiles (Stripe, etc.) - use URLs directly
-- Consolidated utility modules
-- Moved CONTRIBUTING.md, SECURITY.md to `.github/` directory
-
-**Backward Compatible**: All existing workflows continue to work unchanged.
-
-## What's New in v1.3.0
-
-This release adds rich structured metadata extraction for better AI/RAG integration.
-
-**New Feature**:
-- **Rich Metadata Extraction**: Extract Open Graph, JSON-LD, microdata, and other structured metadata during fetch
-  - Adds author, description, keywords, images, publish dates, and more to frontmatter
-  - Enhances AI/RAG systems with richer context
-  - Enabled with `--rich-metadata` flag or `rich_metadata: true` in config
-  - Powered by the extruct library
-
-**Example enhanced frontmatter**:
-```yaml
----
-url: https://docs.example.com/guide
-fetched: 2025-11-20
-title: Getting Started Guide
-description: Learn the basics of our platform
-author: John Doe
-keywords: [tutorial, guide, api]
-image: https://docs.example.com/og-image.png
-type: article
-published_time: 2024-01-15T10:00:00Z
----
-```
-
-**Backward Compatible**: All existing workflows continue to work unchanged. Rich metadata is opt-in.
-
-## What's New in v1.2.0
-
-This release adds 15 major features across 4 phases.
-
-**Highlights**:
-- Multi-source YAML configuration
-- Language filtering with auto-detection
-- SHA-256 based deduplication
-- Auto-index generation (tree, TOC, categories, stats)
-- 4 output formats (Markdown, TOON, JSON, SQLite)
-- Incremental mode with resume capability
-- Git integration and archive creation
-- Python plugin/hook system
-
-**Backward Compatible**: All v1.0+ workflows continue to work unchanged.
 
 ## Links
 
 - [PyPI](https://pypi.org/project/docpull/)
 - [GitHub](https://github.com/raintree-technology/docpull)
-- [Issues](https://github.com/raintree-technology/docpull/issues)
-- [Releases](https://github.com/raintree-technology/docpull/releases)
-- [Examples](https://github.com/raintree-technology/docpull/tree/main/examples)
+- [Changelog](https://github.com/raintree-technology/docpull/blob/main/docs/CHANGELOG.md)
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) file for details
+MIT

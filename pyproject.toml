@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "docpull"
-version = "1.5.0"
+version = "2.0.0"
 dynamic = []
 description = "Pull documentation from the web and convert to clean markdown"
 readme = {file = "README.md", content-type = "text/markdown"}
@@ -72,6 +72,7 @@ dependencies = [
     "rich>=13.0.0",
     "pyyaml>=6.0",
     "gitpython>=3.1.40",
+    "pydantic>=2.0",
 ]
 
 [project.optional-dependencies]
@@ -117,7 +118,7 @@ Repository = "https://github.com/raintree-technology/docpull"
 "Releases" = "https://github.com/raintree-technology/docpull/releases"
 
 [tool.setuptools.packages.find]
-where = ["."]
+where = ["src"]
 include = ["docpull*"]
 
 [tool.setuptools.package-data]
@@ -133,7 +134,7 @@ target-version = "py39"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "N", "UP", "B", "A", "C4", "SIM"]
-ignore = []
+ignore = ["A003"]  # Allow 'type' and 'format' as field names in data models
 
 [tool.mypy]
 python_version = "3.9"
@@ -144,7 +145,14 @@ disallow_any_unimported = true
 no_implicit_optional = true
 strict_equality = true
 warn_redundant_casts = true
+ignore_missing_imports = true
 exclude = ["tests/"]
+plugins = ["pydantic.mypy"]
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
 
 [[tool.mypy.overrides]]
 module = "playwright.*"
@@ -153,6 +161,20 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 module = "extruct.*"
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "url_normalize"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "docpull.models.*"
+disallow_any_unimported = false
+warn_return_any = false
+
+[[tool.mypy.overrides]]
+module = "docpull.concurrency.browser_pool"
+disallow_any_unimported = false
+warn_return_any = false
 
 [[tool.mypy.overrides]]
 module = "tests.*"
@@ -175,7 +197,7 @@ markers = [
 ]
 
 [tool.coverage.run]
-source = ["docpull"]
+source = ["src/docpull"]
 omit = ["tests/*", "*/test_*.py"]
 
 [tool.coverage.report]

@@ -152,7 +152,8 @@ Thumbs.db
 
 # Project-specific
 # Downloaded documentation (output from docpull)
-docs/
+# Note: docs/ is NOT ignored - it contains project documentation
+*-docs/
 test-docs/
 test-output/
 *-docs/
