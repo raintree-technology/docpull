@@ -1,6 +1,5 @@
 """Tests for v2 conversion module."""
 
-
 from docpull.conversion import (
     FrontmatterBuilder,
     HtmlToMarkdown,

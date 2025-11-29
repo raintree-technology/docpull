@@ -209,13 +209,16 @@ class AsyncHttpClient:
 
         for attempt in range(self._max_retries + 1):
             try:
-                async with self._rate_limiter.limit(url), self._session.get(
-                    url,
-                    timeout=aiohttp.ClientTimeout(total=timeout_val),
-                    headers=request_headers,
-                    proxy=self._proxy,
-                    allow_redirects=True,
-                ) as response:
+                async with (
+                    self._rate_limiter.limit(url),
+                    self._session.get(
+                        url,
+                        timeout=aiohttp.ClientTimeout(total=timeout_val),
+                        headers=request_headers,
+                        proxy=self._proxy,
+                        allow_redirects=True,
+                    ) as response,
+                ):
                     # Check for retryable status codes
                     if response.status in self.RETRYABLE_STATUS_CODES:
                         if attempt < self._max_retries:
@@ -292,12 +295,15 @@ class AsyncHttpClient:
         if self._session is None:
             raise RuntimeError("Client not initialized. Use 'async with' context manager.")
 
-        async with self._rate_limiter.limit(url), self._session.head(
-            url,
-            timeout=aiohttp.ClientTimeout(total=timeout),
-            proxy=self._proxy,
-            allow_redirects=True,
-        ) as response:
+        async with (
+            self._rate_limiter.limit(url),
+            self._session.head(
+                url,
+                timeout=aiohttp.ClientTimeout(total=timeout),
+                proxy=self._proxy,
+                allow_redirects=True,
+            ) as response,
+        ):
             return HttpResponse(
                 status_code=response.status,
                 content=b"",
