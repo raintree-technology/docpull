@@ -14,6 +14,7 @@ from urllib.parse import urlparse
 from ..cache import CacheManager, StreamingDeduplicator
 from ..concurrency import PLAYWRIGHT_AVAILABLE, BrowserFetcher
 from ..discovery import CompositeDiscoverer, LinkCrawler, PatternFilter, SitemapDiscoverer
+from ..discovery.link_extractors import StaticLinkExtractor
 from ..http import AsyncHttpClient, PerHostRateLimiter
 from ..models.config import DocpullConfig
 from ..models.events import EventType, FetchEvent, FetchStats
@@ -231,11 +232,28 @@ class Fetcher:
             )
 
         # Build discoverers
+        # Pass robots_checker for sitemap discovery from robots.txt
         sitemap_discoverer = SitemapDiscoverer(
             http_client=self._http_client,
             url_validator=self._url_validator,
             pattern_filter=pattern_filter,
+            robots_checker=self._robots_checker,
         )
+
+        # Create link extractor based on --js flag
+        link_extractor = None
+        if self._browser_fetcher:
+            # Use browser-based extraction for JS-heavy sites
+            from ..discovery.link_extractors.browser import BrowserLinkExtractor
+
+            link_extractor = BrowserLinkExtractor(
+                browser_pool=self._browser_fetcher._pool,
+                intercept_requests=True,
+                scroll_for_lazy_load=True,
+            )
+        else:
+            # Use standard HTTP-based extraction
+            link_extractor = StaticLinkExtractor(http_client=self._http_client)
 
         link_crawler = LinkCrawler(
             http_client=self._http_client,
@@ -244,6 +262,7 @@ class Fetcher:
             max_depth=self.config.crawl.max_depth,
             pattern_filter=pattern_filter,
             stay_on_domain=True,
+            link_extractor=link_extractor,
         )
 
         self._discoverer = CompositeDiscoverer(

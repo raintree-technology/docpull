@@ -3,7 +3,7 @@
 import logging
 from collections import deque
 from collections.abc import AsyncIterator
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 from urllib.parse import urljoin, urlparse
 
 from bs4 import BeautifulSoup
@@ -12,6 +12,9 @@ from ..http.protocols import HttpClient
 from ..security.robots import RobotsChecker
 from ..security.url_validator import UrlValidator
 from .filters import DomainFilter, PatternFilter, SeenUrlTracker
+
+if TYPE_CHECKING:
+    from .link_extractors.protocols import LinkExtractor
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +46,7 @@ class LinkCrawler:
         max_depth: int = 5,
         pattern_filter: Optional[PatternFilter] = None,
         stay_on_domain: bool = True,
+        link_extractor: Optional["LinkExtractor"] = None,
     ):
         """
         Initialize the link crawler.
@@ -54,6 +58,7 @@ class LinkCrawler:
             max_depth: Maximum crawl depth from starting URL
             pattern_filter: Optional pattern filter for URLs
             stay_on_domain: Whether to only follow links on same domain
+            link_extractor: Optional custom link extractor (defaults to internal)
         """
         self._client = http_client
         self._validator = url_validator
@@ -61,6 +66,7 @@ class LinkCrawler:
         self._max_depth = max_depth
         self._pattern_filter = pattern_filter
         self._stay_on_domain = stay_on_domain
+        self._link_extractor = link_extractor
         self._seen = SeenUrlTracker()
         self._domain_filter: Optional[DomainFilter] = None
 
@@ -211,12 +217,17 @@ class LinkCrawler:
             if depth >= effective_max_depth:
                 continue
 
-            # Fetch page and extract links
-            html = await self._fetch_page(current_url)
-            if html is None:
-                continue
+            # Extract links using custom extractor or built-in method
+            if self._link_extractor is not None:
+                # Custom extractor handles fetching internally
+                links = await self._link_extractor.extract_links(current_url)
+            else:
+                # Built-in extraction with separate fetch
+                html = await self._fetch_page(current_url)
+                if html is None:
+                    continue
+                links = self._extract_links(html, current_url)
 
-            links = self._extract_links(html, current_url)
             logger.debug(f"Found {len(links)} links on {current_url}")
 
             for link in links:

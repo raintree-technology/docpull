@@ -8,6 +8,7 @@ from urllib.parse import urlparse
 from defusedxml import ElementTree
 
 from ..http.protocols import HttpClient
+from ..security.robots import RobotsChecker
 from ..security.url_validator import UrlValidator
 from .filters import PatternFilter, SeenUrlTracker
 
@@ -44,6 +45,7 @@ class SitemapDiscoverer:
         http_client: HttpClient,
         url_validator: UrlValidator,
         pattern_filter: Optional[PatternFilter] = None,
+        robots_checker: Optional[RobotsChecker] = None,
     ):
         """
         Initialize the sitemap discoverer.
@@ -52,11 +54,35 @@ class SitemapDiscoverer:
             http_client: HTTP client for fetching sitemaps
             url_validator: URL validator for security checks
             pattern_filter: Optional pattern filter for URLs
+            robots_checker: Optional robots.txt checker for sitemap discovery
         """
         self._client = http_client
         self._validator = url_validator
         self._filter = pattern_filter
+        self._robots = robots_checker
         self._seen = SeenUrlTracker()
+
+    def _get_sitemaps_from_robots(self, base_url: str) -> list[str]:
+        """
+        Get sitemap URLs from robots.txt.
+
+        Args:
+            base_url: The starting URL
+
+        Returns:
+            List of sitemap URLs from robots.txt (may be empty)
+        """
+        if self._robots is None:
+            return []
+
+        try:
+            sitemaps = self._robots.get_sitemaps(base_url)
+            if sitemaps:
+                logger.debug(f"Found {len(sitemaps)} sitemaps in robots.txt for {base_url}")
+            return sitemaps
+        except Exception as e:
+            logger.debug(f"Failed to get sitemaps from robots.txt: {e}")
+            return []
 
     def _guess_sitemap_urls(self, base_url: str) -> list[str]:
         """
@@ -238,8 +264,12 @@ class SitemapDiscoverer:
                 yield url
             return
 
-        # Try common sitemap locations
-        sitemap_urls = self._guess_sitemap_urls(start_url)
+        # Try robots.txt first (authoritative source)
+        sitemap_urls = self._get_sitemaps_from_robots(start_url)
+
+        # Fall back to guessing common locations
+        if not sitemap_urls:
+            sitemap_urls = self._guess_sitemap_urls(start_url)
 
         count = 0
         for sitemap_url in sitemap_urls:
