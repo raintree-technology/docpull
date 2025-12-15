@@ -1,5 +1,7 @@
 """Built-in configuration profiles for common use cases."""
 
+from __future__ import annotations
+
 from typing import Any
 
 from .config import DocpullConfig, ProfileName

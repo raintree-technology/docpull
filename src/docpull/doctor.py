@@ -1,9 +1,10 @@
 """Diagnostic tool for verifying docpull installation and dependencies."""
 
+from __future__ import annotations
+
 import sys
 from importlib import import_module
 from pathlib import Path
-from typing import Optional
 
 try:
     from rich.console import Console
@@ -17,7 +18,7 @@ except ImportError:
 
 
 def check_dependency(
-    module_name: str, package_name: Optional[str] = None, optional: bool = False
+    module_name: str, package_name: str | None = None, optional: bool = False
 ) -> tuple[bool, str]:
     """
     Check if a Python module is importable.
@@ -61,7 +62,7 @@ def check_network() -> tuple[bool, str]:
         return False, f"[WARN] Network connectivity - {str(e)}"
 
 
-def check_output_dir(output_dir: Optional[Path] = None) -> tuple[bool, str]:
+def check_output_dir(output_dir: Path | None = None) -> tuple[bool, str]:
     """
     Check if output directory is writable.
 
@@ -89,7 +90,7 @@ def check_output_dir(output_dir: Optional[Path] = None) -> tuple[bool, str]:
         return False, f"[FAIL] Output directory - {str(e)} ({test_dir})"
 
 
-def run_doctor(output_dir: Optional[Path] = None, use_rich: bool = True) -> int:
+def run_doctor(output_dir: Path | None = None, use_rich: bool = True) -> int:
     """
     Run diagnostic checks and display results.
 

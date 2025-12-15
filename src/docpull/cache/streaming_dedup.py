@@ -1,8 +1,9 @@
 """Streaming deduplication for real-time duplicate detection during fetch."""
 
+from __future__ import annotations
+
 import asyncio
 import hashlib
-from typing import Optional, Union
 
 
 class StreamingDeduplicator:
@@ -38,7 +39,7 @@ class StreamingDeduplicator:
         self._duplicates_found: int = 0
 
     @staticmethod
-    def compute_hash(content: Union[str, bytes]) -> str:
+    def compute_hash(content: str | bytes) -> str:
         """
         Compute SHA-256 hash of content.
 
@@ -59,8 +60,8 @@ class StreamingDeduplicator:
     async def check_and_register(
         self,
         url: str,
-        content: Union[str, bytes],
-    ) -> tuple[bool, Optional[str]]:
+        content: str | bytes,
+    ) -> tuple[bool, str | None]:
         """
         Check if content is a duplicate and register if new.
 
@@ -89,7 +90,7 @@ class StreamingDeduplicator:
             self._seen[content_hash] = url
             return (True, None)
 
-    async def is_duplicate(self, content: Union[str, bytes]) -> bool:
+    async def is_duplicate(self, content: str | bytes) -> bool:
         """
         Check if content has been seen before (read-only).
 

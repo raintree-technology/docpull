@@ -1,9 +1,10 @@
 """URL validation for security and policy compliance."""
 
+from __future__ import annotations
+
 import ipaddress
 import logging
 from dataclasses import dataclass
-from typing import Optional
 from urllib.parse import urlparse
 
 
@@ -12,15 +13,15 @@ class UrlValidationResult:
     """Result of URL validation."""
 
     is_valid: bool
-    rejection_reason: Optional[str] = None
+    rejection_reason: str | None = None
 
     @staticmethod
-    def valid() -> "UrlValidationResult":
+    def valid() -> UrlValidationResult:
         """Create a valid result."""
         return UrlValidationResult(is_valid=True)
 
     @staticmethod
-    def invalid(reason: str) -> "UrlValidationResult":
+    def invalid(reason: str) -> UrlValidationResult:
         """Create an invalid result with reason."""
         return UrlValidationResult(is_valid=False, rejection_reason=reason)
 
@@ -49,10 +50,10 @@ class UrlValidator:
 
     def __init__(
         self,
-        allowed_schemes: Optional[set[str]] = None,
-        allowed_domains: Optional[set[str]] = None,
+        allowed_schemes: set[str] | None = None,
+        allowed_domains: set[str] | None = None,
         block_private_ips: bool = True,
-        logger: Optional[logging.Logger] = None,
+        logger: logging.Logger | None = None,
     ):
         """
         Initialize the URL validator.
@@ -117,7 +118,7 @@ class UrlValidator:
 
         return UrlValidationResult.valid()
 
-    def _check_ip_address(self, hostname: str) -> Optional[UrlValidationResult]:
+    def _check_ip_address(self, hostname: str) -> UrlValidationResult | None:
         """
         Check if hostname is a private/internal IP address.
 
@@ -161,7 +162,7 @@ class UrlValidator:
         """
         return self.validate(url).is_valid
 
-    def get_rejection_reason(self, url: str) -> Optional[str]:
+    def get_rejection_reason(self, url: str) -> str | None:
         """
         Get rejection reason for a URL.
 

@@ -1,7 +1,9 @@
 """Protocol definitions for HTTP client abstraction."""
 
+from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import Optional, Protocol
+from typing import Protocol
 
 
 @dataclass(frozen=True)
@@ -39,7 +41,7 @@ class HttpClient(Protocol):
         url: str,
         *,
         timeout: float = 30.0,
-        headers: Optional[dict[str, str]] = None,
+        headers: dict[str, str] | None = None,
     ) -> HttpResponse:
         """
         Perform an HTTP GET request.
