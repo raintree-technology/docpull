@@ -8,7 +8,7 @@ version = "2.2.0"
 dynamic = []
 description = "Pull documentation from the web and convert to clean markdown"
 readme = {file = "README.md", content-type = "text/markdown"}
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [
@@ -137,7 +137,7 @@ select = ["E", "F", "W", "I", "N", "UP", "B", "A", "C4", "SIM"]
 ignore = ["A003"]  # Allow 'type' and 'format' as field names in data models
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.10"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
