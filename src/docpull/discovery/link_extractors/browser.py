@@ -114,7 +114,7 @@ class BrowserLinkExtractor:
                             if self._is_potential_page_url(req_url):
                                 intercepted_urls.append(req_url)
 
-                    page.on("request", handle_request)
+                    page.on("request", handle_request)  # type: ignore[arg-type]
 
                 # Navigate to page
                 try:
@@ -155,7 +155,7 @@ class BrowserLinkExtractor:
 
         return filtered_urls
 
-    async def _scroll_page(self, page: Page) -> None:
+    async def _scroll_page(self, page: Page) -> None:  # type: ignore[no-any-unimported]
         """Scroll page to trigger lazy loading."""
         import asyncio
 
@@ -170,7 +170,7 @@ class BrowserLinkExtractor:
         except Exception as e:
             logger.debug(f"Scroll failed: {e}")
 
-    async def _extract_dom_links(self, page: Page, base_url: str) -> list[str]:
+    async def _extract_dom_links(self, page: Page, base_url: str) -> list[str]:  # type: ignore[no-any-unimported]
         """
         Extract links from the rendered DOM using JavaScript.
 

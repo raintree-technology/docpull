@@ -266,9 +266,6 @@ class Fetcher:
             steps.append(DedupStep(deduplicator=self._streaming_dedup))
 
         # Add appropriate save step based on output format
-        self._json_saver: JsonSaveStep | None = None
-        self._sqlite_saver: SqliteSaveStep | None = None
-
         if self.config.output.format == "json":
             self._json_saver = JsonSaveStep(base_output_dir=output_dir)
             steps.append(self._json_saver)
@@ -299,7 +296,10 @@ class Fetcher:
         )
 
         # Create link extractor based on --js flag
-        link_extractor = None
+        # Use Any type since BrowserLinkExtractor and StaticLinkExtractor both satisfy LinkExtractor protocol
+        from typing import Any
+
+        link_extractor: Any = None
         if self._browser_fetcher:
             # Use browser-based extraction for JS-heavy sites
             from ..discovery.link_extractors.browser import BrowserLinkExtractor
