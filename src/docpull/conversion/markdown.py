@@ -1,8 +1,10 @@
 """HTML to Markdown conversion."""
 
+from __future__ import annotations
+
 import logging
 import re
-from typing import Any, Optional
+from typing import Any
 from urllib.parse import urljoin
 
 import html2text
@@ -153,9 +155,9 @@ class FrontmatterBuilder:
 
     def build(
         self,
-        title: Optional[str] = None,
-        url: Optional[str] = None,
-        description: Optional[str] = None,
+        title: str | None = None,
+        url: str | None = None,
+        description: str | None = None,
         **extra_fields: Any,
     ) -> str:
         """
