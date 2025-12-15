@@ -43,7 +43,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from . import __version__
 from .core.fetcher import Fetcher
 from .models.config import DocpullConfig, ProfileName
-from .models.events import EventType
+from .models.events import EventType, SkipReason
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -106,6 +106,13 @@ Examples:
         default=None,
         help="Output directory (default: ./docs)",
     )
+    parser.add_argument(
+        "--format",
+        "-f",
+        choices=["markdown", "json", "sqlite"],
+        default="markdown",
+        help="Output format (default: markdown)",
+    )
 
     # Crawl settings
     crawl_group = parser.add_argument_group("crawl settings")
@@ -153,6 +160,11 @@ Examples:
         dest="javascript",
         help="Enable JavaScript rendering (requires Playwright)",
     )
+    crawl_group.add_argument(
+        "--adaptive-rate-limit",
+        action="store_true",
+        help="Automatically adjust rate limits based on server responses",
+    )
 
     # Content filtering
     filter_group = parser.add_argument_group("content filtering")
@@ -188,6 +200,33 @@ Examples:
         help="Maximum retry attempts",
     )
 
+    # Authentication settings
+    auth_group = parser.add_argument_group("authentication")
+    auth_group.add_argument(
+        "--auth-bearer",
+        type=str,
+        metavar="TOKEN",
+        help="Bearer token for authentication",
+    )
+    auth_group.add_argument(
+        "--auth-basic",
+        type=str,
+        metavar="USER:PASS",
+        help="Basic auth credentials (username:password)",
+    )
+    auth_group.add_argument(
+        "--auth-cookie",
+        type=str,
+        metavar="COOKIE",
+        help="Cookie string for authentication",
+    )
+    auth_group.add_argument(
+        "--auth-header",
+        nargs=2,
+        metavar=("NAME", "VALUE"),
+        help="Custom auth header (name value)",
+    )
+
     # Cache settings
     cache_group = parser.add_argument_group("cache settings")
     cache_group.add_argument(
@@ -214,6 +253,11 @@ Examples:
         action="store_true",
         help="Re-fetch pages even if unchanged",
     )
+    cache_group.add_argument(
+        "--resume",
+        action="store_true",
+        help="Resume from previous interrupted run (requires --cache)",
+    )
 
     # Output control
     output_group = parser.add_argument_group("output control")
@@ -221,6 +265,11 @@ Examples:
         "--dry-run",
         action="store_true",
         help="Show what would be fetched without downloading",
+    )
+    output_group.add_argument(
+        "--preview-urls",
+        action="store_true",
+        help="List discovered URLs without fetching",
     )
     output_group.add_argument(
         "--verbose",
@@ -262,8 +311,13 @@ def run_fetcher(args: argparse.Namespace) -> int:
     }
 
     # Output settings
+    output_kwargs: dict = {}
     if args.output_dir:
-        config_kwargs["output"] = {"directory": args.output_dir}
+        output_kwargs["directory"] = args.output_dir
+    if args.format:
+        output_kwargs["format"] = args.format
+    if output_kwargs:
+        config_kwargs["output"] = output_kwargs
 
     # Crawl settings
     crawl_kwargs: dict = {}
@@ -277,6 +331,8 @@ def run_fetcher(args: argparse.Namespace) -> int:
         crawl_kwargs["rate_limit"] = args.rate_limit
     if args.javascript:
         crawl_kwargs["javascript"] = True
+    if args.adaptive_rate_limit:
+        crawl_kwargs["adaptive_rate_limit"] = True
     if args.include_paths:
         crawl_kwargs["include_paths"] = args.include_paths
     if args.exclude_paths:
@@ -304,9 +360,33 @@ def run_fetcher(args: argparse.Namespace) -> int:
     if network_kwargs:
         config_kwargs["network"] = network_kwargs
 
+    # Authentication settings
+    auth_kwargs: dict = {}
+    if args.auth_bearer:
+        auth_kwargs["type"] = "bearer"
+        auth_kwargs["token"] = args.auth_bearer
+    elif args.auth_basic:
+        auth_kwargs["type"] = "basic"
+        if ":" in args.auth_basic:
+            username, password = args.auth_basic.split(":", 1)
+            auth_kwargs["username"] = username
+            auth_kwargs["password"] = password
+        else:
+            console.print("[red]Error:[/red] --auth-basic requires format username:password")
+            return 1
+    elif args.auth_cookie:
+        auth_kwargs["type"] = "cookie"
+        auth_kwargs["cookie"] = args.auth_cookie
+    elif args.auth_header:
+        auth_kwargs["type"] = "header"
+        auth_kwargs["header_name"] = args.auth_header[0]
+        auth_kwargs["header_value"] = args.auth_header[1]
+    if auth_kwargs:
+        config_kwargs["auth"] = auth_kwargs
+
     # Cache settings
     cache_kwargs: dict = {}
-    if args.cache:
+    if args.cache or args.resume:
         cache_kwargs["enabled"] = True
     if args.cache_dir:
         cache_kwargs["directory"] = args.cache_dir
@@ -314,6 +394,8 @@ def run_fetcher(args: argparse.Namespace) -> int:
         cache_kwargs["ttl_days"] = args.cache_ttl
     if args.no_skip_unchanged:
         cache_kwargs["skip_unchanged"] = False
+    if args.resume:
+        cache_kwargs["resume"] = True
     if cache_kwargs:
         config_kwargs["cache"] = cache_kwargs
 
@@ -338,9 +420,23 @@ def run_fetcher(args: argparse.Namespace) -> int:
 
         try:
             async with Fetcher(config) as fetcher:
+                # Handle --preview-urls mode
+                if args.preview_urls:
+                    urls = await fetcher.discover()
+                    console.print(f"[bold]Discovered {len(urls)} URLs:[/bold]")
+                    for url in urls:
+                        console.print(f"  {url}")
+                    return 0
+
+                # Track skip reasons for summary
+                from collections import defaultdict
+
+                skip_counts: dict[SkipReason, int] = defaultdict(int)
+
                 if args.quiet:
-                    async for _ in fetcher.run():
-                        pass
+                    async for event in fetcher.run():
+                        if event.type == EventType.FETCH_SKIPPED and event.skip_reason:
+                            skip_counts[event.skip_reason] += 1
                 else:
                     with Progress(
                         SpinnerColumn(),
@@ -353,6 +449,10 @@ def run_fetcher(args: argparse.Namespace) -> int:
                         async for event in fetcher.run():
                             if event.type == EventType.STARTED:
                                 progress.update(task, description=f"[cyan]{event.message}")
+                            elif event.type == EventType.RESUMED:
+                                progress.update(
+                                    task, description=f"[yellow]Resuming with {event.total} pending URLs"
+                                )
                             elif event.type == EventType.DISCOVERY_STARTED:
                                 progress.update(task, description="[cyan]Discovering URLs...")
                             elif event.type == EventType.DISCOVERY_COMPLETE:
@@ -362,6 +462,12 @@ def run_fetcher(args: argparse.Namespace) -> int:
                                     task,
                                     description=f"[cyan]Fetching {event.current}/{event.total}: {event.url}",
                                 )
+                            elif event.type == EventType.FETCH_SKIPPED:
+                                if event.skip_reason:
+                                    skip_counts[event.skip_reason] += 1
+                                if args.verbose:
+                                    reason = event.skip_reason.value if event.skip_reason else "unknown"
+                                    console.print(f"[dim]Skipped: {event.url} ({reason})[/dim]")
                             elif event.type == EventType.FETCH_FAILED:
                                 console.print(f"[red]Failed:[/red] {event.url} - {event.error}")
                             elif event.type == EventType.COMPLETED:
@@ -377,6 +483,13 @@ def run_fetcher(args: argparse.Namespace) -> int:
                     console.print(f"  Pages skipped: {stats.pages_skipped}")
                     console.print(f"  Pages failed: {stats.pages_failed}")
                     console.print(f"  Duration: {stats.duration_seconds:.1f}s")
+
+                    # Print skip reason summary if there were skips
+                    if skip_counts:
+                        console.print()
+                        console.print("[bold]Skip Summary:[/bold]")
+                        for reason, count in sorted(skip_counts.items(), key=lambda x: -x[1]):
+                            console.print(f"  {reason.value}: {count}")
 
                 return 0 if stats.pages_failed == 0 else 1
 

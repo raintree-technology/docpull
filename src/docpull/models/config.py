@@ -16,6 +16,16 @@ class ProfileName(str, Enum):
     CUSTOM = "custom"
 
 
+class AuthType(str, Enum):
+    """Authentication types for protected documentation sites."""
+
+    NONE = "none"
+    BEARER = "bearer"
+    BASIC = "basic"
+    COOKIE = "cookie"
+    HEADER = "header"
+
+
 class ByteSize(int):
     """
     Custom type that parses human-readable byte sizes.
@@ -73,6 +83,10 @@ class CrawlConfig(BaseModel):
     include_paths: list[str] = Field(default_factory=list, description="URL path patterns to include")
     exclude_paths: list[str] = Field(default_factory=list, description="URL path patterns to exclude")
     javascript: bool = Field(False, description="Enable JavaScript rendering via Playwright")
+    adaptive_rate_limit: bool = Field(
+        False,
+        description="Automatically adjust rate limits based on server responses (429s)",
+    )
 
     model_config = {"extra": "forbid"}
 
@@ -129,6 +143,60 @@ class OutputConfig(BaseModel):
     )
 
     model_config = {"extra": "forbid"}
+
+
+def _expand_env_var(value: Optional[str]) -> Optional[str]:
+    """Expand environment variable references in a string.
+
+    Supports $VAR and ${VAR} syntax. Returns original value if
+    the env var is not set.
+    """
+    import os
+    import re
+
+    if value is None:
+        return None
+
+    # Match $VAR or ${VAR}
+    pattern = r"\$\{([^}]+)\}|\$([A-Za-z_][A-Za-z0-9_]*)"
+
+    def replace(match: re.Match) -> str:
+        var_name = match.group(1) or match.group(2)
+        return os.environ.get(var_name, match.group(0))
+
+    return re.sub(pattern, replace, value)
+
+
+class AuthConfig(BaseModel):
+    """Configuration for authentication to protected documentation sites.
+
+    Supports environment variable expansion in sensitive fields using
+    $VAR or ${VAR} syntax. For example:
+        --auth-bearer '$GITHUB_TOKEN'
+        --auth-basic 'user:${API_PASSWORD}'
+    """
+
+    type: AuthType = Field(AuthType.NONE, description="Authentication type")
+    token: Optional[str] = Field(None, description="Bearer token or API key")
+    username: Optional[str] = Field(None, description="Username for basic auth")
+    password: Optional[str] = Field(None, description="Password for basic auth")
+    cookie: Optional[str] = Field(None, description="Cookie string for cookie auth")
+    header_name: Optional[str] = Field(None, description="Custom header name for header auth")
+    header_value: Optional[str] = Field(None, description="Custom header value for header auth")
+
+    model_config = {"extra": "forbid"}
+
+    def model_post_init(self, __context: object) -> None:
+        """Expand environment variables in sensitive fields after init."""
+        # Use object.__setattr__ to bypass frozen model if needed
+        if self.token:
+            object.__setattr__(self, "token", _expand_env_var(self.token))
+        if self.password:
+            object.__setattr__(self, "password", _expand_env_var(self.password))
+        if self.cookie:
+            object.__setattr__(self, "cookie", _expand_env_var(self.cookie))
+        if self.header_value:
+            object.__setattr__(self, "header_value", _expand_env_var(self.header_value))
 
 
 class NetworkConfig(BaseModel):
@@ -195,6 +263,10 @@ class CacheConfig(BaseModel):
         True,
         description="Skip pages with unchanged ETag/Last-Modified/content hash",
     )
+    resume: bool = Field(
+        False,
+        description="Resume from previous interrupted run (requires caching enabled)",
+    )
 
     model_config = {"extra": "forbid"}
 
@@ -231,6 +303,7 @@ class DocpullConfig(BaseModel):
     content_filter: ContentFilterConfig = Field(default_factory=ContentFilterConfig)
     output: OutputConfig = Field(default_factory=OutputConfig)
     network: NetworkConfig = Field(default_factory=NetworkConfig)
+    auth: AuthConfig = Field(default_factory=AuthConfig)
     performance: PerformanceConfig = Field(default_factory=PerformanceConfig)
     integration: IntegrationConfig = Field(default_factory=IntegrationConfig)
     cache: CacheConfig = Field(default_factory=CacheConfig)

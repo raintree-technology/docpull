@@ -10,7 +10,7 @@ from types import TracebackType
 import aiohttp
 
 from .protocols import HttpResponse
-from .rate_limiter import PerHostRateLimiter
+from .rate_limiter import AdaptiveRateLimiter, PerHostRateLimiter
 
 # Better encoding detection (charset-normalizer is an aiohttp dependency)
 try:
@@ -65,6 +65,7 @@ class AsyncHttpClient:
         user_agent: str | None = None,
         proxy: str | None = None,
         default_timeout: float = 30.0,
+        auth_headers: dict[str, str] | None = None,
     ) -> None:
         """
         Initialize the HTTP client.
@@ -77,6 +78,7 @@ class AsyncHttpClient:
             user_agent: Custom User-Agent string
             proxy: Proxy URL (http:// or socks5://)
             default_timeout: Default request timeout in seconds
+            auth_headers: Authentication headers to include in all requests
         """
         self._rate_limiter = rate_limiter
         self._max_retries = max_retries
@@ -84,6 +86,7 @@ class AsyncHttpClient:
         self._max_content_size = max_content_size
         self._proxy = proxy
         self._default_timeout = default_timeout
+        self._auth_headers = auth_headers or {}
 
         if user_agent is None:
             user_agent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (docpull/2.0)"
@@ -203,7 +206,10 @@ class AsyncHttpClient:
             raise RuntimeError("Client not initialized. Use 'async with' context manager.")
 
         timeout_val = timeout or self._default_timeout
-        request_headers = dict(headers) if headers else {}
+        # Merge auth headers with request-specific headers
+        request_headers = dict(self._auth_headers)
+        if headers:
+            request_headers.update(headers)
 
         last_error: Exception | None = None
 
@@ -221,6 +227,14 @@ class AsyncHttpClient:
                 ):
                     # Check for retryable status codes
                     if response.status in self.RETRYABLE_STATUS_CODES:
+                        # Record rate limit for adaptive rate limiter
+                        if response.status == 429 and isinstance(self._rate_limiter, AdaptiveRateLimiter):
+                            retry_after = response.headers.get("Retry-After")
+                            retry_seconds = (
+                                int(retry_after) if retry_after and retry_after.isdigit() else None
+                            )
+                            await self._rate_limiter.record_rate_limit(url, retry_seconds)
+
                         if attempt < self._max_retries:
                             delay = self._calculate_retry_delay(attempt)
                             logger.warning(
@@ -245,6 +259,10 @@ class AsyncHttpClient:
                             raise ValueError(f"Content size limit exceeded: >{self._max_content_size} bytes")
 
                     content_type = response.headers.get("Content-Type", "")
+
+                    # Record success for adaptive rate limiter
+                    if isinstance(self._rate_limiter, AdaptiveRateLimiter):
+                        await self._rate_limiter.record_success(url)
 
                     return HttpResponse(
                         status_code=response.status,
@@ -281,6 +299,7 @@ class AsyncHttpClient:
         url: str,
         *,
         timeout: float = 10.0,
+        headers: dict[str, str] | None = None,
     ) -> HttpResponse:
         """
         Perform an HTTP HEAD request.
@@ -288,6 +307,7 @@ class AsyncHttpClient:
         Args:
             url: The URL to check
             timeout: Request timeout in seconds
+            headers: Optional additional headers
 
         Returns:
             HttpResponse (content will be empty bytes)
@@ -295,11 +315,17 @@ class AsyncHttpClient:
         if self._session is None:
             raise RuntimeError("Client not initialized. Use 'async with' context manager.")
 
+        # Merge auth headers with request-specific headers
+        request_headers = dict(self._auth_headers)
+        if headers:
+            request_headers.update(headers)
+
         async with (
             self._rate_limiter.limit(url),
             self._session.head(
                 url,
                 timeout=aiohttp.ClientTimeout(total=timeout),
+                headers=request_headers if request_headers else None,
                 proxy=self._proxy,
                 allow_redirects=True,
             ) as response,

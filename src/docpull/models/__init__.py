@@ -1,6 +1,8 @@
 """Docpull configuration and event models."""
 
 from .config import (
+    AuthConfig,
+    AuthType,
     ByteSize,
     CacheConfig,
     ContentFilterConfig,
@@ -12,11 +14,13 @@ from .config import (
     PerformanceConfig,
     ProfileName,
 )
-from .events import EventType, FetchEvent, FetchStats
+from .events import EventType, FetchEvent, FetchStats, SkipReason
 from .profiles import PROFILES, apply_profile
 
 __all__ = [
     # Config
+    "AuthConfig",
+    "AuthType",
     "ByteSize",
     "CacheConfig",
     "CrawlConfig",
@@ -31,6 +35,7 @@ __all__ = [
     "EventType",
     "FetchEvent",
     "FetchStats",
+    "SkipReason",
     # Profiles
     "PROFILES",
     "apply_profile",

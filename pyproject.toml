@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "docpull"
-version = "2.1.0"
+version = "2.2.0"
 dynamic = []
 description = "Pull documentation from the web and convert to clean markdown"
 readme = {file = "README.md", content-type = "text/markdown"}

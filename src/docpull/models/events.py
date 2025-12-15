@@ -7,6 +7,21 @@ from pathlib import Path
 from typing import Optional
 
 
+class SkipReason(str, Enum):
+    """Reasons for skipping a URL during fetch."""
+
+    ROBOTS_DISALLOWED = "robots_disallowed"
+    ALREADY_FETCHED = "already_fetched"
+    CACHE_UNCHANGED = "cache_unchanged"
+    INVALID_CONTENT_TYPE = "invalid_content_type"
+    DUPLICATE_CONTENT = "duplicate_content"
+    PATTERN_EXCLUDED = "pattern_excluded"
+    MAX_DEPTH_EXCEEDED = "max_depth_exceeded"
+    HTTP_ERROR = "http_error"
+    FILE_EXISTS = "file_exists"
+    DRY_RUN = "dry_run"
+
+
 class EventType(str, Enum):
     """Types of events emitted during fetch operations."""
 
@@ -15,6 +30,7 @@ class EventType(str, Enum):
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
+    RESUMED = "resumed"
 
     # Discovery phase
     DISCOVERY_STARTED = "discovery_started"
@@ -84,6 +100,7 @@ class FetchEvent:
     content_type: Optional[str] = None
     retry_attempt: Optional[int] = None
     duplicate_of: Optional[str] = None  # URL of original for dedup events
+    skip_reason: Optional["SkipReason"] = None  # Reason for skipping a URL
 
     @property
     def progress_percent(self) -> Optional[float]:

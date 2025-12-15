@@ -15,9 +15,9 @@ from ..cache import CacheManager, StreamingDeduplicator
 from ..concurrency import PLAYWRIGHT_AVAILABLE, BrowserFetcher
 from ..discovery import CompositeDiscoverer, LinkCrawler, PatternFilter, SitemapDiscoverer
 from ..discovery.link_extractors import StaticLinkExtractor
-from ..http import AsyncHttpClient, PerHostRateLimiter
+from ..http import AdaptiveRateLimiter, AsyncHttpClient, PerHostRateLimiter
 from ..models.config import DocpullConfig
-from ..models.events import EventType, FetchEvent, FetchStats
+from ..models.events import EventType, FetchEvent, FetchStats, SkipReason
 from ..models.profiles import apply_profile
 from ..pipeline.base import FetchPipeline
 from ..pipeline.base import FetchStep as FetchStepProtocol
@@ -25,8 +25,10 @@ from ..pipeline.steps import (
     ConvertStep,
     DedupStep,
     FetchStep,
+    JsonSaveStep,
     MetadataStep,
     SaveStep,
+    SqliteSaveStep,
     ValidateStep,
 )
 from ..security.robots import RobotsChecker
@@ -121,6 +123,8 @@ class Fetcher:
         self._streaming_dedup: StreamingDeduplicator | None = None
         self._cache_manager: CacheManager | None = None
         self._browser_fetcher: BrowserFetcher | None = None
+        self._json_saver: JsonSaveStep | None = None
+        self._sqlite_saver: SqliteSaveStep | None = None
 
     @property
     def stats(self) -> FetchStats:
@@ -136,13 +140,53 @@ class Fetcher:
         """
         self._cancelled = True
 
+    def _build_auth_headers(self) -> dict[str, str]:
+        """Build authentication headers from config."""
+        import base64
+
+        from ..models.config import AuthType
+
+        headers: dict[str, str] = {}
+        auth = self.config.auth
+
+        if auth.type == AuthType.NONE:
+            return headers
+
+        if auth.type == AuthType.BEARER:
+            if auth.token:
+                headers["Authorization"] = f"Bearer {auth.token}"
+
+        elif auth.type == AuthType.BASIC:
+            if auth.username and auth.password:
+                credentials = f"{auth.username}:{auth.password}"
+                encoded = base64.b64encode(credentials.encode()).decode()
+                headers["Authorization"] = f"Basic {encoded}"
+
+        elif auth.type == AuthType.COOKIE:
+            if auth.cookie:
+                headers["Cookie"] = auth.cookie
+
+        elif auth.type == AuthType.HEADER and auth.header_name and auth.header_value:
+            headers[auth.header_name] = auth.header_value
+
+        return headers
+
     async def __aenter__(self) -> Fetcher:
         """Enter async context and initialize components."""
-        # Create rate limiter
-        self._rate_limiter = PerHostRateLimiter(
-            default_delay=self.config.crawl.rate_limit,
-            default_concurrent=self.config.crawl.per_host_concurrent,
-        )
+        # Create rate limiter (adaptive if configured)
+        if self.config.crawl.adaptive_rate_limit:
+            self._rate_limiter = AdaptiveRateLimiter(
+                default_delay=self.config.crawl.rate_limit,
+                default_concurrent=self.config.crawl.per_host_concurrent,
+            )
+        else:
+            self._rate_limiter = PerHostRateLimiter(
+                default_delay=self.config.crawl.rate_limit,
+                default_concurrent=self.config.crawl.per_host_concurrent,
+            )
+
+        # Build authentication headers from config
+        auth_headers = self._build_auth_headers()
 
         # Create HTTP client
         self._http_client = AsyncHttpClient(
@@ -151,6 +195,7 @@ class Fetcher:
             user_agent=self.config.network.user_agent,
             proxy=self.config.network.proxy,
             default_timeout=float(self.config.network.read_timeout),
+            auth_headers=auth_headers,
         )
         await self._http_client.__aenter__()
 
@@ -211,15 +256,28 @@ class Fetcher:
 
         steps.append(MetadataStep(extract_rich=self.config.output.rich_metadata))
 
-        # Add conversion step for markdown output
-        if self.config.output.format == "markdown":
-            steps.append(ConvertStep(add_frontmatter=True))
+        # Add conversion step - all formats need markdown content
+        # Only add frontmatter for markdown file output
+        add_frontmatter = self.config.output.format == "markdown"
+        steps.append(ConvertStep(add_frontmatter=add_frontmatter))
 
         # Add dedup step if streaming dedup is enabled
         if self._streaming_dedup:
             steps.append(DedupStep(deduplicator=self._streaming_dedup))
 
-        steps.append(SaveStep(base_output_dir=output_dir))
+        # Add appropriate save step based on output format
+        self._json_saver: JsonSaveStep | None = None
+        self._sqlite_saver: SqliteSaveStep | None = None
+
+        if self.config.output.format == "json":
+            self._json_saver = JsonSaveStep(base_output_dir=output_dir)
+            steps.append(self._json_saver)
+        elif self.config.output.format == "sqlite":
+            self._sqlite_saver = SqliteSaveStep(base_output_dir=output_dir)
+            steps.append(self._sqlite_saver)
+        else:
+            # Default to markdown file output
+            steps.append(SaveStep(base_output_dir=output_dir))
 
         self._pipeline = FetchPipeline(steps=steps)
 
@@ -288,10 +346,49 @@ class Fetcher:
             await self._http_client.__aexit__(exc_type, exc_val, exc_tb)
             self._http_client = None
 
+        # Finalize JSON/SQLite savers
+        if self._json_saver:
+            self._json_saver.finalize()
+            self._json_saver = None
+
+        if self._sqlite_saver:
+            self._sqlite_saver.close()
+            self._sqlite_saver = None
+
         # Flush cache to disk
         if self._cache_manager:
             self._cache_manager.flush()
             self._cache_manager = None
+
+    async def discover(self) -> list[str]:
+        """
+        Run discovery phase only, returning list of discovered URLs.
+
+        This is useful for previewing what URLs would be fetched without
+        actually fetching them.
+
+        Returns:
+            List of discovered URLs
+
+        Example:
+            async with Fetcher(config) as fetcher:
+                urls = await fetcher.discover()
+                for url in urls:
+                    print(url)
+        """
+        if self._discoverer is None:
+            raise RuntimeError("Fetcher not initialized. Use 'async with' context manager.")
+
+        urls: list[str] = []
+        if self.config.url:
+            async for url in self._discoverer.discover(
+                self.config.url,
+                max_urls=self.config.crawl.max_pages,
+            ):
+                urls.append(url)
+
+        self._stats.urls_discovered = len(urls)
+        return urls
 
     def _compute_output_path(self, url: str) -> Path:
         """
@@ -342,10 +439,33 @@ class Fetcher:
         )
 
         try:
-            # Phase 1: Discovery
+            # Phase 1: Discovery (or resume from previous run)
             discovered_urls: list[str] = []
+            resumed = False
 
-            if self.config.url:
+            # Check for resume capability
+            if (
+                self.config.cache.enabled
+                and self.config.cache.resume
+                and self._cache_manager
+                and self.config.url
+            ):
+                pending_urls = self._cache_manager.get_pending_urls(self.config.url)
+                if pending_urls is not None:
+                    # Respect current max_pages setting even when resuming
+                    max_pages = self.config.crawl.max_pages
+                    if max_pages and len(pending_urls) > max_pages:
+                        pending_urls = pending_urls[:max_pages]
+                    discovered_urls = pending_urls
+                    resumed = True
+                    yield FetchEvent(
+                        type=EventType.RESUMED,
+                        total=len(discovered_urls),
+                        message=f"Resuming with {len(discovered_urls)} pending URLs",
+                    )
+
+            # If not resuming, run discovery
+            if not resumed and self.config.url:
                 yield FetchEvent(
                     type=EventType.DISCOVERY_STARTED,
                     message=f"Discovering URLs from {self.config.url}",
@@ -362,11 +482,16 @@ class Fetcher:
                         yield FetchEvent(type=EventType.CANCELLED, message="Fetch cancelled during discovery")
                         return
 
-            yield FetchEvent(
-                type=EventType.DISCOVERY_COMPLETE,
-                total=len(discovered_urls),
-                message=f"Discovered {len(discovered_urls)} URLs",
-            )
+                # Save discovered URLs for resume capability (before fetching)
+                if self.config.cache.enabled and self._cache_manager:
+                    self._cache_manager.save_discovered_urls(discovered_urls, self.config.url)
+
+            if not resumed:
+                yield FetchEvent(
+                    type=EventType.DISCOVERY_COMPLETE,
+                    total=len(discovered_urls),
+                    message=f"Discovered {len(discovered_urls)} URLs",
+                )
 
             self._stats.urls_discovered = len(discovered_urls)
 
@@ -409,6 +534,7 @@ class Fetcher:
                         url=url,
                         output_path=output_path,
                         message=f"[dry-run] Would save to {output_path}",
+                        skip_reason=SkipReason.DRY_RUN,
                     )
                     self._stats.pages_skipped += 1
                     continue
@@ -444,6 +570,10 @@ class Fetcher:
 
             # Calculate duration
             self._stats.duration_seconds = time.monotonic() - self._start_time
+
+            # Clear discovered URLs on successful completion (no failures)
+            if self._cache_manager and self._stats.pages_failed == 0:
+                self._cache_manager.clear_discovered_urls()
 
             # Emit completion event
             yield FetchEvent(

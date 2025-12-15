@@ -32,6 +32,14 @@ class CacheState(TypedDict, total=False):
     last_run: Optional[str]
 
 
+class DiscoveredUrlsState(TypedDict, total=False):
+    """Type for discovered URLs persistence (for resume capability)."""
+
+    start_url: str
+    discovered_at: str
+    urls: list[str]
+
+
 class _InternalState:
     """Internal state using sets for O(1) lookups."""
 
@@ -81,6 +89,7 @@ class CacheManager:
 
         self.manifest_file = self.cache_dir / "manifest.json"
         self.state_file = self.cache_dir / "state.json"
+        self.discovered_urls_file = self.cache_dir / "discovered_urls.json"
 
         self.manifest: dict[str, ManifestEntry] = self._load_manifest()
         self._state: _InternalState = _InternalState.from_cache_state(self._load_state())
@@ -386,3 +395,106 @@ class CacheManager:
             True if URL failed to fetch
         """
         return url in self._state.failed_urls
+
+    # Resume capability methods
+
+    def save_discovered_urls(self, urls: list[str], start_url: str) -> None:
+        """Save discovered URLs for resume capability.
+
+        Args:
+            urls: List of discovered URLs
+            start_url: The starting URL for this crawl
+
+        Note:
+            This is written immediately (not batched) to ensure
+            URLs are persisted before fetching begins.
+        """
+        data: DiscoveredUrlsState = {
+            "start_url": start_url,
+            "discovered_at": datetime.now().isoformat(),
+            "urls": urls,
+        }
+        try:
+            with open(self.discovered_urls_file, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+            logger.info(f"Saved {len(urls)} discovered URLs for resume capability")
+        except Exception as e:
+            logger.error(f"Could not save discovered URLs: {e}")
+
+    def load_discovered_urls(self, start_url: str) -> list[str] | None:
+        """Load previously discovered URLs if they match the start URL.
+
+        Args:
+            start_url: The starting URL to match
+
+        Returns:
+            List of discovered URLs if found and matching, None otherwise
+        """
+        if not self.discovered_urls_file.exists():
+            return None
+
+        try:
+            with open(self.discovered_urls_file, encoding="utf-8") as f:
+                data: DiscoveredUrlsState = json.load(f)
+
+            if data.get("start_url") != start_url:
+                logger.info("Discovered URLs file exists but start_url doesn't match")
+                return None
+
+            urls = data.get("urls", [])
+            logger.info(f"Loaded {len(urls)} discovered URLs from previous run")
+            return urls
+        except Exception as e:
+            logger.warning(f"Could not load discovered URLs: {e}")
+            return None
+
+    def get_pending_urls(self, start_url: str) -> list[str] | None:
+        """Get URLs that were discovered but not yet fetched.
+
+        Args:
+            start_url: The starting URL to match
+
+        Returns:
+            List of pending URLs, or None if no resume data available
+        """
+        discovered = self.load_discovered_urls(start_url)
+        if discovered is None:
+            return None
+
+        # Filter out already-fetched URLs
+        fetched = self.get_fetched_urls()
+        pending = [url for url in discovered if url not in fetched]
+        logger.info(f"Found {len(pending)} pending URLs (out of {len(discovered)} discovered)")
+        return pending
+
+    def clear_discovered_urls(self) -> None:
+        """Clear discovered URLs file (called on successful completion).
+
+        This should be called after a successful fetch to clean up
+        the resume state.
+        """
+        if self.discovered_urls_file.exists():
+            try:
+                self.discovered_urls_file.unlink()
+                logger.info("Cleared discovered URLs file")
+            except Exception as e:
+                logger.warning(f"Could not clear discovered URLs file: {e}")
+
+    def has_resume_data(self, start_url: str) -> bool:
+        """Check if there is resume data available for the given URL.
+
+        Args:
+            start_url: The starting URL to check
+
+        Returns:
+            True if resume data exists and matches the start URL
+        """
+        if not self.discovered_urls_file.exists():
+            return False
+
+        try:
+            with open(self.discovered_urls_file, encoding="utf-8") as f:
+                data: DiscoveredUrlsState = json.load(f)
+            return data.get("start_url") == start_url
+        except Exception:
+            return False

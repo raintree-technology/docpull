@@ -2,9 +2,10 @@
 
 from .client import AsyncHttpClient
 from .protocols import HttpClient, HttpResponse
-from .rate_limiter import PerHostRateLimiter
+from .rate_limiter import AdaptiveRateLimiter, PerHostRateLimiter
 
 __all__ = [
+    "AdaptiveRateLimiter",
     "AsyncHttpClient",
     "HttpClient",
     "HttpResponse",

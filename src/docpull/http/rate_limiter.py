@@ -1,11 +1,14 @@
 """Per-host rate limiting for polite crawling."""
 
 import asyncio
+import logging
 import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Optional
 from urllib.parse import urlparse
+
+logger = logging.getLogger(__name__)
 
 
 class PerHostRateLimiter:
@@ -146,3 +149,110 @@ class PerHostRateLimiter:
             "hosts_tracked": len(self._semaphores),
             "custom_configs": len(self.host_configs),
         }
+
+
+class AdaptiveRateLimiter(PerHostRateLimiter):
+    """
+    Rate limiter that adapts based on server responses.
+
+    Automatically backs off when receiving 429 (Too Many Requests) responses
+    and gradually speeds up after consecutive successful requests.
+
+    Thread-safe: Uses asyncio.Lock to protect shared state modifications.
+
+    Example:
+        limiter = AdaptiveRateLimiter(default_delay=0.5)
+
+        # On 429 response:
+        limiter.record_rate_limit(url, retry_after=60)
+
+        # On success:
+        limiter.record_success(url)
+    """
+
+    def __init__(
+        self,
+        default_delay: float = 0.5,
+        default_concurrent: int = 3,
+        host_configs: Optional[dict[str, dict]] = None,
+        min_delay: float = 0.1,
+        max_delay: float = 60.0,
+        backoff_factor: float = 2.0,
+        success_threshold: int = 10,
+    ):
+        """
+        Initialize the adaptive rate limiter.
+
+        Args:
+            default_delay: Minimum seconds between requests to same host
+            default_concurrent: Maximum concurrent requests per host
+            host_configs: Optional per-host overrides
+            min_delay: Minimum delay (won't speed up below this)
+            max_delay: Maximum delay (won't slow down above this)
+            backoff_factor: Multiplier for delay on rate limit
+            success_threshold: Successful requests before speeding up
+        """
+        super().__init__(default_delay, default_concurrent, host_configs)
+        self._min_delay = min_delay
+        self._max_delay = max_delay
+        self._backoff_factor = backoff_factor
+        self._success_threshold = success_threshold
+
+        # Adaptive state (protected by _adaptive_lock)
+        self._success_counts: dict[str, int] = {}
+        self._current_delays: dict[str, float] = {}
+        self._adaptive_lock = asyncio.Lock()
+
+    async def record_rate_limit(self, url: str, retry_after: Optional[int] = None) -> None:
+        """
+        Record a 429 response and increase delay for the host.
+
+        Args:
+            url: The URL that received a 429
+            retry_after: Optional Retry-After header value in seconds
+        """
+        host = self._get_host(url)
+
+        async with self._adaptive_lock:
+            current = self._current_delays.get(host, self.default_delay)
+
+            if retry_after is not None and retry_after > 0:
+                # Use Retry-After if provided
+                new_delay = min(float(retry_after), self._max_delay)
+            else:
+                # Exponential backoff
+                new_delay = min(current * self._backoff_factor, self._max_delay)
+
+            self._current_delays[host] = new_delay
+            self._success_counts[host] = 0
+            self.update_host_config(host, delay=new_delay)
+
+        logger.info(f"Rate limited by {host}, increasing delay to {new_delay:.1f}s")
+
+    async def record_success(self, url: str) -> None:
+        """
+        Record a successful request. May decrease delay after threshold.
+
+        Args:
+            url: The URL that succeeded
+        """
+        host = self._get_host(url)
+
+        async with self._adaptive_lock:
+            self._success_counts[host] = self._success_counts.get(host, 0) + 1
+
+            if self._success_counts[host] >= self._success_threshold:
+                current = self._current_delays.get(host, self.default_delay)
+                new_delay = max(current / self._backoff_factor, self._min_delay)
+
+                if new_delay < current:
+                    self._current_delays[host] = new_delay
+                    self.update_host_config(host, delay=new_delay)
+                    self._success_counts[host] = 0
+                    logger.debug(f"Reducing delay for {host} to {new_delay:.1f}s")
+
+    def get_stats(self) -> dict:
+        """Get adaptive rate limiter statistics."""
+        base_stats = super().get_stats()
+        base_stats["adapted_hosts"] = len(self._current_delays)
+        return base_stats
