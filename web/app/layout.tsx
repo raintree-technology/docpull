@@ -26,9 +26,9 @@ export const metadata: Metadata = {
   ],
 
   openGraph: {
-    title: "docpull - Fetch docs. Get AI-ready Markdown.",
+    title: "docpull - Fetch docs. Get clean, AI-ready Markdown.",
     description:
-      "Fast, type-safe, secure documentation fetcher for LLMs and RAG pipelines.",
+      "Turn any documentation site into clean Markdown for LLMs, RAG pipelines, and training datasets. Fast, secure, and built for AI workflows.",
     type: "website",
     siteName: "docpull",
     images: [
@@ -42,9 +42,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "docpull - Fetch docs. Get AI-ready Markdown.",
+    title: "docpull - Fetch docs. Get clean, AI-ready Markdown.",
     description:
-      "Fast, type-safe, secure documentation fetcher for LLMs and RAG pipelines.",
+      "Turn any documentation site into clean Markdown for LLMs, RAG pipelines, and training datasets. Fast, secure, and built for AI workflows.",
     images: ["/og-image.png"],
   },
 };
