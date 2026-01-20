@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 
+const baseUrl = "https://docpull.raintree.technology";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(baseUrl),
   title: "docpull - Fetch docs. Get AI-ready Markdown.",
   description:
     "Fast, type-safe, secure documentation fetcher. Transform any docs site into clean, AI-ready Markdown for LLMs, RAG pipelines, and offline archives.",
