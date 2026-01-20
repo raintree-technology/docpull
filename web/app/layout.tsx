@@ -28,12 +28,21 @@ export const metadata: Metadata = {
       "Fast, type-safe, secure documentation fetcher for LLMs and RAG pipelines.",
     type: "website",
     siteName: "docpull",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "docpull - Fetch docs. Get clean Markdown.",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "docpull - Fetch docs. Get AI-ready Markdown.",
     description:
       "Fast, type-safe, secure documentation fetcher for LLMs and RAG pipelines.",
+    images: ["/og-image.png"],
   },
 };
 
