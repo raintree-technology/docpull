@@ -177,8 +177,7 @@ class BrowserLinkExtractor:
         This runs in the browser context and can access dynamically-added content.
         """
         try:
-            links = await page.evaluate(
-                """
+            links = await page.evaluate("""
                 () => {
                     const links = new Set();
                     const baseUrl = window.location.href;
@@ -232,8 +231,7 @@ class BrowserLinkExtractor:
 
                     return Array.from(links);
                 }
-            """
-            )
+            """)
             return links if links else []
         except Exception as e:
             logger.debug(f"DOM link extraction failed: {e}")

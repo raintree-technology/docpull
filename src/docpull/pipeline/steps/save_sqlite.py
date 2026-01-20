@@ -62,8 +62,7 @@ class SqliteSaveStep:
             self._conn = sqlite3.connect(self._db_path)
 
             # Create table with index on URL
-            self._conn.execute(
-                """
+            self._conn.execute("""
                 CREATE TABLE IF NOT EXISTS documents (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     url TEXT UNIQUE NOT NULL,
@@ -72,8 +71,7 @@ class SqliteSaveStep:
                     metadata TEXT,
                     fetched_at TEXT
                 )
-            """
-            )
+            """)
             self._conn.execute("CREATE INDEX IF NOT EXISTS idx_url ON documents(url)")
             self._conn.commit()
 
