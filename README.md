@@ -7,6 +7,12 @@
 [![Downloads](https://pepy.tech/badge/docpull)](https://pepy.tech/project/docpull)
 [![License: MIT](https://img.shields.io/github/license/raintree-technology/docpull)](https://github.com/raintree-technology/docpull/blob/main/LICENSE)
 
+<p align="center">
+  <a href="https://docpull.raintree.technology">
+    <img src="https://pub-e85a1abca36f4fd8b4300a6ec2d6f45f.r2.dev/marketing/docpull/1768954147343-iaiziy-docpull-terminal-hero.gif" alt="docpull demo" width="600">
+  </a>
+</p>
+
 ## Install
 
 ```bash
@@ -122,6 +128,7 @@ docpull URL --dry-run         # Test without downloading
 
 ## Links
 
+- [Website](https://docpull.raintree.technology)
 - [PyPI](https://pypi.org/project/docpull/)
 - [GitHub](https://github.com/raintree-technology/docpull)
 - [Changelog](https://github.com/raintree-technology/docpull/blob/main/docs/CHANGELOG.md)
