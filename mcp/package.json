@@ -1,0 +1,38 @@
+{
+	"name": "docpull-mcp",
+	"version": "0.2.0",
+	"description": "MCP server for fetching and searching documentation with semantic search",
+	"type": "module",
+	"main": "src/server.ts",
+	"scripts": {
+		"dev": "bun run src/server.ts",
+		"ingest": "bun run src/ingest.ts",
+		"typecheck": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@modelcontextprotocol/sdk": "^1.0.4",
+		"openai": "^4.77.3",
+		"pg": "^8.11.3",
+		"yaml": "^2.8.0",
+		"zod": "^3.22.4"
+	},
+	"devDependencies": {
+		"@types/node": "^22.15.21",
+		"@types/pg": "^8.11.10",
+		"typescript": "^5.9.3"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/raintree-technology/docpull-mcp.git"
+	},
+	"license": "MIT",
+	"author": "Raintree Technology",
+	"keywords": [
+		"mcp",
+		"documentation",
+		"semantic-search",
+		"pgvector",
+		"embeddings",
+		"claude"
+	]
+}
