@@ -4,7 +4,7 @@ MCP server for fetching and searching documentation on-demand. Uses [docpull](ht
 
 ## Features
 
-- **Fetch docs on-demand** - Pull documentation for any library
+- **Fetch docs on-demand** - Pull documentation for built-in or configured libraries
 - **Semantic search** - Find concepts even when you don't know exact terms
 - **Exact matching** - Grep-like search for known function/method names
 - **Built-in sources** - React, Next.js, Hono, Supabase, and more
@@ -77,14 +77,15 @@ Add to `~/.claude/settings.json`:
 
 ### ensure_docs
 
-Fetch and index documentation for a library.
+Fetch documentation for a configured source. Indexing is explicit opt-in.
 
 ```
-ensure_docs(source: "react")              # Fetch and index
-ensure_docs(source: "https://...")        # Direct URL
+ensure_docs(source: "react")              # Fetch only
 ensure_docs(source: "react", force: true) # Force refresh
-ensure_docs(source: "react", index: false) # Fetch only, no indexing
+ensure_docs(source: "react", index: true) # Fetch and index
 ```
+
+Direct URLs are intentionally disabled in MCP. Add custom sites to `~/.config/docpull-mcp/sources.yaml` and call `ensure_docs` with the alias name.
 
 ### search_docs
 

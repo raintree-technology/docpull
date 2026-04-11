@@ -118,8 +118,8 @@ def run_doctor(output_dir: Path | None = None, use_rich: bool = True) -> int:
 
     # Optional dependencies
     optional_checks = [
-        ("yaml", "pyyaml", True),
-        ("playwright.async_api", "playwright", True),
+        ("aiohttp_socks", "aiohttp-socks", True),
+        ("url_normalize", "url-normalize", True),
     ]
 
     # Other checks
@@ -178,8 +178,8 @@ def run_doctor(output_dir: Path | None = None, use_rich: bool = True) -> int:
         optional_missing = [msg for success, msg in optional_results if not success]
         if optional_missing:
             print("\nOptional features available:")
-            print("  - YAML config support: pip install docpull[yaml]")
-            print("  - JavaScript rendering: pip install docpull[js]")
+            print("  - Proxy support: pip install docpull[proxy]")
+            print("  - URL normalization helpers: pip install docpull[normalize]")
             print("  - All optional features: pip install docpull[all]")
 
         return 0

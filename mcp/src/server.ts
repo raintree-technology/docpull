@@ -17,6 +17,11 @@ import { parse as parseYaml } from "yaml";
 import { OpenAI } from "openai";
 import { isDbConfigured, searchDocs, grepDocs, listLibraries } from "./db.js";
 import { ingestSingleLibrary } from "./ingest.js";
+import {
+	resolveConfiguredSource,
+	type SourceConfig,
+} from "./source_resolver.js";
+import { ensureDocsToolSchema } from "./tool_schemas.js";
 
 // ============================================================================
 // CONFIG
@@ -27,6 +32,7 @@ const DOCS_DIR =
 	join(homedir(), ".local", "share", "docpull-mcp", "docs");
 const CONFIG_DIR = join(homedir(), ".config", "docpull-mcp");
 const META_DIR = join(CONFIG_DIR, "meta");
+const SOURCES_CONFIG_PATH = join(CONFIG_DIR, "sources.yaml");
 const CACHE_TTL_DAYS = 7;
 const DOCPULL_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
 
@@ -36,13 +42,6 @@ const openai = OPENAI_KEY ? new OpenAI({ apiKey: OPENAI_KEY }) : null;
 // ============================================================================
 // SOURCE CONFIG
 // ============================================================================
-
-interface SourceConfig {
-	url: string;
-	description: string;
-	category: string;
-	maxPages?: number;
-}
 
 const BUILTIN_SOURCES: Record<string, SourceConfig> = {
 	// Frontend
@@ -134,17 +133,16 @@ let userSourcesCache: Record<string, SourceConfig> | null = null;
 let userSourcesMtime: number = 0;
 
 function loadUserSources(): Record<string, SourceConfig> {
-	const p = join(CONFIG_DIR, "sources.yaml");
-	if (!existsSync(p)) {
+	if (!existsSync(SOURCES_CONFIG_PATH)) {
 		userSourcesCache = {};
 		return {};
 	}
 	try {
-		const mtime = statSync(p).mtime.getTime();
+		const mtime = statSync(SOURCES_CONFIG_PATH).mtime.getTime();
 		if (userSourcesCache && mtime === userSourcesMtime) {
 			return userSourcesCache;
 		}
-		const parsed = parseYaml(readFileSync(p, "utf-8")) as {
+		const parsed = parseYaml(readFileSync(SOURCES_CONFIG_PATH, "utf-8")) as {
 			sources?: Record<string, SourceConfig>;
 		};
 		userSourcesCache = parsed.sources || {};
@@ -319,36 +317,28 @@ const server = new McpServer({ name: "docpull-mcp", version: "0.2.0" });
 
 server.tool(
 	"ensure_docs",
-	"Fetch documentation for a library. Optionally indexes for semantic search.",
-	{
-		source: z.string().describe("Library name or URL"),
-		force: z.boolean().optional().default(false).describe("Force re-fetch"),
-		index: z
-			.boolean()
-			.optional()
-			.default(true)
-			.describe(
-				"Index for semantic search (requires DATABASE_URL and OPENAI_API_KEY)",
-			),
-	},
+	"Fetch documentation for a configured library. Optionally indexes for semantic search.",
+	ensureDocsToolSchema,
 	async ({ source, force, index }) => {
 		const sources = getAllSources();
-		let url: string, name: string, maxPages: number | undefined;
+		const resolved = resolveConfiguredSource(
+			source,
+			sources,
+			SOURCES_CONFIG_PATH,
+		);
 
-		if (source.startsWith("http")) {
-			url = source;
-			name = new URL(source).hostname.replace(/\./g, "-");
-		} else {
-			const cfg = sources[source];
-			if (!cfg)
-				return {
-					content: [{ type: "text" as const, text: "Unknown: " + source }],
-					isError: true,
-				};
-			url = cfg.url;
-			name = source;
-			maxPages = cfg.maxPages;
+		if (!resolved.ok) {
+			return {
+				content: [{ type: "text" as const, text: resolved.message }],
+				isError: true,
+			};
 		}
+
+		const {
+			name,
+			url,
+			maxPages,
+		} = resolved.value;
 
 		const cache = await getCacheInfo(name);
 		const needsFetch = !cache.exists || cache.isStale || force;

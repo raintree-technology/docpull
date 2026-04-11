@@ -161,7 +161,8 @@ class JsonSaveStep:
             self._temp_file = None
 
             # Atomic rename (temp_path is guaranteed set if temp_file was set)
-            assert self._temp_path is not None
+            if self._temp_path is None:
+                raise RuntimeError("Temporary JSON output path was not initialized")
             os.replace(self._temp_path, self._output_file)
             logger.info(f"Saved {self._document_count} documents to {self._output_file}")
 

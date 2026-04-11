@@ -101,7 +101,7 @@ class LinkCrawler:
             # Resolve relative URLs
             try:
                 absolute_url = urljoin(base_url, href)
-            except Exception:
+            except ValueError:
                 continue
 
             # Remove fragment

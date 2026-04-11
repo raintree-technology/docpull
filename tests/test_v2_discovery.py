@@ -205,6 +205,27 @@ class TestSitemapDiscoverer:
 
         assert len(urls) == 2
 
+    @pytest.mark.asyncio
+    async def test_blocks_off_domain_urls_from_sitemap(self, mock_http_client, mock_validator):
+        """Test that sitemap discovery stays on the crawl origin."""
+        sitemap_content = b"""<?xml version="1.0" encoding="UTF-8"?>
+        <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+            <url><loc>https://example.com/page1</loc></url>
+            <url><loc>https://evil.example/collect</loc></url>
+        </urlset>"""
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.content = sitemap_content
+        mock_http_client.get.return_value = mock_response
+
+        discoverer = SitemapDiscoverer(mock_http_client, mock_validator)
+        urls = []
+        async for url in discoverer.discover("https://example.com/sitemap.xml"):
+            urls.append(url)
+
+        assert urls == ["https://example.com/page1"]
+
 
 class TestLinkCrawler:
     """Tests for LinkCrawler."""

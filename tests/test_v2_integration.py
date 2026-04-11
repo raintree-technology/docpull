@@ -4,6 +4,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from pydantic import ValidationError
 
 from docpull import (
     DocpullConfig,
@@ -70,6 +71,15 @@ class TestDocpullConfig:
         )
         assert config.network.proxy == "http://proxy:8080"
         assert config.network.max_retries == 5
+        assert config.network.insecure_tls is False
+
+    def test_config_rejects_insecure_tls(self):
+        """Test config rejects disabling TLS verification."""
+        with pytest.raises(ValueError, match="TLS certificate verification is mandatory"):
+            DocpullConfig(
+                url="https://example.com",
+                network={"insecure_tls": True},
+            )
 
     def test_config_dry_run(self):
         """Test config with dry run enabled."""
@@ -95,6 +105,20 @@ crawl:
         assert config.url == "https://docs.example.com"
         assert config.profile == ProfileName.MIRROR
         assert config.crawl.max_pages == 50
+
+    def test_config_rejects_removed_browser_settings(self):
+        """Test deprecated browser crawl settings are rejected."""
+        with pytest.raises(ValidationError):
+            DocpullConfig(
+                url="https://example.com",
+                crawl={"javascript": True},
+            )
+
+        with pytest.raises(ValidationError):
+            DocpullConfig(
+                url="https://example.com",
+                performance={"browser_contexts": 2},
+            )
 
 
 class TestUrlToFilename:

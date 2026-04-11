@@ -6,7 +6,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class ProfileName(str, Enum):
@@ -84,7 +84,6 @@ class CrawlConfig(BaseModel):
     per_host_concurrent: int = Field(3, ge=1, description="Maximum concurrent requests per host")
     include_paths: list[str] = Field(default_factory=list, description="URL path patterns to include")
     exclude_paths: list[str] = Field(default_factory=list, description="URL path patterns to exclude")
-    javascript: bool = Field(False, description="Enable JavaScript rendering via Playwright")
     adaptive_rate_limit: bool = Field(
         False,
         description="Automatically adjust rate limits based on server responses (429s)",
@@ -206,11 +205,22 @@ class NetworkConfig(BaseModel):
 
     proxy: str | None = Field(None, description="HTTP/HTTPS proxy URL")
     user_agent: str | None = Field(None, description="Custom User-Agent header")
+    insecure_tls: bool = Field(
+        False,
+        description="Deprecated insecure option; docpull always verifies TLS certificates",
+    )
     max_retries: int = Field(3, ge=0, description="Maximum retry attempts for failed requests")
     connect_timeout: int = Field(10, ge=1, description="Connection timeout in seconds")
     read_timeout: int = Field(30, ge=5, description="Read timeout in seconds")
 
     model_config = {"extra": "forbid"}
+
+    @field_validator("insecure_tls")
+    @classmethod
+    def _reject_insecure_tls(cls, value: bool) -> bool:
+        if value:
+            raise ValueError("insecure_tls is not supported; TLS certificate verification is mandatory")
+        return value
 
 
 class PerformanceConfig(BaseModel):
@@ -220,11 +230,6 @@ class PerformanceConfig(BaseModel):
         4,
         ge=1,
         description="Thread pool workers for CPU-bound operations (metadata extraction)",
-    )
-    browser_contexts: int = Field(
-        5,
-        ge=1,
-        description="Maximum browser contexts for JS rendering",
     )
 
     model_config = {"extra": "forbid"}

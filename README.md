@@ -33,10 +33,6 @@ docpull https://docs.example.com --include-paths "/api/*" --exclude-paths "/chan
 
 # Enable caching for incremental updates
 docpull https://docs.example.com --cache
-
-# JavaScript-heavy sites
-pip install docpull[js]
-docpull https://spa-site.com --js
 ```
 
 ## Profiles
@@ -55,7 +51,6 @@ Crawl:
   --max-depth N           Maximum crawl depth
   --include-paths P       Only crawl matching URL patterns
   --exclude-paths P       Skip matching URL patterns
-  --js                    Enable JavaScript rendering
 
 Cache:
   --cache                 Enable caching for incremental updates

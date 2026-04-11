@@ -66,9 +66,6 @@ Examples:
 
   # Filter paths
   docpull https://example.com --include-paths "/api/*" --exclude-paths "/changelog/*"
-
-  # Enable JavaScript rendering
-  docpull https://spa-site.com --js
         """,
     )
 
@@ -155,13 +152,6 @@ Examples:
         help="Skip URLs matching these patterns",
     )
     crawl_group.add_argument(
-        "--js",
-        "--javascript",
-        action="store_true",
-        dest="javascript",
-        help="Enable JavaScript rendering (requires Playwright)",
-    )
-    crawl_group.add_argument(
         "--adaptive-rate-limit",
         action="store_true",
         help="Automatically adjust rate limits based on server responses",
@@ -193,6 +183,11 @@ Examples:
         "--user-agent",
         type=str,
         help="Custom User-Agent string",
+    )
+    network_group.add_argument(
+        "--insecure-tls",
+        action="store_true",
+        help="Disable TLS certificate verification (unsafe)",
     )
     network_group.add_argument(
         "--max-retries",
@@ -330,8 +325,6 @@ def run_fetcher(args: argparse.Namespace) -> int:
         crawl_kwargs["max_concurrent"] = args.max_concurrent
     if args.rate_limit is not None:
         crawl_kwargs["rate_limit"] = args.rate_limit
-    if args.javascript:
-        crawl_kwargs["javascript"] = True
     if args.adaptive_rate_limit:
         crawl_kwargs["adaptive_rate_limit"] = True
     if args.include_paths:
@@ -356,6 +349,12 @@ def run_fetcher(args: argparse.Namespace) -> int:
         network_kwargs["proxy"] = args.proxy
     if args.user_agent:
         network_kwargs["user_agent"] = args.user_agent
+    if args.insecure_tls:
+        console.print(
+            "[red]Configuration error:[/red] --insecure-tls is no longer supported; "
+            "docpull always verifies TLS certificates"
+        )
+        return 1
     if args.max_retries is not None:
         network_kwargs["max_retries"] = args.max_retries
     if network_kwargs:

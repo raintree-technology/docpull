@@ -11,7 +11,7 @@ from defusedxml import ElementTree
 from ..http.protocols import HttpClient
 from ..security.robots import RobotsChecker
 from ..security.url_validator import UrlValidator
-from .filters import PatternFilter, SeenUrlTracker
+from .filters import DomainFilter, PatternFilter, SeenUrlTracker
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +62,11 @@ class SitemapDiscoverer:
         self._filter = pattern_filter
         self._robots = robots_checker
         self._seen = SeenUrlTracker()
+        self._domain_filter: DomainFilter | None = None
+
+    def _is_in_scope(self, url: str) -> bool:
+        """Keep sitemap discovery aligned with the crawl origin."""
+        return self._domain_filter is None or self._domain_filter.should_include(url)
 
     def _get_sitemaps_from_robots(self, base_url: str) -> list[str]:
         """
@@ -115,6 +120,10 @@ class SitemapDiscoverer:
         Returns:
             Sitemap content as bytes, or None if fetch failed
         """
+        if not self._is_in_scope(url):
+            logger.debug(f"Sitemap URL outside crawl scope: {url}")
+            return None
+
         if not self._validator.is_valid(url):
             logger.debug(f"Sitemap URL validation failed: {url}")
             return None
@@ -215,6 +224,10 @@ class SitemapDiscoverer:
             if not self._validator.is_valid(url):
                 continue
 
+            if not self._is_in_scope(url):
+                logger.debug(f"Ignoring off-origin sitemap URL: {url}")
+                continue
+
             # Apply pattern filter
             if self._filter and not self._filter.should_include(url):
                 continue
@@ -231,6 +244,10 @@ class SitemapDiscoverer:
         for nested_url in nested_sitemaps:
             if remaining is not None and remaining <= 0:
                 return
+
+            if not self._is_in_scope(nested_url):
+                logger.debug(f"Ignoring off-origin nested sitemap: {nested_url}")
+                continue
 
             async for url in self._discover_from_sitemap(nested_url, depth + 1, remaining):
                 yield url
@@ -258,6 +275,7 @@ class SitemapDiscoverer:
             Discovered URLs
         """
         self._seen.clear()
+        self._domain_filter = DomainFilter(start_url, allow_subdomains=False)
 
         # If URL looks like a sitemap, use it directly
         if start_url.endswith(".xml"):

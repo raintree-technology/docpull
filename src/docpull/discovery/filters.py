@@ -34,8 +34,8 @@ def normalize_url(url: str) -> str:
         try:
             result: str = url_normalize(url)
             return result
-        except Exception:
-            pass
+        except ValueError:
+            logger.debug("url_normalize rejected URL during normalization", exc_info=True)
 
     # Basic normalization
     parsed = urlparse(url)

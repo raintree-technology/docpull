@@ -3,12 +3,17 @@
 from __future__ import annotations
 
 import asyncio
+import ipaddress
 import logging
-import random
+import secrets
+import socket
 from types import TracebackType
+from urllib.parse import urljoin, urlparse
 
 import aiohttp
+from aiohttp.abc import AbstractResolver
 
+from ..security.url_validator import UrlValidator
 from .protocols import HttpResponse
 from .rate_limiter import AdaptiveRateLimiter, PerHostRateLimiter
 
@@ -21,6 +26,57 @@ except ImportError:
     CHARSET_NORMALIZER_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
+
+
+class _ValidatedResolver(AbstractResolver):
+    """
+    Resolver that pins connections to addresses approved by UrlValidator.
+
+    Validation must happen at connect time, not only before the request is
+    dispatched, otherwise DNS rebinding can swap in internal targets after the
+    preflight check has passed.
+    """
+
+    def __init__(self, url_validator: UrlValidator):
+        self._url_validator = url_validator
+
+    async def resolve(
+        self,
+        host: str,
+        port: int = 0,
+        family: int = socket.AF_UNSPEC,
+    ) -> list[dict[str, object]]:
+        try:
+            addresses = self._url_validator.resolve_allowed_addresses(host)
+        except ValueError as err:
+            raise OSError(str(err)) from err
+
+        results: list[dict[str, object]] = []
+        for address in addresses:
+            ip = ipaddress.ip_address(address)
+            entry_family = socket.AF_INET6 if ip.version == 6 else socket.AF_INET
+            if family not in {socket.AF_UNSPEC, entry_family}:
+                continue
+
+            results.append(
+                {
+                    "hostname": host,
+                    "host": address,
+                    "port": port,
+                    "family": entry_family,
+                    "proto": socket.IPPROTO_TCP,
+                    "flags": socket.AI_NUMERICHOST,
+                }
+            )
+
+        if not results:
+            raise OSError(f"No allowed addresses available for {host}")
+
+        return results
+
+    async def close(self) -> None:
+        """The resolver does not hold external resources."""
+        return None
 
 
 class AsyncHttpClient:
@@ -45,9 +101,12 @@ class AsyncHttpClient:
 
     MAX_CONTENT_SIZE = 50 * 1024 * 1024  # 50 MB
     MAX_DOWNLOAD_TIME = 300  # 5 minutes
+    MAX_REDIRECTS = 10
 
     # Status codes that warrant a retry
     RETRYABLE_STATUS_CODES = frozenset({429, 500, 502, 503, 504})
+    REDIRECT_STATUS_CODES = frozenset({301, 302, 303, 307, 308})
+    SENSITIVE_HEADERS = frozenset({"authorization", "cookie", "proxy-authorization"})
 
     # Exceptions that warrant a retry
     RETRYABLE_EXCEPTIONS = (
@@ -66,6 +125,9 @@ class AsyncHttpClient:
         proxy: str | None = None,
         default_timeout: float = 30.0,
         auth_headers: dict[str, str] | None = None,
+        url_validator: UrlValidator | None = None,
+        allow_insecure_tls: bool = False,
+        auth_scope_hosts: set[str] | None = None,
     ) -> None:
         """
         Initialize the HTTP client.
@@ -87,6 +149,11 @@ class AsyncHttpClient:
         self._proxy = proxy
         self._default_timeout = default_timeout
         self._auth_headers = auth_headers or {}
+        self._url_validator = url_validator
+        self._auth_scope_hosts = {host.lower() for host in auth_scope_hosts} if auth_scope_hosts else None
+
+        if allow_insecure_tls:
+            raise ValueError("Insecure TLS is not supported; certificate verification is always enforced")
 
         if user_agent is None:
             user_agent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (docpull/2.0)"
@@ -94,13 +161,60 @@ class AsyncHttpClient:
 
         self._session: aiohttp.ClientSession | None = None
 
+    def _validate_url(self, url: str) -> None:
+        """Re-validate each request URL, including redirect targets."""
+        if self._url_validator is None:
+            return
+
+        result = self._url_validator.validate(url)
+        if not result.is_valid:
+            raise ValueError(f"URL validation failed for {url}: {result.rejection_reason}")
+
+    def _resolve_redirect_url(self, current_url: str, location: str) -> str:
+        """Resolve a redirect target relative to the current URL."""
+        redirect_url = urljoin(current_url, location)
+        self._validate_url(redirect_url)
+        return redirect_url
+
+    def _headers_for_redirect(
+        self,
+        headers: dict[str, str],
+        current_url: str,
+        redirect_url: str,
+    ) -> dict[str, str]:
+        """
+        Drop sensitive auth state when a redirect changes origin.
+
+        Callers often attach bearer tokens or cookies scoped to a single docs
+        host. Keeping them on cross-origin redirects can leak credentials.
+        """
+        if urlparse(current_url).netloc.lower() == urlparse(redirect_url).netloc.lower():
+            return headers
+
+        return {key: value for key, value in headers.items() if key.lower() not in self.SENSITIVE_HEADERS}
+
+    def _headers_for_url(self, headers: dict[str, str], target_url: str) -> dict[str, str]:
+        """Strip scoped auth state before off-origin requests."""
+        if self._auth_scope_hosts is None:
+            return headers
+
+        hostname = urlparse(target_url).hostname
+        if hostname and hostname.lower() in self._auth_scope_hosts:
+            return headers
+
+        return {key: value for key, value in headers.items() if key.lower() not in self.SENSITIVE_HEADERS}
+
     async def __aenter__(self) -> AsyncHttpClient:
         """Enter async context and create session."""
-        connector = aiohttp.TCPConnector(
-            limit=100,  # Total connection limit
-            limit_per_host=10,  # Per-host connection limit
-            ttl_dns_cache=300,  # DNS cache TTL
-        )
+        connector_kwargs: dict[str, object] = {
+            "limit": 100,  # Total connection limit
+            "limit_per_host": 10,  # Per-host connection limit
+            "ttl_dns_cache": 300,  # DNS cache TTL
+        }
+        if self._url_validator is not None and self._proxy is None:
+            connector_kwargs["resolver"] = _ValidatedResolver(self._url_validator)
+
+        connector = aiohttp.TCPConnector(**connector_kwargs)
         self._session = aiohttp.ClientSession(
             connector=connector,
             headers={"User-Agent": self._user_agent},
@@ -130,7 +244,7 @@ class AsyncHttpClient:
         """
         # Exponential backoff: base * (2 ^ attempt) + random jitter
         delay: float = self._retry_base_delay * (2**attempt)
-        jitter: float = random.uniform(0, 1)
+        jitter: float = secrets.randbits(24) / float(1 << 24)
         return delay + jitter
 
     def _decode_content(self, content: bytes, content_type: str) -> str:
@@ -215,62 +329,83 @@ class AsyncHttpClient:
 
         for attempt in range(self._max_retries + 1):
             try:
-                async with (
-                    self._rate_limiter.limit(url),
-                    self._session.get(
-                        url,
-                        timeout=aiohttp.ClientTimeout(total=timeout_val),
-                        headers=request_headers,
-                        proxy=self._proxy,
-                        allow_redirects=True,
-                    ) as response,
-                ):
-                    # Check for retryable status codes
-                    if response.status in self.RETRYABLE_STATUS_CODES:
-                        # Record rate limit for adaptive rate limiter
-                        if response.status == 429 and isinstance(self._rate_limiter, AdaptiveRateLimiter):
-                            retry_after = response.headers.get("Retry-After")
-                            retry_seconds = (
-                                int(retry_after) if retry_after and retry_after.isdigit() else None
-                            )
-                            await self._rate_limiter.record_rate_limit(url, retry_seconds)
+                current_url = url
+                current_headers = self._headers_for_url(dict(request_headers), current_url)
+                redirect_count = 0
 
-                        if attempt < self._max_retries:
-                            delay = self._calculate_retry_delay(attempt)
-                            logger.warning(
-                                f"Got {response.status} for {url}, retrying in {delay:.1f}s "
-                                f"(attempt {attempt + 1}/{self._max_retries + 1})"
+                while True:
+                    self._validate_url(current_url)
+
+                    async with (
+                        self._rate_limiter.limit(current_url),
+                        self._session.get(
+                            current_url,
+                            timeout=aiohttp.ClientTimeout(total=timeout_val),
+                            headers=current_headers,
+                            proxy=self._proxy,
+                            allow_redirects=False,
+                        ) as response,
+                    ):
+                        location = response.headers.get("Location")
+                        if response.status in self.REDIRECT_STATUS_CODES and location:
+                            if redirect_count >= self.MAX_REDIRECTS:
+                                raise ValueError(f"Too many redirects while fetching {url}")
+
+                            redirect_url = self._resolve_redirect_url(current_url, location)
+                            current_headers = self._headers_for_url(
+                                self._headers_for_redirect(
+                                    current_headers,
+                                    current_url,
+                                    redirect_url,
+                                ),
+                                redirect_url,
                             )
-                            await asyncio.sleep(delay)
+                            current_url = redirect_url
+                            redirect_count += 1
                             continue
-                        # Last attempt - let it raise
-                        response.raise_for_status()
 
-                    # Check Content-Length if available
-                    content_length = response.headers.get("Content-Length")
-                    if content_length and int(content_length) > self._max_content_size:
-                        raise ValueError(f"Content too large: {content_length} bytes")
+                        if response.status in self.RETRYABLE_STATUS_CODES:
+                            if response.status == 429 and isinstance(self._rate_limiter, AdaptiveRateLimiter):
+                                retry_after = response.headers.get("Retry-After")
+                                retry_seconds = (
+                                    int(retry_after) if retry_after and retry_after.isdigit() else None
+                                )
+                                await self._rate_limiter.record_rate_limit(current_url, retry_seconds)
 
-                    # Read content with size limit
-                    content = b""
-                    async for chunk in response.content.iter_chunked(8192):
-                        content += chunk
-                        if len(content) > self._max_content_size:
-                            raise ValueError(f"Content size limit exceeded: >{self._max_content_size} bytes")
+                            if attempt < self._max_retries:
+                                delay = self._calculate_retry_delay(attempt)
+                                logger.warning(
+                                    f"Got {response.status} for {current_url}, retrying in {delay:.1f}s "
+                                    f"(attempt {attempt + 1}/{self._max_retries + 1})"
+                                )
+                                await asyncio.sleep(delay)
+                                break
+                            response.raise_for_status()
 
-                    content_type = response.headers.get("Content-Type", "")
+                        content_length = response.headers.get("Content-Length")
+                        if content_length and int(content_length) > self._max_content_size:
+                            raise ValueError(f"Content too large: {content_length} bytes")
 
-                    # Record success for adaptive rate limiter
-                    if isinstance(self._rate_limiter, AdaptiveRateLimiter):
-                        await self._rate_limiter.record_success(url)
+                        content = b""
+                        async for chunk in response.content.iter_chunked(8192):
+                            content += chunk
+                            if len(content) > self._max_content_size:
+                                raise ValueError(
+                                    f"Content size limit exceeded: >{self._max_content_size} bytes"
+                                )
 
-                    return HttpResponse(
-                        status_code=response.status,
-                        content=content,
-                        content_type=content_type,
-                        headers=dict(response.headers),
-                        url=str(response.url),
-                    )
+                        content_type = response.headers.get("Content-Type", "")
+
+                        if isinstance(self._rate_limiter, AdaptiveRateLimiter):
+                            await self._rate_limiter.record_success(current_url)
+
+                        return HttpResponse(
+                            status_code=response.status,
+                            content=content,
+                            content_type=content_type,
+                            headers=dict(response.headers),
+                            url=str(response.url),
+                        )
 
             except self.RETRYABLE_EXCEPTIONS as e:
                 last_error = e
@@ -320,23 +455,48 @@ class AsyncHttpClient:
         if headers:
             request_headers.update(headers)
 
-        async with (
-            self._rate_limiter.limit(url),
-            self._session.head(
-                url,
-                timeout=aiohttp.ClientTimeout(total=timeout),
-                headers=request_headers if request_headers else None,
-                proxy=self._proxy,
-                allow_redirects=True,
-            ) as response,
-        ):
-            return HttpResponse(
-                status_code=response.status,
-                content=b"",
-                content_type=response.headers.get("Content-Type", ""),
-                headers=dict(response.headers),
-                url=str(response.url),
-            )
+        current_url = url
+        current_headers = self._headers_for_url(dict(request_headers), current_url)
+        redirect_count = 0
+
+        while True:
+            self._validate_url(current_url)
+
+            async with (
+                self._rate_limiter.limit(current_url),
+                self._session.head(
+                    current_url,
+                    timeout=aiohttp.ClientTimeout(total=timeout),
+                    headers=current_headers if current_headers else None,
+                    proxy=self._proxy,
+                    allow_redirects=False,
+                ) as response,
+            ):
+                location = response.headers.get("Location")
+                if response.status in self.REDIRECT_STATUS_CODES and location:
+                    if redirect_count >= self.MAX_REDIRECTS:
+                        raise ValueError(f"Too many redirects while fetching {url}")
+
+                    redirect_url = self._resolve_redirect_url(current_url, location)
+                    current_headers = self._headers_for_url(
+                        self._headers_for_redirect(
+                            current_headers,
+                            current_url,
+                            redirect_url,
+                        ),
+                        redirect_url,
+                    )
+                    current_url = redirect_url
+                    redirect_count += 1
+                    continue
+
+                return HttpResponse(
+                    status_code=response.status,
+                    content=b"",
+                    content_type=response.headers.get("Content-Type", ""),
+                    headers=dict(response.headers),
+                    url=str(response.url),
+                )
 
     def decode_content(self, response: HttpResponse) -> str:
         """

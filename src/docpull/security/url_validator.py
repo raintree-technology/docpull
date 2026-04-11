@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import ipaddress
 import logging
+import socket
+from collections.abc import Callable
 from dataclasses import dataclass
 from urllib.parse import urlparse
 
@@ -54,6 +56,7 @@ class UrlValidator:
         allowed_domains: set[str] | None = None,
         block_private_ips: bool = True,
         logger: logging.Logger | None = None,
+        resolver: Callable[[str], list[str]] | None = None,
     ):
         """
         Initialize the URL validator.
@@ -68,6 +71,7 @@ class UrlValidator:
         self.allowed_domains = allowed_domains
         self.block_private_ips = block_private_ips
         self.logger = logger or logging.getLogger(__name__)
+        self._resolver = resolver or self._resolve_hostname
 
     def validate(self, url: str) -> UrlValidationResult:
         """
@@ -95,28 +99,90 @@ class UrlValidator:
             return UrlValidationResult.invalid("URL has no domain")
 
         # Extract hostname (remove port if present)
-        hostname = parsed.netloc.split(":")[0].lower()
+        hostname = parsed.hostname
+        if hostname is None:
+            return UrlValidationResult.invalid("URL has no hostname")
+
+        return self.validate_hostname(hostname)
+
+    def validate_hostname(self, hostname: str) -> UrlValidationResult:
+        """Validate a hostname against domain and IP safety rules."""
+        normalized = hostname.lower()
 
         # Check allowed domains
-        if self.allowed_domains is not None and hostname not in self.allowed_domains:
-            return UrlValidationResult.invalid(f"Domain '{hostname}' not in allowed list")
+        if self.allowed_domains is not None and normalized not in self.allowed_domains:
+            return UrlValidationResult.invalid(f"Domain '{normalized}' not in allowed list")
 
         # Check for localhost
-        if hostname in self.LOCALHOST_NAMES:
+        if normalized in self.LOCALHOST_NAMES:
             return UrlValidationResult.invalid("Localhost URLs not allowed")
 
         # Check for internal domain suffixes
         for suffix in self.INTERNAL_SUFFIXES:
-            if hostname.endswith(suffix):
+            if normalized.endswith(suffix):
                 return UrlValidationResult.invalid(f"Internal domain suffix '{suffix}' not allowed")
 
         # Check for private/internal IPs
         if self.block_private_ips:
-            ip_result = self._check_ip_address(hostname)
+            ip_result = self._check_ip_address(normalized)
             if ip_result is not None:
                 return ip_result
+            resolved_ip_result = self._check_resolved_addresses(normalized)
+            if resolved_ip_result is not None:
+                return resolved_ip_result
 
         return UrlValidationResult.valid()
+
+    def resolve_allowed_addresses(self, hostname: str) -> list[str]:
+        """
+        Resolve a hostname to transport-safe IP addresses.
+
+        The returned addresses have already been checked against the same
+        private-network policy enforced by validate().
+        """
+        normalized = hostname.lower()
+        validation = self.validate_hostname(normalized)
+        if not validation.is_valid:
+            reason = validation.rejection_reason or "Hostname failed validation"
+            raise ValueError(reason)
+
+        try:
+            ipaddress.ip_address(normalized)
+            return [normalized]
+        except ValueError:
+            pass
+
+        return self._resolver(normalized)
+
+    def _resolve_hostname(self, hostname: str) -> list[str]:
+        """Resolve hostname to a deduplicated list of IP addresses."""
+        addresses: set[str] = set()
+        for family, _, _, _, sockaddr in socket.getaddrinfo(hostname, None, type=socket.SOCK_STREAM):
+            if family in {socket.AF_INET, socket.AF_INET6}:
+                addresses.add(sockaddr[0])
+
+        if not addresses:
+            raise socket.gaierror(f"No addresses found for {hostname}")
+
+        return sorted(addresses)
+
+    def _blocked_ip_reason(self, ip: ipaddress._BaseAddress) -> str | None:
+        """Return a rejection reason for disallowed IP addresses."""
+        if ip.is_private:
+            return "Private IP address"
+        if ip.is_loopback:
+            return "Loopback IP address"
+        if ip.is_link_local:
+            return "Link-local IP address"
+        if ip.is_reserved:
+            return "Reserved IP address"
+        if ip.is_multicast:
+            return "Multicast IP address"
+        if ip.is_unspecified:
+            return "Unspecified IP address"
+        if isinstance(ip, ipaddress.IPv6Address) and ip.is_site_local:
+            return "Site-local IPv6 address"
+        return None
 
     def _check_ip_address(self, hostname: str) -> UrlValidationResult | None:
         """
@@ -130,25 +196,50 @@ class UrlValidator:
         """
         try:
             ip = ipaddress.ip_address(hostname)
-
-            if ip.is_private:
-                return UrlValidationResult.invalid(f"Private IP address '{hostname}' not allowed")
-            if ip.is_loopback:
-                return UrlValidationResult.invalid(f"Loopback IP address '{hostname}' not allowed")
-            if ip.is_link_local:
-                return UrlValidationResult.invalid(f"Link-local IP address '{hostname}' not allowed")
-            if ip.is_reserved:
-                return UrlValidationResult.invalid(f"Reserved IP address '{hostname}' not allowed")
-
-            # Check for IPv6 special addresses
-            if isinstance(ip, ipaddress.IPv6Address) and ip.is_site_local:
-                return UrlValidationResult.invalid(f"Site-local IPv6 address '{hostname}' not allowed")
-
+            blocked_reason = self._blocked_ip_reason(ip)
+            if blocked_reason is not None:
+                return UrlValidationResult.invalid(f"{blocked_reason} '{hostname}' not allowed")
             return None  # IP is allowed
 
         except ValueError:
             # Not an IP address (it's a domain name) - this is fine
             return None
+
+    def _check_resolved_addresses(self, hostname: str) -> UrlValidationResult | None:
+        """
+        Resolve a hostname and reject it if any answer points to a blocked IP.
+
+        This closes the gap where attacker-controlled DNS maps a public-looking
+        hostname to a private or loopback address.
+        """
+        try:
+            ipaddress.ip_address(hostname)
+            return None
+        except ValueError:
+            pass
+
+        try:
+            addresses = self._resolver(hostname)
+        except OSError as err:
+            return UrlValidationResult.invalid(f"Hostname '{hostname}' could not be resolved: {err}")
+
+        for address in addresses:
+            try:
+                ip = ipaddress.ip_address(address)
+            except ValueError:
+                return UrlValidationResult.invalid(
+                    f"Hostname '{hostname}' resolved to invalid address '{address}'"
+                )
+
+            blocked_reason = self._blocked_ip_reason(ip)
+            if blocked_reason is not None:
+                return UrlValidationResult.invalid(
+                    "Hostname "
+                    f"'{hostname}' resolves to blocked address '{address}' "
+                    f"({blocked_reason.lower()})"
+                )
+
+        return None
 
     def is_valid(self, url: str) -> bool:
         """

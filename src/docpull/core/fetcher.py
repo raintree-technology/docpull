@@ -5,14 +5,12 @@ from __future__ import annotations
 import asyncio
 import re
 import time
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from pathlib import Path
 from types import TracebackType
-from typing import Callable
 from urllib.parse import urlparse
 
 from ..cache import CacheManager, StreamingDeduplicator
-from ..concurrency import PLAYWRIGHT_AVAILABLE, BrowserFetcher
 from ..discovery import CompositeDiscoverer, LinkCrawler, PatternFilter, SitemapDiscoverer
 from ..discovery.link_extractors import StaticLinkExtractor
 from ..http import AdaptiveRateLimiter, AsyncHttpClient, PerHostRateLimiter
@@ -122,7 +120,6 @@ class Fetcher:
         self._discoverer: CompositeDiscoverer | None = None
         self._streaming_dedup: StreamingDeduplicator | None = None
         self._cache_manager: CacheManager | None = None
-        self._browser_fetcher: BrowserFetcher | None = None
         self._json_saver: JsonSaveStep | None = None
         self._sqlite_saver: SqliteSaveStep | None = None
 
@@ -185,8 +182,21 @@ class Fetcher:
                 default_concurrent=self.config.crawl.per_host_concurrent,
             )
 
+        # Create security components first so every transport can reuse them
+        self._url_validator = UrlValidator(allowed_schemes={"https"})
+        self._robots_checker = RobotsChecker(
+            user_agent=self.config.network.user_agent or "docpull/2.0",
+            url_validator=self._url_validator,
+            allow_insecure_tls=self.config.network.insecure_tls,
+        )
+
         # Build authentication headers from config
         auth_headers = self._build_auth_headers()
+        auth_scope_hosts: set[str] | None = None
+        if auth_headers and self.config.url:
+            hostname = urlparse(self.config.url).hostname
+            if hostname:
+                auth_scope_hosts = {hostname.lower()}
 
         # Create HTTP client
         self._http_client = AsyncHttpClient(
@@ -196,14 +206,11 @@ class Fetcher:
             proxy=self.config.network.proxy,
             default_timeout=float(self.config.network.read_timeout),
             auth_headers=auth_headers,
+            url_validator=self._url_validator,
+            allow_insecure_tls=self.config.network.insecure_tls,
+            auth_scope_hosts=auth_scope_hosts,
         )
         await self._http_client.__aenter__()
-
-        # Create security components
-        self._url_validator = UrlValidator(allowed_schemes={"https"})
-        self._robots_checker = RobotsChecker(
-            user_agent=self.config.network.user_agent or "docpull/2.0",
-        )
 
         # Build pipeline
         output_dir = self.config.output.directory.resolve()
@@ -224,19 +231,6 @@ class Fetcher:
         if self.config.content_filter.streaming_dedup:
             self._streaming_dedup = StreamingDeduplicator()
 
-        # Initialize browser fetcher if JavaScript rendering is enabled
-        if self.config.crawl.javascript:
-            if not PLAYWRIGHT_AVAILABLE:
-                raise ImportError(
-                    "JavaScript rendering requires Playwright. Install with: pip install docpull[js]"
-                )
-            self._browser_fetcher = BrowserFetcher(
-                max_contexts=self.config.performance.browser_contexts,
-                user_agent=self.config.network.user_agent,
-                timeout=float(self.config.network.read_timeout),
-            )
-            await self._browser_fetcher.__aenter__()
-
         # Build pipeline steps
         steps: list[FetchStepProtocol] = [
             ValidateStep(
@@ -246,13 +240,7 @@ class Fetcher:
             ),
         ]
 
-        # Use browser or HTTP fetch based on config
-        if self._browser_fetcher:
-            from ..pipeline.steps.browser_fetch import BrowserFetchStep
-
-            steps.append(BrowserFetchStep(browser_fetcher=self._browser_fetcher))
-        else:
-            steps.append(FetchStep(http_client=self._http_client))
+        steps.append(FetchStep(http_client=self._http_client))
 
         steps.append(MetadataStep(extract_rich=self.config.output.rich_metadata))
 
@@ -295,23 +283,7 @@ class Fetcher:
             robots_checker=self._robots_checker,
         )
 
-        # Create link extractor based on --js flag
-        # Use Any type since BrowserLinkExtractor and StaticLinkExtractor both satisfy LinkExtractor protocol
-        from typing import Any
-
-        link_extractor: Any = None
-        if self._browser_fetcher:
-            # Use browser-based extraction for JS-heavy sites
-            from ..discovery.link_extractors.browser import BrowserLinkExtractor
-
-            link_extractor = BrowserLinkExtractor(
-                browser_pool=self._browser_fetcher._pool,
-                intercept_requests=True,
-                scroll_for_lazy_load=True,
-            )
-        else:
-            # Use standard HTTP-based extraction
-            link_extractor = StaticLinkExtractor(http_client=self._http_client)
+        link_extractor = StaticLinkExtractor(http_client=self._http_client)
 
         link_crawler = LinkCrawler(
             http_client=self._http_client,
@@ -338,10 +310,6 @@ class Fetcher:
         exc_tb: TracebackType | None,
     ) -> None:
         """Exit async context and cleanup resources."""
-        if self._browser_fetcher:
-            await self._browser_fetcher.__aexit__(exc_type, exc_val, exc_tb)
-            self._browser_fetcher = None
-
         if self._http_client:
             await self._http_client.__aexit__(exc_type, exc_val, exc_tb)
             self._http_client = None

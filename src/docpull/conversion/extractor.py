@@ -127,15 +127,11 @@ class MainContentExtractor:
 
     def _detect_encoding(self, html: bytes) -> str:
         """Detect character encoding from HTML content."""
-        # Try to find charset in content
-        try:
-            # Quick regex check for meta charset
-            head = html[:2048].decode("latin-1", errors="ignore")
-            charset_match = re.search(r'charset=["\']?([^"\'\s>]+)', head, re.IGNORECASE)
-            if charset_match:
-                return charset_match.group(1).strip()
-        except Exception:
-            pass
+        # Quick regex check for meta charset.
+        head = html[:2048].decode("latin-1", errors="ignore")
+        charset_match = re.search(r'charset=["\']?([^"\'\s>]+)', head, re.IGNORECASE)
+        if charset_match:
+            return charset_match.group(1).strip()
         return "utf-8"
 
     def _parse_html(self, html: bytes) -> BeautifulSoup:
