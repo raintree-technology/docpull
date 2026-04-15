@@ -25,10 +25,6 @@ docpull --sources-file docs/examples/simple-optimization.yaml
 # Global settings
 output_dir: ./docs
 rate_limit: 0.5
-git_commit: true
-git_message: "Update docs - {date}"
-archive: true
-archive_format: tar.gz
 
 # Per-source settings
 sources:

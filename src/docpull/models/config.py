@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from enum import Enum
 from pathlib import Path
 from typing import Any, Literal
@@ -168,6 +169,16 @@ def _expand_env_var(value: str | None) -> str | None:
     return re.sub(pattern, replace, value)
 
 
+_HEADER_INJECTION_RE = re.compile(r"[\r\n\x00]")
+
+
+def _reject_header_injection(value: str | None, field_name: str) -> str | None:
+    """Reject values containing CR, LF, or null bytes (HTTP header injection)."""
+    if value is not None and _HEADER_INJECTION_RE.search(value):
+        raise ValueError(f"{field_name} must not contain CR, LF, or null characters")
+    return value
+
+
 class AuthConfig(BaseModel):
     """Configuration for authentication to protected documentation sites.
 
@@ -187,6 +198,11 @@ class AuthConfig(BaseModel):
 
     model_config = {"extra": "forbid"}
 
+    @field_validator("header_name", "header_value", mode="before")
+    @classmethod
+    def _reject_crlf_in_headers(cls, v: str | None, info: Any) -> str | None:
+        return _reject_header_injection(v, info.field_name)
+
     def model_post_init(self, __context: object) -> None:
         """Expand environment variables in sensitive fields after init."""
         # Use object.__setattr__ to bypass frozen model if needed
@@ -198,6 +214,10 @@ class AuthConfig(BaseModel):
             object.__setattr__(self, "cookie", _expand_env_var(self.cookie))
         if self.header_value:
             object.__setattr__(self, "header_value", _expand_env_var(self.header_value))
+            # Re-check after env var expansion (env vars could introduce CRLF)
+            _reject_header_injection(self.header_value, "header_value")
+        if self.header_name:
+            _reject_header_injection(self.header_name, "header_name")
 
 
 class NetworkConfig(BaseModel):
@@ -222,6 +242,11 @@ class NetworkConfig(BaseModel):
             raise ValueError("insecure_tls is not supported; TLS certificate verification is mandatory")
         return value
 
+    @field_validator("user_agent", mode="before")
+    @classmethod
+    def _reject_crlf_in_user_agent(cls, v: str | None, info: Any) -> str | None:
+        return _reject_header_injection(v, info.field_name)
+
 
 class PerformanceConfig(BaseModel):
     """Configuration for performance tuning."""
@@ -230,27 +255,6 @@ class PerformanceConfig(BaseModel):
         4,
         ge=1,
         description="Thread pool workers for CPU-bound operations (metadata extraction)",
-    )
-
-    model_config = {"extra": "forbid"}
-
-
-class IntegrationConfig(BaseModel):
-    """Configuration for external integrations."""
-
-    git_commit: bool = Field(False, description="Auto-commit changes to git")
-    git_message: str = Field(
-        "Update docs - {date}",
-        description="Git commit message template",
-    )
-    archive: bool = Field(False, description="Create archive after fetch")
-    archive_format: Literal["tar.gz", "tar.bz2", "tar.xz", "zip"] = Field(
-        "tar.gz",
-        description="Archive format",
-    )
-    post_process_hook: Path | None = Field(
-        None,
-        description="Path to post-processing hook script",
     )
 
     model_config = {"extra": "forbid"}
@@ -312,7 +316,6 @@ class DocpullConfig(BaseModel):
     network: NetworkConfig = Field(default_factory=NetworkConfig)
     auth: AuthConfig = Field(default_factory=AuthConfig)
     performance: PerformanceConfig = Field(default_factory=PerformanceConfig)
-    integration: IntegrationConfig = Field(default_factory=IntegrationConfig)
     cache: CacheConfig = Field(default_factory=CacheConfig)
 
     # Logging

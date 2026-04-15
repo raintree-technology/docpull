@@ -23,7 +23,6 @@ from .models.config import (
     ContentFilterConfig,
     CrawlConfig,
     DocpullConfig,
-    IntegrationConfig,
     NetworkConfig,
     OutputConfig,
     PerformanceConfig,
@@ -44,7 +43,6 @@ __all__ = [
     "OutputConfig",
     "NetworkConfig",
     "PerformanceConfig",
-    "IntegrationConfig",
     "CacheConfig",
     # Events
     "EventType",

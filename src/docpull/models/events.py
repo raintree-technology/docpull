@@ -57,8 +57,6 @@ class EventType(str, Enum):
     PROCESSING_STARTED = "processing_started"
     PROCESSING_COMPLETED = "processing_completed"
     INDEX_GENERATED = "index_generated"
-    ARCHIVE_CREATED = "archive_created"
-    GIT_COMMITTED = "git_committed"
 
 
 @dataclass

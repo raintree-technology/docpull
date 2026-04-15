@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import ipaddress
 import logging
+import re
 import secrets
 import socket
 from types import TracebackType
@@ -99,6 +100,8 @@ class AsyncHttpClient:
             print(response.content.decode())
     """
 
+    _CRLF_RE = re.compile(r"[\r\n\x00]")
+
     MAX_CONTENT_SIZE = 50 * 1024 * 1024  # 50 MB
     MAX_DOWNLOAD_TIME = 300  # 5 minutes
     MAX_REDIRECTS = 10
@@ -159,6 +162,11 @@ class AsyncHttpClient:
             user_agent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (docpull/2.0)"
         self._user_agent = user_agent
 
+        # Defense-in-depth: reject CRLF in headers at transport layer
+        self._validate_header_value("User-Agent", self._user_agent)
+        for name, value in self._auth_headers.items():
+            self._validate_header_value(name, value)
+
         self._session: aiohttp.ClientSession | None = None
 
     def _validate_url(self, url: str) -> None:
@@ -169,6 +177,12 @@ class AsyncHttpClient:
         result = self._url_validator.validate(url)
         if not result.is_valid:
             raise ValueError(f"URL validation failed for {url}: {result.rejection_reason}")
+
+    @staticmethod
+    def _validate_header_value(name: str, value: str) -> None:
+        """Reject HTTP headers containing CR, LF, or null bytes."""
+        if AsyncHttpClient._CRLF_RE.search(name) or AsyncHttpClient._CRLF_RE.search(value):
+            raise ValueError(f"HTTP header injection blocked: header '{name}' contains CR, LF, or null")
 
     def _resolve_redirect_url(self, current_url: str, location: str) -> str:
         """Resolve a redirect target relative to the current URL."""
@@ -213,6 +227,11 @@ class AsyncHttpClient:
         }
         if self._url_validator is not None and self._proxy is None:
             connector_kwargs["resolver"] = _ValidatedResolver(self._url_validator)
+        elif self._proxy is not None and self._url_validator is not None:
+            logger.warning(
+                "Proxy mode: DNS-pinning resolver is not active. "
+                "URL validation still runs pre-flight, but the proxy resolves DNS independently."
+            )
 
         connector = aiohttp.TCPConnector(**connector_kwargs)
         self._session = aiohttp.ClientSession(

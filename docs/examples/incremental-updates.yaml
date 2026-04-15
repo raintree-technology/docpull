@@ -20,7 +20,3 @@ log_level: INFO
 incremental: true
 update_only_changed: true
 cache_dir: .docpull-cache
-
-# Auto-commit changes
-git_commit: true
-git_message: "Update docs - {datetime}"

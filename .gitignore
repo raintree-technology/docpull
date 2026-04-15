@@ -102,9 +102,18 @@ celerybeat.pid
 # SageMath parsed files
 *.sage.py
 
-# Environments
+# Environments & secrets
 .env
+.env.*
+!.env.example
 .venv
+
+# Key material / certificates (defense-in-depth)
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
 env/
 venv/
 ENV/

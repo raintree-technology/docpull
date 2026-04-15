@@ -38,8 +38,4 @@ sources:
 output_dir: ./optimized-docs
 rate_limit: 0.5
 log_level: INFO
-git_commit: true
-git_message: "Update docs - {date}"
 extract_metadata: true
-archive: true
-archive_format: tar.gz

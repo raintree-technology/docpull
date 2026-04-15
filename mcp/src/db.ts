@@ -213,6 +213,14 @@ export async function searchDocs(
 }
 
 /**
+ * Escape ILIKE metacharacters so the pattern matches literally.
+ * PostgreSQL ILIKE uses backslash as the default escape character.
+ */
+export function escapeIlikePattern(raw: string): string {
+	return raw.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
+}
+
+/**
  * Search for exact text patterns (grep-like, case-insensitive)
  */
 export async function grepDocs(
@@ -228,6 +236,8 @@ export async function grepDocs(
 		throw new Error("Pattern must be a non-empty string");
 	}
 
+	const escaped = escapeIlikePattern(pattern);
+
 	const query = library
 		? `SELECT library, file_path, content
 		   FROM doc_embeddings
@@ -239,8 +249,8 @@ export async function grepDocs(
 		   LIMIT $2`;
 
 	const params = library
-		? [`%${pattern}%`, library, limit]
-		: [`%${pattern}%`, limit];
+		? [`%${escaped}%`, library, limit]
+		: [`%${escaped}%`, limit];
 
 	const p = getPool();
 	const result = await p.query(query, params);

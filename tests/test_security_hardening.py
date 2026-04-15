@@ -7,6 +7,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
+from pydantic import ValidationError
 
 from docpull.http.client import AsyncHttpClient, _ValidatedResolver
 from docpull.security.robots import RobotsChecker, _RobotsResponse
@@ -264,3 +265,93 @@ class TestRedirectValidation:
         )
 
         assert checker.is_allowed("https://public.example/docs") is False
+
+
+# ---------------------------------------------------------------------------
+# CRLF header injection prevention
+# ---------------------------------------------------------------------------
+
+
+class TestCrlfHeaderInjection:
+    """Verify that CR, LF, and null bytes are rejected in HTTP header values."""
+
+    def test_user_agent_rejects_newline(self) -> None:
+        from docpull.models.config import NetworkConfig
+
+        with pytest.raises(ValidationError, match="must not contain CR, LF"):
+            NetworkConfig(user_agent="Mozilla/5.0\nX-Injected: true")
+
+    def test_user_agent_rejects_carriage_return(self) -> None:
+        from docpull.models.config import NetworkConfig
+
+        with pytest.raises(ValidationError, match="must not contain CR, LF"):
+            NetworkConfig(user_agent="Mozilla/5.0\rX-Injected: true")
+
+    def test_user_agent_rejects_null_byte(self) -> None:
+        from docpull.models.config import NetworkConfig
+
+        with pytest.raises(ValidationError, match="must not contain CR, LF"):
+            NetworkConfig(user_agent="Mozilla/5.0\x00X-Injected: true")
+
+    def test_user_agent_accepts_clean_value(self) -> None:
+        from docpull.models.config import NetworkConfig
+
+        config = NetworkConfig(user_agent="docpull/2.0 (custom)")
+        assert config.user_agent == "docpull/2.0 (custom)"
+
+    def test_auth_header_name_rejects_crlf(self) -> None:
+        from docpull.models.config import AuthConfig, AuthType
+
+        with pytest.raises(ValidationError, match="must not contain CR, LF"):
+            AuthConfig(type=AuthType.HEADER, header_name="X-Auth\r\n", header_value="token")
+
+    def test_auth_header_value_rejects_crlf(self) -> None:
+        from docpull.models.config import AuthConfig, AuthType
+
+        with pytest.raises(ValidationError, match="must not contain CR, LF"):
+            AuthConfig(type=AuthType.HEADER, header_name="X-Auth", header_value="token\r\nX-Evil: true")
+
+    def test_auth_header_accepts_clean_values(self) -> None:
+        from docpull.models.config import AuthConfig, AuthType
+
+        config = AuthConfig(type=AuthType.HEADER, header_name="X-Api-Key", header_value="abc123")
+        assert config.header_name == "X-Api-Key"
+        assert config.header_value == "abc123"
+
+    def test_client_init_rejects_crlf_user_agent(self) -> None:
+        with pytest.raises(ValueError, match="header injection"):
+            AsyncHttpClient(
+                rate_limiter=_DummyRateLimiter(),
+                user_agent="agent\r\nX-Injected: yes",
+            )
+
+    def test_client_init_rejects_crlf_auth_header(self) -> None:
+        with pytest.raises(ValueError, match="header injection"):
+            AsyncHttpClient(
+                rate_limiter=_DummyRateLimiter(),
+                auth_headers={"Authorization": "Bearer tok\nen"},
+            )
+
+
+# ---------------------------------------------------------------------------
+# Dead code removal verification
+# ---------------------------------------------------------------------------
+
+
+class TestDeadCodeRemoved:
+    """Verify that dangerous dead code has been removed."""
+
+    def test_integration_config_removed_from_docpull_config(self) -> None:
+        from docpull.models.config import DocpullConfig
+
+        assert "integration" not in DocpullConfig.model_fields
+
+    def test_archive_created_event_removed(self) -> None:
+        from docpull.models.events import EventType
+
+        assert not hasattr(EventType, "ARCHIVE_CREATED")
+
+    def test_git_committed_event_removed(self) -> None:
+        from docpull.models.events import EventType
+
+        assert not hasattr(EventType, "GIT_COMMITTED")
