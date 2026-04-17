@@ -1,0 +1,15 @@
+{
+  "projectId": "prj_pWB2G4Mef4CDHdU3HQibqlRpRyOO",
+  "orgId": "team_FFnZfrvD19xX7UdEzrIq4swD",
+  "projectName": "docpull",
+  "settings": {
+    "framework": "nextjs",
+    "devCommand": null,
+    "installCommand": null,
+    "buildCommand": null,
+    "outputDirectory": null,
+    "rootDirectory": "web",
+    "directoryListing": false,
+    "nodeVersion": "24.x"
+  }
+}
