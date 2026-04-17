@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 
@@ -54,6 +55,7 @@ export default function RootLayout({
     <html lang="en" className="scroll-smooth" suppressHydrationWarning>
       <body className="antialiased">
         <ThemeProvider>{children}</ThemeProvider>
+        <Analytics />
       </body>
     </html>
   );
