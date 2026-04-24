@@ -2,22 +2,22 @@ const profiles = [
   {
     name: "RAG",
     description: "Deduped, metadata-rich output for LLMs and vector stores.",
-    badge: "Default",
+    example: "docpull URL --profile rag",
   },
   {
     name: "Mirror",
     description: "Full archive with caching and resume support.",
-    badge: "Archival",
+    example: "docpull URL --profile mirror",
   },
   {
     name: "Quick",
     description: "50 pages, depth 2. For testing and sampling.",
-    badge: "Fast",
+    example: "docpull URL --profile quick",
   },
   {
     name: "Custom",
     description: "No presets. Full control over every parameter.",
-    badge: "Advanced",
+    example: "docpull URL --max-pages 500 --depth 4",
   },
 ];
 
@@ -27,35 +27,26 @@ export default function Profiles() {
       <div className="mx-auto max-w-5xl px-6">
         <div className="mb-8 sm:mb-12 text-center sm:text-left">
           <h2 className="text-xl sm:text-2xl font-medium mb-2 sm:mb-3">
-            Profiles
+            <span className="bg-background/50 px-1 rounded">Profiles</span>
           </h2>
           <p className="text-sm sm:text-base text-muted-foreground bg-background/50 py-1 rounded inline-block">
-            Presets for common workflows.
+            Pick a profile for your use case.
           </p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           {profiles.map((profile, index) => (
             <div key={index} className="p-4 rounded-xl glass">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="font-medium">{profile.name}</h3>
-                <span className="text-xs text-muted-foreground px-2 py-0.5 glass rounded-md">
-                  {profile.badge}
-                </span>
-              </div>
-              <p className="text-sm text-muted-foreground">
+              <h3 className="font-medium mb-2">{profile.name}</h3>
+              <p className="text-sm text-muted-foreground mb-3">
                 {profile.description}
               </p>
+              <code className="block px-3 py-2 bg-background/60 rounded-md text-xs font-mono text-muted-foreground overflow-x-auto">
+                {profile.example}
+              </code>
             </div>
           ))}
         </div>
-
-        <p className="mt-4 sm:mt-6 text-sm text-muted-foreground text-center sm:text-left">
-          Use with{" "}
-          <code className="px-2 py-1 glass rounded-md text-xs">
-            --profile rag
-          </code>
-        </p>
       </div>
     </section>
   );

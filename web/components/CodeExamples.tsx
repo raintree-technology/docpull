@@ -9,28 +9,35 @@ const examples = [
     id: "default",
     name: "Default",
     code: `docpull https://docs.stripe.com`,
-    output: `---
+    output: `./docs/authentication.md:
+
+---
 title: "Authentication"
 source: https://docs.stripe.com/authentication
-fetched: 2024-01-15T10:30:00Z
 ---
 
 # Authentication
 
-The Stripe API uses API keys to authenticate requests...`,
+The Stripe API uses API keys to authenticate requests.
+You can view and manage your API keys in the Stripe
+Dashboard.
+
+Test mode secret keys have the prefix sk_test_ and live
+mode secret keys have the prefix sk_live_...`,
   },
   {
     id: "rag",
     name: "RAG",
     code: `docpull https://docs.anthropic.com --profile rag`,
-    output: `---
-title: "Claude API Reference"
-source: https://docs.anthropic.com/api
-word_count: 2847
-language: en
+    output: `./docs/messages.md:
+
+---
+title: "Messages"
+source: https://docs.anthropic.com/en/api/messages
+description: "Send a structured list of input messages and get the model's response."
 ---
 
-# Claude API Reference
+# Messages
 
 Send messages to Claude using the Messages API...`,
   },
@@ -38,26 +45,22 @@ Send messages to Claude using the Messages API...`,
     id: "skills",
     name: "Claude Code",
     code: `docpull https://sdk.vercel.ai -o .claude/skills/vercel-ai`,
-    output: `# .claude/skills/vercel-ai/getting-started.md
+    output: `.claude/skills/vercel-ai/
+├── getting-started.md
+├── streaming.md
+├── tools.md
+└── providers.md
+
+./.claude/skills/vercel-ai/getting-started.md:
+
 ---
 title: "Getting Started"
 source: https://sdk.vercel.ai/docs/getting-started
-fetched: 2024-01-15T10:30:00Z
 ---
 
 # Getting Started
 
 Install the Vercel AI SDK to build AI-powered applications...`,
-  },
-  {
-    id: "js",
-    name: "JS Sites",
-    code: `docpull https://react.dev --js`,
-    output: `Launching browser...
-Rendering 156 pages with JavaScript
-[================================] 156/156
-
-Done in 89s. Saved 8.4 MB to ./docs`,
   },
   {
     id: "python",
@@ -117,7 +120,7 @@ const CodeBlock = memo(function CodeBlock({
       {/* Output */}
       <div>
         <div className="text-xs text-muted-foreground mb-2">Output</div>
-        <pre className="p-4 glass rounded-xl overflow-x-auto text-xs sm:text-sm text-muted-foreground">
+        <pre className="p-4 glass rounded-xl overflow-auto max-h-80 text-xs sm:text-sm text-muted-foreground">
           <code className="whitespace-pre">{output}</code>
         </pre>
       </div>
@@ -138,10 +141,10 @@ export default function CodeExamples() {
       <div className="mx-auto max-w-5xl px-6">
         <div className="mb-8 sm:mb-12 text-center sm:text-left">
           <h2 className="text-xl sm:text-2xl font-medium mb-2 sm:mb-3">
-            Examples
+            <span className="bg-background/50 px-1 rounded">Examples</span>
           </h2>
           <p className="text-sm sm:text-base text-muted-foreground bg-background/50 py-1 rounded inline-block">
-            See what you get.
+            Real commands, real output — from one-shot fetches to Claude Code skills.
           </p>
         </div>
 

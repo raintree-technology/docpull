@@ -14,10 +14,11 @@ Usage:
             print(event)
 """
 
-__version__ = "2.2.1"
+__version__ = "2.3.0"
 
 from .cache import CacheManager, StreamingDeduplicator
-from .core.fetcher import Fetcher, fetch_blocking
+from .conversion.chunking import Chunk, TokenCounter, chunk_markdown
+from .core.fetcher import Fetcher, fetch_blocking, fetch_one
 from .models.config import (
     CacheConfig,
     ContentFilterConfig,
@@ -29,12 +30,15 @@ from .models.config import (
     ProfileName,
 )
 from .models.events import EventType, FetchEvent, FetchStats
+from .pipeline.base import PageContext
 
 __all__ = [
     "__version__",
     # Core
     "Fetcher",
     "fetch_blocking",
+    "fetch_one",
+    "PageContext",
     # Config
     "DocpullConfig",
     "ProfileName",
@@ -51,4 +55,8 @@ __all__ = [
     # Cache
     "CacheManager",
     "StreamingDeduplicator",
+    # Chunking
+    "Chunk",
+    "TokenCounter",
+    "chunk_markdown",
 ]

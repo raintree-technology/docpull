@@ -5,6 +5,54 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2026-04-24
+
+Sharpened positioning around the agent / RAG use case, plus real bug fixes
+surfaced by validation against Next.js, Supabase, Anthropic, FastAPI, Tailwind,
+and Drizzle documentation sites.
+
+### Added
+- **Framework-specific fast extractors**: Next.js `__NEXT_DATA__`, Mintlify,
+  OpenAPI / Swagger JSON rendered directly to Markdown, plus source-type
+  tagging for Docusaurus and Sphinx. Runs before the generic extractor.
+- **Next.js App Router detection** via `self.__next_f.push`, router state tree,
+  and `/_next/static/` path markers — no longer relies on `__NEXT_DATA__`,
+  which is absent on modern App Router pages.
+- **SPA detection (pre- and post-conversion)**: pages that produce only
+  `Loading...` shells are skipped with a clear reason. `--strict-js-required`
+  turns this into a hard error for agents that want to route elsewhere.
+- **Trafilatura extractor** as an optional alternative content extractor
+  (`pip install docpull[trafilatura]`, then `--extractor trafilatura`).
+- **Token-aware Markdown chunking**: `--max-tokens-per-file N` splits pages
+  on heading then paragraph boundaries. Exact counts with `tiktoken`,
+  character-estimate fallback otherwise.
+- **NDJSON output format** (`--format ndjson`) for streaming one record per
+  page or per chunk. `--stream` writes to stdout for live pipeline consumption.
+- **`llm` profile**: bundles NDJSON + 4k-token chunks + rich metadata + dedup.
+- **`--single` / `fetch_one(url)`**: fast single-page path with no discovery,
+  designed for AI-agent tool loops.
+- **Python MCP server** (`docpull mcp`): exposes `fetch_url`, `ensure_docs`,
+  `list_sources`, `list_indexed`, and `grep_docs` tools over stdio. Install
+  via `pip install docpull[mcp]`.
+
+### Fixed
+- **robots.txt redirect handling**: Cloudflare/HTTP-2 responses send
+  lowercase header names, but the `Location` lookup was case-sensitive,
+  causing 301/308 redirects to be treated as errors. This blocked
+  `docs.anthropic.com` and any other site whose robots.txt was redirected.
+- **html2text link escape artifacts**: cleaned up mangled links of the form
+  `[text](prefix/<https:/real.url>)` in the post-processing pass; handles
+  both text and image-only (empty-text) links.
+
+### Removed
+- Dead dependencies: `requests` (replaced by `aiohttp` in v2.0) and
+  `gitpython` (never used in v2+).
+
+### Changed
+- `ContentFilterConfig` gains `extractor`, `enable_special_cases`, and
+  `strict_js_required` fields. `OutputConfig` gains `max_tokens_per_file`,
+  `tokenizer`, `emit_chunks`, and `ndjson_filename`.
+
 ## [2.0.0] - 2025-11-29
 
 ### Breaking Changes

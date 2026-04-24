@@ -16,6 +16,7 @@ class ProfileName(str, Enum):
     RAG = "rag"
     MIRROR = "mirror"
     QUICK = "quick"
+    LLM = "llm"
     CUSTOM = "custom"
 
 
@@ -122,6 +123,18 @@ class ContentFilterConfig(BaseModel):
         default_factory=list,
         description="Header patterns to exclude from output",
     )
+    extractor: Literal["default", "trafilatura"] = Field(
+        "default",
+        description="Content extractor to use (trafilatura requires optional install)",
+    )
+    enable_special_cases: bool = Field(
+        True,
+        description="Run framework-specific fast extractors (Next.js, OpenAPI, etc.) before the generic extractor",
+    )
+    strict_js_required: bool = Field(
+        False,
+        description="Error (instead of silently skipping) when a page appears to require JavaScript",
+    )
 
     model_config = {"extra": "forbid"}
 
@@ -130,7 +143,7 @@ class OutputConfig(BaseModel):
     """Configuration for output formatting and file saving."""
 
     directory: Path = Field(Path("./docs"), description="Output directory for fetched content")
-    format: Literal["markdown", "json", "sqlite"] = Field(
+    format: Literal["markdown", "json", "ndjson", "sqlite"] = Field(
         "markdown",
         description="Output format",
     )
@@ -142,6 +155,23 @@ class OutputConfig(BaseModel):
     rich_metadata: bool = Field(
         False,
         description="Extract Open Graph, JSON-LD, and microdata metadata",
+    )
+    max_tokens_per_file: int | None = Field(
+        None,
+        ge=100,
+        description="If set, split each page's Markdown into chunks of this token budget",
+    )
+    tokenizer: str = Field(
+        "cl100k_base",
+        description="Tokenizer encoding used when chunking (requires tiktoken)",
+    )
+    emit_chunks: bool = Field(
+        False,
+        description="Write one file/record per chunk instead of per page",
+    )
+    ndjson_filename: str = Field(
+        "documents.ndjson",
+        description="Output filename for NDJSON format (use '-' for stdout)",
     )
 
     model_config = {"extra": "forbid"}

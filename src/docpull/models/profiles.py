@@ -47,6 +47,27 @@ PROFILES: dict[ProfileName, dict[str, Any]] = {
             "max_concurrent": 20,
         },
     },
+    ProfileName.LLM: {
+        # Token-aware output, streaming NDJSON, fail-loud on JS-only pages.
+        # This is what "AI-ready Markdown" should actually mean: predictable
+        # chunk sizes, stable hashes, one-record-per-line streaming.
+        "crawl": {
+            "max_concurrent": 20,
+        },
+        "content_filter": {
+            "language": "en",
+            "deduplicate": True,
+            "streaming_dedup": True,
+            "strict_js_required": False,
+            "enable_special_cases": True,
+        },
+        "output": {
+            "format": "ndjson",
+            "rich_metadata": True,
+            "max_tokens_per_file": 4000,
+            "emit_chunks": True,
+        },
+    },
     ProfileName.CUSTOM: {
         # No overrides - use explicit config
     },

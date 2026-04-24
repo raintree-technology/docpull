@@ -9,7 +9,9 @@ from ..base import EventEmitter, PageContext
 
 logger = logging.getLogger(__name__)
 
-# Allowed content types for HTML documents
+# Allowed content types for HTML documents and structured feeds.
+# JSON and plain text are allowed so downstream special-case extractors can
+# handle OpenAPI specs, raw Markdown, and similar sources.
 ALLOWED_CONTENT_TYPES = frozenset(
     {
         "text/html",
@@ -18,6 +20,11 @@ ALLOWED_CONTENT_TYPES = frozenset(
         "application/xml",
         "application/atom+xml",
         "application/rss+xml",
+        "application/json",
+        "application/ld+json",
+        "text/plain",
+        "text/markdown",
+        "text/x-markdown",
     }
 )
 

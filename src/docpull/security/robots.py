@@ -13,10 +13,28 @@ from urllib.robotparser import RobotFileParser
 from .url_validator import UrlValidator
 
 
+class _CaseInsensitiveHeaders(dict):
+    """HTTP headers with case-insensitive key lookup."""
+
+    def __init__(self, pairs: list[tuple[str, str]] | None = None) -> None:
+        super().__init__()
+        self._lower: dict[str, str] = {}
+        if pairs:
+            for k, v in pairs:
+                self[k] = v
+
+    def __setitem__(self, key: str, value: str) -> None:
+        super().__setitem__(key, value)
+        self._lower[key.lower()] = value
+
+    def get(self, key: str, default: str | None = None) -> str | None:  # type: ignore[override]
+        return self._lower.get(key.lower(), default)
+
+
 @dataclass
 class _RobotsResponse:
     status_code: int
-    headers: dict[str, str]
+    headers: _CaseInsensitiveHeaders
     text: str
 
 
@@ -159,8 +177,14 @@ class RobotsChecker:
 
                 self.logger.debug(f"Loaded robots.txt for {domain}")
                 return _RobotsCacheEntry(parser=parser, status="present")
-            if response.status_code in (404, 403):
-                self.logger.debug(f"No robots.txt for {domain} (status {response.status_code})")
+
+            # RFC 9309 §2.3.1.3: treat 4xx as "no robots.txt" (allow).
+            # 5xx is treated conservatively as "error" (block) since the site
+            # is misbehaving and we don't know what its policy actually is.
+            if 400 <= response.status_code < 500:
+                self.logger.debug(
+                    f"No robots.txt for {domain} (status {response.status_code}, treated as allow)"
+                )
                 return _RobotsCacheEntry(parser=None, status="missing")
 
             self.logger.warning(f"Unexpected status {response.status_code} fetching robots.txt for {domain}")
@@ -238,7 +262,7 @@ class RobotsChecker:
                 body = response.read()
                 return _RobotsResponse(
                     status_code=response.status,
-                    headers=dict(response.getheaders()),
+                    headers=_CaseInsensitiveHeaders(list(response.getheaders())),
                     text=self._decode_body(body, response.getheader("Content-Type", "")),
                 )
             except (OSError, ssl.SSLError, http.client.HTTPException) as err:

@@ -29,6 +29,8 @@ class PageContext:
         should_skip: If True, remaining steps will be skipped
         skip_reason: Human-readable reason for skipping
         error: Error message if an exception occurred
+        source_type: Detected framework (nextjs, docusaurus, mintlify, etc.)
+        chunks: List of token-bounded Markdown chunks (if chunking enabled)
     """
 
     url: str
@@ -53,6 +55,10 @@ class PageContext:
     # HTTP caching headers (for incremental updates)
     etag: str | None = None
     last_modified: str | None = None
+
+    # Framework detection and LLM-oriented output
+    source_type: str | None = None
+    chunks: list[object] = field(default_factory=list)
 
 
 @runtime_checkable

@@ -91,9 +91,15 @@ Examples:
     parser.add_argument(
         "--profile",
         "-p",
-        choices=["rag", "mirror", "quick"],
+        choices=["rag", "mirror", "quick", "llm"],
         default="rag",
-        help="Preset profile (default: rag)",
+        help="Preset profile (default: rag). 'llm' bundles chunking + NDJSON + rich metadata.",
+    )
+
+    parser.add_argument(
+        "--single",
+        action="store_true",
+        help="Fetch the given URL only (no discovery/crawl). Fast path for agents.",
     )
 
     # Output
@@ -107,9 +113,14 @@ Examples:
     parser.add_argument(
         "--format",
         "-f",
-        choices=["markdown", "json", "sqlite"],
-        default="markdown",
-        help="Output format (default: markdown)",
+        choices=["markdown", "json", "ndjson", "sqlite"],
+        default=None,
+        help="Output format (default: markdown; 'ndjson' streams one record per line)",
+    )
+    parser.add_argument(
+        "--stream",
+        action="store_true",
+        help="Stream NDJSON records to stdout as each page completes (implies --format ndjson)",
     )
 
     # Crawl settings
@@ -169,6 +180,44 @@ Examples:
         type=str,
         metavar="CODE",
         help="Include only pages in this language",
+    )
+    filter_group.add_argument(
+        "--extractor",
+        choices=["default", "trafilatura"],
+        default=None,
+        help="Content extractor (trafilatura requires: pip install docpull[trafilatura])",
+    )
+    filter_group.add_argument(
+        "--no-special-cases",
+        action="store_true",
+        help="Disable framework-specific fast extractors (Next.js, OpenAPI, etc.)",
+    )
+    filter_group.add_argument(
+        "--strict-js-required",
+        action="store_true",
+        help="Fail loud on pages that appear to require JavaScript (instead of silently skipping)",
+    )
+
+    # LLM / chunking
+    llm_group = parser.add_argument_group("LLM / chunking")
+    llm_group.add_argument(
+        "--max-tokens-per-file",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Split each page into chunks of at most N tokens (requires tiktoken for exact counts)",
+    )
+    llm_group.add_argument(
+        "--tokenizer",
+        type=str,
+        default=None,
+        metavar="NAME",
+        help="tiktoken encoding for chunking (default: cl100k_base)",
+    )
+    llm_group.add_argument(
+        "--emit-chunks",
+        action="store_true",
+        help="Write one file/record per chunk instead of per page",
     )
 
     # Network settings
@@ -296,6 +345,7 @@ def run_fetcher(args: argparse.Namespace) -> int:
         "rag": ProfileName.RAG,
         "mirror": ProfileName.MIRROR,
         "quick": ProfileName.QUICK,
+        "llm": ProfileName.LLM,
     }
     profile = profile_map.get(args.profile, ProfileName.RAG)
 
@@ -310,8 +360,17 @@ def run_fetcher(args: argparse.Namespace) -> int:
     output_kwargs: dict = {}
     if args.output_dir:
         output_kwargs["directory"] = args.output_dir
-    if args.format:
+    if args.stream:
+        output_kwargs["format"] = "ndjson"
+        output_kwargs["ndjson_filename"] = "-"
+    elif args.format:
         output_kwargs["format"] = args.format
+    if args.max_tokens_per_file is not None:
+        output_kwargs["max_tokens_per_file"] = args.max_tokens_per_file
+    if args.tokenizer:
+        output_kwargs["tokenizer"] = args.tokenizer
+    if args.emit_chunks:
+        output_kwargs["emit_chunks"] = True
     if output_kwargs:
         config_kwargs["output"] = output_kwargs
 
@@ -340,6 +399,12 @@ def run_fetcher(args: argparse.Namespace) -> int:
         filter_kwargs["streaming_dedup"] = True
     if args.language:
         filter_kwargs["language"] = args.language
+    if args.extractor:
+        filter_kwargs["extractor"] = args.extractor
+    if args.no_special_cases:
+        filter_kwargs["enable_special_cases"] = False
+    if args.strict_js_required:
+        filter_kwargs["strict_js_required"] = True
     if filter_kwargs:
         config_kwargs["content_filter"] = filter_kwargs
 
@@ -428,6 +493,27 @@ def run_fetcher(args: argparse.Namespace) -> int:
                         console.print(f"  {url}")
                     return 0
 
+                # --single fast path: fetch just this URL, no discovery
+                if args.single:
+                    if config.url is None:
+                        console.print("[red]Error:[/red] --single requires a URL")
+                        return 1
+                    ctx = await fetcher.fetch_one(config.url)
+                    if ctx.error:
+                        console.print(f"[red]Failed:[/red] {ctx.error}")
+                        return 1
+                    if ctx.should_skip:
+                        console.print(f"[yellow]Skipped:[/yellow] {ctx.skip_reason}")
+                        return 0
+                    if not args.quiet:
+                        n_chunks = len(ctx.chunks) if ctx.chunks else 0
+                        extra = f" ({n_chunks} chunks)" if n_chunks else ""
+                        console.print(
+                            f"[green]Saved:[/green] {ctx.output_path} "
+                            f"[{ctx.source_type or 'generic'}]{extra}"
+                        )
+                    return 0
+
                 # Track skip reasons for summary
                 from collections import defaultdict
 
@@ -506,8 +592,14 @@ def run_fetcher(args: argparse.Namespace) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     """Main entry point."""
+    raw_argv = list(argv) if argv is not None else sys.argv[1:]
+    if raw_argv and raw_argv[0] == "mcp":
+        from .mcp.server import run_mcp_server
+
+        return run_mcp_server(raw_argv[1:])
+
     parser = create_parser()
-    args = parser.parse_args(argv)
+    args = parser.parse_args(raw_argv)
 
     if args.doctor:
         from .doctor import run_doctor

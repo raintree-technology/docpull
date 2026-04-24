@@ -19,12 +19,15 @@ from ..models.events import EventType, FetchEvent, FetchStats, SkipReason
 from ..models.profiles import apply_profile
 from ..pipeline.base import FetchPipeline
 from ..pipeline.base import FetchStep as FetchStepProtocol
+from ..pipeline.base import PageContext
 from ..pipeline.steps import (
+    ChunkStep,
     ConvertStep,
     DedupStep,
     FetchStep,
     JsonSaveStep,
     MetadataStep,
+    NdjsonSaveStep,
     SaveStep,
     SqliteSaveStep,
     ValidateStep,
@@ -122,6 +125,7 @@ class Fetcher:
         self._cache_manager: CacheManager | None = None
         self._json_saver: JsonSaveStep | None = None
         self._sqlite_saver: SqliteSaveStep | None = None
+        self._ndjson_saver: NdjsonSaveStep | None = None
 
     @property
     def stats(self) -> FetchStats:
@@ -247,22 +251,51 @@ class Fetcher:
         # Add conversion step - all formats need markdown content
         # Only add frontmatter for markdown file output
         add_frontmatter = self.config.output.format == "markdown"
-        steps.append(ConvertStep(add_frontmatter=add_frontmatter))
+        steps.append(
+            ConvertStep(
+                add_frontmatter=add_frontmatter,
+                enable_special_cases=self.config.content_filter.enable_special_cases,
+                use_trafilatura=self.config.content_filter.extractor == "trafilatura",
+                strict_js_required=self.config.content_filter.strict_js_required,
+            )
+        )
 
         # Add dedup step if streaming dedup is enabled
         if self._streaming_dedup:
             steps.append(DedupStep(deduplicator=self._streaming_dedup))
 
+        # Optional token-aware chunking (runs after dedup so skipped pages
+        # don't incur chunking cost).
+        if self.config.output.max_tokens_per_file:
+            steps.append(
+                ChunkStep(
+                    max_tokens=self.config.output.max_tokens_per_file,
+                    tokenizer=self.config.output.tokenizer,
+                )
+            )
+
         # Add appropriate save step based on output format
         if self.config.output.format == "json":
             self._json_saver = JsonSaveStep(base_output_dir=output_dir)
             steps.append(self._json_saver)
+        elif self.config.output.format == "ndjson":
+            self._ndjson_saver = NdjsonSaveStep(
+                base_output_dir=output_dir,
+                filename=self.config.output.ndjson_filename,
+                emit_chunks=self.config.output.emit_chunks,
+            )
+            steps.append(self._ndjson_saver)
         elif self.config.output.format == "sqlite":
             self._sqlite_saver = SqliteSaveStep(base_output_dir=output_dir)
             steps.append(self._sqlite_saver)
         else:
             # Default to markdown file output
-            steps.append(SaveStep(base_output_dir=output_dir))
+            steps.append(
+                SaveStep(
+                    base_output_dir=output_dir,
+                    emit_chunks=self.config.output.emit_chunks,
+                )
+            )
 
         self._pipeline = FetchPipeline(steps=steps)
 
@@ -314,10 +347,14 @@ class Fetcher:
             await self._http_client.__aexit__(exc_type, exc_val, exc_tb)
             self._http_client = None
 
-        # Finalize JSON/SQLite savers
+        # Finalize JSON/NDJSON/SQLite savers
         if self._json_saver:
             self._json_saver.finalize()
             self._json_saver = None
+
+        if self._ndjson_saver:
+            self._ndjson_saver.finalize()
+            self._ndjson_saver = None
 
         if self._sqlite_saver:
             self._sqlite_saver.close()
@@ -357,6 +394,47 @@ class Fetcher:
 
         self._stats.urls_discovered = len(urls)
         return urls
+
+    async def fetch_one(self, url: str, *, save: bool = True) -> PageContext:
+        """Fetch a single URL, bypassing discovery.
+
+        Designed for AI-agent tool loops where each call wants one page back
+        as fast as possible. Skips sitemap parsing and link crawling.
+
+        Args:
+            url: The URL to fetch.
+            save: When False, skip writing to disk and return the context with
+                ``ctx.markdown`` populated. Useful for agents that want the
+                Markdown in-memory without side effects.
+
+        Returns:
+            ``PageContext`` with ``markdown`` (and ``chunks`` if chunking is
+            enabled) populated. ``ctx.error`` holds the error message on
+            failure; ``ctx.should_skip`` indicates SPAs or dedup hits.
+        """
+        if self._pipeline is None:
+            raise RuntimeError("Fetcher not initialized. Use 'async with' context manager.")
+        output_path = self._compute_output_path(url)
+
+        steps = self._pipeline.steps
+        if not save:
+            steps = [
+                s
+                for s in steps
+                if s.name not in {"save", "save_json", "save_ndjson", "save_sqlite"}
+            ]
+        pipeline = type(self._pipeline)(steps=steps)
+        ctx = await pipeline.execute(url, output_path)
+        if ctx.error:
+            self._stats.pages_failed += 1
+        elif ctx.should_skip:
+            self._stats.pages_skipped += 1
+        else:
+            self._stats.pages_fetched += 1
+            self._stats.bytes_downloaded += ctx.bytes_downloaded
+            if save:
+                self._stats.files_saved += 1
+        return ctx
 
     def _compute_output_path(self, url: str) -> Path:
         """
@@ -561,6 +639,44 @@ class Fetcher:
                 message=f"Fetch failed: {e}",
             )
             raise
+
+
+def fetch_one(url: str, **kwargs: object) -> PageContext:
+    """Fetch a single URL synchronously and return the parsed page context.
+
+    Convenience wrapper for AI-agent tool loops that need one page's Markdown
+    in-memory as fast as possible. Skips discovery entirely, does not write
+    to disk by default, and runs in the current thread.
+
+    Example:
+        >>> ctx = fetch_one("https://docs.python.org/3/library/asyncio.html")
+        >>> print(ctx.markdown[:200])
+
+    Args:
+        url: The URL to fetch.
+        **kwargs: Extra fields passed through to :class:`DocpullConfig`
+            (e.g. ``content_filter={"extractor": "trafilatura"}``).
+
+    Returns:
+        ``PageContext`` with ``markdown`` populated on success or ``error``
+        populated on failure.
+    """
+    try:
+        asyncio.get_running_loop()
+        raise RuntimeError(
+            "fetch_one() called from async context. Use Fetcher.fetch_one() instead."
+        )
+    except RuntimeError as exc:
+        if "no running event loop" not in str(exc).lower():
+            raise
+
+    config = DocpullConfig(url=url, **kwargs)  # type: ignore[arg-type]
+
+    async def _run() -> PageContext:
+        async with Fetcher(config) as fetcher:
+            return await fetcher.fetch_one(url, save=False)
+
+    return asyncio.run(_run())
 
 
 def fetch_blocking(

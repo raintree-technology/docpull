@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 const altMethods = [
   { label: "pipx", command: "pipx install docpull" },
   { label: "uv", command: "uv pip install docpull" },
-  { label: "+js", command: "pip install docpull[js]" },
+  { label: "+proxy", command: "pip install docpull[proxy]" },
   { label: "+all", command: "pip install docpull[all]" },
 ] as const;
 
@@ -26,8 +26,12 @@ export default function Install() {
       <div className="mx-auto max-w-5xl px-6">
         <div className="max-w-2xl mx-auto text-center">
           <h2 className="text-xl sm:text-2xl font-medium mb-2 sm:mb-3">
-            Install
+            <span className="bg-background/50 px-1 rounded">Install</span>
           </h2>
+          <p className="text-sm sm:text-base text-muted-foreground mb-6 bg-background/50 py-1 rounded inline-block">
+            A single command to get docpull on your machine. Requires Python
+            3.10 or newer.
+          </p>
           {/* Main pip command */}
           <div className="flex items-center justify-center gap-2 mb-6">
             <code className="px-6 py-3 glass rounded-xl text-sm sm:text-base font-mono">

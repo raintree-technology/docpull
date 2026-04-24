@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "docpull"
-version = "2.2.1"
+version = "2.3.0"
 dynamic = []
 description = "Pull documentation from the web and convert to clean markdown"
 readme = {file = "README.md", content-type = "text/markdown"}
@@ -62,7 +62,6 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "requests>=2.31.0",
     "beautifulsoup4>=4.12.0",
     "html2text>=2020.1.16",
     "defusedxml>=0.7.1",
@@ -70,7 +69,6 @@ dependencies = [
     "aiohttp>=3.9.0",
     "rich>=13.0.0",
     "pyyaml>=6.0",
-    "gitpython>=3.1.40",
     "pydantic>=2.0",
 ]
 
@@ -81,9 +79,24 @@ proxy = [
 normalize = [
     "url-normalize>=1.4.0",
 ]
+trafilatura = [
+    "trafilatura>=1.12.0",
+]
+tokens = [
+    "tiktoken>=0.7.0",
+]
+mcp = [
+    "mcp>=1.0.0",
+]
+llm = [
+    "tiktoken>=0.7.0",
+]
 all = [
     "aiohttp-socks>=0.8.0",
     "url-normalize>=1.4.0",
+    "trafilatura>=1.12.0",
+    "tiktoken>=0.7.0",
+    "mcp>=1.0.0",
 ]
 dev = [
     "pytest>=7.0.0",

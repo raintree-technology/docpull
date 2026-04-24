@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Copy, Check, Download } from "lucide-react";
+import { Copy, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const terminalLines = [
@@ -60,40 +60,40 @@ export default function Hero() {
 
   return (
     <section className="flex items-start justify-center pt-20 lg:pt-56 pb-16 lg:pb-32">
-      <div className="mx-auto max-w-5xl w-full px-6">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 items-center">
+      <div className="mx-auto max-w-6xl w-full px-6">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.3fr] gap-8 lg:gap-12 items-center">
           {/* Left: Content */}
           <div>
-            <div className="flex items-center gap-3 text-sm text-muted-foreground mb-4">
-              <span className="bg-background/50 py-0.5 rounded">
-                Documentation fetcher for AI
-              </span>
-              {downloads && (
+            {downloads && (
+              <div className="mb-4">
                 <a
                   href="https://pepy.tech/project/docpull"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-xs text-foreground hover:opacity-80 transition-opacity"
+                  className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors bg-background/50 py-0.5 px-1 rounded"
+                  aria-label={`${downloads} downloads on PyPI`}
                 >
-                  <Download className="h-3 w-3" />
-                  {downloads}
+                  <span>{downloads} downloads on PyPI</span>
                 </a>
-              )}
-            </div>
+              </div>
+            )}
 
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-medium tracking-tight mb-6">
-              Fetch docs.
+              <span className="bg-background/50 px-1 rounded">Fetch docs.</span>
               <br />
-              <span className="text-muted-foreground">Get clean Markdown.</span>
+              <span className="text-muted-foreground bg-background/50 px-1 rounded">
+                Get clean Markdown.
+              </span>
             </h1>
 
             <p className="text-muted-foreground text-base sm:text-lg mb-8 max-w-md bg-background/50 py-1 rounded">
-              Turn any docs site into AI-ready Markdown. Built for RAG
-              pipelines, Claude Code skills, and training datasets.
+              Feed any documentation site to your AI — clean, structured
+              Markdown, ready for RAG pipelines, Claude Code skills, and
+              training datasets.
             </p>
 
-            {/* Install command */}
-            <div className="flex items-center gap-3">
+            {/* Install command + CTA */}
+            <div className="flex flex-wrap items-center gap-3">
               <code className="px-4 py-2.5 glass rounded-xl text-sm font-mono">
                 {INSTALL_COMMAND}
               </code>
@@ -108,6 +108,12 @@ export default function Hero() {
                   <Copy className="h-4 w-4" />
                 )}
               </button>
+              <a
+                href="#examples"
+                className="px-4 py-2.5 rounded-xl bg-foreground text-background text-sm font-medium hover:opacity-90 transition-opacity"
+              >
+                See examples
+              </a>
             </div>
           </div>
 
@@ -118,7 +124,7 @@ export default function Hero() {
               <div className="terminal-dot terminal-dot-minimize" />
               <div className="terminal-dot terminal-dot-maximize" />
             </div>
-            <div className="p-4 lg:p-6 font-mono text-xs sm:text-sm lg:text-base min-h-[180px] lg:min-h-[240px]">
+            <div className="p-5 lg:p-8 font-mono text-sm sm:text-base lg:text-lg min-h-[220px] lg:min-h-[320px]">
               {terminalLines.slice(0, visibleLines).map((line, i) => (
                 <div
                   key={i}

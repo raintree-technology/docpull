@@ -108,18 +108,21 @@ def run_doctor(output_dir: Path | None = None, use_rich: bool = True) -> int:
 
     # Core dependencies
     core_checks = [
-        ("requests", "requests"),
         ("bs4", "beautifulsoup4"),
         ("html2text", "html2text"),
         ("defusedxml", "defusedxml"),
         ("aiohttp", "aiohttp"),
         ("rich", "rich"),
+        ("pydantic", "pydantic"),
     ]
 
     # Optional dependencies
     optional_checks = [
         ("aiohttp_socks", "aiohttp-socks", True),
         ("url_normalize", "url-normalize", True),
+        ("trafilatura", "trafilatura", True),
+        ("tiktoken", "tiktoken", True),
+        ("mcp", "mcp", True),
     ]
 
     # Other checks

@@ -170,6 +170,25 @@ code {
     }
 }
 
+/* Flow animations for How-it-works connectors */
+@keyframes flow-right {
+    0% {
+        stroke-dashoffset: 56;
+    }
+    100% {
+        stroke-dashoffset: 0;
+    }
+}
+
+@keyframes flow-down {
+    0% {
+        stroke-dashoffset: 28;
+    }
+    100% {
+        stroke-dashoffset: 0;
+    }
+}
+
 /* Prevent horizontal overflow on mobile */
 html,
 body {

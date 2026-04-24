@@ -12,6 +12,11 @@ import html2text
 logger = logging.getLogger(__name__)
 
 
+def _normalize_scheme(url: str) -> str:
+    """Fix ``https:/example.com`` (single slash) produced by html2text escaping."""
+    return re.sub(r"^(https?:)/(?!/)", r"\1//", url)
+
+
 class HtmlToMarkdown:
     """
     Converts HTML content to clean Markdown.
@@ -78,6 +83,17 @@ class HtmlToMarkdown:
         # Fix code block formatting
         # Ensure code blocks have language hint
         markdown = re.sub(r"```\n", "```\n", markdown)
+
+        # Unmangle html2text's protect_links output:
+        #   [text](prefix/<https:/real.url>)  ->  [text](https://real.url)
+        # The angle-bracketed inner URL is the true absolute URL (the prefix is
+        # the page base that html2text erroneously prepended). Allow empty link
+        # text too (image-only links, icon wrappers).
+        markdown = re.sub(
+            r"\[([^\]]*)\]\([^)]*<(https?:/[^>]+)>\)",
+            lambda m: f"[{m.group(1)}]({_normalize_scheme(m.group(2))})",
+            markdown,
+        )
 
         # Remove trailing whitespace on each line
         markdown = "\n".join(line.rstrip() for line in markdown.split("\n"))

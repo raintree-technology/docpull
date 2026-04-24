@@ -31,6 +31,7 @@ class SaveStep:
     def __init__(
         self,
         base_output_dir: Optional[Path] = None,
+        emit_chunks: bool = False,
     ) -> None:
         """
         Initialize the save step.
@@ -38,8 +39,11 @@ class SaveStep:
         Args:
             base_output_dir: Optional base directory for output path validation.
                             If set, output paths must be within this directory.
+            emit_chunks: When True and ``ctx.chunks`` is populated, write one
+                file per chunk (``<stem>.<NN>.md``) rather than the full doc.
         """
         self._base_output_dir = base_output_dir
+        self._emit_chunks = emit_chunks
 
     def _validate_output_path(self, output_path: Path) -> Path:
         """
@@ -111,14 +115,26 @@ class SaveStep:
             # Ensure parent directory exists
             validated_path.parent.mkdir(parents=True, exist_ok=True)
 
-            # Write content (use asyncio.to_thread to avoid blocking)
-            await asyncio.to_thread(
-                validated_path.write_text,
-                content,
-                encoding="utf-8",
-            )
-
-            logger.info(f"Saved: {validated_path}")
+            # Write chunked output if requested and available
+            if self._emit_chunks and ctx.chunks:
+                stem = validated_path.stem
+                parent = validated_path.parent
+                ext = validated_path.suffix or ".md"
+                width = max(2, len(str(len(ctx.chunks) - 1)))
+                for chunk in ctx.chunks:
+                    idx = getattr(chunk, "index", 0)
+                    text = getattr(chunk, "text", "")
+                    chunk_path = parent / f"{stem}.{idx:0{width}d}{ext}"
+                    await asyncio.to_thread(chunk_path.write_text, text, encoding="utf-8")
+                logger.info("Saved %d chunks: %s.*%s", len(ctx.chunks), parent / stem, ext)
+            else:
+                # Write full document (use asyncio.to_thread to avoid blocking)
+                await asyncio.to_thread(
+                    validated_path.write_text,
+                    content,
+                    encoding="utf-8",
+                )
+                logger.info(f"Saved: {validated_path}")
 
             if emit:
                 emit(

@@ -1,6 +1,6 @@
 # docpull
 
-**Pull documentation from any website and convert it to clean, AI-ready Markdown.**
+**Security-hardened, browser-free crawler that turns static documentation sites into clean, AI-ready Markdown — fast.**
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![PyPI version](https://badge.fury.io/py/docpull.svg)](https://badge.fury.io/py/docpull)
@@ -13,105 +13,220 @@
   </a>
 </p>
 
+docpull uses async HTTP (not Playwright) to fetch server-rendered pages,
+extracts main content, and writes clean Markdown with source-URL frontmatter —
+in seconds, with a small install footprint. It won't render JavaScript, but for
+the large class of docs that don't need it (API references, Python/Go stdlib,
+most dev-tool docs, OpenAPI specs, Next.js and Docusaurus builds), it is a
+fast, auditable, sandbox-friendly way to pipe documentation into an LLM context,
+a RAG index, or an offline archive. SSRF, XXE, DNS-rebinding, and
+CRLF-injection protections are on by default — a necessity when an AI agent
+is choosing the URLs.
+
 ## Install
 
 ```bash
 pip install docpull
+
+# Optional extras
+pip install 'docpull[llm]'           # tiktoken for token-accurate chunking
+pip install 'docpull[trafilatura]'   # alternative extractor for noisy pages
+pip install 'docpull[mcp]'           # run as an MCP server for AI agents
+pip install 'docpull[all]'           # everything above
 ```
 
-## Usage
+## Quick start
 
 ```bash
-# Basic fetch
+# Crawl and save Markdown
 docpull https://docs.example.com
 
-# With options
-docpull https://aptos.dev --max-pages 100 --output-dir ./docs
+# One page, no crawl — the fast path for agents
+docpull https://docs.example.com/guide --single
 
-# Filter paths
-docpull https://docs.example.com --include-paths "/api/*" --exclude-paths "/changelog/*"
+# LLM-ready NDJSON with 4k-token chunks streamed to stdout
+docpull https://docs.example.com --profile llm --stream | jq .
 
-# Enable caching for incremental updates
-docpull https://docs.example.com --cache
+# Mirror a site for offline use
+docpull https://docs.example.com --profile mirror --cache
 ```
 
-## Profiles
+## Framework-aware extraction
 
-```bash
-docpull https://site.com --profile rag      # Optimized for RAG/LLM (default)
-docpull https://site.com --profile mirror   # Full site archive with caching
-docpull https://site.com --profile quick    # Fast sampling (50 pages, depth 2)
-```
+docpull inspects each page before running the generic extractor and can pull
+content directly from framework data feeds:
 
-## Options
+| Framework | Strategy |
+|-----------|----------|
+| Next.js   | Parses `__NEXT_DATA__` JSON |
+| Mintlify  | `__NEXT_DATA__` with Mintlify tagging |
+| OpenAPI   | Renders `openapi.json` / `swagger.json` into Markdown |
+| Docusaurus| Detected and tagged; generic extractor produces Markdown |
+| Sphinx    | Detected and tagged; generic extractor produces Markdown |
 
-```
-Crawl:
-  --max-pages N           Maximum pages to fetch
-  --max-depth N           Maximum crawl depth
-  --include-paths P       Only crawl matching URL patterns
-  --exclude-paths P       Skip matching URL patterns
+JS-only SPAs with no server-rendered content are detected and skipped with a
+clear reason (or, with `--strict-js-required`, reported as an error so agents
+can route elsewhere).
 
-Cache:
-  --cache                 Enable caching for incremental updates
-  --cache-dir DIR         Cache directory (default: .docpull-cache)
-  --cache-ttl DAYS        Days before cache expires (default: 30)
+## Agent-friendly features
 
-Content:
-  --streaming-dedup       Real-time duplicate detection
-  --language CODE         Filter by language (e.g., en)
-
-Output:
-  --output-dir, -o DIR    Output directory (default: ./docs)
-  --dry-run               Show what would be fetched
-  --verbose, -v           Verbose output
-```
-
-See `docpull --help` for all options.
+- **`--single`** — fetch a single URL without discovery. Designed for tool loops.
+- **`--stream`** — NDJSON one-record-per-line, flushed on every page, pipeable.
+- **`--max-tokens-per-file N`** — split each page into token-bounded chunks on
+  heading boundaries (exact counts with tiktoken, estimate without).
+- **`--emit-chunks`** — write one file or record per chunk instead of per page.
+- **`--strict-js-required`** — hard-fail on JS-only pages instead of silently
+  skipping.
+- **`--extractor trafilatura`** — swap in [trafilatura](https://trafilatura.readthedocs.io/)
+  for sites where the default heuristics struggle.
 
 ## Python API
+
+```python
+from docpull import fetch_one
+
+ctx = fetch_one("https://docs.python.org/3/library/asyncio.html")
+print(ctx.title, ctx.source_type)
+print(ctx.markdown[:500])
+```
+
+Async streaming:
 
 ```python
 import asyncio
 from docpull import Fetcher, DocpullConfig, ProfileName, EventType
 
 async def main():
-    config = DocpullConfig(
+    cfg = DocpullConfig(
         url="https://docs.example.com",
-        profile=ProfileName.RAG,
-        crawl={"max_pages": 100},
-        cache={"enabled": True},
+        profile=ProfileName.LLM,  # chunked NDJSON output
     )
-
-    async with Fetcher(config) as fetcher:
+    async with Fetcher(cfg) as fetcher:
         async for event in fetcher.run():
             if event.type == EventType.FETCH_PROGRESS:
                 print(f"{event.current}/{event.total}: {event.url}")
-
         print(f"Done: {fetcher.stats.pages_fetched} pages")
 
 asyncio.run(main())
 ```
 
+Single-page from an agent tool:
+
+```python
+from docpull import Fetcher, DocpullConfig
+
+async def tool_call(url: str) -> str:
+    async with Fetcher(DocpullConfig(url=url)) as f:
+        ctx = await f.fetch_one(url, save=False)
+        return ctx.markdown or ctx.error or ""
+```
+
+## Profiles
+
+```bash
+docpull https://site.com --profile rag      # Default. Dedup, rich metadata.
+docpull https://site.com --profile llm      # NDJSON + chunks + metadata.
+docpull https://site.com --profile mirror   # Full archive, polite, cached.
+docpull https://site.com --profile quick    # Sampling: 50 pages, depth 2.
+```
+
+## MCP server
+
+docpull ships an MCP (Model Context Protocol) server so AI agents can call it
+directly over stdio:
+
+```bash
+pip install 'docpull[mcp]'
+docpull mcp  # starts the stdio server
+```
+
+Add to Claude Desktop or Claude Code:
+
+```json
+{
+  "mcpServers": {
+    "docpull": {
+      "command": "docpull",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+Tools exposed:
+
+- `fetch_url(url, max_tokens?)` — one-shot fetch, no crawl
+- `ensure_docs(source, force?)` — fetch a named library (cached 7 days)
+- `list_sources(category?)` — show available aliases (react, nextjs, fastapi, …)
+- `list_indexed()` — what has been fetched locally
+- `grep_docs(pattern, library?)` — regex search across fetched Markdown
+
+User-defined sources live in `~/.config/docpull-mcp/sources.yaml`:
+
+```yaml
+sources:
+  mydocs:
+    url: https://docs.example.com
+    description: My internal docs
+    category: internal
+    maxPages: 200
+```
+
 ## Output
 
-Each page becomes a Markdown file with YAML frontmatter:
+Markdown files with YAML frontmatter:
 
 ```markdown
 ---
 title: "Getting Started"
 source: https://docs.example.com/guide
+source_type: "nextjs"
 ---
 
 # Getting Started
-...
+…
+```
+
+NDJSON (one record per page or chunk):
+
+```json
+{"url": "...", "title": "...", "content": "...", "hash": "...", "token_count": 842, "chunk_index": 0}
 ```
 
 ## Security
 
 - HTTPS-only, mandatory robots.txt compliance
-- Blocks private/internal network IPs
-- Path traversal and XXE protection
+- SSRF protection: blocks private/internal network IPs, DNS rebinding
+- XXE protection via `defusedxml` on sitemaps
+- Path traversal and CRLF header injection guards
+- Auth headers stripped on cross-origin redirects
+
+## Options
+
+Run `docpull --help` for the full list. Highlights:
+
+```
+Core:
+  --profile {rag,mirror,quick,llm,custom}
+  --single                Fetch one URL (no crawl)
+  --format {markdown,json,ndjson,sqlite}
+  --stream                Stream NDJSON to stdout
+
+LLM / chunking:
+  --max-tokens-per-file N
+  --tokenizer NAME        tiktoken encoding (default cl100k_base)
+  --emit-chunks           One file/record per chunk
+
+Content extraction:
+  --extractor {default,trafilatura}
+  --no-special-cases      Disable framework extractors
+  --strict-js-required    Error on JS-only pages
+
+Cache:
+  --cache                 Enable incremental updates
+  --cache-dir DIR
+  --cache-ttl DAYS
+```
 
 ## Troubleshooting
 
@@ -119,6 +234,7 @@ source: https://docs.example.com/guide
 docpull --doctor              # Check installation
 docpull URL --verbose         # Verbose output
 docpull URL --dry-run         # Test without downloading
+docpull URL --preview-urls    # List URLs without fetching
 ```
 
 ## Links
