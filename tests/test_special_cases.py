@@ -87,6 +87,163 @@ class TestOpenApiExtractor:
         html = json.dumps({"foo": "bar"}).encode()
         assert OpenApiExtractor().try_extract(html, "https://example.com/") is None
 
+    def test_renders_request_body_properties_and_resolves_refs(self):
+        spec = {
+            "openapi": "3.0.0",
+            "info": {"title": "API"},
+            "paths": {
+                "/v1/things": {
+                    "post": {
+                        "summary": "Create",
+                        "requestBody": {
+                            "required": True,
+                            "content": {
+                                "application/json": {
+                                    "schema": {"$ref": "#/components/schemas/ThingInput"},
+                                }
+                            },
+                        },
+                        "responses": {
+                            "200": {
+                                "description": "OK",
+                                "content": {
+                                    "application/json": {
+                                        "schema": {"$ref": "#/components/schemas/Thing"}
+                                    }
+                                },
+                            }
+                        },
+                    }
+                }
+            },
+            "components": {
+                "schemas": {
+                    "ThingInput": {
+                        "type": "object",
+                        "required": ["name"],
+                        "properties": {
+                            "name": {"type": "string", "description": "Name"},
+                            "count": {"type": "integer", "format": "int32"},
+                        },
+                    },
+                    "Thing": {"type": "object", "properties": {"id": {"type": "string"}}},
+                }
+            },
+        }
+        html = json.dumps(spec).encode()
+        result = OpenApiExtractor().try_extract(html, "https://example.com/openapi.json")
+        assert result is not None
+        md = result.markdown
+        assert "Request body" in md
+        assert "`application/json`" in md
+        assert "`name` (string) (required)" in md
+        assert "`count` (integer(int32))" in md
+        assert "**Responses:**" in md
+        assert "`200` → `Thing`" in md
+
+    def test_strips_html_tags_from_descriptions(self):
+        spec = {
+            "openapi": "3.0.0",
+            "info": {"title": "API", "description": "<p>Top <code>level</code></p>"},
+            "paths": {
+                "/v1/x": {
+                    "get": {
+                        "description": "Plain <a href=\"/foo\">link</a> in <b>bold</b>",
+                        "responses": {"200": {"description": "ok"}},
+                    }
+                }
+            },
+        }
+        html = json.dumps(spec).encode()
+        result = OpenApiExtractor().try_extract(html, "https://example.com/openapi.json")
+        assert result is not None
+        md = result.markdown
+        assert "<p>" not in md
+        assert "<code>" not in md
+        assert "<a " not in md
+        assert "Top level" in md
+        assert "Plain link in bold" in md
+
+    def test_separates_path_and_query_parameters(self):
+        spec = {
+            "openapi": "3.0.0",
+            "info": {"title": "API"},
+            "paths": {
+                "/items/{id}": {
+                    "get": {
+                        "parameters": [
+                            {"name": "id", "in": "path", "required": True, "schema": {"type": "string"}},
+                            {"name": "expand", "in": "query", "schema": {"type": "array", "items": {"type": "string"}}},
+                        ],
+                        "responses": {"200": {"description": "ok"}},
+                    }
+                }
+            },
+        }
+        html = json.dumps(spec).encode()
+        result = OpenApiExtractor().try_extract(html, "https://example.com/openapi.json")
+        assert result is not None
+        md = result.markdown
+        assert "**Path parameters:**" in md
+        assert "**Query parameters:**" in md
+        assert "`id` (string) (required)" in md
+        assert "`expand` (array<string>)" in md
+
+    def test_handles_form_encoded_request_body(self):
+        spec = {
+            "openapi": "3.0.0",
+            "info": {"title": "API"},
+            "paths": {
+                "/v1/x": {
+                    "post": {
+                        "requestBody": {
+                            "content": {
+                                "application/x-www-form-urlencoded": {
+                                    "schema": {
+                                        "type": "object",
+                                        "properties": {"a": {"type": "string"}},
+                                    }
+                                }
+                            }
+                        },
+                        "responses": {"200": {"description": "ok"}},
+                    }
+                }
+            },
+        }
+        result = OpenApiExtractor().try_extract(json.dumps(spec).encode(), "x")
+        assert result is not None
+        assert "application/x-www-form-urlencoded" in result.markdown
+        assert "`a` (string)" in result.markdown
+
+    def test_circular_refs_do_not_recurse_forever(self):
+        spec = {
+            "openapi": "3.0.0",
+            "info": {"title": "API"},
+            "paths": {
+                "/x": {
+                    "post": {
+                        "requestBody": {
+                            "content": {
+                                "application/json": {
+                                    "schema": {"$ref": "#/components/schemas/A"}
+                                }
+                            }
+                        },
+                        "responses": {"200": {"description": "ok"}},
+                    }
+                }
+            },
+            "components": {
+                "schemas": {
+                    "A": {"$ref": "#/components/schemas/B"},
+                    "B": {"$ref": "#/components/schemas/A"},
+                }
+            },
+        }
+        result = OpenApiExtractor().try_extract(json.dumps(spec).encode(), "x")
+        assert result is not None
+
 
 class TestMintlifyExtractor:
     def test_matches_when_marker_present_and_next_data_parses(self):

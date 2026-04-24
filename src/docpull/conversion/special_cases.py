@@ -11,6 +11,7 @@ Each extractor is a best-effort heuristic: it returns Markdown on a match and
 
 from __future__ import annotations
 
+import html as html_lib
 import json
 import logging
 import re
@@ -213,12 +214,101 @@ class MintlifyExtractor:
         )
 
 
+_HTML_TAG_RE = re.compile(r"<[^>]+>")
+_MD_LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
+_HTTP_METHODS = ("get", "post", "put", "patch", "delete", "head", "options", "trace")
+
+
+def _clean_text(value: Any) -> str:
+    """Strip HTML tags, decode entities, and collapse whitespace."""
+    if not isinstance(value, str) or not value:
+        return ""
+    stripped = _HTML_TAG_RE.sub("", value)
+    unescaped = html_lib.unescape(stripped)
+    return re.sub(r"\s+", " ", unescaped).strip()
+
+
+def _resolve_ref(spec: dict[str, Any], ref: str) -> Any:
+    if not isinstance(ref, str) or not ref.startswith("#/"):
+        return None
+    node: Any = spec
+    for part in ref[2:].split("/"):
+        part = part.replace("~1", "/").replace("~0", "~")
+        if isinstance(node, dict) and part in node:
+            node = node[part]
+        else:
+            return None
+    return node
+
+
+def _describe_type(schema: Any, spec: dict[str, Any]) -> str:
+    """One-line type description for a schema, without recursing into properties."""
+    if not isinstance(schema, dict):
+        return "?"
+    if "$ref" in schema:
+        return schema["$ref"].rsplit("/", 1)[-1]
+    for key in ("oneOf", "anyOf", "allOf"):
+        if isinstance(schema.get(key), list) and schema[key]:
+            seen: list[str] = []
+            for sub in schema[key]:
+                desc = _describe_type(sub, spec)
+                if desc not in seen:
+                    seen.append(desc)
+            inner = " | ".join(seen)
+            return inner if key != "allOf" else f"({inner})"
+    t = schema.get("type")
+    if t == "array":
+        return f"array<{_describe_type(schema.get('items') or {}, spec)}>"
+    if isinstance(t, list):
+        return " | ".join(str(x) for x in t)
+    fmt = schema.get("format")
+    if isinstance(t, str):
+        return f"{t}({fmt})" if fmt else t
+    if "enum" in schema:
+        return "enum"
+    if isinstance(schema.get("properties"), dict):
+        return "object"
+    return "any"
+
+
+def _schema_properties(
+    schema: Any, spec: dict[str, Any], seen: frozenset[str] = frozenset()
+) -> tuple[dict[str, Any], set[str]]:
+    """Return ({name: subschema}, required_set) for a schema, resolving $ref and allOf.
+
+    Does not recurse into nested objects — callers render one level.
+    """
+    if not isinstance(schema, dict):
+        return {}, set()
+    if "$ref" in schema:
+        ref = schema["$ref"]
+        if ref in seen:
+            return {}, set()
+        resolved = _resolve_ref(spec, ref)
+        return _schema_properties(resolved, spec, seen | {ref})
+    props: dict[str, Any] = {}
+    required: set[str] = set()
+    if isinstance(schema.get("allOf"), list):
+        for sub in schema["allOf"]:
+            sub_props, sub_required = _schema_properties(sub, spec, seen)
+            props.update(sub_props)
+            required.update(sub_required)
+    direct = schema.get("properties")
+    if isinstance(direct, dict):
+        props.update(direct)
+    req = schema.get("required")
+    if isinstance(req, list):
+        required.update(r for r in req if isinstance(r, str))
+    return props, required
+
+
 class OpenApiExtractor:
     """Render OpenAPI / Swagger JSON specs directly to Markdown.
 
-    Triggers only when the *content type* is JSON and the body parses as an
-    OpenAPI document. A docpull crawl that stumbles on ``openapi.json`` gets a
-    usable Markdown file instead of an unreadable blob.
+    Triggers only when the body parses as an OpenAPI document. Renders each
+    operation with description, parameters (grouped by location), request body
+    properties, and response schemas — with ``$ref``s followed one level and
+    HTML tags stripped from descriptions.
     """
 
     name = "openapi"
@@ -239,14 +329,14 @@ class OpenApiExtractor:
 
         info = data.get("info", {}) or {}
         title = info.get("title") or "API Reference"
-        description = info.get("description") or ""
+        description = _clean_text(info.get("description") or "")
 
         lines = [f"# {title}", ""]
         if version:
             lines.append(f"_OpenAPI {version}_")
             lines.append("")
         if description:
-            lines.append(description.strip())
+            lines.append(description)
             lines.append("")
 
         paths = data.get("paths", {}) or {}
@@ -255,29 +345,13 @@ class OpenApiExtractor:
                 continue
             lines.append(f"## `{path}`")
             lines.append("")
+            shared_params = ops.get("parameters") or []
             for method, op in ops.items():
-                if method.startswith("x-") or not isinstance(op, dict):
+                if method.lower() not in _HTTP_METHODS or not isinstance(op, dict):
                     continue
-                summary = op.get("summary") or ""
-                lines.append(f"### `{method.upper()} {path}` — {summary}".rstrip(" —"))
-                lines.append("")
-                op_desc = op.get("description")
-                if op_desc:
-                    lines.append(op_desc.strip())
-                    lines.append("")
-                params = op.get("parameters") or []
-                if params:
-                    lines.append("**Parameters:**")
-                    lines.append("")
-                    for param in params:
-                        if not isinstance(param, dict):
-                            continue
-                        pname = param.get("name", "?")
-                        pin = param.get("in", "?")
-                        required = " (required)" if param.get("required") else ""
-                        pdesc = param.get("description", "")
-                        lines.append(f"- `{pname}` ({pin}){required} — {pdesc}".rstrip(" —"))
-                    lines.append("")
+                self._render_operation(
+                    lines, path, method, op, shared_params, data
+                )
 
         return SpecialCaseResult(
             markdown="\n".join(lines).strip() + "\n",
@@ -285,6 +359,140 @@ class OpenApiExtractor:
             source_type=self.name,
             extra={"framework": "openapi", "openapi_version": version},
         )
+
+    def _render_operation(
+        self,
+        lines: list[str],
+        path: str,
+        method: str,
+        op: dict[str, Any],
+        shared_params: list[Any],
+        spec: dict[str, Any],
+    ) -> None:
+        summary = _clean_text(op.get("summary") or "")
+        header = f"### `{method.upper()} {path}`"
+        if summary:
+            header = f"{header} — {summary}"
+        lines.append(header)
+        lines.append("")
+        op_desc = _clean_text(op.get("description") or "")
+        if op_desc:
+            lines.append(op_desc)
+            lines.append("")
+
+        self._render_parameters(lines, list(shared_params) + list(op.get("parameters") or []))
+        self._render_request_body(lines, op.get("requestBody"), spec)
+        self._render_responses(lines, op.get("responses"), spec)
+
+    def _render_parameters(self, lines: list[str], params: list[Any]) -> None:
+        buckets: dict[str, list[tuple[str, str, bool, str]]] = {}
+        for param in params:
+            if not isinstance(param, dict):
+                continue
+            pin = param.get("in", "query")
+            pname = param.get("name", "?")
+            ptype = _describe_type(param.get("schema") or {}, {})
+            required = bool(param.get("required")) or pin == "path"
+            pdesc = _clean_text(param.get("description") or "")
+            buckets.setdefault(pin, []).append((pname, ptype, required, pdesc))
+        order = ["path", "query", "header", "cookie"]
+        for pin in order + sorted(set(buckets) - set(order)):
+            items = buckets.get(pin)
+            if not items:
+                continue
+            lines.append(f"**{pin.title()} parameters:**")
+            lines.append("")
+            for pname, ptype, required, pdesc in items:
+                req = " (required)" if required else ""
+                bullet = f"- `{pname}` ({ptype}){req}"
+                if pdesc:
+                    bullet += f" — {pdesc}"
+                lines.append(bullet)
+            lines.append("")
+
+    def _render_request_body(
+        self, lines: list[str], body: Any, spec: dict[str, Any]
+    ) -> None:
+        if not isinstance(body, dict):
+            return
+        if "$ref" in body:
+            resolved = _resolve_ref(spec, body["$ref"])
+            if isinstance(resolved, dict):
+                body = resolved
+            else:
+                return
+        content = body.get("content")
+        if not isinstance(content, dict) or not content:
+            return
+        content_type, media = self._pick_content_type(content)
+        schema = media.get("schema") if isinstance(media, dict) else None
+        required_body = bool(body.get("required"))
+        header = "**Request body"
+        if content_type:
+            header += f" (`{content_type}`)"
+        if required_body:
+            header += " — required"
+        header += ":**"
+        lines.append(header)
+        lines.append("")
+        body_desc = _clean_text(body.get("description") or "")
+        if body_desc:
+            lines.append(body_desc)
+            lines.append("")
+        props, required = _schema_properties(schema or {}, spec)
+        if props:
+            for name, sub in props.items():
+                if not isinstance(sub, dict):
+                    continue
+                ptype = _describe_type(sub, spec)
+                req = " (required)" if name in required else ""
+                pdesc = _clean_text(sub.get("description") or "")
+                bullet = f"- `{name}` ({ptype}){req}"
+                if pdesc:
+                    bullet += f" — {pdesc}"
+                lines.append(bullet)
+        elif isinstance(schema, dict):
+            lines.append(f"- body: {_describe_type(schema, spec)}")
+        lines.append("")
+
+    def _render_responses(
+        self, lines: list[str], responses: Any, spec: dict[str, Any]
+    ) -> None:
+        if not isinstance(responses, dict) or not responses:
+            return
+        lines.append("**Responses:**")
+        lines.append("")
+        for code, resp in sorted(responses.items(), key=lambda kv: str(kv[0])):
+            if not isinstance(resp, dict):
+                continue
+            if "$ref" in resp:
+                resolved = _resolve_ref(spec, resp["$ref"])
+                if isinstance(resolved, dict):
+                    resp = resolved
+                else:
+                    continue
+            desc = _clean_text(resp.get("description") or "")
+            content = resp.get("content")
+            type_hint = ""
+            if isinstance(content, dict) and content:
+                _, media = self._pick_content_type(content)
+                schema = media.get("schema") if isinstance(media, dict) else None
+                if isinstance(schema, dict):
+                    type_hint = f" → `{_describe_type(schema, spec)}`"
+            bullet = f"- `{code}`{type_hint}"
+            if desc:
+                bullet += f" — {desc}"
+            lines.append(bullet)
+        lines.append("")
+
+    @staticmethod
+    def _pick_content_type(content: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+        for preferred in ("application/json", "application/x-www-form-urlencoded", "multipart/form-data"):
+            if preferred in content and isinstance(content[preferred], dict):
+                return preferred, content[preferred]
+        key = next(iter(content))
+        value = content[key]
+        return key, value if isinstance(value, dict) else {}
 
 
 class SphinxObjectsInvExtractor:
