@@ -1,7 +1,6 @@
 """Pipeline step for HTML to Markdown conversion."""
 
 import logging
-from typing import Optional
 
 from ...conversion.extractor import MainContentExtractor
 from ...conversion.markdown import FrontmatterBuilder, HtmlToMarkdown
@@ -31,10 +30,10 @@ class ConvertStep:
 
     def __init__(
         self,
-        extractor: Optional[MainContentExtractor] = None,
-        converter: Optional[HtmlToMarkdown] = None,
+        extractor: MainContentExtractor | None = None,
+        converter: HtmlToMarkdown | None = None,
         add_frontmatter: bool = True,
-        special_cases: Optional[list[SpecialCaseExtractor]] = None,
+        special_cases: list[SpecialCaseExtractor] | None = None,
         enable_special_cases: bool = True,
         use_trafilatura: bool = False,
         strict_js_required: bool = False,
@@ -74,7 +73,7 @@ class ConvertStep:
     async def execute(
         self,
         ctx: PageContext,
-        emit: Optional[EventEmitter] = None,
+        emit: EventEmitter | None = None,
     ) -> PageContext:
         if ctx.should_skip or ctx.error:
             return ctx
@@ -161,7 +160,7 @@ class ConvertStep:
             return result.markdown
         return None
 
-    def _handle_empty_content(self, ctx: PageContext, emit: Optional[EventEmitter]) -> PageContext:
+    def _handle_empty_content(self, ctx: PageContext, emit: EventEmitter | None) -> PageContext:
         is_spa = ctx.html is not None and looks_like_spa(ctx.html)
         if self._strict_js_required and is_spa:
             ctx.error = (

@@ -1,7 +1,6 @@
 """Pipeline step for metadata extraction."""
 
 import logging
-from typing import Optional
 
 from bs4 import BeautifulSoup, Tag
 
@@ -40,7 +39,7 @@ class MetadataStep:
         self._extract_rich = extract_rich
         self._rich_extractor = RichMetadataExtractor() if extract_rich else None
 
-    def _extract_title(self, soup: BeautifulSoup) -> Optional[str]:
+    def _extract_title(self, soup: BeautifulSoup) -> str | None:
         """Extract page title from HTML."""
         # Try og:title first
         og_title = soup.find("meta", property="og:title")
@@ -59,7 +58,7 @@ class MetadataStep:
 
         return None
 
-    def _extract_description(self, soup: BeautifulSoup) -> Optional[str]:
+    def _extract_description(self, soup: BeautifulSoup) -> str | None:
         """Extract page description from HTML."""
         # Try og:description first
         og_desc = soup.find("meta", property="og:description")
@@ -76,7 +75,7 @@ class MetadataStep:
     async def execute(
         self,
         ctx: PageContext,
-        emit: Optional[EventEmitter] = None,
+        emit: EventEmitter | None = None,
     ) -> PageContext:
         """
         Extract metadata from HTML content.

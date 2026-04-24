@@ -3,7 +3,6 @@
 import asyncio
 import logging
 from pathlib import Path
-from typing import Optional
 
 from ...models.events import EventType, FetchEvent
 from ..base import EventEmitter, PageContext
@@ -30,7 +29,7 @@ class SaveStep:
 
     def __init__(
         self,
-        base_output_dir: Optional[Path] = None,
+        base_output_dir: Path | None = None,
         emit_chunks: bool = False,
     ) -> None:
         """
@@ -72,7 +71,7 @@ class SaveStep:
     async def execute(
         self,
         ctx: PageContext,
-        emit: Optional[EventEmitter] = None,
+        emit: EventEmitter | None = None,
     ) -> PageContext:
         """
         Execute the save step.

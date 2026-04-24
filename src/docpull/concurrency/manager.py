@@ -1,9 +1,10 @@
 """Thread pool manager for CPU-bound operations."""
 
 import asyncio
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from types import TracebackType
-from typing import Any, Callable, Optional, TypeVar
+from typing import Any, TypeVar
 
 T = TypeVar("T")
 
@@ -33,7 +34,7 @@ class ConcurrencyManager:
                         Consider CPU core count for optimal value.
         """
         self.max_workers = max_workers
-        self._executor: Optional[ThreadPoolExecutor] = None
+        self._executor: ThreadPoolExecutor | None = None
 
     @property
     def executor(self) -> ThreadPoolExecutor:

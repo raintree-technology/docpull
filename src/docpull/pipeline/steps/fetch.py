@@ -1,7 +1,6 @@
 """FetchStep - HTTP fetching pipeline step."""
 
 import logging
-from typing import Optional
 
 from ...http.protocols import HttpClient
 from ...models.events import EventType, FetchEvent
@@ -94,7 +93,7 @@ class FetchStep:
     async def execute(
         self,
         ctx: PageContext,
-        emit: Optional[EventEmitter] = None,
+        emit: EventEmitter | None = None,
     ) -> PageContext:
         """
         Execute the fetch step.

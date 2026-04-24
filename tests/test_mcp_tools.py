@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from docpull.mcp.sources import (
     BUILTIN_SOURCES,
     all_sources,

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from ...conversion.chunking import TokenCounter, chunk_markdown
 from ..base import EventEmitter, PageContext
@@ -32,7 +31,7 @@ class ChunkStep:
     async def execute(
         self,
         ctx: PageContext,
-        emit: Optional[EventEmitter] = None,
+        emit: EventEmitter | None = None,
     ) -> PageContext:
         if ctx.should_skip or ctx.error or not ctx.markdown:
             return ctx

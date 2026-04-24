@@ -173,7 +173,11 @@ class TestOpenApiExtractor:
                     "get": {
                         "parameters": [
                             {"name": "id", "in": "path", "required": True, "schema": {"type": "string"}},
-                            {"name": "expand", "in": "query", "schema": {"type": "array", "items": {"type": "string"}}},
+                            {
+                                "name": "expand",
+                                "in": "query",
+                                "schema": {"type": "array", "items": {"type": "string"}},
+                            },
                         ],
                         "responses": {"200": {"description": "ok"}},
                     }

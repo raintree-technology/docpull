@@ -17,9 +17,8 @@ from ..http import AdaptiveRateLimiter, AsyncHttpClient, PerHostRateLimiter
 from ..models.config import DocpullConfig
 from ..models.events import EventType, FetchEvent, FetchStats, SkipReason
 from ..models.profiles import apply_profile
-from ..pipeline.base import FetchPipeline
+from ..pipeline.base import FetchPipeline, PageContext
 from ..pipeline.base import FetchStep as FetchStepProtocol
-from ..pipeline.base import PageContext
 from ..pipeline.steps import (
     ChunkStep,
     ConvertStep,

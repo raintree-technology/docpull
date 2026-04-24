@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from docpull.conversion.markdown import HtmlToMarkdown
 from docpull.conversion.special_cases import detect_source_type

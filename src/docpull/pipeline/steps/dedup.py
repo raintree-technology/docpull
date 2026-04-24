@@ -1,7 +1,6 @@
 """Pipeline step for content deduplication using StreamingDeduplicator."""
 
 import logging
-from typing import Optional, Union
 
 from ...cache import StreamingDeduplicator
 from ...models.events import EventType, FetchEvent
@@ -28,7 +27,7 @@ class DedupStep:
 
     def __init__(
         self,
-        deduplicator: Optional[StreamingDeduplicator] = None,
+        deduplicator: StreamingDeduplicator | None = None,
         hash_markdown: bool = True,
     ):
         """
@@ -49,7 +48,7 @@ class DedupStep:
     async def execute(
         self,
         ctx: PageContext,
-        emit: Optional[EventEmitter] = None,
+        emit: EventEmitter | None = None,
     ) -> PageContext:
         """
         Check content for duplicates.
@@ -65,7 +64,7 @@ class DedupStep:
             return ctx
 
         # Get content to hash
-        content: Union[str, bytes]
+        content: str | bytes
         if self._hash_markdown and ctx.markdown:
             content = ctx.markdown
         elif ctx.html:

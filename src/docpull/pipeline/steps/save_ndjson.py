@@ -14,7 +14,7 @@ import logging
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import IO, Optional
+from typing import IO
 
 from ...models.events import EventType, FetchEvent
 from ..base import EventEmitter, PageContext
@@ -67,7 +67,7 @@ class NdjsonSaveStep:
     async def execute(
         self,
         ctx: PageContext,
-        emit: Optional[EventEmitter] = None,
+        emit: EventEmitter | None = None,
     ) -> PageContext:
         if ctx.should_skip or ctx.error or not ctx.markdown:
             return ctx

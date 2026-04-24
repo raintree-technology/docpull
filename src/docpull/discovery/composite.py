@@ -2,7 +2,6 @@
 
 import logging
 from collections.abc import AsyncIterator
-from typing import Optional
 
 from .crawler import LinkCrawler
 from .filters import SeenUrlTracker
@@ -37,7 +36,7 @@ class CompositeDiscoverer:
     def __init__(
         self,
         sitemap_discoverer: SitemapDiscoverer,
-        link_crawler: Optional[LinkCrawler] = None,
+        link_crawler: LinkCrawler | None = None,
         fallback_threshold: int = 5,
     ):
         """
@@ -57,7 +56,7 @@ class CompositeDiscoverer:
         self,
         start_url: str,
         *,
-        max_urls: Optional[int] = None,
+        max_urls: int | None = None,
     ) -> AsyncIterator[str]:
         """
         Discover URLs using sitemap with crawl fallback.

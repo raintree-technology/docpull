@@ -129,7 +129,10 @@ class ContentFilterConfig(BaseModel):
     )
     enable_special_cases: bool = Field(
         True,
-        description="Run framework-specific fast extractors (Next.js, OpenAPI, etc.) before the generic extractor",
+        description=(
+            "Run framework-specific fast extractors (Next.js, OpenAPI, etc.) "
+            "before the generic extractor"
+        ),
     )
     strict_js_required: bool = Field(
         False,

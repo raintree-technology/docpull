@@ -83,25 +83,25 @@ class FetchEvent:
     timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     # Common fields
-    url: Optional[str] = None
-    message: Optional[str] = None
-    error: Optional[str] = None
+    url: str | None = None
+    message: str | None = None
+    error: str | None = None
 
     # Progress tracking
-    current: Optional[int] = None
-    total: Optional[int] = None
+    current: int | None = None
+    total: int | None = None
 
     # Typed payload fields for specific events
-    bytes_downloaded: Optional[int] = None
-    status_code: Optional[int] = None
-    output_path: Optional[Path] = None
-    content_type: Optional[str] = None
-    retry_attempt: Optional[int] = None
-    duplicate_of: Optional[str] = None  # URL of original for dedup events
+    bytes_downloaded: int | None = None
+    status_code: int | None = None
+    output_path: Path | None = None
+    content_type: str | None = None
+    retry_attempt: int | None = None
+    duplicate_of: str | None = None  # URL of original for dedup events
     skip_reason: Optional["SkipReason"] = None  # Reason for skipping a URL
 
     @property
-    def progress_percent(self) -> Optional[float]:
+    def progress_percent(self) -> float | None:
         """Calculate progress percentage if current and total are set."""
         if self.current is not None and self.total and self.total > 0:
             return (self.current / self.total) * 100

@@ -1,7 +1,7 @@
 """Protocol definitions for URL discovery."""
 
 from collections.abc import AsyncIterator
-from typing import Optional, Protocol
+from typing import Protocol
 
 
 class UrlFilter(Protocol):
@@ -35,7 +35,7 @@ class UrlDiscoverer(Protocol):
         self,
         start_url: str,
         *,
-        max_urls: Optional[int] = None,
+        max_urls: int | None = None,
     ) -> AsyncIterator[str]:
         """
         Discover URLs starting from the given URL.

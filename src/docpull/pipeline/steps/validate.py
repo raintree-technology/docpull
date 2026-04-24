@@ -1,7 +1,6 @@
 """ValidateStep - URL validation pipeline step."""
 
 import logging
-from typing import Optional
 
 from ...models.events import EventType, FetchEvent
 from ...security.robots import RobotsChecker
@@ -58,7 +57,7 @@ class ValidateStep:
     async def execute(
         self,
         ctx: PageContext,
-        emit: Optional[EventEmitter] = None,
+        emit: EventEmitter | None = None,
     ) -> PageContext:
         """
         Execute the validation step.
@@ -125,7 +124,7 @@ class ValidateStep:
         logger.debug(f"Validated {url}")
         return ctx
 
-    def get_crawl_delay(self, url: str) -> Optional[float]:
+    def get_crawl_delay(self, url: str) -> float | None:
         """
         Get Crawl-delay for a URL's domain.
 
