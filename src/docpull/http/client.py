@@ -439,10 +439,6 @@ class AsyncHttpClient:
                     logger.error(f"HTTP fetch error for {url} after {self._max_retries + 1} attempts: {e}")
                     raise
 
-            except Exception:
-                # Non-retryable error - re-raise immediately
-                raise
-
         # Should not reach here, but just in case
         if last_error:
             raise last_error
