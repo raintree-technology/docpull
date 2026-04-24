@@ -2,6 +2,7 @@
 
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
+from types import TracebackType
 from typing import Any, Callable, Optional, TypeVar
 
 T = TypeVar("T")
@@ -98,7 +99,12 @@ class ConcurrencyManager:
         """Enter async context."""
         return self
 
-    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
         """Exit async context and shutdown executor."""
         self.shutdown(wait=True)
 
@@ -106,6 +112,11 @@ class ConcurrencyManager:
         """Enter sync context."""
         return self
 
-    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
         """Exit sync context and shutdown executor."""
         self.shutdown(wait=True)
