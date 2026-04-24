@@ -1,6 +1,4 @@
-"use client";
-
-import dynamic from "next/dynamic";
+import AsciiBackgroundLoader from "@/components/AsciiBackgroundLoader";
 import Header from "@/components/Header";
 import Hero from "@/components/Hero";
 import Footer from "@/components/Footer";
@@ -11,14 +9,10 @@ import CodeExamples from "@/components/CodeExamples";
 import Install from "@/components/Install";
 import FAQ from "@/components/FAQ";
 
-const AsciiBackground = dynamic(() => import("@/components/AsciiBackground"), {
-  ssr: false,
-});
-
 export default function Home() {
   return (
     <>
-      <AsciiBackground />
+      <AsciiBackgroundLoader />
       <Header />
       <main className="relative z-10">
         <Hero />

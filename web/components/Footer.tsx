@@ -1,5 +1,3 @@
-"use client";
-
 import { Github } from "lucide-react";
 
 function XIcon({ className }: { className?: string }) {
