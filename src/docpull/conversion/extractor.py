@@ -26,7 +26,7 @@ CONTENT_SELECTORS = [
     "#documentation",
 ]
 
-# Elements to remove (navigation, ads, etc.)
+# Elements to remove (navigation, ads, cookie banners, etc.)
 REMOVE_SELECTORS = [
     "nav",
     "header",
@@ -54,6 +54,33 @@ REMOVE_SELECTORS = [
     "noscript",
     "iframe",
     "svg",
+    # Cookie / consent / GDPR walls. Most are structural — class names
+    # come from a small set of vendor SDKs (OneTrust, Osano, CookieConsent,
+    # CookieLaw, Cookiebot, Iubenda) plus generic `.cookie-*` / `.gdpr-*`
+    # patterns. The aria-label fallbacks catch dialogs whose className
+    # doesn't match the conventions but whose accessibility label does.
+    ".cookie-banner",
+    ".cookie-consent",
+    ".cookie-notice",
+    ".cookielaw-banner",
+    ".cookiebot",
+    ".gdpr",
+    ".gdpr-banner",
+    ".consent-banner",
+    ".consent-popup",
+    ".cc-window",
+    ".cc-banner",
+    ".osano-cm-window",
+    ".osano-cm-dialog",
+    "#onetrust-banner-sdk",
+    "#onetrust-consent-sdk",
+    "#onetrust-pc-sdk",
+    ".ot-sdk-container",
+    ".iubenda-cs-container",
+    ".termly-styl-banner",
+    '[aria-label*="cookie" i]',
+    '[aria-label*="consent" i]',
+    '[aria-label*="gdpr" i]',
 ]
 
 # Elements to preserve but simplify

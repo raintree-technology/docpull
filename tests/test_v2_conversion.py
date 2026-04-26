@@ -351,3 +351,180 @@ class TestFenceLanguageNormalization:
         opening = next(i for i, line in enumerate(lines) if line == "```python")
         # Line right after the fence should not be 8-space indented
         assert not lines[opening + 1].startswith("    ")
+
+
+# Cookie / consent banner copy that must NOT leak into the body Markdown.
+# Sourced from the public DOM of the vendor SDKs we strip.
+_BANNER_COPY = "By clicking Accept All Cookies you agree to the storing of cookies"
+
+# Real-world DOM patterns lifted from public docs sites. Each fixture
+# wraps the banner in the structural element a vendor SDK injects, plus
+# legitimate article content. After extraction + Markdown conversion, the
+# banner copy must be gone but the article content must survive.
+_COOKIE_FIXTURES = [
+    (
+        "onetrust",
+        f'''
+        <html><body>
+        <div id="onetrust-consent-sdk">
+          <div id="onetrust-banner-sdk">
+            <div class="ot-sdk-row">{_BANNER_COPY}</div>
+            <button>Accept All Cookies</button>
+          </div>
+        </div>
+        <article><h1>Real Title</h1><p>Real article body here.</p></article>
+        </body></html>
+        ''',
+    ),
+    (
+        "osano",
+        f'''
+        <html><body>
+        <div class="osano-cm-window">
+          <div class="osano-cm-dialog">{_BANNER_COPY}</div>
+        </div>
+        <article><h1>Real Title</h1><p>Real article body here.</p></article>
+        </body></html>
+        ''',
+    ),
+    (
+        "cookieconsent",
+        f'''
+        <html><body>
+        <div class="cc-window">
+          <div class="cc-banner">{_BANNER_COPY}</div>
+        </div>
+        <article><h1>Real Title</h1><p>Real article body here.</p></article>
+        </body></html>
+        ''',
+    ),
+    (
+        "cookielaw",
+        f'''
+        <html><body>
+        <div class="cookielaw-banner">{_BANNER_COPY}</div>
+        <article><h1>Real Title</h1><p>Real article body here.</p></article>
+        </body></html>
+        ''',
+    ),
+    (
+        "generic-aria",
+        f'''
+        <html><body>
+        <div role="dialog" aria-label="Cookie Consent">{_BANNER_COPY}</div>
+        <article><h1>Real Title</h1><p>Real article body here.</p></article>
+        </body></html>
+        ''',
+    ),
+]
+
+
+class TestCookieBannerStripping:
+    """Vendor cookie/consent banner copy must not leak into Markdown body.
+
+    The FAQ at web/components/FAQ.tsx claims that 'common cookie/consent
+    banners' are stripped before conversion. These tests are the proof.
+    """
+
+    def _convert(self, html: str) -> str:
+        extracted = MainContentExtractor().extract(html.encode(), "https://x.test/")
+        return HtmlToMarkdown().convert(extracted, "https://x.test/")
+
+    def test_banner_copy_does_not_leak(self):
+        for name, html in _COOKIE_FIXTURES:
+            md = self._convert(html)
+            assert _BANNER_COPY not in md, f"banner copy leaked through {name} fixture"
+            assert "Accept All Cookies" not in md, f"CTA leaked through {name} fixture"
+
+    def test_real_article_content_survives(self):
+        for name, html in _COOKIE_FIXTURES:
+            md = self._convert(html)
+            assert "Real article body here." in md, (
+                f"genuine article content lost in {name} fixture"
+            )
+
+    def test_legitimate_cookie_documentation_is_preserved(self):
+        # A page whose body legitimately discusses cookies must NOT be
+        # stripped. Selectors are structural, not text-based — only
+        # vendor-shaped wrappers should match.
+        html = '''
+        <html><body><article>
+        <h1>How cookies work</h1>
+        <p>This page explains how the Set-Cookie header behaves.</p>
+        <pre><code>Set-Cookie: session=abc; HttpOnly</code></pre>
+        </article></body></html>
+        '''
+        md = self._convert(html)
+        assert "How cookies work" in md
+        assert "Set-Cookie: session=abc; HttpOnly" in md
+
+
+class TestFrontmatterEnrichment:
+    """ConvertStep should surface description, heading outline, and a
+    crawled_at timestamp into YAML frontmatter so RAG / skill loaders
+    don't have to re-parse the body."""
+
+    def _convert_step_run(self, html: bytes, with_rich: bool = False) -> str:
+        import asyncio
+        from pathlib import Path
+
+        from docpull.pipeline.base import PageContext
+        from docpull.pipeline.steps.convert import ConvertStep
+        from docpull.pipeline.steps.metadata import MetadataStep
+
+        async def run() -> str:
+            ctx = PageContext(url="https://x.test/page", output_path=Path("/tmp/x.md"))
+            ctx.html = html
+            await MetadataStep(extract_rich=with_rich).execute(ctx)
+            await ConvertStep(add_frontmatter=True).execute(ctx)
+            return ctx.markdown or ""
+
+        return asyncio.run(run())
+
+    def test_description_makes_it_into_frontmatter(self):
+        html = (
+            b'<!doctype html><html><head>'
+            b'<title>T</title>'
+            b'<meta name="description" content="A real description.">'
+            b'</head><body><article><h1>Hi</h1><p>Body.</p></article></body></html>'
+        )
+        md = self._convert_step_run(html)
+        assert 'description: "A real description."' in md
+
+    def test_headings_outline_is_emitted(self):
+        html = (
+            b"<!doctype html><html><body><article>"
+            b"<h1>Top</h1><h2>Section A</h2><h2>Section B</h2>"
+            b"<h3>Skipped</h3>"
+            b"<p>body</p></article></body></html>"
+        )
+        md = self._convert_step_run(html)
+        assert "headings:" in md
+        assert "- Top" in md
+        assert "- Section A" in md
+        assert "- Section B" in md
+        # h3+ should NOT appear by default (outline depth = 2)
+        assert "- Skipped" not in md
+
+    def test_headings_skip_inside_code_fences(self):
+        html = (
+            b'<!doctype html><html><body><article>'
+            b'<h1>Real</h1>'
+            b'<pre class="language-markdown"><code># Not a real heading</code></pre>'
+            b'</article></body></html>'
+        )
+        md = self._convert_step_run(html)
+        # The fenced code block should not contribute a "Not a real heading"
+        # entry to the headings outline.
+        # Frontmatter heading list lives between '---' delimiters at the top.
+        frontmatter_end = md.find("\n---", 4)
+        frontmatter = md[:frontmatter_end]
+        assert "Not a real heading" not in frontmatter
+
+    def test_crawled_at_is_iso8601_utc(self):
+        import re
+
+        html = b"<!doctype html><html><body><article><h1>x</h1></article></body></html>"
+        md = self._convert_step_run(html)
+        match = re.search(r'crawled_at: "(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z)"', md)
+        assert match, f"no crawled_at timestamp in:\n{md[:300]}"

@@ -3,6 +3,7 @@
 import logging
 
 from ...cache import StreamingDeduplicator
+from ...conversion.chunking import _strip_frontmatter
 from ...models.events import EventType, FetchEvent
 from ..base import EventEmitter, PageContext
 
@@ -63,10 +64,15 @@ class DedupStep:
         if ctx.should_skip or ctx.error:
             return ctx
 
-        # Get content to hash
+        # Get content to hash. We strip YAML frontmatter from the Markdown
+        # before hashing — otherwise two URLs that serve byte-identical
+        # body content still hash differently because their `source:` and
+        # `crawled_at:` frontmatter fields differ. The point of streaming
+        # dedup is "same body content," not "same bytes."
         content: str | bytes
         if self._hash_markdown and ctx.markdown:
-            content = ctx.markdown
+            _, body = _strip_frontmatter(ctx.markdown)
+            content = body if body else ctx.markdown
         elif ctx.html:
             content = ctx.html
         else:

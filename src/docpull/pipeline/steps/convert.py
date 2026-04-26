@@ -1,6 +1,9 @@
 """Pipeline step for HTML to Markdown conversion."""
 
 import logging
+import re
+from datetime import datetime, timezone
+from typing import Any
 
 from ...conversion.extractor import MainContentExtractor
 from ...conversion.markdown import FrontmatterBuilder, HtmlToMarkdown
@@ -15,6 +18,72 @@ from ...models.events import EventType, FetchEvent
 from ..base import EventEmitter, PageContext
 
 logger = logging.getLogger(__name__)
+
+# Metadata keys we surface in frontmatter when MetadataStep populated them.
+# Limited to fields that have stable consumer semantics — everything else
+# stays in ctx.metadata for callers to inspect programmatically but does
+# not pollute the YAML output.
+_FRONTMATTER_METADATA_KEYS: tuple[str, ...] = (
+    "author",
+    "published_time",
+    "modified_time",
+    "section",
+    "tags",
+    "keywords",
+    "canonical_url",
+    "site_name",
+    "framework",
+)
+
+# Markdown headings, anchored at line start. Skipped lines starting with
+# `> ` so block-quoted headings inside fenced examples don't pollute the
+# outline. Code fences are also excluded — see _extract_headings below.
+_HEADING_LINE_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*#*\s*$")
+
+
+def _extract_headings(markdown: str, max_level: int = 2, limit: int = 12) -> list[str]:
+    """Pull a flat list of top-level headings from converted Markdown.
+
+    Skips text inside fenced code blocks (``` / ~~~). Returns at most
+    ``limit`` entries at level ``<= max_level`` so the YAML stays small.
+    """
+    out: list[str] = []
+    in_fence = False
+    fence_marker = ""
+    for raw_line in markdown.splitlines():
+        line = raw_line.strip()
+        if line.startswith("```") or line.startswith("~~~"):
+            marker = line[:3]
+            if not in_fence:
+                in_fence = True
+                fence_marker = marker
+            elif line.startswith(fence_marker):
+                in_fence = False
+                fence_marker = ""
+            continue
+        if in_fence:
+            continue
+        match = _HEADING_LINE_RE.match(raw_line)
+        if not match:
+            continue
+        level = len(match.group(1))
+        if level > max_level:
+            continue
+        text = match.group(2).strip()
+        if text:
+            out.append(text)
+            if len(out) >= limit:
+                break
+    return out
+
+
+def _whitelist_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
+    """Return only the metadata keys we want to surface in frontmatter."""
+    return {
+        key: metadata[key]
+        for key in _FRONTMATTER_METADATA_KEYS
+        if metadata.get(key)
+    }
 
 
 class ConvertStep:
@@ -109,12 +178,27 @@ class ConvertStep:
                 return self._handle_empty_content(ctx, emit)
 
             if self._add_frontmatter and self._frontmatter_builder:
-                extra: dict[str, object] = {}
+                extra: dict[str, Any] = {}
                 if ctx.source_type and ctx.source_type != "generic":
                     extra["source_type"] = ctx.source_type
+                # Surface a whitelisted slice of OG / JSON-LD / microdata
+                # collected by MetadataStep. Without this the rich metadata
+                # extraction cost is paid but the result never reaches the
+                # output file.
+                extra.update(_whitelist_metadata(ctx.metadata))
+                # Heading outline lets RAG indexers and skill loaders pick
+                # the right chunk without re-parsing the body.
+                headings = _extract_headings(markdown)
+                if headings:
+                    extra["headings"] = headings
+                # ISO 8601 UTC timestamp so re-runs can be diffed by date.
+                extra["crawled_at"] = datetime.now(timezone.utc).strftime(
+                    "%Y-%m-%dT%H:%M:%SZ"
+                )
                 frontmatter = self._frontmatter_builder.build(
                     title=ctx.title,
                     url=ctx.url,
+                    description=ctx.metadata.get("description"),
                     **extra,
                 )
                 markdown = frontmatter + markdown

@@ -295,6 +295,50 @@ class TestDedupStep:
         assert result.should_skip is True
         assert "Duplicate" in result.skip_reason
 
+    @pytest.mark.asyncio
+    async def test_duplicate_body_with_different_frontmatter_is_skipped(
+        self, deduplicator
+    ):
+        """Two URLs with byte-identical body but distinct frontmatter
+        (different `source:` and `crawled_at:`) must dedupe.
+
+        Regression: dedup previously hashed the full markdown including
+        frontmatter, so URL-based fields like `source:` made every page
+        look unique. Streaming dedup is supposed to detect duplicate
+        body content, not duplicate bytes.
+        """
+        step = DedupStep(deduplicator=deduplicator)
+        body = "# Same Content\n\nIdentical body across two URLs.\n"
+
+        ctx1 = PageContext(
+            url="https://example.com/page1",
+            output_path=Path("/tmp/out1.md"),
+            markdown=(
+                "---\n"
+                'title: "A"\n'
+                "source: https://example.com/page1\n"
+                'crawled_at: "2026-04-26T10:00:00Z"\n'
+                "---\n\n" + body
+            ),
+        )
+        await step.execute(ctx1)
+
+        ctx2 = PageContext(
+            url="https://example.com/page2",
+            output_path=Path("/tmp/out2.md"),
+            markdown=(
+                "---\n"
+                'title: "B"\n'
+                "source: https://example.com/page2\n"
+                'crawled_at: "2026-04-26T10:01:00Z"\n'
+                "---\n\n" + body
+            ),
+        )
+        result = await step.execute(ctx2)
+
+        assert result.should_skip is True
+        assert "page1" in (result.skip_reason or "")
+
 
 class TestSaveStep:
     """Tests for SaveStep."""

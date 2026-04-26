@@ -319,6 +319,41 @@ class TestProfileDefaults:
         assert config.crawl.max_pages == 50
         assert config.crawl.max_depth == 2
 
+    def test_explicit_user_value_beats_profile_value(self):
+        """User-supplied values must win over profile values on collision.
+
+        Mirror sets ``cache.enabled=True``. A user who explicitly
+        disables the cache should keep that setting; previously the
+        profile deep-update overwrote whatever the user passed, masking
+        the explicit choice.
+        """
+        from docpull.models.profiles import apply_profile
+
+        config = DocpullConfig(
+            url="https://example.com",
+            profile=ProfileName.MIRROR,
+            cache={"enabled": False},
+        )
+        applied = apply_profile(config)
+        assert applied.cache.enabled is False, (
+            "user explicitly disabled cache; Mirror profile default "
+            "should not have re-enabled it"
+        )
+        # Other Mirror profile values that the user did NOT touch should
+        # still apply (skip_unchanged was set by the profile).
+        assert applied.cache.skip_unchanged is True
+        assert applied.crawl.max_depth == 10  # Mirror sets this
+
+    def test_profile_value_beats_pydantic_default(self):
+        """When the user doesn't set a field, the profile value wins
+        over the Pydantic default."""
+        from docpull.models.profiles import apply_profile
+
+        config = DocpullConfig(url="https://example.com", profile=ProfileName.RAG)
+        applied = apply_profile(config)
+        # Pydantic default for streaming_dedup is False; RAG flips it to True.
+        assert applied.content_filter.streaming_dedup is True
+
 
 class TestImports:
     """Tests for package imports."""

@@ -20,13 +20,16 @@ PROFILES: dict[ProfileName, dict[str, Any]] = {
         },
     },
     ProfileName.MIRROR: {
-        # Full site mirror for offline archive
+        # Full site mirror for offline archive.
+        #
+        # NOTE: hierarchical naming is intentionally NOT in this profile
+        # in 2.x to preserve existing users' output paths. They opt in via
+        # `--naming-strategy hierarchical` or `output.naming_strategy:
+        # hierarchical` in YAML. In 3.0 the Mirror default flips to
+        # hierarchical (per the SemVer plan).
         "crawl": {
             "max_depth": 10,
             "max_concurrent": 5,  # Be polite
-        },
-        "output": {
-            "naming_strategy": "hierarchical",
         },
         "cache": {
             "enabled": True,
@@ -94,23 +97,49 @@ def apply_profile(config: DocpullConfig) -> DocpullConfig:
     if not profile_overrides:
         return config
 
-    # Get current config as dict
-    config_dict = config.model_dump()
+    # Two views of the user's config:
+    #   - `defaults_dict` contains Pydantic defaults (and user values).
+    #   - `explicit` contains ONLY the fields the user actually set.
+    # We merge profile values UNDER the explicit user values so the user
+    # always wins on collision, while profile values still override
+    # Pydantic defaults. This honors the docstring contract.
+    defaults_dict = config.model_dump()
+    explicit = _explicit_fields(config)
 
-    def deep_update(base: dict, overrides: dict) -> dict:
-        """
-        Deep update base dict with overrides.
-
-        For nested dicts, recursively merge. For other values, override.
-        """
-        result = base.copy()
-        for key, override_value in overrides.items():
-            if key in result and isinstance(result[key], dict) and isinstance(override_value, dict):
-                result[key] = deep_update(result[key], override_value)
+    def merge(base: dict[str, Any], over: dict[str, Any]) -> dict[str, Any]:
+        """``over`` wins over ``base`` per key, recursing into dicts."""
+        out = base.copy()
+        for key, value in over.items():
+            if (
+                key in out
+                and isinstance(out[key], dict)
+                and isinstance(value, dict)
+            ):
+                out[key] = merge(out[key], value)
             else:
-                result[key] = override_value
-        return result
+                out[key] = value
+        return out
 
-    # Apply profile overrides on top of config
-    merged = deep_update(config_dict, profile_overrides)
-    return DocpullConfig.model_validate(merged)
+    # Layering: defaults < profile < explicit user values.
+    layered = merge(merge(defaults_dict, profile_overrides), explicit)
+    return DocpullConfig.model_validate(layered)
+
+
+def _explicit_fields(model: Any) -> dict[str, Any]:
+    """Recursively dump only fields a Pydantic model actually had set.
+
+    Walks ``model_fields_set`` so we never spuriously override a profile
+    default with a Pydantic default that the user never asked for.
+    """
+    if not hasattr(model, "model_fields_set"):
+        return {}
+    out: dict[str, Any] = {}
+    for name in model.model_fields_set:
+        value = getattr(model, name)
+        if hasattr(value, "model_fields_set"):
+            out[name] = _explicit_fields(value)
+        else:
+            # For container types Pydantic dumps via model_dump too; the
+            # simple cases (str, int, list, Path) round-trip fine here.
+            out[name] = value
+    return out
