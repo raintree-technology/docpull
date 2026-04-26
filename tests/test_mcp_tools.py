@@ -97,3 +97,93 @@ def test_all_sources_merges_builtin_and_user(tmp_path, monkeypatch):
     merged = all_sources()
     assert "react" in merged  # builtin present
     assert "custom1" in merged  # user present
+
+
+def test_grep_docs_ranks_by_match_density(tmp_path):
+    """Files with more matches should appear before files with fewer."""
+    a = tmp_path / "lib_a"
+    b = tmp_path / "lib_b"
+    a.mkdir()
+    b.mkdir()
+    (a / "page.md").write_text(
+        "needle one\nneedle two\nneedle three\nfour\nfive"
+    )
+    (b / "page.md").write_text("filler\nneedle one\nfiller")
+
+    result = grep_docs("needle", docs_dir=tmp_path)
+    assert result.is_error is False
+    # File with 3 matches should appear before file with 1 match.
+    a_idx = result.text.find("lib_a/page.md")
+    b_idx = result.text.find("lib_b/page.md")
+    assert a_idx >= 0 and b_idx >= 0
+    assert a_idx < b_idx
+
+
+def test_grep_docs_includes_context_lines(tmp_path):
+    """Each match should include a line above and below by default."""
+    lib = tmp_path / "lib"
+    lib.mkdir()
+    (lib / "page.md").write_text("alpha\ntargeted\nbravo\ncharlie")
+
+    result = grep_docs("targeted", docs_dir=tmp_path)
+    assert "alpha" in result.text  # line before
+    assert "bravo" in result.text  # line after
+    assert "targeted" in result.text
+
+
+def test_grep_docs_context_zero_disables_context(tmp_path):
+    lib = tmp_path / "lib"
+    lib.mkdir()
+    (lib / "page.md").write_text("alpha\ntargeted\nbravo")
+
+    result = grep_docs("targeted", docs_dir=tmp_path, context=0)
+    # The hit line is present but the surrounding lines are not.
+    assert "targeted" in result.text
+    assert "alpha" not in result.text
+
+
+def test_list_indexed_reports_fetch_age(tmp_path):
+    """list_indexed should surface a humanized age string when meta exists."""
+    import json
+    import time
+
+    sub = tmp_path / "src"
+    sub.mkdir()
+    (sub / "index.md").write_text("body")
+
+    meta = tmp_path / ".src.meta.json"
+    meta.write_text(
+        json.dumps(
+            {
+                "source": "src",
+                "url": "https://x.test/",
+                "fetched_at_epoch": time.time() - 3700,  # ~1h 1m ago
+                "fetched_at": "2026-04-26T00:00:00",
+                "page_count": 1,
+            }
+        )
+    )
+
+    result = list_indexed(docs_dir=tmp_path)
+    assert "fetched 1h ago" in result.text
+
+
+def test_resolve_profile_accepts_known_names():
+    from docpull.mcp.tools import _resolve_profile
+    from docpull.models.config import ProfileName
+
+    assert _resolve_profile("rag") is ProfileName.RAG
+    assert _resolve_profile("RAG") is ProfileName.RAG
+    assert _resolve_profile(None) is ProfileName.RAG
+    assert _resolve_profile("llm") is ProfileName.LLM
+
+
+def test_resolve_profile_rejects_unknown():
+    from docpull.mcp.tools import _resolve_profile
+
+    try:
+        _resolve_profile("bogus")
+    except ValueError as err:
+        assert "Unknown profile" in str(err)
+    else:
+        raise AssertionError("expected ValueError")

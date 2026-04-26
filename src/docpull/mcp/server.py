@@ -79,13 +79,20 @@ async def _run_stdio() -> int:
                 name="ensure_docs",
                 description=(
                     "Fetch documentation for a named source alias (e.g. 'react', "
-                    "'nextjs'). Uses a 7-day cache; pass force=true to refresh."
+                    "'nextjs'). Uses a 7-day cache; pass force=true to refresh. "
+                    "Optional profile selects fetch behavior (rag is the default; "
+                    "mirror keeps full archive, llm produces NDJSON chunks)."
                 ),
                 inputSchema={
                     "type": "object",
                     "properties": {
                         "source": {"type": "string"},
                         "force": {"type": "boolean", "default": False},
+                        "profile": {
+                            "type": "string",
+                            "enum": ["rag", "mirror", "quick", "llm"],
+                            "default": "rag",
+                        },
                     },
                     "required": ["source"],
                 },
@@ -111,8 +118,10 @@ async def _run_stdio() -> int:
             Tool(
                 name="grep_docs",
                 description=(
-                    "Regex search through fetched Markdown. Returns matching lines "
-                    "with file paths. Use ensure_docs first."
+                    "Regex search through fetched Markdown. Results are ranked by "
+                    "match density (most matches per file first) and rendered with "
+                    "one line of surrounding context above and below each hit. "
+                    "Use ensure_docs first."
                 ),
                 inputSchema={
                     "type": "object",
@@ -121,6 +130,13 @@ async def _run_stdio() -> int:
                         "library": {"type": "string"},
                         "limit": {"type": "integer", "default": 20, "minimum": 1, "maximum": 200},
                         "case_sensitive": {"type": "boolean", "default": False},
+                        "context": {
+                            "type": "integer",
+                            "default": 1,
+                            "minimum": 0,
+                            "maximum": 3,
+                            "description": "Lines of surrounding context per match (0 = none)",
+                        },
                     },
                     "required": ["pattern"],
                 },
@@ -139,6 +155,7 @@ async def _run_stdio() -> int:
                 result = await ensure_docs(
                     arguments["source"],
                     force=bool(arguments.get("force", False)),
+                    profile=arguments.get("profile"),
                 )
             elif name == "list_sources":
                 result = list_sources(arguments.get("category"))
@@ -150,6 +167,7 @@ async def _run_stdio() -> int:
                     library=arguments.get("library"),
                     limit=int(arguments.get("limit", 20)),
                     case_sensitive=bool(arguments.get("case_sensitive", False)),
+                    context=int(arguments.get("context", 1)),
                 )
             else:
                 result = ToolResult(f"Unknown tool: {name}", is_error=True)

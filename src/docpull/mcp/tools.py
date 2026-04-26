@@ -75,13 +75,40 @@ def _write_meta(meta_path: Path, source: str, url: str, pages: int) -> None:
     )
 
 
+_PROFILE_ALIASES: dict[str, ProfileName] = {
+    "rag": ProfileName.RAG,
+    "mirror": ProfileName.MIRROR,
+    "quick": ProfileName.QUICK,
+    "llm": ProfileName.LLM,
+}
+
+
+def _resolve_profile(profile: str | None) -> ProfileName:
+    if profile is None:
+        return ProfileName.RAG
+    name = profile.strip().lower()
+    if name not in _PROFILE_ALIASES:
+        valid = ", ".join(sorted(_PROFILE_ALIASES))
+        raise ValueError(f"Unknown profile '{profile}'. Valid: {valid}")
+    return _PROFILE_ALIASES[name]
+
+
 async def ensure_docs(
     source: str,
     *,
     force: bool = False,
+    profile: str | None = None,
     docs_dir: Path | None = None,
 ) -> ToolResult:
-    """Fetch docs for a configured alias; use cached content if fresh."""
+    """Fetch docs for a configured alias; use cached content if fresh.
+
+    Args:
+        source: alias name from sources.yaml.
+        force: re-fetch even if a fresh cached copy exists.
+        profile: docpull profile name (rag/mirror/quick/llm). Defaults
+            to rag — the right answer for most agent loops, but mirror
+            or llm may be preferable for specific use cases.
+    """
     docs_dir = docs_dir or default_docs_dir()
     resolved = resolve_source(source)
     if resolved is None:
@@ -96,6 +123,10 @@ async def ensure_docs(
             f"Unknown source '{source}'. Available: {available}",
             is_error=True,
         )
+    try:
+        profile_enum = _resolve_profile(profile)
+    except ValueError as err:
+        return ToolResult(str(err), is_error=True)
 
     target_dir = _source_dir(docs_dir, source)
     meta_path = _meta_path(docs_dir, source)
@@ -109,7 +140,7 @@ async def ensure_docs(
 
     config = DocpullConfig(
         url=resolved.url,
-        profile=ProfileName.RAG,
+        profile=profile_enum,
         crawl={"max_pages": resolved.max_pages} if resolved.max_pages else {},
         output={"directory": target_dir},
     )
@@ -153,7 +184,11 @@ async def fetch_url(url: str, *, max_tokens: int | None = None) -> ToolResult:
             for c in ctx.chunks
         ]
         body = "\n\n".join(parts)
-    header = f"# {ctx.title or url}\n_source: {url}_ _type: {ctx.source_type or 'generic'}_\n\n"
+    chunks_meta = f" _chunks: {len(ctx.chunks)}_" if ctx.chunks else ""
+    header = (
+        f"# {ctx.title or url}\n"
+        f"_source: {url}_ _type: {ctx.source_type or 'generic'}_{chunks_meta}\n\n"
+    )
     return ToolResult(header + body)
 
 
@@ -171,22 +206,62 @@ def list_sources(category: str | None = None) -> ToolResult:
     return ToolResult(header + "\n".join(rows))
 
 
+def _read_meta_fetched_at(meta_path: Path) -> tuple[float | None, str | None]:
+    """Return (epoch, iso) for a meta file, or (None, None) on error."""
+    if not meta_path.exists():
+        return (None, None)
+    try:
+        data = json.loads(meta_path.read_text())
+    except (OSError, json.JSONDecodeError):
+        return (None, None)
+    epoch = data.get("fetched_at_epoch")
+    iso = data.get("fetched_at")
+    return (epoch if isinstance(epoch, (int, float)) else None, iso if isinstance(iso, str) else None)
+
+
+def _humanize_age(seconds: float) -> str:
+    """Compact human-readable age string."""
+    if seconds < 60:
+        return "just now"
+    if seconds < 3600:
+        return f"{int(seconds / 60)}m ago"
+    if seconds < 86400:
+        return f"{int(seconds / 3600)}h ago"
+    return f"{int(seconds / 86400)}d ago"
+
+
 def list_indexed(docs_dir: Path | None = None) -> ToolResult:
-    """List sources that have local fetched docs."""
+    """List sources that have local fetched docs, with last-fetched age."""
     docs_dir = docs_dir or default_docs_dir()
     if not docs_dir.exists():
         return ToolResult("No docs fetched yet.")
     rows: list[str] = []
+    now = time.time()
     for sub in sorted(docs_dir.iterdir()):
         if not sub.is_dir() or sub.name.startswith("."):
             continue
         files = list(sub.rglob("*.md"))
         meta = _meta_path(docs_dir, sub.name)
-        fresh = "fresh" if _cache_fresh(meta) else "stale"
-        rows.append(f"- **{sub.name}**: {len(files)} files ({fresh})")
+        epoch, iso = _read_meta_fetched_at(meta)
+        if epoch is None:
+            age_str = "unknown age"
+            fresh = "stale"
+        else:
+            age_str = _humanize_age(now - epoch)
+            fresh = "fresh" if _cache_fresh(meta) else "stale"
+        when = f" — fetched {age_str}" if iso else ""
+        rows.append(f"- **{sub.name}**: {len(files)} files ({fresh}){when}")
     if not rows:
         return ToolResult(f"No fetched docs under {docs_dir}.")
     return ToolResult(f"Fetched docs at {docs_dir}:\n\n" + "\n".join(rows))
+
+
+@dataclass
+class _FileHits:
+    """Matches collected from a single file before ranking."""
+
+    rel_path: str
+    matches: list[tuple[int, str, str, str]]  # (lineno, before, line, after)
 
 
 def grep_docs(
@@ -196,8 +271,15 @@ def grep_docs(
     limit: int = 20,
     docs_dir: Path | None = None,
     case_sensitive: bool = False,
+    context: int = 1,
 ) -> ToolResult:
-    """Grep through fetched Markdown files and return matching lines."""
+    """Grep through fetched Markdown and return ranked matches with context.
+
+    Files are ranked by match density (matches per file) so the highest-
+    signal results appear first. Each match is rendered with one line of
+    surrounding context above and below by default — controlled by
+    ``context`` (set to 0 for no context).
+    """
     docs_dir = docs_dir or default_docs_dir()
     if not docs_dir.exists():
         return ToolResult("No docs fetched yet. Run ensure_docs first.", is_error=True)
@@ -208,31 +290,71 @@ def grep_docs(
     except re.error as err:
         return ToolResult(f"Invalid pattern: {err}", is_error=True)
 
-    roots = [docs_dir / library] if library else [
-        p for p in docs_dir.iterdir() if p.is_dir() and not p.name.startswith(".")
-    ]
-    hits: list[str] = []
+    roots = (
+        [docs_dir / library]
+        if library
+        else [p for p in docs_dir.iterdir() if p.is_dir() and not p.name.startswith(".")]
+    )
+
+    file_hits: list[_FileHits] = []
+    total = 0
     for root in roots:
         if not root.exists() or not root.is_dir():
             continue
         for file in root.rglob("*.md"):
             try:
-                for lineno, line in enumerate(file.read_text(errors="replace").splitlines(), 1):
-                    if regex.search(line):
-                        rel = file.relative_to(docs_dir)
-                        hits.append(f"{rel}:{lineno}: {line.strip()}")
-                        if len(hits) >= limit:
-                            break
+                lines = file.read_text(errors="replace").splitlines()
             except OSError as err:
                 logger.debug("skip %s: %s", file, err)
                 continue
-            if len(hits) >= limit:
-                break
-        if len(hits) >= limit:
-            break
+            matches: list[tuple[int, str, str, str]] = []
+            for idx, line in enumerate(lines):
+                if regex.search(line):
+                    before = lines[idx - 1].rstrip() if context and idx > 0 else ""
+                    after = (
+                        lines[idx + 1].rstrip()
+                        if context and idx + 1 < len(lines)
+                        else ""
+                    )
+                    matches.append((idx + 1, before, line.rstrip(), after))
+            if matches:
+                file_hits.append(
+                    _FileHits(
+                        rel_path=str(file.relative_to(docs_dir)),
+                        matches=matches,
+                    )
+                )
+                total += len(matches)
 
-    if not hits:
+    if not file_hits:
         return ToolResult(f"No matches for '{pattern}'.")
-    return ToolResult(
-        f"{len(hits)} match(es) for '{pattern}':\n\n```\n" + "\n".join(hits) + "\n```"
+
+    # Rank by raw count; tie-break alphabetically so output is stable.
+    file_hits.sort(key=lambda fh: (-len(fh.matches), fh.rel_path))
+
+    blocks: list[str] = []
+    rendered = 0
+    for fh in file_hits:
+        if rendered >= limit:
+            break
+        block_lines = [f"## {fh.rel_path} ({len(fh.matches)} matches)"]
+        for lineno, before, hit, after in fh.matches:
+            if rendered >= limit:
+                break
+            chunk = []
+            if before and context:
+                chunk.append(f"  {lineno - 1:>4}- {before}")
+            chunk.append(f"> {lineno:>4}  {hit}")
+            if after and context:
+                chunk.append(f"  {lineno + 1:>4}- {after}")
+            block_lines.append("\n".join(chunk))
+            rendered += 1
+        blocks.append("\n\n".join(block_lines))
+
+    truncated_note = (
+        f"\n\n_({total - rendered} more match(es) hidden — increase `limit` to see them.)_"
+        if total > rendered
+        else ""
     )
+    header = f"{total} match(es) for '{pattern}' across {len(file_hits)} file(s):\n\n"
+    return ToolResult(header + "\n\n---\n\n".join(blocks) + truncated_note)
