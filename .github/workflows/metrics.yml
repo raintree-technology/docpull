@@ -1,0 +1,58 @@
+name: Update metrics
+
+# Refreshes METRICS.md from PyPI + GitHub APIs.
+#
+# Signals:
+#   - PyPI downloads (24h / 7d / 30d) via pypistats.org JSON API.
+#   - GitHub repo metadata (stars, forks, watchers, open issues/PRs).
+#   - GitHub traffic (clones, views, referrers, paths) — last 14 days.
+#
+# Plugin install proxy: `/plugin marketplace add raintree-technology/docpull`
+# is a git clone under the hood, so daily clone counts approximate
+# plugin installs.
+#
+# Why a workflow instead of an external dashboard:
+#   - Single source of truth committed in-repo (no external service to babysit).
+#   - History via `git log METRICS.md` if you ever want trend analysis.
+#   - Free; uses pre-installed gh CLI + stdlib Python on ubuntu-latest.
+
+on:
+  schedule:
+    # 09:12 UTC daily (off-hour to dodge top-of-hour Actions spikes).
+    - cron: "12 9 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# Avoid overlapping runs piling up if a previous run is still committing.
+concurrency:
+  group: metrics-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Refresh METRICS.md
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python .github/scripts/update_metrics.py
+
+      - name: Commit if METRICS.md changed
+        run: |
+          if git diff --quiet METRICS.md; then
+            echo "No metric changes since last run."
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add METRICS.md
+          git commit -m "chore(metrics): refresh $(date -u +%Y-%m-%d)"
+          git push

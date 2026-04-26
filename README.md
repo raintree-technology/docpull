@@ -294,6 +294,7 @@ docpull URL --preview-urls    # List URLs without fetching
 - [PyPI](https://pypi.org/project/docpull/)
 - [GitHub](https://github.com/raintree-technology/docpull)
 - [Changelog](https://github.com/raintree-technology/docpull/blob/main/docs/CHANGELOG.md)
+- [Metrics](https://github.com/raintree-technology/docpull/blob/main/METRICS.md) — auto-refreshed daily (PyPI downloads, plugin installs via clone count, traffic)
 
 ## License
 
