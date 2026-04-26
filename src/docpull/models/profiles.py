@@ -10,12 +10,9 @@ PROFILES: dict[ProfileName, dict[str, Any]] = {
     ProfileName.RAG: {
         # Optimized for retrieval-augmented generation / LLM training data
         "content_filter": {
-            "language": "en",
-            "deduplicate": True,
             "streaming_dedup": True,
         },
         "output": {
-            "create_index": True,
             "rich_metadata": True,
         },
         "crawl": {
@@ -28,15 +25,12 @@ PROFILES: dict[ProfileName, dict[str, Any]] = {
             "max_depth": 10,
             "max_concurrent": 5,  # Be polite
         },
-        "content_filter": {
-            "deduplicate": False,  # Keep all versions
-        },
         "output": {
             "naming_strategy": "hierarchical",
         },
         "cache": {
             "enabled": True,
-            "skip_unchanged": True,  # Skip unchanged pages for incremental updates
+            "skip_unchanged": True,  # Conditional GET via If-None-Match
         },
     },
     ProfileName.QUICK: {
@@ -55,8 +49,6 @@ PROFILES: dict[ProfileName, dict[str, Any]] = {
             "max_concurrent": 20,
         },
         "content_filter": {
-            "language": "en",
-            "deduplicate": True,
             "streaming_dedup": True,
             "strict_js_required": False,
             "enable_special_cases": True,
@@ -90,9 +82,9 @@ def apply_profile(config: DocpullConfig) -> DocpullConfig:
     Example:
         >>> config = DocpullConfig(profile=ProfileName.RAG)
         >>> applied = apply_profile(config)
-        >>> applied.content_filter.language
-        'en'
-        >>> applied.content_filter.deduplicate
+        >>> applied.content_filter.streaming_dedup
+        True
+        >>> applied.output.rich_metadata
         True
     """
     if config.profile == ProfileName.CUSTOM:

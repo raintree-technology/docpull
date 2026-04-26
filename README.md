@@ -196,10 +196,15 @@ NDJSON (one record per page or chunk):
 ## Security
 
 - HTTPS-only, mandatory robots.txt compliance
-- SSRF protection: blocks private/internal network IPs, DNS rebinding
+- SSRF protection: blocks private/internal network IPs, DNS rebinding via
+  connect-time address pinning
 - XXE protection via `defusedxml` on sitemaps
 - Path traversal and CRLF header injection guards
 - Auth headers stripped on cross-origin redirects
+
+When running with `--proxy`, DNS pinning is delegated to the proxy. Pass
+`--require-pinned-dns` to refuse this configuration and keep the connector-
+level SSRF guarantees in effect.
 
 ## Options
 

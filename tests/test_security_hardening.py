@@ -332,6 +332,42 @@ class TestCrlfHeaderInjection:
                 auth_headers={"Authorization": "Bearer tok\nen"},
             )
 
+    def test_require_pinned_dns_with_proxy_is_rejected(self) -> None:
+        """`--require-pinned-dns` must error out when a proxy is also set.
+
+        The proxy disables docpull's connector-level DNS pinning. Marketing
+        promises DNS-pinning at connect time; this flag lets agent-driven
+        callers refuse the weakened proxy posture instead of silently
+        accepting it.
+        """
+        with pytest.raises(ValueError, match="require_pinned_dns"):
+            AsyncHttpClient(
+                rate_limiter=_DummyRateLimiter(),
+                proxy="http://corp.proxy:8080",
+                require_pinned_dns=True,
+            )
+
+    def test_require_pinned_dns_without_proxy_is_accepted(self) -> None:
+        """No proxy, --require-pinned-dns is a no-op (the connector-level
+        pin is already in effect for direct connections)."""
+        client = AsyncHttpClient(
+            rate_limiter=_DummyRateLimiter(),
+            require_pinned_dns=True,
+        )
+        assert client is not None  # construction succeeded
+
+    def test_default_user_agent_is_honest_docpull_identity(self) -> None:
+        """Default UA must identify as docpull, not camouflage as a browser.
+
+        Polite-crawling claim requires that operators can scope robots.txt
+        rules at User-Agent: docpull and have the actual requests match.
+        """
+        from docpull import __version__
+
+        client = AsyncHttpClient(rate_limiter=_DummyRateLimiter())
+        assert client.user_agent.startswith(f"docpull/{__version__}")
+        assert "Mozilla" not in client.user_agent
+
 
 # ---------------------------------------------------------------------------
 # Dead code removal verification

@@ -2,12 +2,32 @@
 
 from __future__ import annotations
 
+import logging
 import re
+import warnings
 from enum import Enum
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+_deprecation_logger = logging.getLogger("docpull.deprecated")
+
+
+def _emit_deprecation(field: str, value: Any) -> None:
+    """Surface a deprecation through both warnings and the logger.
+
+    `DeprecationWarning` is silenced by default in CPython, so we also log
+    at WARNING level to make sure a user running `docpull --verbose` actually
+    sees the message.
+    """
+    msg = (
+        f"docpull config field '{field}' is deprecated in 2.4 and will be "
+        f"removed in 3.0; it has no effect (got {value!r}). "
+        f"Remove the field from your config to silence this warning."
+    )
+    warnings.warn(msg, DeprecationWarning, stacklevel=3)
+    _deprecation_logger.warning(msg)
 
 
 class ProfileName(str, Enum):
@@ -100,28 +120,31 @@ class ContentFilterConfig(BaseModel):
     language: str | None = Field(
         None,
         pattern=r"^[a-z]{2}$",
-        description="ISO 639-1 language code to keep (e.g., 'en')",
+        description="DEPRECATED in 2.4, removed in 3.0 — has no effect.",
     )
     exclude_languages: list[str] = Field(
         default_factory=list,
-        description="ISO 639-1 language codes to exclude",
+        description="DEPRECATED in 2.4, removed in 3.0 — has no effect.",
     )
-    deduplicate: bool = Field(False, description="Remove duplicate content in post-processing")
+    deduplicate: bool = Field(
+        False,
+        description="DEPRECATED in 2.4, removed in 3.0 — use streaming_dedup instead.",
+    )
     streaming_dedup: bool = Field(
         False,
         description="Enable real-time deduplication during fetch (more efficient)",
     )
     max_file_size: ByteSize | None = Field(
         None,
-        description="Maximum size per file (e.g., '200kb', '1mb')",
+        description="Maximum size per response in bytes (e.g., '200kb', '1mb'). Caps the per-page download.",
     )
     max_total_size: ByteSize | None = Field(
         None,
-        description="Maximum total download size (e.g., '100mb', '1gb')",
+        description="DEPRECATED in 2.4, removed in 3.0 — racy across async fetches.",
     )
     exclude_sections: list[str] = Field(
         default_factory=list,
-        description="Header patterns to exclude from output",
+        description="DEPRECATED in 2.4, removed in 3.0 — has no effect.",
     )
     extractor: Literal["default", "trafilatura"] = Field(
         "default",
@@ -141,6 +164,20 @@ class ContentFilterConfig(BaseModel):
 
     model_config = {"extra": "forbid"}
 
+    @model_validator(mode="after")
+    def _warn_deprecated_fields(self) -> ContentFilterConfig:
+        if self.language is not None:
+            _emit_deprecation("content_filter.language", self.language)
+        if self.exclude_languages:
+            _emit_deprecation("content_filter.exclude_languages", self.exclude_languages)
+        if self.deduplicate:
+            _emit_deprecation("content_filter.deduplicate", self.deduplicate)
+        if self.max_total_size is not None:
+            _emit_deprecation("content_filter.max_total_size", self.max_total_size)
+        if self.exclude_sections:
+            _emit_deprecation("content_filter.exclude_sections", self.exclude_sections)
+        return self
+
 
 class OutputConfig(BaseModel):
     """Configuration for output formatting and file saving."""
@@ -152,9 +189,16 @@ class OutputConfig(BaseModel):
     )
     naming_strategy: Literal["full", "short", "flat", "hierarchical"] = Field(
         "full",
-        description="File naming strategy for URL-to-path conversion",
+        description=(
+            "File naming strategy: 'full' (default, flattened with underscores), "
+            "'hierarchical' (preserve URL path as nested directories), "
+            "'flat' / 'short' (aliased to 'full' until 3.0)."
+        ),
     )
-    create_index: bool = Field(False, description="Generate INDEX.md with navigation")
+    create_index: bool = Field(
+        False,
+        description="DEPRECATED in 2.4, removed in 3.0 — has no effect.",
+    )
     rich_metadata: bool = Field(
         False,
         description="Extract Open Graph, JSON-LD, and microdata metadata",
@@ -178,6 +222,12 @@ class OutputConfig(BaseModel):
     )
 
     model_config = {"extra": "forbid"}
+
+    @model_validator(mode="after")
+    def _warn_deprecated_fields(self) -> OutputConfig:
+        if self.create_index:
+            _emit_deprecation("output.create_index", self.create_index)
+        return self
 
 
 def _expand_env_var(value: str | None) -> str | None:
@@ -265,6 +315,15 @@ class NetworkConfig(BaseModel):
     max_retries: int = Field(3, ge=0, description="Maximum retry attempts for failed requests")
     connect_timeout: int = Field(10, ge=1, description="Connection timeout in seconds")
     read_timeout: int = Field(30, ge=5, description="Read timeout in seconds")
+    require_pinned_dns: bool = Field(
+        False,
+        description=(
+            "Refuse configurations where DNS pinning is delegated to a proxy. "
+            "When True, supplying a proxy raises a configuration error so an "
+            "agent-driven workflow cannot silently fall back to a weaker SSRF "
+            "posture. Default False to preserve corporate-proxy use cases."
+        ),
+    )
 
     model_config = {"extra": "forbid"}
 

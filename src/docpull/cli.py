@@ -176,12 +176,6 @@ Examples:
         help="Enable real-time deduplication",
     )
     filter_group.add_argument(
-        "--language",
-        type=str,
-        metavar="CODE",
-        help="Include only pages in this language",
-    )
-    filter_group.add_argument(
         "--extractor",
         choices=["default", "trafilatura"],
         default=None,
@@ -243,6 +237,15 @@ Examples:
         type=int,
         default=None,
         help="Maximum retry attempts",
+    )
+    network_group.add_argument(
+        "--require-pinned-dns",
+        action="store_true",
+        help=(
+            "Refuse configurations that delegate DNS to a proxy. With this "
+            "flag, --proxy is rejected so the SSRF posture cannot silently "
+            "weaken in agent-driven crawls."
+        ),
     )
 
     # Authentication settings
@@ -397,8 +400,6 @@ def run_fetcher(args: argparse.Namespace) -> int:
     filter_kwargs: dict = {}
     if args.streaming_dedup:
         filter_kwargs["streaming_dedup"] = True
-    if args.language:
-        filter_kwargs["language"] = args.language
     if args.extractor:
         filter_kwargs["extractor"] = args.extractor
     if args.no_special_cases:
@@ -422,6 +423,8 @@ def run_fetcher(args: argparse.Namespace) -> int:
         return 1
     if args.max_retries is not None:
         network_kwargs["max_retries"] = args.max_retries
+    if args.require_pinned_dns:
+        network_kwargs["require_pinned_dns"] = True
     if network_kwargs:
         config_kwargs["network"] = network_kwargs
 
