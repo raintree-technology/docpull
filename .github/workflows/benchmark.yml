@@ -1,0 +1,66 @@
+name: Benchmark
+
+# 10,000-page end-to-end performance benchmark. Runs nightly on main and
+# on-demand. Numbers are surfaced in the workflow summary so regressions
+# are caught early; the test itself fails CI if peak RSS exceeds 200 MB
+# or if the injected duplicate fraction isn't detected.
+
+on:
+  schedule:
+    # 04:17 UTC daily — slightly off the hour to avoid runner contention.
+    - cron: "17 4 * * *"
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      # Re-run on changes that could plausibly move the numbers.
+      - "src/docpull/core/fetcher.py"
+      - "src/docpull/pipeline/**"
+      - "src/docpull/conversion/**"
+      - "src/docpull/cache/**"
+      - "tests/benchmarks/test_10k_pages.py"
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run 10k-page benchmark
+        env:
+          DOCPULL_BENCHMARK_10K: "1"
+        run: |
+          PYTHONPATH=src pytest -v -s tests/benchmarks/test_10k_pages.py \
+            | tee benchmark.log
+
+      - name: Surface report in summary
+        if: always()
+        run: |
+          echo "## docpull 10k-page benchmark" >> "$GITHUB_STEP_SUMMARY"
+          echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          grep "DOCPULL_10K_BENCHMARK_REPORT=" benchmark.log \
+            | sed 's/.*DOCPULL_10K_BENCHMARK_REPORT=//' \
+            | python -m json.tool \
+            >> "$GITHUB_STEP_SUMMARY" || echo "(no report line found)" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload benchmark log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-log
+          path: benchmark.log
+          retention-days: 30

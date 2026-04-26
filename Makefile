@@ -31,11 +31,18 @@ clean-test:
 	rm -rf htmlcov/
 	rm -rf .coverage
 	rm -rf coverage.xml
-	rm -rf docs/
 	rm -rf test-docs/
+	# NOTE: do NOT delete ./docs — it holds CHANGELOG.md and examples/.
+	# `docs/` is also the OutputConfig.directory default, but conflating
+	# a dev artifact with project source content turned out to be a
+	# footgun. Users who run docpull and produce ./docs output should
+	# clean it manually or pick a different -o.
 
 test:
 	pytest
+
+benchmark:
+	DOCPULL_BENCHMARK_10K=1 pytest tests/benchmarks/test_10k_pages.py -v -s
 
 lint:
 	ruff check .

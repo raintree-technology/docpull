@@ -233,6 +233,26 @@ Cache:
   --cache-ttl DAYS
 ```
 
+## Performance
+
+End-to-end numbers from `tests/benchmarks/test_10k_pages.py` against a
+synthetic 10,000-page localhost site (RAG profile, `max_concurrent=50`,
+HTTP keep-alive, 5% injected duplicate content):
+
+| Metric | Value |
+|---|---|
+| Total wall time | ~27 s |
+| Discovery (sitemap parse) | ~80 ms |
+| Fetch + convert + save | ~27 s |
+| Per-page latency p50 / p95 / p99 | ~2.6 / 4.6 / 5.3 ms |
+| Peak RSS delta from baseline | ~28 MB |
+| Cache manifest size on disk | ~3.4 MB |
+| Duplicates detected (5% injected) | 499 / 500 |
+
+Reproduce with `make benchmark` (requires `aiohttp`; runs the gated
+benchmark in `tests/benchmarks/` and prints a JSON line you can pipe
+into trend tooling).
+
 ## Troubleshooting
 
 ```bash
