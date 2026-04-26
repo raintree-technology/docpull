@@ -392,9 +392,14 @@ class _FileHits:
 
     Each match is ``(lineno, before_lines, hit_line, after_lines)`` where
     ``before_lines`` / ``after_lines`` are 0..context lines of context.
+
+    ``library`` and ``path`` are split so that ``path`` is relative to the
+    library root and can be passed straight into ``read_doc`` alongside
+    ``library``. Human-readable rendering still uses ``library/path``.
     """
 
-    rel_path: str
+    library: str
+    path: str
     matches: list[tuple[int, list[str], str, list[str]]]
 
 
@@ -483,7 +488,8 @@ def grep_docs(
             if matches:
                 file_hits.append(
                     _FileHits(
-                        rel_path=str(file.relative_to(docs_dir)),
+                        library=root.name,
+                        path=str(file.relative_to(root)),
                         matches=matches,
                     )
                 )
@@ -505,7 +511,7 @@ def grep_docs(
         )
 
     # Rank by raw count; tie-break alphabetically so output is stable.
-    file_hits.sort(key=lambda fh: (-len(fh.matches), fh.rel_path))
+    file_hits.sort(key=lambda fh: (-len(fh.matches), fh.library, fh.path))
 
     blocks: list[str] = []
     files_payload: list[dict[str, Any]] = []
@@ -513,7 +519,8 @@ def grep_docs(
     for fh in file_hits:
         if rendered >= limit:
             break
-        block_lines = [f"## {fh.rel_path} ({len(fh.matches)} matches)"]
+        qualified = f"{fh.library}/{fh.path}"
+        block_lines = [f"## {qualified} ({len(fh.matches)} matches)"]
         rendered_matches: list[dict[str, Any]] = []
         for lineno, before, hit, after in fh.matches:
             if rendered >= limit:
@@ -532,7 +539,8 @@ def grep_docs(
         blocks.append("\n\n".join(block_lines))
         files_payload.append(
             {
-                "path": fh.rel_path,
+                "library": fh.library,
+                "path": fh.path,
                 "match_count": len(fh.matches),
                 "matches": rendered_matches,
             }
@@ -568,10 +576,11 @@ def read_doc(
 ) -> ToolResult:
     """Read a Markdown file from a fetched library, optionally line-sliced.
 
-    The natural follow-up to ``grep_docs``: once you have ``library/path.md``
-    and a line number, ``read_doc(library, path, line_start=N-20, line_end=N+20)``
-    pulls the surrounding context without filesystem access. Path is validated
-    against ``docs_dir / library`` to block traversal.
+    The natural follow-up to ``grep_docs``: each grep result returns
+    ``library`` and ``path`` (path relative to the library root), so
+    ``read_doc(library=..., path=..., line_start=N-20, line_end=N+20)``
+    pulls the surrounding context. Path is validated against
+    ``docs_dir / library`` to block traversal.
     """
     docs_dir = docs_dir or default_docs_dir()
     if not is_safe_library_name(library):

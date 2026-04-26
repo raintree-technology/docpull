@@ -5,6 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.1] - 2026-04-25
+
+A small but real bugfix: the `grep_docs` → `read_doc` round-trip was
+broken. `grep_docs` returned paths with the library name prepended
+(e.g. `hono/middleware/basic-auth.md`), but `read_doc` joins
+`library` and `path` itself, so passing a grep result verbatim
+produced `hono/hono/middleware/basic-auth.md` and 404'd. The
+contract advertised in the `read_doc` description ("the natural
+follow-up to grep_docs: pass the library + path it returned")
+didn't actually work.
+
+### Fixed
+- **`grep_docs` returns library-relative paths.** Each result in the
+  structured `files` payload now has both `library` (the library
+  name) and `path` (relative to the library root). Pass them
+  straight into `read_doc(library=..., path=...)` — no munging.
+  Human-readable text rendering still shows `library/path` as the
+  qualified identifier, so existing terminal output looks identical.
+- Tool descriptions for `grep_docs` and `read_doc` updated to match
+  the actual contract.
+
+### Schema
+- `_GREP_DOCS_OUTPUT_SCHEMA.files.items` now requires `library` in
+  addition to `path`. Existing consumers that read `path` will get
+  a different (now correct) value; consumers that don't pipe grep
+  results into `read_doc` are unaffected.
+
+### Tests
+- Added `test_grep_to_read_doc_roundtrip` and
+  `test_grep_to_read_doc_roundtrip_with_line_slice` regression
+  tests that pass `library` and `path` from grep verbatim into
+  `read_doc` and assert success.
+- Added `test_grep_docs_path_is_library_relative_in_subdir` to
+  cover nested files.
+- Updated `test_grep_docs_structured_payload` to assert the new
+  `library` field and exact (not just suffix-matched) path value.
+
 ## [2.5.0] - 2026-04-25
 
 A focused MCP-server hardening pass. Closed three exploitable security

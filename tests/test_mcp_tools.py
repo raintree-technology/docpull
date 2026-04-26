@@ -576,9 +576,71 @@ def test_grep_docs_structured_payload(tmp_path):
     assert result.data["truncated"] is False
     assert result.data["timed_out"] is False
     files = result.data["files"]
-    assert files[0]["path"].endswith("a.md")
+    # path is library-relative (no library prefix), library is its own field
+    assert files[0]["library"] == "lib"
+    assert files[0]["path"] == "a.md"
     assert files[0]["matches"][0]["lineno"] == 2
     assert files[0]["matches"][0]["line"] == "TARGET"
+
+
+def test_grep_docs_path_is_library_relative_in_subdir(tmp_path):
+    """Files nested inside a library should still report library-relative path."""
+    lib = tmp_path / "hono"
+    (lib / "middleware").mkdir(parents=True)
+    (lib / "middleware" / "basic-auth.md").write_text("alpha\nbasicAuth\nbravo")
+    result = grep_docs("basicAuth", docs_dir=tmp_path)
+    files = result.data["files"]
+    assert files[0]["library"] == "hono"
+    assert files[0]["path"] == "middleware/basic-auth.md"
+
+
+def test_grep_to_read_doc_roundtrip(tmp_path):
+    """Regression: grep_docs results must be directly usable as read_doc inputs.
+
+    The contract (per the read_doc tool description) is that an agent can
+    pass each grep result's `library` and `path` straight into read_doc.
+    Prior to this fix grep returned `<library>/<path>` and read_doc
+    re-prepended the library, producing a doubled prefix.
+    """
+    lib = tmp_path / "hono"
+    (lib / "middleware").mkdir(parents=True)
+    (lib / "middleware" / "basic-auth.md").write_text(
+        "intro\nbasicAuth example\nmore text\nfinal line"
+    )
+    grep_result = grep_docs("basicAuth", docs_dir=tmp_path)
+    file_hit = grep_result.data["files"][0]
+
+    # Pass library + path verbatim — no manual munging.
+    read_result = read_doc(
+        file_hit["library"], file_hit["path"], docs_dir=tmp_path
+    )
+    assert read_result.is_error is False, read_result.text
+    assert "basicAuth example" in read_result.data["text"]
+
+
+def test_grep_to_read_doc_roundtrip_with_line_slice(tmp_path):
+    """Roundtrip should also work with line-range slicing around the hit."""
+    lib = tmp_path / "react"
+    lib.mkdir()
+    body = "\n".join(f"line{i}" for i in range(1, 21))  # line1..line20
+    body = body.replace("line10", "needle here")
+    (lib / "hooks.md").write_text(body)
+
+    grep_result = grep_docs("needle", docs_dir=tmp_path)
+    hit = grep_result.data["files"][0]
+    match = hit["matches"][0]
+
+    read_result = read_doc(
+        hit["library"],
+        hit["path"],
+        docs_dir=tmp_path,
+        line_start=match["lineno"] - 2,
+        line_end=match["lineno"] + 2,
+    )
+    assert read_result.is_error is False
+    assert "needle here" in read_result.data["text"]
+    assert read_result.data["line_start"] == 8
+    assert read_result.data["line_end"] == 12
 
 
 def test_grep_docs_no_matches_structured_payload(tmp_path):

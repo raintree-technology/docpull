@@ -103,7 +103,11 @@ _GREP_DOCS_OUTPUT_SCHEMA = {
             "items": {
                 "type": "object",
                 "properties": {
-                    "path": {"type": "string"},
+                    "library": {"type": "string"},
+                    "path": {
+                        "type": "string",
+                        "description": "Relative to the library root; pass directly to read_doc",
+                    },
                     "match_count": {"type": "integer"},
                     "matches": {
                         "type": "array",
@@ -119,7 +123,7 @@ _GREP_DOCS_OUTPUT_SCHEMA = {
                         },
                     },
                 },
-                "required": ["path", "match_count", "matches"],
+                "required": ["library", "path", "match_count", "matches"],
             },
         },
         "truncated": {"type": "boolean"},
@@ -333,8 +337,9 @@ async def _run_stdio() -> int:
                 description=(
                     "Regex search through fetched Markdown. Results are ranked by "
                     "match density (most matches per file first) and rendered with "
-                    "lines of surrounding context. Use ensure_docs first; then "
-                    "read_doc to pull more context around a hit."
+                    "lines of surrounding context. Each result returns the library "
+                    "and a path relative to the library root, so you can feed both "
+                    "fields straight into read_doc. Use ensure_docs first."
                 ),
                 annotations=ToolAnnotations(
                     title="Regex-search cached docs",
@@ -370,8 +375,9 @@ async def _run_stdio() -> int:
                 name="read_doc",
                 description=(
                     "Read a Markdown file from a fetched library, optionally sliced "
-                    "by line range. The natural follow-up to grep_docs: pass the "
-                    "library + path it returned to pull more surrounding context."
+                    "by line range. The natural follow-up to grep_docs: pass each "
+                    "result's library and path (path is already relative to the "
+                    "library root) to pull more surrounding context."
                 ),
                 annotations=ToolAnnotations(
                     title="Read a cached doc file",
