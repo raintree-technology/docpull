@@ -52,9 +52,17 @@ def gh_search_count(q: str) -> int:
 
 
 def pypistats(path: str) -> dict:
-    """GET against the pypistats.org JSON API (no auth needed)."""
+    """GET against the pypistats.org JSON API (no auth needed).
+
+    Sets a descriptive User-Agent so the request is identifiable and less
+    likely to hit shared-IP rate limits on github-actions runners.
+    """
     url = f"https://pypistats.org/api/packages/{PKG}{path}"
-    with urllib.request.urlopen(url, timeout=30) as r:
+    req = urllib.request.Request(
+        url,
+        headers={"User-Agent": f"{REPO}-metrics-workflow (+https://github.com/{REPO})"},
+    )
+    with urllib.request.urlopen(req, timeout=30) as r:
         return json.loads(r.read().decode("utf-8"))
 
 
@@ -115,7 +123,9 @@ def main() -> int:
         lambda: gh_search_count(f"repo:{REPO} is:open is:pr"), 0
     )
 
-    recent = safe_get(lambda: pypistats("/recent")["data"], {})
+    pypi_errors: list[str] = []
+    recent = safe_get(lambda: pypistats("/recent")["data"], {}, on_error=pypi_errors)
+    pypi_blocked = bool(pypi_errors)
 
     stars = repo.get("stargazers_count", 0)
     forks = repo.get("forks_count", 0)
@@ -133,6 +143,14 @@ def main() -> int:
     push("")
     push("## Snapshot")
     push("")
+    if pypi_blocked:
+        push(
+            "> **PyPI download counts unavailable this run.** pypistats.org "
+            "returned an error (often a transient rate-limit on shared CI "
+            "IPs). Showing the last successful values would be misleading; "
+            "the next run should recover automatically."
+        )
+        push("")
     push("| Metric | Value |")
     push("|---|---|")
     push(f"| PyPI downloads (last 24h) | {fmt(last_day)} |")
