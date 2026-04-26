@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
 
 import yaml
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -50,6 +53,17 @@ BUILTIN_SOURCES: dict[str, SourceConfig] = {
 
 
 _URL_SCHEME_RE = re.compile(r"^[a-z][a-z0-9+.-]*://", re.IGNORECASE)
+_LIBRARY_NAME_RE = re.compile(r"^[a-zA-Z0-9_.-]+$")
+
+
+def is_safe_library_name(name: str) -> bool:
+    """Reject names that could escape ``docs_dir`` via path traversal.
+
+    Allows alnum + ``_ . -``; rejects separators, ``..``, leading dot.
+    """
+    if not name or name.startswith(".") or name == ".." or len(name) > 128:
+        return False
+    return bool(_LIBRARY_NAME_RE.fullmatch(name))
 
 
 def default_config_dir() -> Path:
@@ -78,7 +92,8 @@ def load_user_sources(path: Path | None = None) -> dict[str, SourceConfig]:
         return {}
     try:
         raw = yaml.safe_load(path.read_text()) or {}
-    except yaml.YAMLError:
+    except yaml.YAMLError as err:
+        logger.warning("Failed to parse %s: %s", path, err)
         return {}
     entries = raw.get("sources") or {}
     result: dict[str, SourceConfig] = {}
@@ -115,9 +130,11 @@ def resolve_source(name: str) -> SourceConfig | None:
 __all__ = [
     "BUILTIN_SOURCES",
     "SourceConfig",
+    "_URL_SCHEME_RE",
     "all_sources",
     "default_config_dir",
     "default_docs_dir",
+    "is_safe_library_name",
     "load_user_sources",
     "resolve_source",
     "sources_config_path",
