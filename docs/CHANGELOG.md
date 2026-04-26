@@ -5,6 +5,102 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.0] - 2026-04-25
+
+A focused MCP-server hardening pass. Closed three exploitable security
+holes in the agent-facing tools, added the missing `ToolAnnotations`
+that gate Anthropic Directory submission, exposed structured output
+alongside the rendered text on every tool that carries data, and
+added the three tools an agent obviously wants — `read_doc` to follow
+up a `grep_docs` hit, plus `add_source` / `remove_source` to manage
+the user registry programmatically.
+
+### Added
+- **`read_doc(library, path, line_start?, line_end?)`** — read a
+  Markdown file from a fetched library, optionally line-sliced. The
+  natural follow-up after `grep_docs` returns a hit; agents no longer
+  need filesystem access for surrounding context. Path is resolved
+  and confirmed to stay under the library root.
+- **`add_source(name, url, ...)`** — add or update a user source
+  alias in the writable `sources.yaml`. Refuses to shadow a builtin
+  alias unless `force=true`; URL is HTTPS-only and validated against
+  the same SSRF rules as `fetch_url`. Atomic write (tmp + rename).
+- **`remove_source(name, delete_cache?)`** — remove a user source
+  alias and optionally its cached docs directory. Cannot remove
+  builtins (suggest `add_source(force=true)` to shadow instead).
+  Cache deletion does a defense-in-depth resolved-path check.
+- **`ToolAnnotations` on every tool** — `readOnlyHint` /
+  `destructiveHint` / `idempotentHint` / `openWorldHint` / `title`.
+  Required for Anthropic Directory submission and unlocks host
+  auto-approve for the four read-only tools.
+- **Server `instructions`** — system-prompt hint telling agents the
+  call ordering (list_sources → ensure_docs → grep_docs → read_doc).
+- **Progress notifications** — `ensure_docs` forwards
+  `FETCH_COMPLETED` events as MCP progress to clients that supplied
+  a `progressToken` on the call.
+- **Structured output** (`outputSchema` + `structuredContent`) on
+  `list_sources`, `list_indexed`, `grep_docs`, `read_doc`,
+  `ensure_docs`, `add_source`, `remove_source`. Clients that consume
+  `structuredContent` get parseable JSON; clients that don't still
+  see the rendered Markdown text.
+
+### Fixed
+- **SSRF in `fetch_url`** — schema previously accepted any string
+  with no scheme/host enforcement. An agent could request
+  `http://169.254.169.254/`, `http://localhost`, `file:///etc/passwd`,
+  etc. Now validated upfront with the same `UrlValidator`
+  (HTTPS-only, no localhost / private / link-local IPs) the crawler
+  uses, instead of relying on the slow pipeline error path.
+- **Path traversal in `grep_docs` / `read_doc` via `library`** —
+  `docs_dir / library` did not validate `library`, so
+  `library="../../etc"` walked anywhere the process could read.
+  `read_doc`'s `path` arg was similarly unchecked. Both now reject
+  unsafe names (`is_safe_library_name`) and `read_doc` additionally
+  resolves the joined path and confirms it stays under the library
+  root.
+- **ReDoS in `grep_docs`** — pattern was compiled with no length
+  cap and run line-by-line over every cached `.md`; Python `re`
+  has no timeout knob. Now cap pattern length at 1000 chars and
+  apply a 10s wall-clock budget across files.
+- **`isError` flag was being silently dropped** — the previous
+  `_call_tool` returned a bare `list[TextContent]`, which the SDK's
+  legacy path hardcodes as `isError=False` regardless of what the
+  handler intended. Every error your tools raised was being reported
+  to clients as success. Now `_call_tool` returns `CallToolResult`
+  directly so `isError` propagates correctly.
+- **`ensure_docs` partial-fetch detection** — a crash mid-crawl
+  used to leave files on disk with no meta, and the next call
+  would re-fetch (correct, but wasteful) or — if a stale meta from
+  a prior run was present — trust the half-fetched cache. Meta
+  writes are now atomic (tmp + rename) and a `partial=true` flag
+  marks half-fetches so `_cache_fresh` treats them as stale.
+- **`grep_docs` honors `context > 1`** — the schema advertised
+  `maximum: 3` but the implementation only ever rendered one line
+  either side. Now renders up to `context` lines on each side.
+- **`load_user_sources` silently swallowed YAML errors** — a typo
+  in the user's `sources.yaml` produced "Unknown source" instead of
+  surfacing the parse failure. Now logs a warning at WARNING level.
+
+### Changed
+- **Tighter input validation** in the MCP `_call_tool` dispatcher:
+  required strings checked with `_require_str`, ints coerced with
+  `_coerce_int`. Errors that used to surface as ugly
+  "invalid literal for int(...)" now return clear messages naming
+  the bad argument.
+- **Tighter input schemas**: `https://` pattern on `fetch_url.url`,
+  `enum` on `category`, regex + `maxLength` on `library` everywhere
+  it appears, `maxLength: 1000` on `grep_docs.pattern`, integer
+  bounds on `max_tokens` / `max_pages`.
+- `_cache_fresh` now also requires the source directory to contain
+  at least one `.md` file — a manually-`rm -rf`'d cache no longer
+  reports as fresh.
+- `_PROFILE_ALIASES` mapping deleted; `_resolve_profile` now goes
+  through `ProfileName` directly, eliminating drift.
+- 39 new MCP tests (61 total in `test_mcp_tools.py`, 316 in the
+  full suite). Coverage includes SSRF rejection, path traversal,
+  oversized regex, partial-meta freshness, structured payloads,
+  and the new write tools.
+
 ## [2.4.0] - 2026-04-26
 
 A two-pass cleanup. The first pass closed every claim the code didn't back
