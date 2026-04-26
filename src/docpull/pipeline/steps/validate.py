@@ -14,24 +14,20 @@ class ValidateStep:
     """
     Pipeline step that validates URLs before fetching.
 
-    Performs two validation checks:
+    Performs three validation checks:
     1. URL security validation (SSRF prevention, scheme checking)
     2. robots.txt compliance (mandatory for polite crawling)
+    3. (Optional) Skip URLs whose Markdown output file already exists.
+
+    Check (3) is a coarse "don't redo work" shortcut. When a CacheManager
+    is wired through the pipeline, FetchStep handles freshness via
+    ``If-None-Match`` / ``If-Modified-Since`` and a 304 response — so this
+    step's existence check is automatically suppressed in that mode.
 
     Sets ctx.should_skip if:
         - URL fails security validation
         - URL is disallowed by robots.txt
-
-    Also checks for Crawl-delay directive and can update rate limiter.
-
-    Example:
-        url_validator = UrlValidator(allowed_schemes={"https"})
-        robots_checker = RobotsChecker(user_agent="docpull/2.0")
-        validate_step = ValidateStep(url_validator, robots_checker)
-
-        ctx = await validate_step.execute(ctx)
-        if ctx.should_skip:
-            print(f"Skipped: {ctx.skip_reason}")
+        - (Without caching) Output file already exists.
     """
 
     name = "validate"
@@ -41,6 +37,7 @@ class ValidateStep:
         url_validator: UrlValidator,
         robots_checker: RobotsChecker,
         check_existing: bool = True,
+        cache_enabled: bool = False,
     ) -> None:
         """
         Initialize the validation step.
@@ -48,11 +45,16 @@ class ValidateStep:
         Args:
             url_validator: UrlValidator instance for security checks
             robots_checker: RobotsChecker instance for robots.txt compliance
-            check_existing: If True, skip URLs where output file exists
+            check_existing: If True AND ``cache_enabled`` is False, skip
+                URLs where the output file already exists. When caching is
+                enabled, freshness is owned by FetchStep's conditional GET.
+            cache_enabled: Suppresses ``check_existing`` when True. The
+                cache manifest is the source of truth for whether a URL
+                needs re-fetching, not on-disk file existence.
         """
         self._url_validator = url_validator
         self._robots_checker = robots_checker
-        self._check_existing = check_existing
+        self._check_existing = check_existing and not cache_enabled
 
     async def execute(
         self,

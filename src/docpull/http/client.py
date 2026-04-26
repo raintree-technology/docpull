@@ -131,6 +131,7 @@ class AsyncHttpClient:
         url_validator: UrlValidator | None = None,
         allow_insecure_tls: bool = False,
         auth_scope_hosts: set[str] | None = None,
+        require_pinned_dns: bool = False,
     ) -> None:
         """
         Initialize the HTTP client.
@@ -158,8 +159,18 @@ class AsyncHttpClient:
         if allow_insecure_tls:
             raise ValueError("Insecure TLS is not supported; certificate verification is always enforced")
 
+        if require_pinned_dns and proxy is not None:
+            raise ValueError(
+                "require_pinned_dns is set but a proxy was configured. "
+                "DNS pinning is delegated to the proxy in proxy mode, which "
+                "weakens the SSRF posture below docpull's defaults. Either "
+                "remove --proxy or drop --require-pinned-dns."
+            )
+
         if user_agent is None:
-            user_agent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (docpull/2.0)"
+            from .. import __version__
+
+            user_agent = f"docpull/{__version__} (+https://github.com/raintree-technology/docpull)"
         self._user_agent = user_agent
 
         # Defense-in-depth: reject CRLF in headers at transport layer
@@ -168,6 +179,11 @@ class AsyncHttpClient:
             self._validate_header_value(name, value)
 
         self._session: aiohttp.ClientSession | None = None
+
+    @property
+    def user_agent(self) -> str:
+        """The User-Agent string this client sends on every request."""
+        return self._user_agent
 
     def _validate_url(self, url: str) -> None:
         """Re-validate each request URL, including redirect targets."""

@@ -37,7 +37,10 @@ from ..security.url_validator import UrlValidator
 
 def _url_to_filename(url: str, base_url: str | None = None) -> str:
     """
-    Convert URL to a safe filename.
+    Convert URL to a safe flattened filename (e.g. ``api_auth_oauth2.md``).
+
+    Used by the ``full`` / ``flat`` / ``short`` naming strategies. For the
+    ``hierarchical`` strategy, see :func:`_url_to_path_parts`.
 
     Args:
         url: The URL to convert
@@ -71,6 +74,66 @@ def _url_to_filename(url: str, base_url: str | None = None) -> str:
     filename = filename.strip("_")
 
     return filename + ".md"
+
+
+_PATH_SAFE_RE = re.compile(r"[^\w\-.]")
+
+
+def _sanitize_path_segment(segment: str) -> str:
+    """Make a single URL path segment safe for use as a filesystem name.
+
+    Strips characters outside ``[\\w\\-.]``, collapses runs of underscores,
+    and refuses traversal sequences. Returns ``index`` for an empty result so
+    the segment never disappears.
+    """
+    cleaned = _PATH_SAFE_RE.sub("_", segment)
+    cleaned = re.sub(r"_+", "_", cleaned).strip("._")
+    if not cleaned or cleaned in {".", ".."}:
+        return "index"
+    return cleaned
+
+
+def _url_to_path_parts(url: str, base_url: str | None = None) -> list[str]:
+    """
+    Convert URL to a list of safe path segments for hierarchical naming.
+
+    The final segment is the filename (with ``.md`` extension); preceding
+    segments are directories. A trailing slash collapses to ``<...>/index.md``.
+
+    Examples:
+        ``https://docs.foo.com/api/auth/oauth2`` →
+            ``["api", "auth", "oauth2.md"]``
+        ``https://docs.foo.com/api/`` →
+            ``["api", "index.md"]``
+        ``https://docs.foo.com/`` →
+            ``["index.md"]``
+    """
+    parsed = urlparse(url)
+    raw_path = parsed.path
+
+    if base_url:
+        base_path = urlparse(base_url).path.strip("/")
+        stripped = raw_path.strip("/")
+        if base_path and stripped.startswith(base_path):
+            stripped = stripped[len(base_path) :]
+            raw_path = "/" + stripped + ("/" if raw_path.endswith("/") else "")
+
+    trailing_slash = raw_path.endswith("/")
+    parts = [seg for seg in raw_path.split("/") if seg]
+
+    if not parts:
+        return ["index.md"]
+
+    sanitized = [_sanitize_path_segment(p) for p in parts]
+
+    last = sanitized[-1]
+    if last.endswith(".html") or last.endswith(".htm"):
+        last = last.rsplit(".", 1)[0]
+
+    if trailing_slash:
+        return [*sanitized[:-1], last, "index.md"]
+
+    return [*sanitized[:-1], last + ".md"]
 
 
 class Fetcher:
@@ -187,11 +250,6 @@ class Fetcher:
 
         # Create security components first so every transport can reuse them
         self._url_validator = UrlValidator(allowed_schemes={"https"})
-        self._robots_checker = RobotsChecker(
-            user_agent=self.config.network.user_agent or "docpull/2.0",
-            url_validator=self._url_validator,
-            allow_insecure_tls=self.config.network.insecure_tls,
-        )
 
         # Build authentication headers from config
         auth_headers = self._build_auth_headers()
@@ -201,7 +259,14 @@ class Fetcher:
             if hostname:
                 auth_scope_hosts = {hostname.lower()}
 
-        # Create HTTP client
+        # Create HTTP client. Per-page download cap: prefer the user-supplied
+        # `content_filter.max_file_size`; fall back to AsyncHttpClient's
+        # built-in 50 MB ceiling.
+        max_content_size_kw: dict[str, int] = {}
+        if self.config.content_filter.max_file_size is not None:
+            max_content_size_kw["max_content_size"] = int(
+                self.config.content_filter.max_file_size
+            )
         self._http_client = AsyncHttpClient(
             rate_limiter=self._rate_limiter,
             max_retries=self.config.network.max_retries,
@@ -212,8 +277,19 @@ class Fetcher:
             url_validator=self._url_validator,
             allow_insecure_tls=self.config.network.insecure_tls,
             auth_scope_hosts=auth_scope_hosts,
+            require_pinned_dns=self.config.network.require_pinned_dns,
+            **max_content_size_kw,
         )
         await self._http_client.__aenter__()
+
+        # robots.txt checker uses the SAME User-Agent the HTTP client will
+        # send. Keeping these aligned means site operators can target docpull
+        # via robots.txt User-Agent rules and have their intent honored.
+        self._robots_checker = RobotsChecker(
+            user_agent=self._http_client.user_agent,
+            url_validator=self._url_validator,
+            allow_insecure_tls=self.config.network.insecure_tls,
+        )
 
         # Build pipeline
         output_dir = self.config.output.directory.resolve()
@@ -235,15 +311,23 @@ class Fetcher:
             self._streaming_dedup = StreamingDeduplicator()
 
         # Build pipeline steps
+        cache_enabled = self._cache_manager is not None
         steps: list[FetchStepProtocol] = [
             ValidateStep(
                 url_validator=self._url_validator,
                 robots_checker=self._robots_checker,
-                check_existing=True,  # Skip existing files
+                check_existing=True,
+                cache_enabled=cache_enabled,
             ),
         ]
 
-        steps.append(FetchStep(http_client=self._http_client))
+        steps.append(
+            FetchStep(
+                http_client=self._http_client,
+                cache_manager=self._cache_manager,
+                skip_unchanged=self.config.cache.skip_unchanged,
+            )
+        )
 
         steps.append(MetadataStep(extract_rich=self.config.output.rich_metadata))
 
@@ -437,15 +521,23 @@ class Fetcher:
 
     def _compute_output_path(self, url: str) -> Path:
         """
-        Compute output path for a URL.
+        Compute output path for a URL using the configured naming strategy.
 
-        Args:
-            url: The URL to compute path for
-
-        Returns:
-            Path where the file should be saved
+        - ``full`` / ``flat`` / ``short``: a single flattened filename
+          (URL path joined with underscores).
+        - ``hierarchical``: URL path preserved as nested directories,
+          terminating in ``<segment>.md`` or ``index.md`` for trailing
+          slashes. The leaf is `_validate_output_path`-safe — every segment
+          is ``[\\w\\-.]+``.
         """
         output_dir = self.config.output.directory.resolve()
+        strategy = self.config.output.naming_strategy
+
+        if strategy == "hierarchical":
+            parts = _url_to_path_parts(url, self.config.url)
+            return output_dir.joinpath(*parts)
+
+        # full / flat / short: aliased to full until 3.0
         filename = _url_to_filename(url, self.config.url)
         return output_dir / filename
 
