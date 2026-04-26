@@ -1,0 +1,22 @@
+{
+  "name": "docpull",
+  "version": "0.2.0",
+  "description": "Pull docs from any URL into Claude Code. Indexes static docs sites in seconds with conditional-GET caching, then exposes them as MCP tools (fetch_url, ensure_docs, list_sources, list_indexed, grep_docs, read_doc, add_source, remove_source). Local, browser-free, no API keys.",
+  "author": {
+    "name": "Raintree Technology",
+    "email": "support@raintree.technology",
+    "url": "https://raintree.technology"
+  },
+  "homepage": "https://github.com/raintree-technology/docpull",
+  "repository": "https://github.com/raintree-technology/docpull",
+  "license": "MIT",
+  "keywords": [
+    "documentation",
+    "docs",
+    "fetch",
+    "markdown",
+    "rag",
+    "mcp",
+    "local-first"
+  ]
+}
