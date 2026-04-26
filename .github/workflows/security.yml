@@ -30,7 +30,7 @@ jobs:
         run: bandit -q -r src
 
       - name: Run Python security regression tests
-        run: PYTHONPATH=src pytest -q tests/test_security_hardening.py tests/test_v2_discovery.py tests/test_v2_integration.py
+        run: PYTHONPATH=src pytest -q tests/test_security_hardening.py tests/test_discovery.py tests/test_integration.py
 
   mcp-security:
     runs-on: ubuntu-latest

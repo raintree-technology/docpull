@@ -1,4 +1,4 @@
-"""Tests for v2 conversion module."""
+"""Tests for the conversion module."""
 
 from docpull.conversion import (
     FrontmatterBuilder,
@@ -298,11 +298,7 @@ class TestFenceLanguageNormalization:
     language tag preserved from the source HTML's syntax-highlight class."""
 
     def _convert(self, body_html: str) -> str:
-        html = (
-            b"<html><body><article>"
-            + body_html.encode()
-            + b"</article></body></html>"
-        )
+        html = b"<html><body><article>" + body_html.encode() + b"</article></body></html>"
         extracted = MainContentExtractor().extract(html, "https://x.test/")
         return HtmlToMarkdown().convert(extracted, "https://x.test/")
 
@@ -310,19 +306,15 @@ class TestFenceLanguageNormalization:
         md = self._convert(
             '<pre class="language-python"><code class="language-python">print("hi")</code></pre>'
         )
-        assert "```python\nprint(\"hi\")\n```" in md
+        assert '```python\nprint("hi")\n```' in md
         assert "[code]" not in md
 
     def test_legacy_lang_class_emits_fenced_block(self):
-        md = self._convert(
-            '<pre><code class="lang-bash">echo ok</code></pre>'
-        )
+        md = self._convert('<pre><code class="lang-bash">echo ok</code></pre>')
         assert "```bash\necho ok\n```" in md
 
     def test_github_highlight_source_class_emits_fenced_block(self):
-        md = self._convert(
-            '<pre class="highlight-source-rust"><code>fn main() {}</code></pre>'
-        )
+        md = self._convert('<pre class="highlight-source-rust"><code>fn main() {}</code></pre>')
         assert "```rust\nfn main() {}\n```" in md
 
     def test_unknown_language_emits_bare_fence(self):
@@ -331,19 +323,13 @@ class TestFenceLanguageNormalization:
         assert "[code]" not in md
 
     def test_plaintext_class_does_not_set_language(self):
-        md = self._convert(
-            '<pre><code class="lang-plaintext">no lang here</code></pre>'
-        )
+        md = self._convert('<pre><code class="lang-plaintext">no lang here</code></pre>')
         # 'plaintext' / 'text' / 'none' shouldn't end up as the fence label
         assert "```\nno lang here\n```" in md
         assert "```plaintext" not in md
 
     def test_multiline_block_preserves_indentation(self):
-        md = self._convert(
-            '<pre class="language-python"><code>'
-            "def f():\n    return 1\n"
-            "</code></pre>"
-        )
+        md = self._convert('<pre class="language-python"><code>def f():\n    return 1\n</code></pre>')
         assert "```python" in md
         assert "def f():" in md
         # 4-space body indentation html2text adds must be stripped
@@ -364,7 +350,7 @@ _BANNER_COPY = "By clicking Accept All Cookies you agree to the storing of cooki
 _COOKIE_FIXTURES = [
     (
         "onetrust",
-        f'''
+        f"""
         <html><body>
         <div id="onetrust-consent-sdk">
           <div id="onetrust-banner-sdk">
@@ -374,47 +360,47 @@ _COOKIE_FIXTURES = [
         </div>
         <article><h1>Real Title</h1><p>Real article body here.</p></article>
         </body></html>
-        ''',
+        """,
     ),
     (
         "osano",
-        f'''
+        f"""
         <html><body>
         <div class="osano-cm-window">
           <div class="osano-cm-dialog">{_BANNER_COPY}</div>
         </div>
         <article><h1>Real Title</h1><p>Real article body here.</p></article>
         </body></html>
-        ''',
+        """,
     ),
     (
         "cookieconsent",
-        f'''
+        f"""
         <html><body>
         <div class="cc-window">
           <div class="cc-banner">{_BANNER_COPY}</div>
         </div>
         <article><h1>Real Title</h1><p>Real article body here.</p></article>
         </body></html>
-        ''',
+        """,
     ),
     (
         "cookielaw",
-        f'''
+        f"""
         <html><body>
         <div class="cookielaw-banner">{_BANNER_COPY}</div>
         <article><h1>Real Title</h1><p>Real article body here.</p></article>
         </body></html>
-        ''',
+        """,
     ),
     (
         "generic-aria",
-        f'''
+        f"""
         <html><body>
         <div role="dialog" aria-label="Cookie Consent">{_BANNER_COPY}</div>
         <article><h1>Real Title</h1><p>Real article body here.</p></article>
         </body></html>
-        ''',
+        """,
     ),
 ]
 
@@ -439,21 +425,19 @@ class TestCookieBannerStripping:
     def test_real_article_content_survives(self):
         for name, html in _COOKIE_FIXTURES:
             md = self._convert(html)
-            assert "Real article body here." in md, (
-                f"genuine article content lost in {name} fixture"
-            )
+            assert "Real article body here." in md, f"genuine article content lost in {name} fixture"
 
     def test_legitimate_cookie_documentation_is_preserved(self):
         # A page whose body legitimately discusses cookies must NOT be
         # stripped. Selectors are structural, not text-based — only
         # vendor-shaped wrappers should match.
-        html = '''
+        html = """
         <html><body><article>
         <h1>How cookies work</h1>
         <p>This page explains how the Set-Cookie header behaves.</p>
         <pre><code>Set-Cookie: session=abc; HttpOnly</code></pre>
         </article></body></html>
-        '''
+        """
         md = self._convert(html)
         assert "How cookies work" in md
         assert "Set-Cookie: session=abc; HttpOnly" in md
@@ -483,10 +467,10 @@ class TestFrontmatterEnrichment:
 
     def test_description_makes_it_into_frontmatter(self):
         html = (
-            b'<!doctype html><html><head>'
-            b'<title>T</title>'
+            b"<!doctype html><html><head>"
+            b"<title>T</title>"
             b'<meta name="description" content="A real description.">'
-            b'</head><body><article><h1>Hi</h1><p>Body.</p></article></body></html>'
+            b"</head><body><article><h1>Hi</h1><p>Body.</p></article></body></html>"
         )
         md = self._convert_step_run(html)
         assert 'description: "A real description."' in md
@@ -508,10 +492,10 @@ class TestFrontmatterEnrichment:
 
     def test_headings_skip_inside_code_fences(self):
         html = (
-            b'<!doctype html><html><body><article>'
-            b'<h1>Real</h1>'
+            b"<!doctype html><html><body><article>"
+            b"<h1>Real</h1>"
             b'<pre class="language-markdown"><code># Not a real heading</code></pre>'
-            b'</article></body></html>'
+            b"</article></body></html>"
         )
         md = self._convert_step_run(html)
         # The fenced code block should not contribute a "Not a real heading"

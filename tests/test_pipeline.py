@@ -1,4 +1,4 @@
-"""Tests for v2 pipeline steps."""
+"""Tests for pipeline steps."""
 
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
@@ -296,9 +296,7 @@ class TestDedupStep:
         assert "Duplicate" in result.skip_reason
 
     @pytest.mark.asyncio
-    async def test_duplicate_body_with_different_frontmatter_is_skipped(
-        self, deduplicator
-    ):
+    async def test_duplicate_body_with_different_frontmatter_is_skipped(self, deduplicator):
         """Two URLs with byte-identical body but distinct frontmatter
         (different `source:` and `crawled_at:`) must dedupe.
 

@@ -1,4 +1,4 @@
-"""Integration tests for docpull v2 API."""
+"""Integration tests for the docpull API."""
 
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -336,8 +336,7 @@ class TestProfileDefaults:
         )
         applied = apply_profile(config)
         assert applied.cache.enabled is False, (
-            "user explicitly disabled cache; Mirror profile default "
-            "should not have re-enabled it"
+            "user explicitly disabled cache; Mirror profile default should not have re-enabled it"
         )
         # Other Mirror profile values that the user did NOT touch should
         # still apply (skip_unchanged was set by the profile).
@@ -358,8 +357,8 @@ class TestProfileDefaults:
 class TestImports:
     """Tests for package imports."""
 
-    def test_v2_api_imports(self):
-        """Test that v2 API can be imported."""
+    def test_public_api_imports(self):
+        """Test that the public API can be imported."""
         from docpull import (
             DocpullConfig,
             Fetcher,

@@ -1,4 +1,4 @@
-"""Tests for v2 discovery module."""
+"""Tests for the discovery module."""
 
 from unittest.mock import AsyncMock, MagicMock
 
