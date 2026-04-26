@@ -15,9 +15,10 @@ const profiles = [
     example: "docpull URL --profile quick",
   },
   {
-    name: "Custom",
-    description: "No presets. Full control over every parameter.",
-    example: "docpull URL --max-pages 500 --depth 4",
+    name: "LLM",
+    description:
+      "Token-aware NDJSON for LLM ingestion: chunked, deduped, fail-loud on JS-only pages.",
+    example: "docpull URL --profile llm --stream | jq .",
   },
 ];
 

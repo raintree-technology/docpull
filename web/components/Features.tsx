@@ -7,22 +7,22 @@ const features = [
   {
     title: "Streaming Dedup",
     description:
-      "Duplicate pages detected as they're fetched, not after. O(1) lookups keep memory flat on huge sites.",
+      "SHA-256-hashed at fetch time. Constant memory per page — duplicate pages are detected before they're written to disk, not after.",
   },
   {
-    title: "Secure by Default",
+    title: "Zero-Trust Networking",
     description:
-      "HTTPS-only, robots.txt compliant, SSRF-protected. Safe to run against untrusted URLs without extra hardening.",
+      "HTTPS-only, robots.txt compliant, SSRF-protected with DNS pinning at connect time. Built for crawls where an agent picks the URLs — pass --require-pinned-dns to refuse weakened proxy configurations.",
   },
   {
-    title: "Incremental Updates",
+    title: "Conditional Re-fetch",
     description:
-      "ETag-based caching skips unchanged pages on re-runs. Crashes resume from where they stopped — no restart cost.",
+      "If-None-Match / If-Modified-Since on every cached page. Re-runs only transfer what changed; the discovered URL list is persisted so a crash resumes instead of restarts.",
   },
   {
-    title: "Content Filtering",
+    title: "Path & Pattern Filters",
     description:
-      "Filter by language or URL path with --language, --include-paths, --exclude-paths. Ship only what your model needs, not the entire site.",
+      "--include-paths and --exclude-paths glob filters at discovery time. Ship only the routes your model needs, not the entire site.",
   },
 ];
 
