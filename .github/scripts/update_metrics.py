@@ -63,8 +63,12 @@ def fmt(n: int | float) -> str:
     return f"{int(n):,}"
 
 
-def safe_get(fn, default):
-    """Best-effort wrapper — never let a transient API hiccup blank METRICS.md."""
+def safe_get(fn, default, *, on_error: list[str] | None = None):
+    """Best-effort wrapper — never let a transient API hiccup blank METRICS.md.
+
+    If ``on_error`` is provided, append the stringified error so the caller
+    can distinguish "API failed" from "API returned empty data".
+    """
     try:
         return fn()
     except (
@@ -74,7 +78,10 @@ def safe_get(fn, default):
         KeyError,
         ValueError,
     ) as err:
-        print(f"warn: {err}", file=sys.stderr)
+        msg = str(err)
+        print(f"warn: {msg}", file=sys.stderr)
+        if on_error is not None:
+            on_error.append(msg)
         return default
 
 
@@ -83,10 +90,23 @@ def main() -> int:
     timestamp = now.strftime("%Y-%m-%d %H:%M UTC")
 
     repo = safe_get(lambda: gh(""), {})
-    clones = safe_get(lambda: gh("/traffic/clones"), {"count": 0, "uniques": 0, "clones": []})
-    views = safe_get(lambda: gh("/traffic/views"), {"count": 0, "uniques": 0, "views": []})
-    referrers = safe_get(lambda: gh("/traffic/popular/referrers"), [])
-    paths = safe_get(lambda: gh("/traffic/popular/paths"), [])
+
+    # Traffic endpoints require Administration: read — collect errors so we
+    # can show a clear note in METRICS.md if the token is under-scoped.
+    traffic_errors: list[str] = []
+    clones = safe_get(
+        lambda: gh("/traffic/clones"),
+        {"count": 0, "uniques": 0, "clones": []},
+        on_error=traffic_errors,
+    )
+    views = safe_get(
+        lambda: gh("/traffic/views"),
+        {"count": 0, "uniques": 0, "views": []},
+        on_error=traffic_errors,
+    )
+    referrers = safe_get(lambda: gh("/traffic/popular/referrers"), [], on_error=traffic_errors)
+    paths = safe_get(lambda: gh("/traffic/popular/paths"), [], on_error=traffic_errors)
+    traffic_blocked = bool(traffic_errors)
 
     open_issues = safe_get(
         lambda: gh_search_count(f"repo:{REPO} is:open is:issue"), 0
@@ -131,10 +151,21 @@ def main() -> int:
     push("## Plugin install proxy: daily clones (last 14d)")
     push("")
     push(
-        "`/plugin marketplace add raintree-technology/docpull` is a git clone "
+        f"`/plugin marketplace add {REPO}` is a git clone "
         "under the hood, so daily clone counts approximate plugin installs."
     )
     push("")
+    if traffic_blocked:
+        push(
+            "> **Traffic data unavailable.** The workflow's token is missing "
+            "`Administration: read` permission. Create a fine-grained PAT "
+            "scoped to this repo with `Administration: read` + `Metadata: "
+            "read`, save as repo secret `METRICS_TOKEN`, and re-run the "
+            "workflow. See the comment header in "
+            "[`.github/workflows/metrics.yml`](.github/workflows/metrics.yml) "
+            "for full setup."
+        )
+        push("")
     daily = clones.get("clones", [])
     if daily:
         push("| Date | Clones | Unique cloners |")
