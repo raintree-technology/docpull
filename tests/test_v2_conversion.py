@@ -291,3 +291,63 @@ class TestIntegration:
 
         # Nav and footer should be removed
         assert "Copyright" not in markdown
+
+
+class TestFenceLanguageNormalization:
+    """The conversion pipeline must emit GFM fenced code blocks with the
+    language tag preserved from the source HTML's syntax-highlight class."""
+
+    def _convert(self, body_html: str) -> str:
+        html = (
+            b"<html><body><article>"
+            + body_html.encode()
+            + b"</article></body></html>"
+        )
+        extracted = MainContentExtractor().extract(html, "https://x.test/")
+        return HtmlToMarkdown().convert(extracted, "https://x.test/")
+
+    def test_prism_language_class_emits_fenced_block(self):
+        md = self._convert(
+            '<pre class="language-python"><code class="language-python">print("hi")</code></pre>'
+        )
+        assert "```python\nprint(\"hi\")\n```" in md
+        assert "[code]" not in md
+
+    def test_legacy_lang_class_emits_fenced_block(self):
+        md = self._convert(
+            '<pre><code class="lang-bash">echo ok</code></pre>'
+        )
+        assert "```bash\necho ok\n```" in md
+
+    def test_github_highlight_source_class_emits_fenced_block(self):
+        md = self._convert(
+            '<pre class="highlight-source-rust"><code>fn main() {}</code></pre>'
+        )
+        assert "```rust\nfn main() {}\n```" in md
+
+    def test_unknown_language_emits_bare_fence(self):
+        md = self._convert("<pre><code>just plain code</code></pre>")
+        assert "```\njust plain code\n```" in md
+        assert "[code]" not in md
+
+    def test_plaintext_class_does_not_set_language(self):
+        md = self._convert(
+            '<pre><code class="lang-plaintext">no lang here</code></pre>'
+        )
+        # 'plaintext' / 'text' / 'none' shouldn't end up as the fence label
+        assert "```\nno lang here\n```" in md
+        assert "```plaintext" not in md
+
+    def test_multiline_block_preserves_indentation(self):
+        md = self._convert(
+            '<pre class="language-python"><code>'
+            "def f():\n    return 1\n"
+            "</code></pre>"
+        )
+        assert "```python" in md
+        assert "def f():" in md
+        # 4-space body indentation html2text adds must be stripped
+        lines = md.splitlines()
+        opening = next(i for i, line in enumerate(lines) if line == "```python")
+        # Line right after the fence should not be 8-space indented
+        assert not lines[opening + 1].startswith("    ")

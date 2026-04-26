@@ -549,13 +549,15 @@ class MdxSourceExtractor:
 
 
 # Default chain: order matters. Cheapest / most specific first.
+# MdxSourceExtractor is intentionally absent — it always returns None today
+# and is exposed via `find_mdx_source_url` for callers that want to wire it
+# manually (e.g. a `prefer_source` pipeline step).
 DEFAULT_CHAIN: list[SpecialCaseExtractor] = [
     OpenApiExtractor(),
     MintlifyExtractor(),
     NextDataExtractor(),
     DocusaurusExtractor(),
     SphinxObjectsInvExtractor(),
-    MdxSourceExtractor(),
 ]
 
 

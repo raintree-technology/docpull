@@ -4,10 +4,16 @@ from __future__ import annotations
 
 import logging
 import re
+import textwrap
 from typing import Any
 from urllib.parse import urljoin
 
 import html2text
+
+from .extractor import (
+    DOCPULL_FENCE_SENTINEL_PREFIX,
+    DOCPULL_FENCE_SENTINEL_SUFFIX,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +21,43 @@ logger = logging.getLogger(__name__)
 def _normalize_scheme(url: str) -> str:
     """Fix ``https:/example.com`` (single slash) produced by html2text escaping."""
     return re.sub(r"^(https?:)/(?!/)", r"\1//", url)
+
+
+# html2text wraps <pre><code> in [code]/[/code] markers and indents the body
+# by 4 spaces. The opening marker may carry trailing whitespace
+# (`[code] \n`); tolerate it so we don't miss real code blocks.
+_HTML2TEXT_CODE_BLOCK_RE = re.compile(
+    r"\[code\][ \t]*\n(.*?)\n[ \t]*\[/code\]",
+    re.DOTALL,
+)
+_FENCE_SENTINEL_RE = re.compile(
+    rf"^[ \t]*{re.escape(DOCPULL_FENCE_SENTINEL_PREFIX)}"
+    rf"([\w+#-]+){re.escape(DOCPULL_FENCE_SENTINEL_SUFFIX)}[ \t]*\n",
+    re.MULTILINE,
+)
+
+
+def _rewrite_html2text_code_blocks(markdown: str) -> str:
+    """Replace ``[code]...[/code]`` markers with GFM fenced blocks.
+
+    html2text indents the body of a ``[code]`` block by 4 spaces; we dedent
+    that consistently. If the body's first line is a docpull language
+    sentinel (injected by the extractor), the fence is opened with that
+    language; otherwise the fence is bare.
+    """
+
+    def replace(match: re.Match[str]) -> str:
+        body = match.group(1)
+        body = textwrap.dedent(body)
+        lang = ""
+        sentinel_match = _FENCE_SENTINEL_RE.match(body)
+        if sentinel_match:
+            lang = sentinel_match.group(1)
+            body = body[sentinel_match.end() :]
+        body = body.rstrip("\n")
+        return f"```{lang}\n{body}\n```"
+
+    return _HTML2TEXT_CODE_BLOCK_RE.sub(replace, markdown)
 
 
 class HtmlToMarkdown:
@@ -77,12 +120,15 @@ class HtmlToMarkdown:
 
     def _clean_output(self, markdown: str) -> str:
         """Clean up the converted Markdown."""
+        # Convert html2text's [code]/[/code] markers into GFM fences,
+        # recovering the language tag from the docpull sentinel injected
+        # by MainContentExtractor when the source HTML carried a Prism /
+        # highlight.js / Shiki language class. Must run BEFORE blank-line
+        # collapsing so the rewritten fences sit on their own lines.
+        markdown = _rewrite_html2text_code_blocks(markdown)
+
         # Remove excessive blank lines
         markdown = re.sub(r"\n{3,}", "\n\n", markdown)
-
-        # Fix code block formatting
-        # Ensure code blocks have language hint
-        markdown = re.sub(r"```\n", "```\n", markdown)
 
         # Unmangle html2text's protect_links output:
         #   [text](prefix/<https:/real.url>)  ->  [text](https://real.url)

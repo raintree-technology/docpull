@@ -236,8 +236,94 @@ class MainContentExtractor:
 
         # Clean up
         self._remove_unwanted(content)
+        # Normalize fence languages BEFORE we strip attributes — many
+        # syntax-highlight conventions encode language in `class` (Prism:
+        # `language-python`, highlight.js: `lang-py`, Shiki: `language-bash`).
+        # html2text's `mark_code` won't pick these up by default, so we lift
+        # the language onto an html2text-friendly `class="lang-X"` form on
+        # both the <pre> and inner <code>.
+        _normalize_code_fence_language(content)
         self._clean_attributes(content)
         self._resolve_links(content, url)
 
         result = str(content)
         return self._clean_whitespace(result)
+
+
+# Map syntax-highlight library conventions to a canonical short language tag.
+# Order matters: longest/most-specific prefix first so `highlight-source-rust`
+# resolves to `rust`, not `source-rust`. We deliberately skip `none`, `text`,
+# and `plaintext` — they represent "no language."
+_LANG_CLASS_PATTERNS: list[re.Pattern[str]] = [
+    re.compile(r"(?:^|\s)highlight-source-([\w+#-]+)", re.IGNORECASE),
+    re.compile(r"(?:^|\s)hljs-language-([\w+#-]+)", re.IGNORECASE),
+    re.compile(r"(?:^|\s)(?:language|lang|highlight)-([\w+#-]+)", re.IGNORECASE),
+]
+
+# Sentinel injected as the first text node inside a <code> tag. html2text
+# preserves the body of <pre><code> verbatim (it just indents by 4 spaces
+# and wraps in [code]/[/code]), so this sentinel survives through to the
+# Markdown stage where HtmlToMarkdown._clean_output recovers the language
+# and rewrites the block as a fenced GFM code block.
+DOCPULL_FENCE_SENTINEL_PREFIX = "__DOCPULL_FENCE_LANG_"
+DOCPULL_FENCE_SENTINEL_SUFFIX = "__"
+
+
+def _classes_of(tag: Tag) -> list[str]:
+    """Return a tag's CSS classes as a flat list of strings.
+
+    BeautifulSoup hands back ``str``, ``AttributeValueList``, or ``None``
+    depending on parser version. Normalize to ``list[str]`` for the rest
+    of the language-detection code.
+    """
+    raw = tag.get("class")
+    if raw is None:
+        return []
+    if isinstance(raw, str):
+        return [raw]
+    return [str(c) for c in raw]
+
+
+def _detect_lang(class_string: str) -> str | None:
+    """Return the canonical language tag for a code block, or None."""
+    for pattern in _LANG_CLASS_PATTERNS:
+        match = pattern.search(class_string)
+        if not match:
+            continue
+        lang = match.group(1).lower()
+        if lang in {"none", "plaintext", "text"}:
+            return None
+        return lang
+    return None
+
+
+def _normalize_code_fence_language(content: BeautifulSoup) -> None:
+    """Inject a sentinel that lets the Markdown stage emit fenced blocks.
+
+    Modern syntax-highlight libraries encode the language as a CSS class
+    (Prism: ``language-python``; highlight.js: ``lang-py`` /
+    ``hljs-language-bash``; GitHub: ``highlight-source-rust``). html2text
+    cannot read these and emits a generic ``[code]...[/code]`` block.
+
+    We walk every ``<pre>`` and prepend a sentinel ``__DOCPULL_FENCE_LANG_X__``
+    as a NavigableString to the inner ``<code>`` (or to the ``<pre>`` itself
+    if no inner ``<code>`` exists). Post-conversion, the Markdown layer
+    pulls that sentinel back out of the rendered text and rewrites the
+    block as a GFM fenced code block with the language tag.
+    """
+    for pre in content.find_all("pre"):
+        if not isinstance(pre, Tag):
+            continue
+        pre_classes = _classes_of(pre)
+        code = pre.find("code") if pre else None
+        code_classes: list[str] = []
+        if isinstance(code, Tag):
+            code_classes = _classes_of(code)
+
+        lang = _detect_lang(" ".join(pre_classes + code_classes))
+        if lang is None:
+            continue
+
+        sentinel = f"{DOCPULL_FENCE_SENTINEL_PREFIX}{lang}{DOCPULL_FENCE_SENTINEL_SUFFIX}\n"
+        target = code if isinstance(code, Tag) else pre
+        target.insert(0, sentinel)
