@@ -47,12 +47,15 @@ jobs:
 
       - name: Commit if METRICS.md changed
         run: |
-          if git diff --quiet METRICS.md; then
+          # `git diff` only sees tracked files, so for the first-ever run
+          # (METRICS.md untracked) it would falsely report no changes. Stage
+          # first, then check the staged diff against HEAD.
+          git add METRICS.md
+          if git diff --cached --quiet METRICS.md; then
             echo "No metric changes since last run."
             exit 0
           fi
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add METRICS.md
           git commit -m "chore(metrics): refresh $(date -u +%Y-%m-%d)"
           git push
