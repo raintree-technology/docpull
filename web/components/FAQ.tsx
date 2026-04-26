@@ -46,7 +46,8 @@ const faqs: { q: string; a: ReactNode }[] = [
         <Src path="src/docpull/conversion/extractor.py" line={110}>
           Fenced code blocks
         </Src>{" "}
-        keep their language hints,{" "}
+        keep their language hints (Prism, highlight.js, Shiki, GitHub
+        conventions all normalized),{" "}
         <Src path="src/docpull/conversion/markdown.py" line={32}>
           tables
         </Src>{" "}
@@ -54,8 +55,9 @@ const faqs: { q: string; a: ReactNode }[] = [
         <Src path="src/docpull/conversion/extractor.py" line={109}>
           images
         </Src>{" "}
-        keep their alt text. Nav bars, footers, sidebars, and cookie banners are
-        stripped before conversion via{" "}
+        keep their alt text. Nav bars, footers, sidebars, and common
+        cookie/consent banners (OneTrust, Osano, GDPR walls, Cookiebot,
+        Iubenda) are stripped before conversion via{" "}
         <Src path="src/docpull/conversion/extractor.py" line={42}>
           the extractor&apos;s remove-selector list
         </Src>
@@ -64,22 +66,45 @@ const faqs: { q: string; a: ReactNode }[] = [
     ),
   },
   {
+    q: "Does it render JavaScript?",
+    a: (
+      <>
+        No. docpull runs no browser. Pages that require JS to render
+        content are detected and skipped (or hard-failed with{" "}
+        <code className="px-1 py-0.5 rounded bg-foreground/5 font-mono text-xs">
+          --strict-js-required
+        </code>
+        ) so an agent can route elsewhere. For JS-rendered docs, use
+        Firecrawl or Crawl4AI.
+      </>
+    ),
+  },
+  {
     q: "Will it scale to a 10,000-page site, and can I re-run it on a schedule?",
     a: (
       <>
-        Yes.{" "}
+        Yes — measured against a synthetic 10,000-page site:{" "}
+        <strong>~27&nbsp;s wall time</strong>,{" "}
+        <strong>~28&nbsp;MB peak RSS</strong>,{" "}
+        <strong>p99 ~5&nbsp;ms</strong> per-page latency. See{" "}
+        <Src path="tests/benchmarks/test_10k_pages.py">
+          tests/benchmarks/test_10k_pages.py
+        </Src>{" "}
+        for the workload.{" "}
         <Src path="src/docpull/pipeline/steps/dedup.py">
           Streaming deduplication
         </Src>{" "}
-        hashes content as it arrives so memory stays flat. The cache tracks{" "}
-        <Src path="src/docpull/cache/manager.py" line={222}>
-          ETags per URL
-        </Src>
-        , so scheduled re-runs only transfer pages that actually changed, and{" "}
+        keeps memory constant per page; the cache sends{" "}
+        <Src path="src/docpull/pipeline/steps/fetch.py">
+          If-None-Match / If-Modified-Since
+        </Src>{" "}
+        on every cached URL so scheduled re-runs only transfer changed
+        pages, and{" "}
         <Src path="src/docpull/cache/manager.py" line={45}>
           fetched and failed URL sets persist on disk
         </Src>{" "}
-        so a crash resumes instead of restarts.
+        so a crash resumes from the discovered-URL list instead of
+        restarting.
       </>
     ),
   },
@@ -100,13 +125,25 @@ const faqs: { q: string; a: ReactNode }[] = [
     q: "Does the output drop straight into a Claude Code skill?",
     a: (
       <>
-        Yes — Claude Code skills are Markdown files with YAML frontmatter, which
-        is exactly what docpull emits. Run{" "}
+        Yes. Run{" "}
         <code className="px-1 py-0.5 rounded bg-foreground/5 font-mono text-xs">
-          docpull URL -o .claude/skills/name
+          docpull URL --skill name
         </code>{" "}
-        and you get a working skill directory you can edit or version-control.
-        No conversion step.
+        and docpull writes a complete skill directory to{" "}
+        <code className="px-1 py-0.5 rounded bg-foreground/5 font-mono text-xs">
+          .claude/skills/name/
+        </code>
+        : a generated{" "}
+        <code className="px-1 py-0.5 rounded bg-foreground/5 font-mono text-xs">
+          SKILL.md
+        </code>{" "}
+        manifest with{" "}
+        <Src path="src/docpull/pipeline/steps/save.py">
+          name and description fields
+        </Src>{" "}
+        derived from the source&apos;s OpenGraph metadata, plus
+        hierarchically-named pages alongside it. No hand-editing
+        required.
       </>
     ),
   },

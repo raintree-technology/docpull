@@ -87,9 +87,9 @@ export default function Hero() {
             </h1>
 
             <p className="text-muted-foreground text-base sm:text-lg mb-8 max-w-md bg-background/50 py-1 rounded">
-              Feed any documentation site to your AI — clean, structured
-              Markdown, ready for RAG pipelines, Claude Code skills, and
-              training datasets.
+              Local Python crawler that turns server-rendered docs into
+              clean Markdown. Zero API keys, zero data leaving your
+              machine. Built for RAG pipelines and Claude Code skills.
             </p>
 
             {/* Install command + CTA */}
@@ -115,6 +115,15 @@ export default function Hero() {
                 See examples
               </a>
             </div>
+
+            <p className="mt-4 text-xs text-muted-foreground/80 max-w-md leading-relaxed bg-background/50 py-1 rounded">
+              Static and server-rendered sites only. JS-rendered SPAs are
+              detected and skipped — pass{" "}
+              <code className="font-mono text-[11px] bg-background/60 px-1 rounded">
+                --strict-js-required
+              </code>{" "}
+              to make that an error so your agent can route elsewhere.
+            </p>
           </div>
 
           {/* Right: Terminal */}

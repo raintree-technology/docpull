@@ -2,7 +2,7 @@ const features = [
   {
     title: "AI-Ready Output",
     description:
-      "Clean Markdown with YAML frontmatter. No post-processing needed — drop it straight into your vector store.",
+      "Markdown with YAML frontmatter — title, source URL, heading outline, OpenGraph description. Drops into a vector store or a `.claude/skills/` directory.",
   },
   {
     title: "Streaming Dedup",
