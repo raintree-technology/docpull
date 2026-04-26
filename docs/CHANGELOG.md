@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0] - 2026-04-26
+
+The deprecations 2.4 promised. Six config fields that have emitted a
+`DeprecationWarning` since 2.4 are now gone, and the `naming_strategy`
+literal no longer accepts the `"flat"` / `"short"` aliases that were
+documented as "aliased to 'full' until 3.0".
+
+### Breaking
+- **`ContentFilterConfig` removed fields** — `language`,
+  `exclude_languages`, `deduplicate`, `max_total_size`,
+  `exclude_sections`. All have been no-ops since 2.4 with a
+  deprecation warning on use; pydantic will now reject configs that
+  set them (`model_config = {"extra": "forbid"}`). For
+  `deduplicate=True`, switch to `streaming_dedup=True`. The other
+  fields had no replacement because they had no effect.
+- **`OutputConfig.create_index` removed** — also a no-op since 2.4.
+  Drop the field from your config; nothing to migrate.
+- **`OutputConfig.naming_strategy` literal narrowed** — the alias
+  values `"flat"` and `"short"` (which silently behaved like `"full"`)
+  are no longer accepted. Use `"full"` directly. `"hierarchical"` is
+  unchanged.
+- **`docpull.deprecated` logger removed** — the dedicated logger and
+  the per-call `DeprecationWarning` infrastructure for the above
+  fields are gone with them. Filters that targeted `docpull.deprecated`
+  can be removed.
+
+### Migration
+If your config file or `DocpullConfig(...)` call sets any of the
+removed fields, delete those lines. Pydantic's `forbid` policy will
+otherwise raise `ValidationError` at construction time with a clear
+"Extra inputs are not permitted" message naming the field.
+
 ## [2.5.1] - 2026-04-25
 
 A small but real bugfix: the `grep_docs` → `read_doc` round-trip was

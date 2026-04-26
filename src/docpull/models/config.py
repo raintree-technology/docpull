@@ -1,33 +1,13 @@
-"""Pydantic configuration models for docpull v2.0."""
+"""Pydantic configuration models for docpull."""
 
 from __future__ import annotations
 
-import logging
 import re
-import warnings
 from enum import Enum
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
-
-_deprecation_logger = logging.getLogger("docpull.deprecated")
-
-
-def _emit_deprecation(field: str, value: Any) -> None:
-    """Surface a deprecation through both warnings and the logger.
-
-    `DeprecationWarning` is silenced by default in CPython, so we also log
-    at WARNING level to make sure a user running `docpull --verbose` actually
-    sees the message.
-    """
-    msg = (
-        f"docpull config field '{field}' is deprecated in 2.4 and will be "
-        f"removed in 3.0; it has no effect (got {value!r}). "
-        f"Remove the field from your config to silence this warning."
-    )
-    warnings.warn(msg, DeprecationWarning, stacklevel=3)
-    _deprecation_logger.warning(msg)
+from pydantic import BaseModel, Field, field_validator
 
 
 class ProfileName(str, Enum):
@@ -126,19 +106,6 @@ class CrawlConfig(BaseModel):
 class ContentFilterConfig(BaseModel):
     """Configuration for content filtering and deduplication."""
 
-    language: str | None = Field(
-        None,
-        pattern=r"^[a-z]{2}$",
-        description="DEPRECATED in 2.4, removed in 3.0 — has no effect.",
-    )
-    exclude_languages: list[str] = Field(
-        default_factory=list,
-        description="DEPRECATED in 2.4, removed in 3.0 — has no effect.",
-    )
-    deduplicate: bool = Field(
-        False,
-        description="DEPRECATED in 2.4, removed in 3.0 — use streaming_dedup instead.",
-    )
     streaming_dedup: bool = Field(
         False,
         description="Enable real-time deduplication during fetch (more efficient)",
@@ -147,14 +114,6 @@ class ContentFilterConfig(BaseModel):
         None,
         description="Maximum size per response in bytes (e.g., '200kb', '1mb'). Caps the per-page download.",
     )
-    max_total_size: ByteSize | None = Field(
-        None,
-        description="DEPRECATED in 2.4, removed in 3.0 — racy across async fetches.",
-    )
-    exclude_sections: list[str] = Field(
-        default_factory=list,
-        description="DEPRECATED in 2.4, removed in 3.0 — has no effect.",
-    )
     extractor: Literal["default", "trafilatura"] = Field(
         "default",
         description="Content extractor to use (trafilatura requires optional install)",
@@ -162,8 +121,7 @@ class ContentFilterConfig(BaseModel):
     enable_special_cases: bool = Field(
         True,
         description=(
-            "Run framework-specific fast extractors (Next.js, OpenAPI, etc.) "
-            "before the generic extractor"
+            "Run framework-specific fast extractors (Next.js, OpenAPI, etc.) before the generic extractor"
         ),
     )
     strict_js_required: bool = Field(
@@ -172,20 +130,6 @@ class ContentFilterConfig(BaseModel):
     )
 
     model_config = {"extra": "forbid"}
-
-    @model_validator(mode="after")
-    def _warn_deprecated_fields(self) -> ContentFilterConfig:
-        if self.language is not None:
-            _emit_deprecation("content_filter.language", self.language)
-        if self.exclude_languages:
-            _emit_deprecation("content_filter.exclude_languages", self.exclude_languages)
-        if self.deduplicate:
-            _emit_deprecation("content_filter.deduplicate", self.deduplicate)
-        if self.max_total_size is not None:
-            _emit_deprecation("content_filter.max_total_size", self.max_total_size)
-        if self.exclude_sections:
-            _emit_deprecation("content_filter.exclude_sections", self.exclude_sections)
-        return self
 
 
 class OutputConfig(BaseModel):
@@ -196,17 +140,12 @@ class OutputConfig(BaseModel):
         "markdown",
         description="Output format",
     )
-    naming_strategy: Literal["full", "short", "flat", "hierarchical"] = Field(
+    naming_strategy: Literal["full", "hierarchical"] = Field(
         "full",
         description=(
-            "File naming strategy: 'full' (default, flattened with underscores), "
-            "'hierarchical' (preserve URL path as nested directories), "
-            "'flat' / 'short' (aliased to 'full' until 3.0)."
+            "File naming strategy: 'full' (default, flattened with underscores) "
+            "or 'hierarchical' (preserve URL path as nested directories)."
         ),
-    )
-    create_index: bool = Field(
-        False,
-        description="DEPRECATED in 2.4, removed in 3.0 — has no effect.",
     )
     rich_metadata: bool = Field(
         False,
@@ -250,12 +189,6 @@ class OutputConfig(BaseModel):
     )
 
     model_config = {"extra": "forbid"}
-
-    @model_validator(mode="after")
-    def _warn_deprecated_fields(self) -> OutputConfig:
-        if self.create_index:
-            _emit_deprecation("output.create_index", self.create_index)
-        return self
 
 
 def _expand_env_var(value: str | None) -> str | None:

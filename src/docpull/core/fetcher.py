@@ -265,9 +265,7 @@ class Fetcher:
         # built-in 50 MB ceiling.
         max_content_size_kw: dict[str, int] = {}
         if self.config.content_filter.max_file_size is not None:
-            max_content_size_kw["max_content_size"] = int(
-                self.config.content_filter.max_file_size
-            )
+            max_content_size_kw["max_content_size"] = int(self.config.content_filter.max_file_size)
         self._http_client = AsyncHttpClient(
             rate_limiter=self._rate_limiter,
             max_retries=self.config.network.max_retries,
@@ -509,11 +507,7 @@ class Fetcher:
 
         steps = self._pipeline.steps
         if not save:
-            steps = [
-                s
-                for s in steps
-                if s.name not in {"save", "save_json", "save_ndjson", "save_sqlite"}
-            ]
+            steps = [s for s in steps if s.name not in {"save", "save_json", "save_ndjson", "save_sqlite"}]
         pipeline = type(self._pipeline)(steps=steps)
         ctx = await pipeline.execute(url, output_path)
         if ctx.error:
@@ -531,8 +525,8 @@ class Fetcher:
         """
         Compute output path for a URL using the configured naming strategy.
 
-        - ``full`` / ``flat`` / ``short``: a single flattened filename
-          (URL path joined with underscores).
+        - ``full``: a single flattened filename (URL path joined with
+          underscores).
         - ``hierarchical``: URL path preserved as nested directories,
           terminating in ``<segment>.md`` or ``index.md`` for trailing
           slashes. The leaf is `_validate_output_path`-safe — every segment
@@ -545,7 +539,6 @@ class Fetcher:
             parts = _url_to_path_parts(url, self.config.url)
             return output_dir.joinpath(*parts)
 
-        # full / flat / short: aliased to full until 3.0
         filename = _url_to_filename(url, self.config.url)
         return output_dir / filename
 
@@ -638,9 +631,7 @@ class Fetcher:
         )
 
         discovered: list[str] = []
-        async for url in self._discoverer.discover(
-            start_url, max_urls=self.config.crawl.max_pages
-        ):
+        async for url in self._discoverer.discover(start_url, max_urls=self.config.crawl.max_pages):
             discovered.append(url)
             if self._cancelled:
                 yield FetchEvent(
@@ -756,9 +747,7 @@ class Fetcher:
                 )
             )
             try:
-                async for url in discoverer.discover(
-                    start_url, max_urls=self.config.crawl.max_pages
-                ):
+                async for url in discoverer.discover(start_url, max_urls=self.config.crawl.max_pages):
                     if self._cancelled:
                         break
                     await url_queue.put(url)
@@ -770,14 +759,10 @@ class Fetcher:
                         and self._cache_manager
                         and len(discovered_for_resume) % 200 == 0
                     ):
-                        self._cache_manager.save_discovered_urls(
-                            list(discovered_for_resume), start_url
-                        )
+                        self._cache_manager.save_discovered_urls(list(discovered_for_resume), start_url)
             finally:
                 if self.config.cache.enabled and self._cache_manager:
-                    self._cache_manager.save_discovered_urls(
-                        discovered_for_resume, start_url
-                    )
+                    self._cache_manager.save_discovered_urls(discovered_for_resume, start_url)
                 self._stats.urls_discovered = len(discovered_for_resume)
                 await event_queue.put(
                     FetchEvent(
@@ -810,6 +795,7 @@ class Fetcher:
                     continue
 
                 local_events: list[FetchEvent] = []
+
                 # Bind the per-iteration list as a default arg so ruff B023
                 # is happy. Closure is consumed synchronously by execute()
                 # before the next iteration anyway, so capture order is safe.
@@ -936,9 +922,7 @@ def fetch_one(url: str, **kwargs: object) -> PageContext:
     """
     try:
         asyncio.get_running_loop()
-        raise RuntimeError(
-            "fetch_one() called from async context. Use Fetcher.fetch_one() instead."
-        )
+        raise RuntimeError("fetch_one() called from async context. Use Fetcher.fetch_one() instead.")
     except RuntimeError as exc:
         if "no running event loop" not in str(exc).lower():
             raise

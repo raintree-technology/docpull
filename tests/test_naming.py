@@ -12,9 +12,7 @@ class TestHierarchicalPathParts:
     """Test the URL → nested-path-parts conversion."""
 
     def test_simple_path(self) -> None:
-        assert _url_to_path_parts(
-            "https://docs.foo.com/api/auth/oauth2"
-        ) == ["api", "auth", "oauth2.md"]
+        assert _url_to_path_parts("https://docs.foo.com/api/auth/oauth2") == ["api", "auth", "oauth2.md"]
 
     def test_root_url(self) -> None:
         assert _url_to_path_parts("https://docs.foo.com/") == ["index.md"]
@@ -26,14 +24,10 @@ class TestHierarchicalPathParts:
         ]
 
     def test_strips_html_extension(self) -> None:
-        assert _url_to_path_parts(
-            "https://docs.foo.com/api/auth.html"
-        ) == ["api", "auth.md"]
+        assert _url_to_path_parts("https://docs.foo.com/api/auth.html") == ["api", "auth.md"]
 
     def test_strips_htm_extension(self) -> None:
-        assert _url_to_path_parts("https://docs.foo.com/index.htm") == [
-            "index.md"
-        ]
+        assert _url_to_path_parts("https://docs.foo.com/index.htm") == ["index.md"]
 
     def test_strips_base_path(self) -> None:
         result = _url_to_path_parts(
@@ -43,9 +37,7 @@ class TestHierarchicalPathParts:
         assert result == ["api", "auth.md"]
 
     def test_unsafe_segment_sanitized(self) -> None:
-        result = _url_to_path_parts(
-            "https://docs.foo.com/foo bar/with$special"
-        )
+        result = _url_to_path_parts("https://docs.foo.com/foo bar/with$special")
         assert result == ["foo_bar", "with_special.md"]
 
     def test_traversal_segment_neutralized(self) -> None:
@@ -91,17 +83,6 @@ class TestComputeOutputPath:
         fetcher = Fetcher(config)
         path = fetcher._compute_output_path("https://docs.foo.com/api/")
         assert path == tmp_path / "api" / "index.md"
-
-    def test_flat_aliases_to_full(self, tmp_path: Path) -> None:
-        config = DocpullConfig(
-            url="https://docs.foo.com",
-            output={"directory": tmp_path, "naming_strategy": "flat"},
-        )
-        fetcher = Fetcher(config)
-        # `flat` and `short` route through _url_to_filename until 3.0.
-        path = fetcher._compute_output_path("https://docs.foo.com/api/auth")
-        assert path.suffix == ".md"
-        assert path.parent == tmp_path
 
 
 class TestFlattenedFilename:
