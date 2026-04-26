@@ -70,8 +70,7 @@ _PARAGRAPHS = [
 def _body_for(index: int) -> str:
     """Deterministic body for page `index`, using a rotating paragraph mix."""
     paras = "\n".join(
-        f"<p>{_PARAGRAPHS[(index + i) % len(_PARAGRAPHS)]} (page {index})</p>"
-        for i in range(4)
+        f"<p>{_PARAGRAPHS[(index + i) % len(_PARAGRAPHS)]} (page {index})</p>" for i in range(4)
     )
     return (
         f"<!doctype html><html><head>"
@@ -97,9 +96,7 @@ async def server(monkeypatch):
     # Map duplicate URLs to the canonical body. 5% of pages will share
     # body bytes with another page so streaming dedup can show its work.
     dup_step = int(1 / DUPLICATE_FRACTION)
-    canonical_for: dict[int, int] = {
-        i: (i - 1) for i in range(1, PAGE_COUNT) if i % dup_step == 0
-    }
+    canonical_for: dict[int, int] = {i: (i - 1) for i in range(1, PAGE_COUNT) if i % dup_step == 0}
 
     async def page_handler(request: web.Request) -> web.Response:
         index = int(request.match_info["index"])
@@ -113,9 +110,7 @@ async def server(monkeypatch):
     async def sitemap_handler(_request: web.Request) -> web.Response:
         # Single sitemap with all 10k URLs.
         host = "http://127.0.0.1:" + str(_request.transport.get_extra_info("sockname")[1])
-        urls = "\n".join(
-            f"<url><loc>{host}/page/{i}</loc></url>" for i in range(PAGE_COUNT)
-        )
+        urls = "\n".join(f"<url><loc>{host}/page/{i}</loc></url>" for i in range(PAGE_COUNT))
         body = (
             '<?xml version="1.0" encoding="UTF-8"?>'
             '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
@@ -152,7 +147,9 @@ async def server(monkeypatch):
 
     monkeypatch.setattr(UrlValidator, "__init__", init_with_http)
     monkeypatch.setattr(RobotsChecker, "is_allowed", lambda self, url: True)
-    monkeypatch.setattr(RobotsChecker, "get_sitemaps", lambda self, url: [f"http://127.0.0.1:{port}/sitemap.xml"])
+    monkeypatch.setattr(
+        RobotsChecker, "get_sitemaps", lambda self, url: [f"http://127.0.0.1:{port}/sitemap.xml"]
+    )
     monkeypatch.setattr(RobotsChecker, "get_crawl_delay", lambda self, url: None)
 
     yield {"port": port, "base": f"http://127.0.0.1:{port}"}
@@ -198,26 +195,17 @@ async def test_10k_pages_end_to_end(server, tmp_path: Path) -> None:
     rss_peak = _peak_rss_bytes()
 
     # Per-page latency = inter-arrival time of PAGE_SAVED events.
-    deltas = [
-        (page_save_times[i] - page_save_times[i - 1]) * 1000
-        for i in range(1, len(page_save_times))
-    ]
+    deltas = [(page_save_times[i] - page_save_times[i - 1]) * 1000 for i in range(1, len(page_save_times))]
     p50 = statistics.median(deltas) if deltas else 0.0
-    p95 = (
-        statistics.quantiles(deltas, n=20)[18] if len(deltas) >= 20 else max(deltas, default=0.0)
-    )
-    p99 = (
-        statistics.quantiles(deltas, n=100)[98] if len(deltas) >= 100 else max(deltas, default=0.0)
-    )
+    p95 = statistics.quantiles(deltas, n=20)[18] if len(deltas) >= 20 else max(deltas, default=0.0)
+    p99 = statistics.quantiles(deltas, n=100)[98] if len(deltas) >= 100 else max(deltas, default=0.0)
 
     manifest_path = tmp_path / "cache" / "manifest.json"
     manifest_size = manifest_path.stat().st_size if manifest_path.exists() else 0
 
     expected_unique = PAGE_COUNT - int(PAGE_COUNT * DUPLICATE_FRACTION)
     discovery_secs = (
-        (discovery_complete - discovery_started)
-        if discovery_started and discovery_complete
-        else 0.0
+        (discovery_complete - discovery_started) if discovery_started and discovery_complete else 0.0
     )
 
     report = {
@@ -245,13 +233,9 @@ async def test_10k_pages_end_to_end(server, tmp_path: Path) -> None:
 
     # Hard floors: regressions worth failing CI on.
     # Fetched + skipped (dedup hits skip with should_skip) should equal total.
-    assert (
-        fetcher.stats.pages_fetched + fetcher.stats.pages_skipped == PAGE_COUNT
-    ), report
+    assert fetcher.stats.pages_fetched + fetcher.stats.pages_skipped == PAGE_COUNT, report
     # Dedup detected something close to the injected rate.
     assert duplicates_seen >= int(PAGE_COUNT * DUPLICATE_FRACTION * 0.9), report
     # Memory ceiling: fail if we burn more than 200 MiB on this workload.
     # Real number on a clean run should land well under 100 MiB.
-    assert (
-        rss_peak - rss_baseline
-    ) < 200 * 1024 * 1024, f"RSS regression: {report}"
+    assert (rss_peak - rss_baseline) < 200 * 1024 * 1024, f"RSS regression: {report}"

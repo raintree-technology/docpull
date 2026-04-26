@@ -23,7 +23,6 @@ updates:
       dev-dependencies:
         patterns:
           - "pytest*"
-          - "black"
           - "ruff"
           - "mypy"
           - "types-*"
@@ -35,7 +34,6 @@ updates:
           - "*"
         exclude-patterns:
           - "pytest*"
-          - "black"
           - "ruff"
           - "mypy"
           - "types-*"

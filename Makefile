@@ -7,7 +7,7 @@ help:
 	@echo "clean-test - remove test and coverage artifacts"
 	@echo "test - run tests with pytest"
 	@echo "lint - check style with ruff"
-	@echo "format - format code with black"
+	@echo "format - format code with ruff"
 
 clean: clean-build clean-pyc clean-test
 
@@ -48,4 +48,4 @@ lint:
 	ruff check .
 
 format:
-	black .
+	ruff format .

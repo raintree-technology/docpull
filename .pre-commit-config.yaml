@@ -17,14 +17,16 @@ repos:
         args: [--fix]
       - id: ruff-format
 
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.19.0
+  # mypy runs against the project venv (rather than pre-commit's isolated env)
+  # so it sees aiohttp / mcp / bs4 / pydantic from the [all,dev] install. The
+  # alternative — listing every runtime + optional dep in additional_dependencies
+  # — drifts away from pyproject.toml the moment a dep is added or pinned.
+  - repo: local
     hooks:
       - id: mypy
-        additional_dependencies: [types-requests, types-PyYAML]
-        args: [--ignore-missing-imports]
-        exclude: ^tests/
+        name: mypy
+        entry: mypy src
+        language: system
+        pass_filenames: false
+        types: [python]
         verbose: true
-        # Allow failures for now - mypy is informational
-        # Remove this line once type issues are fixed
-        stages: [manual]

@@ -21,6 +21,7 @@ def _header_get(headers: dict[str, str], name: str) -> str | None:
             return value
     return None
 
+
 # Allowed content types for HTML documents and structured feeds.
 # JSON and plain text are allowed so downstream special-case extractors can
 # handle OpenAPI specs, raw Markdown, and similar sources.
@@ -171,9 +172,7 @@ class FetchStep:
             )
 
         try:
-            conditional = self._conditional_headers(
-                url, output_path_exists=ctx.output_path.exists()
-            )
+            conditional = self._conditional_headers(url, output_path_exists=ctx.output_path.exists())
             response = await self._client.get(
                 url,
                 headers=conditional or None,

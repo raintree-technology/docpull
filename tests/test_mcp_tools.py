@@ -83,16 +83,14 @@ def test_load_user_sources_missing_file(tmp_path):
 
 def test_load_user_sources_parses_yaml(tmp_path):
     path = tmp_path / "sources.yaml"
-    path.write_text(
-        """
+    path.write_text("""
 sources:
   mydocs:
     url: https://example.com/docs
     description: My docs
     category: internal
     maxPages: 50
-"""
-    )
+""")
     sources = load_user_sources(path=path)
     assert "mydocs" in sources
     assert sources["mydocs"].url == "https://example.com/docs"
@@ -118,9 +116,7 @@ def test_grep_docs_ranks_by_match_density(tmp_path):
     b = tmp_path / "lib_b"
     a.mkdir()
     b.mkdir()
-    (a / "page.md").write_text(
-        "needle one\nneedle two\nneedle three\nfour\nfive"
-    )
+    (a / "page.md").write_text("needle one\nneedle two\nneedle three\nfour\nfive")
     (b / "page.md").write_text("filler\nneedle one\nfiller")
 
     result = grep_docs("needle", docs_dir=tmp_path)
@@ -448,9 +444,7 @@ def test_add_source_refuses_builtin_without_force(tmp_path):
 
 
 def test_add_source_force_overrides_builtin(tmp_path):
-    result = add_source(
-        "react", "https://example.com/", force=True, config_dir=tmp_path
-    )
+    result = add_source("react", "https://example.com/", force=True, config_dir=tmp_path)
     assert not result.is_error
     assert result.data["shadowed_builtin"] is True
 
@@ -473,9 +467,7 @@ def test_add_source_rejects_oversized_description(tmp_path):
 
 
 def test_add_source_rejects_unknown_category(tmp_path):
-    result = add_source(
-        "mydocs", "https://example.com/", category="bogus", config_dir=tmp_path
-    )
+    result = add_source("mydocs", "https://example.com/", category="bogus", config_dir=tmp_path)
     assert result.is_error
     assert "category" in result.text.lower()
 
@@ -502,9 +494,7 @@ def test_remove_source_with_delete_cache(tmp_path):
     meta = tmp_path / ".mydocs.meta.json"
     meta.write_text("{}")
 
-    result = remove_source(
-        "mydocs", delete_cache=True, config_dir=tmp_path, docs_dir=tmp_path
-    )
+    result = remove_source("mydocs", delete_cache=True, config_dir=tmp_path, docs_dir=tmp_path)
     assert not result.is_error
     assert result.data["removed"] is True
     assert result.data["cache_deleted"] is True
@@ -513,9 +503,7 @@ def test_remove_source_with_delete_cache(tmp_path):
 
 
 def test_remove_source_unknown_no_op(tmp_path):
-    result = remove_source(
-        "ghost", config_dir=tmp_path, docs_dir=tmp_path
-    )
+    result = remove_source("ghost", config_dir=tmp_path, docs_dir=tmp_path)
     # Not an error — just nothing to do.
     assert not result.is_error
     assert result.data["removed"] is False
@@ -604,16 +592,12 @@ def test_grep_to_read_doc_roundtrip(tmp_path):
     """
     lib = tmp_path / "hono"
     (lib / "middleware").mkdir(parents=True)
-    (lib / "middleware" / "basic-auth.md").write_text(
-        "intro\nbasicAuth example\nmore text\nfinal line"
-    )
+    (lib / "middleware" / "basic-auth.md").write_text("intro\nbasicAuth example\nmore text\nfinal line")
     grep_result = grep_docs("basicAuth", docs_dir=tmp_path)
     file_hit = grep_result.data["files"][0]
 
     # Pass library + path verbatim — no manual munging.
-    read_result = read_doc(
-        file_hit["library"], file_hit["path"], docs_dir=tmp_path
-    )
+    read_result = read_doc(file_hit["library"], file_hit["path"], docs_dir=tmp_path)
     assert read_result.is_error is False, read_result.text
     assert "basicAuth example" in read_result.data["text"]
 

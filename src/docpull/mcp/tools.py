@@ -26,7 +26,7 @@ from typing import Any
 import yaml
 
 from ..core.fetcher import Fetcher
-from ..models.config import DocpullConfig, ProfileName
+from ..models.config import CrawlConfig, DocpullConfig, OutputConfig, ProfileName
 from ..security.url_validator import UrlValidator
 from .sources import (
     _URL_SCHEME_RE,
@@ -195,16 +195,10 @@ async def ensure_docs(
     target_dir = _source_dir(docs_dir, source)
     meta_path = _meta_path(docs_dir, source)
 
-    if (
-        not force
-        and _cache_fresh(meta_path)
-        and target_dir.exists()
-        and any(target_dir.rglob("*.md"))
-    ):
+    if not force and _cache_fresh(meta_path) and target_dir.exists() and any(target_dir.rglob("*.md")):
         files = list(target_dir.rglob("*.md"))
         return ToolResult(
-            f"Cached: {source} ({len(files)} files at {target_dir}). "
-            "Call with force=true to refresh.",
+            f"Cached: {source} ({len(files)} files at {target_dir}). Call with force=true to refresh.",
             data={
                 "source": source,
                 "cached": True,
@@ -216,8 +210,8 @@ async def ensure_docs(
     config = DocpullConfig(
         url=resolved.url,
         profile=profile_enum,
-        crawl={"max_pages": resolved.max_pages} if resolved.max_pages else {},
-        output={"directory": target_dir},
+        crawl=CrawlConfig(max_pages=resolved.max_pages) if resolved.max_pages else CrawlConfig(),
+        output=OutputConfig(directory=target_dir),
     )
     fetched = 0
     crashed = False
@@ -264,13 +258,11 @@ async def fetch_url(url: str, *, max_tokens: int | None = None) -> ToolResult:
     if not validation.is_valid:
         return ToolResult(f"URL rejected: {validation.rejection_reason}", is_error=True)
 
-    output_kwargs: dict[str, Any] = {}
-    if max_tokens:
-        output_kwargs["max_tokens_per_file"] = max_tokens
+    output_cfg = OutputConfig(max_tokens_per_file=max_tokens) if max_tokens else OutputConfig()
     config = DocpullConfig(
         url=url,
         profile=ProfileName.CUSTOM,
-        output=output_kwargs or None,
+        output=output_cfg,
     )
     async with Fetcher(config) as fetcher:
         ctx = await fetcher.fetch_one(url, save=False)
@@ -288,10 +280,7 @@ async def fetch_url(url: str, *, max_tokens: int | None = None) -> ToolResult:
         ]
         body = "\n\n".join(parts)
     chunks_meta = f" _chunks: {len(ctx.chunks)}_" if ctx.chunks else ""
-    header = (
-        f"# {ctx.title or url}\n"
-        f"_source: {url}_ _type: {ctx.source_type or 'generic'}_{chunks_meta}\n\n"
-    )
+    header = f"# {ctx.title or url}\n_source: {url}_ _type: {ctx.source_type or 'generic'}_{chunks_meta}\n\n"
     return ToolResult(header + body)
 
 
@@ -471,16 +460,9 @@ def grep_docs(
             matches: list[tuple[int, list[str], str, list[str]]] = []
             for idx, line in enumerate(lines):
                 if regex.search(line):
-                    before = (
-                        [lines[i].rstrip() for i in range(max(0, idx - context), idx)]
-                        if context
-                        else []
-                    )
+                    before = [lines[i].rstrip() for i in range(max(0, idx - context), idx)] if context else []
                     after = (
-                        [
-                            lines[i].rstrip()
-                            for i in range(idx + 1, min(len(lines), idx + 1 + context))
-                        ]
+                        [lines[i].rstrip() for i in range(idx + 1, min(len(lines), idx + 1 + context))]
                         if context
                         else []
                     )
@@ -532,9 +514,7 @@ def grep_docs(
             for off, line in enumerate(after, start=1):
                 chunk.append(f"  {lineno + off:>4}- {line}")
             block_lines.append("\n".join(chunk))
-            rendered_matches.append(
-                {"lineno": lineno, "before": before, "line": hit, "after": after}
-            )
+            rendered_matches.append({"lineno": lineno, "before": before, "line": hit, "after": after})
             rendered += 1
         blocks.append("\n\n".join(block_lines))
         files_payload.append(
@@ -710,28 +690,19 @@ def add_source(
         )
     validation = _ADD_SOURCE_VALIDATOR.validate(url)
     if not validation.is_valid:
-        return ToolResult(
-            f"URL rejected: {validation.rejection_reason}", is_error=True
-        )
+        return ToolResult(f"URL rejected: {validation.rejection_reason}", is_error=True)
     if description is not None and len(description) > MAX_DESCRIPTION_LEN:
-        return ToolResult(
-            f"Description too long (>{MAX_DESCRIPTION_LEN} chars).", is_error=True
-        )
+        return ToolResult(f"Description too long (>{MAX_DESCRIPTION_LEN} chars).", is_error=True)
     if category is not None and category not in ALLOWED_USER_CATEGORIES:
         valid = ", ".join(sorted(ALLOWED_USER_CATEGORIES))
-        return ToolResult(
-            f"Unknown category '{category}'. Valid: {valid}", is_error=True
-        )
+        return ToolResult(f"Unknown category '{category}'. Valid: {valid}", is_error=True)
     if max_pages is not None and (max_pages < 1 or max_pages > 100_000):
-        return ToolResult(
-            "max_pages must be between 1 and 100000.", is_error=True
-        )
+        return ToolResult("max_pages must be between 1 and 100000.", is_error=True)
 
     is_builtin = name in BUILTIN_SOURCES
     if is_builtin and not force:
         return ToolResult(
-            f"'{name}' is a builtin source. Pass force=true to shadow it with a "
-            "user override.",
+            f"'{name}' is a builtin source. Pass force=true to shadow it with a user override.",
             is_error=True,
         )
 

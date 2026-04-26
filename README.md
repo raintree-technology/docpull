@@ -198,6 +198,17 @@ sources:
     maxPages: 200
 ```
 
+### About the `mcp/` directory in this repo
+
+The `mcp/` directory at the repo root is a separate TypeScript + Bun MCP
+server backed by PostgreSQL with pgvector for semantic search. It is not
+the Python MCP server shipped in the `docpull` package described above
+— that one is the right choice for almost every user and is installed
+with `pip install 'docpull[mcp]'`. The `mcp/` tree is mirrored to its
+own repo at [`raintree-technology/docpull-mcp`](https://github.com/raintree-technology/docpull-mcp);
+unless you specifically need pgvector-backed semantic search, ignore it
+and use `docpull mcp`.
+
 ## Output
 
 Markdown files with YAML frontmatter:

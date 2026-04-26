@@ -562,8 +562,7 @@ def run_fetcher(args: argparse.Namespace) -> int:
                         n_chunks = len(ctx.chunks) if ctx.chunks else 0
                         extra = f" ({n_chunks} chunks)" if n_chunks else ""
                         console.print(
-                            f"[green]Saved:[/green] {ctx.output_path} "
-                            f"[{ctx.source_type or 'generic'}]{extra}"
+                            f"[green]Saved:[/green] {ctx.output_path} [{ctx.source_type or 'generic'}]{extra}"
                         )
                     return 0
 

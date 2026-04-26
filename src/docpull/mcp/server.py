@@ -215,8 +215,7 @@ async def _run_stdio() -> int:
         from mcp.types import CallToolResult, TextContent, Tool, ToolAnnotations
     except ImportError:
         print(
-            "docpull mcp requires the 'mcp' package. Install with: "
-            "pip install docpull[mcp]",
+            "docpull mcp requires the 'mcp' package. Install with: pip install docpull[mcp]",
             file=sys.stderr,
         )
         return 1
@@ -590,7 +589,10 @@ async def _run_stdio() -> int:
         #     isError=False), and
         # (b) errors on tools with an outputSchema don't fail the validator
         #     for "missing structured content."
-        content = [TextContent(type="text", text=result.text)]
+        # `content` is typed `list[TextContent | ImageContent | ...]` on the SDK
+        # side; list invariance means we have to widen the local annotation
+        # explicitly even though TextContent is one of the valid variants.
+        content: list[Any] = [TextContent(type="text", text=result.text)]
         return CallToolResult(
             content=content,
             structuredContent=result.data if not result.is_error else None,

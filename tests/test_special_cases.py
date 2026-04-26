@@ -107,9 +107,7 @@ class TestOpenApiExtractor:
                             "200": {
                                 "description": "OK",
                                 "content": {
-                                    "application/json": {
-                                        "schema": {"$ref": "#/components/schemas/Thing"}
-                                    }
+                                    "application/json": {"schema": {"$ref": "#/components/schemas/Thing"}}
                                 },
                             }
                         },
@@ -148,7 +146,7 @@ class TestOpenApiExtractor:
             "paths": {
                 "/v1/x": {
                     "get": {
-                        "description": "Plain <a href=\"/foo\">link</a> in <b>bold</b>",
+                        "description": 'Plain <a href="/foo">link</a> in <b>bold</b>',
                         "responses": {"200": {"description": "ok"}},
                     }
                 }
@@ -228,11 +226,7 @@ class TestOpenApiExtractor:
                 "/x": {
                     "post": {
                         "requestBody": {
-                            "content": {
-                                "application/json": {
-                                    "schema": {"$ref": "#/components/schemas/A"}
-                                }
-                            }
+                            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/A"}}}
                         },
                         "responses": {"200": {"description": "ok"}},
                     }
@@ -251,16 +245,10 @@ class TestOpenApiExtractor:
 
 class TestMintlifyExtractor:
     def test_matches_when_marker_present_and_next_data_parses(self):
-        payload = {
-            "props": {
-                "pageProps": {"title": "Doc", "source": "content " * 40}
-            }
-        }
+        payload = {"props": {"pageProps": {"title": "Doc", "source": "content " * 40}}}
         html = (
             b"<html><head><meta name=generator content=Mintlify></head><body>"
-            b'<script id="__NEXT_DATA__">'
-            + json.dumps(payload).encode()
-            + b"</script></body></html>"
+            b'<script id="__NEXT_DATA__">' + json.dumps(payload).encode() + b"</script></body></html>"
         )
         result = MintlifyExtractor().try_extract(html, "https://example.com/")
         assert result is not None

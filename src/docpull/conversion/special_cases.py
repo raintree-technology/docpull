@@ -246,7 +246,8 @@ def _describe_type(schema: Any, spec: dict[str, Any]) -> str:
     if not isinstance(schema, dict):
         return "?"
     if "$ref" in schema:
-        return schema["$ref"].rsplit("/", 1)[-1]
+        ref: str = schema["$ref"]
+        return ref.rsplit("/", 1)[-1]
     for key in ("oneOf", "anyOf", "allOf"):
         if isinstance(schema.get(key), list) and schema[key]:
             seen: list[str] = []
@@ -349,9 +350,7 @@ class OpenApiExtractor:
             for method, op in ops.items():
                 if method.lower() not in _HTTP_METHODS or not isinstance(op, dict):
                     continue
-                self._render_operation(
-                    lines, path, method, op, shared_params, data
-                )
+                self._render_operation(lines, path, method, op, shared_params, data)
 
         return SpecialCaseResult(
             markdown="\n".join(lines).strip() + "\n",
@@ -410,9 +409,7 @@ class OpenApiExtractor:
                 lines.append(bullet)
             lines.append("")
 
-    def _render_request_body(
-        self, lines: list[str], body: Any, spec: dict[str, Any]
-    ) -> None:
+    def _render_request_body(self, lines: list[str], body: Any, spec: dict[str, Any]) -> None:
         if not isinstance(body, dict):
             return
         if "$ref" in body:
@@ -455,9 +452,7 @@ class OpenApiExtractor:
             lines.append(f"- body: {_describe_type(schema, spec)}")
         lines.append("")
 
-    def _render_responses(
-        self, lines: list[str], responses: Any, spec: dict[str, Any]
-    ) -> None:
+    def _render_responses(self, lines: list[str], responses: Any, spec: dict[str, Any]) -> None:
         if not isinstance(responses, dict) or not responses:
             return
         lines.append("**Responses:**")
@@ -535,11 +530,7 @@ class MdxSourceExtractor:
         for pattern in self._EDIT_PATTERNS:
             match = pattern.search(text)
             if match:
-                raw_url = (
-                    match.group(1)
-                    .replace("/blob/", "/raw/")
-                    .replace("/edit/", "/raw/")
-                )
+                raw_url = match.group(1).replace("/blob/", "/raw/").replace("/edit/", "/raw/")
                 # Return None so downstream runs, but attach hint via a cache
                 # mechanism. Simpler: return None always; step reads the URL
                 # if needed by re-running the regex.
@@ -567,9 +558,7 @@ def find_mdx_source_url(html: bytes) -> str | None:
     for pattern in MdxSourceExtractor._EDIT_PATTERNS:
         match = pattern.search(text)
         if match:
-            return (
-                match.group(1).replace("/blob/", "/raw/").replace("/edit/", "/raw/")
-            )
+            return match.group(1).replace("/blob/", "/raw/").replace("/edit/", "/raw/")
     return None
 
 

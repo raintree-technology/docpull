@@ -159,14 +159,14 @@ class UrlValidator:
         addresses: set[str] = set()
         for family, _, _, _, sockaddr in socket.getaddrinfo(hostname, None, type=socket.SOCK_STREAM):
             if family in {socket.AF_INET, socket.AF_INET6}:
-                addresses.add(sockaddr[0])
+                addresses.add(str(sockaddr[0]))
 
         if not addresses:
             raise socket.gaierror(f"No addresses found for {hostname}")
 
         return sorted(addresses)
 
-    def _blocked_ip_reason(self, ip: ipaddress._BaseAddress) -> str | None:
+    def _blocked_ip_reason(self, ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> str | None:
         """Return a rejection reason for disallowed IP addresses."""
         if ip.is_private:
             return "Private IP address"

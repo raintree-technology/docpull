@@ -80,6 +80,7 @@ async def server(monkeypatch):
         # Any hostname is acceptable for these tests; the test server is
         # bound to a single localhost port so there's no real SSRF risk.
         from docpull.security.url_validator import UrlValidationResult
+
         return UrlValidationResult.valid()
 
     monkeypatch.setattr(UrlValidator, "validate_hostname", permissive_validate)
@@ -117,9 +118,7 @@ async def _run(config: DocpullConfig) -> tuple[int, list[SkipReason | None]]:
 
 
 @pytest.mark.asyncio
-async def test_conditional_get_returns_304_on_second_run(
-    server, tmp_path: Path, monkeypatch
-):
+async def test_conditional_get_returns_304_on_second_run(server, tmp_path: Path, monkeypatch):
     """Second `--cache` run sends If-None-Match and gets 304."""
     output_dir = tmp_path / "out"
     cache_dir = tmp_path / "cache"
@@ -145,17 +144,13 @@ async def test_conditional_get_returns_304_on_second_run(
     assert SkipReason.CACHE_UNCHANGED in skip_reasons
 
     # Confirm the request actually carried the conditional header.
-    headers_seen = [
-        h.get("If-None-Match") for h in server["request_log"] if "If-None-Match" in h
-    ]
+    headers_seen = [h.get("If-None-Match") for h in server["request_log"] if "If-None-Match" in h]
     assert headers_seen, "expected at least one request bearing If-None-Match"
     assert headers_seen[0] == '"abc123"'
 
 
 @pytest.mark.asyncio
-async def test_missing_output_file_forces_full_fetch(
-    server, tmp_path: Path, monkeypatch
-):
+async def test_missing_output_file_forces_full_fetch(server, tmp_path: Path, monkeypatch):
     """If the user wipes the output dir, the cache must NOT cause a 304-skip."""
     output_dir = tmp_path / "out"
     cache_dir = tmp_path / "cache"
@@ -181,7 +176,5 @@ async def test_missing_output_file_forces_full_fetch(
     assert fetched == 1
     assert SkipReason.CACHE_UNCHANGED not in skip_reasons
     # And no conditional header should have been sent.
-    no_ifmatch = [
-        h for h in server["request_log"] if "If-None-Match" not in h
-    ]
+    no_ifmatch = [h for h in server["request_log"] if "If-None-Match" not in h]
     assert no_ifmatch, "expected at least one unconditional request"

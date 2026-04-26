@@ -110,11 +110,7 @@ def apply_profile(config: DocpullConfig) -> DocpullConfig:
         """``over`` wins over ``base`` per key, recursing into dicts."""
         out = base.copy()
         for key, value in over.items():
-            if (
-                key in out
-                and isinstance(out[key], dict)
-                and isinstance(value, dict)
-            ):
+            if key in out and isinstance(out[key], dict) and isinstance(value, dict):
                 out[key] = merge(out[key], value)
             else:
                 out[key] = value

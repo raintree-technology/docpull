@@ -102,7 +102,6 @@ dev = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
     "pytest-asyncio>=0.21.0",
-    "black>=23.0.0",
     "mypy>=1.0.0",
     "ruff>=0.1.0",
     "bandit>=1.7.0",
@@ -131,10 +130,6 @@ include = ["docpull*"]
 
 [tool.setuptools.package-data]
 docpull = ["py.typed"]
-
-[tool.black]
-line-length = 110
-target-version = ["py310", "py311", "py312", "py313", "py314"]
 
 [tool.ruff]
 line-length = 110

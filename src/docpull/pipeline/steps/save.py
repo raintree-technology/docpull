@@ -237,7 +237,7 @@ class SaveStep:
             safe_desc = safe_desc[:197].rstrip() + "..."
         return (
             "---\n"
-            f'name: {self._skill_name}\n'
+            f"name: {self._skill_name}\n"
             f'description: "{safe_desc}"\n'
             "---\n\n"
             f"# {self._skill_name}\n\n"

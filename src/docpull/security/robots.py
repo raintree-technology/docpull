@@ -60,11 +60,19 @@ class _PinnedHTTPSConnection(http.client.HTTPSConnection):
         self._ip_address = ip_address
 
     def connect(self) -> None:
-        sock = socket.create_connection((self._ip_address, self.port), self.timeout, self.source_address)
-        if self._tunnel_host:
+        # http.client.HTTPConnection sets source_address / _tunnel_host /
+        # _tunnel / _context but typeshed doesn't expose them on the subclass
+        # we get back through MRO. Accessing them by name is the supported way
+        # to subclass HTTPSConnection (used by urllib3 and aiohttp the same way).
+        sock = socket.create_connection(
+            (self._ip_address, self.port),
+            self.timeout,
+            self.source_address,  # type: ignore[attr-defined]
+        )
+        if self._tunnel_host:  # type: ignore[attr-defined]
             self.sock = sock
-            self._tunnel()
-        self.sock = self._context.wrap_socket(sock, server_hostname=self.host)
+            self._tunnel()  # type: ignore[attr-defined]
+        self.sock = self._context.wrap_socket(sock, server_hostname=self.host)  # type: ignore[attr-defined]
 
 
 class RobotsChecker:
@@ -200,7 +208,7 @@ class RobotsChecker:
         addresses: set[str] = set()
         for family, _, _, _, sockaddr in socket.getaddrinfo(hostname, None, type=socket.SOCK_STREAM):
             if family in {socket.AF_INET, socket.AF_INET6}:
-                addresses.add(sockaddr[0])
+                addresses.add(str(sockaddr[0]))
 
         if not addresses:
             raise OSError(f"No addresses found for {hostname}")

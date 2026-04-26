@@ -19,9 +19,7 @@ def _ctx(url: str, html: bytes) -> PageContext:
 async def test_next_data_takes_precedence_over_generic():
     payload = {"props": {"pageProps": {"title": "Page", "source": "body text " * 50}}}
     html = (
-        b"<html><body><script id=\"__NEXT_DATA__\">"
-        + json.dumps(payload).encode()
-        + b"</script></body></html>"
+        b'<html><body><script id="__NEXT_DATA__">' + json.dumps(payload).encode() + b"</script></body></html>"
     )
     step = ConvertStep(add_frontmatter=False)
     ctx = await step.execute(_ctx("https://example.com/", html))
@@ -69,9 +67,7 @@ async def test_special_cases_can_be_disabled():
 async def test_frontmatter_includes_source_type():
     payload = {"props": {"pageProps": {"title": "Page", "source": "body text " * 50}}}
     html = (
-        b"<html><body><script id=\"__NEXT_DATA__\">"
-        + json.dumps(payload).encode()
-        + b"</script></body></html>"
+        b'<html><body><script id="__NEXT_DATA__">' + json.dumps(payload).encode() + b"</script></body></html>"
     )
     step = ConvertStep(add_frontmatter=True)
     ctx = await step.execute(_ctx("https://example.com/", html))

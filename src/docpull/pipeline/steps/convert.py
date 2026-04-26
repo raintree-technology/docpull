@@ -1,9 +1,11 @@
 """Pipeline step for HTML to Markdown conversion."""
 
+from __future__ import annotations
+
 import logging
 import re
 from datetime import datetime, timezone
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from ...conversion.extractor import MainContentExtractor
 from ...conversion.markdown import FrontmatterBuilder, HtmlToMarkdown
@@ -16,6 +18,9 @@ from ...conversion.special_cases import (
 )
 from ...models.events import EventType, FetchEvent
 from ..base import EventEmitter, PageContext
+
+if TYPE_CHECKING:
+    from ...conversion.trafilatura_extractor import TrafilaturaExtractor
 
 logger = logging.getLogger(__name__)
 
@@ -79,11 +84,7 @@ def _extract_headings(markdown: str, max_level: int = 2, limit: int = 12) -> lis
 
 def _whitelist_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
     """Return only the metadata keys we want to surface in frontmatter."""
-    return {
-        key: metadata[key]
-        for key in _FRONTMATTER_METADATA_KEYS
-        if metadata.get(key)
-    }
+    return {key: metadata[key] for key in _FRONTMATTER_METADATA_KEYS if metadata.get(key)}
 
 
 class ConvertStep:
@@ -128,14 +129,15 @@ class ConvertStep:
         self._strict_js_required = strict_js_required
         self._use_trafilatura = use_trafilatura
 
+        # Exactly one of (_trafilatura) or (_extractor + _converter) is populated.
+        self._trafilatura: TrafilaturaExtractor | None = None
+        self._extractor: MainContentExtractor | None = None
+        self._converter: HtmlToMarkdown | None = None
         if use_trafilatura:
             from ...conversion.trafilatura_extractor import TrafilaturaExtractor
 
             self._trafilatura = TrafilaturaExtractor()
-            self._extractor = None
-            self._converter = None
         else:
-            self._trafilatura = None
             self._extractor = extractor or MainContentExtractor()
             self._converter = converter or HtmlToMarkdown()
 
@@ -192,9 +194,7 @@ class ConvertStep:
                 if headings:
                     extra["headings"] = headings
                 # ISO 8601 UTC timestamp so re-runs can be diffed by date.
-                extra["crawled_at"] = datetime.now(timezone.utc).strftime(
-                    "%Y-%m-%dT%H:%M:%SZ"
-                )
+                extra["crawled_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
                 frontmatter = self._frontmatter_builder.build(
                     title=ctx.title,
                     url=ctx.url,

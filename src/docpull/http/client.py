@@ -12,7 +12,7 @@ from types import TracebackType
 from urllib.parse import urljoin, urlparse
 
 import aiohttp
-from aiohttp.abc import AbstractResolver
+from aiohttp.abc import AbstractResolver, ResolveResult
 
 from ..security.url_validator import UrlValidator
 from .protocols import HttpResponse
@@ -45,14 +45,14 @@ class _ValidatedResolver(AbstractResolver):
         self,
         host: str,
         port: int = 0,
-        family: int = socket.AF_UNSPEC,
-    ) -> list[dict[str, object]]:
+        family: socket.AddressFamily = socket.AF_UNSPEC,
+    ) -> list[ResolveResult]:
         try:
             addresses = self._url_validator.resolve_allowed_addresses(host)
         except ValueError as err:
             raise OSError(str(err)) from err
 
-        results: list[dict[str, object]] = []
+        results: list[ResolveResult] = []
         for address in addresses:
             ip = ipaddress.ip_address(address)
             entry_family = socket.AF_INET6 if ip.version == 6 else socket.AF_INET
@@ -60,14 +60,14 @@ class _ValidatedResolver(AbstractResolver):
                 continue
 
             results.append(
-                {
-                    "hostname": host,
-                    "host": address,
-                    "port": port,
-                    "family": entry_family,
-                    "proto": socket.IPPROTO_TCP,
-                    "flags": socket.AI_NUMERICHOST,
-                }
+                ResolveResult(
+                    hostname=host,
+                    host=address,
+                    port=port,
+                    family=entry_family,
+                    proto=socket.IPPROTO_TCP,
+                    flags=socket.AI_NUMERICHOST,
+                )
             )
 
         if not results:
@@ -236,20 +236,21 @@ class AsyncHttpClient:
 
     async def __aenter__(self) -> AsyncHttpClient:
         """Enter async context and create session."""
-        connector_kwargs: dict[str, object] = {
-            "limit": 100,  # Total connection limit
-            "limit_per_host": 10,  # Per-host connection limit
-            "ttl_dns_cache": 300,  # DNS cache TTL
-        }
+        resolver: AbstractResolver | None = None
         if self._url_validator is not None and self._proxy is None:
-            connector_kwargs["resolver"] = _ValidatedResolver(self._url_validator)
+            resolver = _ValidatedResolver(self._url_validator)
         elif self._proxy is not None and self._url_validator is not None:
             logger.warning(
                 "Proxy mode: DNS-pinning resolver is not active. "
                 "URL validation still runs pre-flight, but the proxy resolves DNS independently."
             )
 
-        connector = aiohttp.TCPConnector(**connector_kwargs)
+        connector = aiohttp.TCPConnector(
+            limit=100,
+            limit_per_host=10,
+            ttl_dns_cache=300,
+            resolver=resolver,
+        )
         self._session = aiohttp.ClientSession(
             connector=connector,
             headers={"User-Agent": self._user_agent},
