@@ -14,7 +14,7 @@ Usage:
             print(event)
 """
 
-__version__ = "2.3.1"
+__version__ = "2.4.0"
 
 from .cache import CacheManager, StreamingDeduplicator
 from .conversion.chunking import Chunk, TokenCounter, chunk_markdown
