@@ -1,14 +1,19 @@
 """stdio MCP server exposing docpull tools to AI agents.
 
 Requires the optional ``mcp`` Python package (install with
-``pip install docpull[mcp]``). The server registers six tools:
+``pip install docpull[mcp]``). The server registers eight tools:
 
-- ``fetch_url(url)`` — one-shot fetch, no discovery. The agent-oriented tool.
-- ``ensure_docs(source, force?)`` — fetch a named library.
+Read-only:
+- ``fetch_url(url)`` — one-shot fetch, no discovery. Agent-oriented fast path.
 - ``list_sources(category?)`` — show available aliases.
 - ``list_indexed()`` — show what has been fetched.
 - ``grep_docs(pattern, library?, limit?)`` — regex search through cached docs.
 - ``read_doc(library, path, line_start?, line_end?)`` — read a fetched file.
+
+Write:
+- ``ensure_docs(source, force?)`` — fetch (or refresh) a named library.
+- ``add_source(name, url, ...)`` — add or update a user source alias.
+- ``remove_source(name, delete_cache?)`` — remove a user source alias.
 """
 
 from __future__ import annotations
@@ -21,12 +26,14 @@ from typing import Any
 
 from .tools import (
     ToolResult,
+    add_source,
     ensure_docs,
     fetch_url,
     grep_docs,
     list_indexed,
     list_sources,
     read_doc,
+    remove_source,
 )
 
 logger = logging.getLogger(__name__)
@@ -35,15 +42,141 @@ SERVER_INSTRUCTIONS = (
     "Call list_sources to discover aliases before ensure_docs. "
     "Use ensure_docs for a whole library (cached 7 days), fetch_url for one "
     "ad-hoc HTTPS page. After ensure_docs, use grep_docs to find passages "
-    "and read_doc to pull the surrounding lines."
+    "and read_doc to pull the surrounding lines. Use add_source / "
+    "remove_source to manage the user-defined registry."
 )
 
 
-def _format_result(result: ToolResult) -> dict[str, Any]:
-    return {
-        "content": [{"type": "text", "text": result.text}],
-        "isError": result.is_error,
-    }
+# Output schemas — keep these next to the tool list so they stay in sync.
+# Tools that return free-form Markdown (fetch_url) intentionally omit a
+# schema; the rest expose structured payloads alongside the rendered text.
+
+_LIST_SOURCES_OUTPUT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "sources": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string"},
+                    "url": {"type": "string"},
+                    "description": {"type": "string"},
+                    "category": {"type": "string"},
+                    "max_pages": {"type": "integer"},
+                },
+                "required": ["name", "url", "description", "category"],
+            },
+        },
+    },
+    "required": ["sources"],
+}
+
+_LIST_INDEXED_OUTPUT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "libraries": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string"},
+                    "file_count": {"type": "integer"},
+                    "fresh": {"type": "boolean"},
+                    "fetched_at": {"type": "string"},
+                    "age_seconds": {"type": "integer"},
+                },
+                "required": ["name", "file_count", "fresh"],
+            },
+        },
+    },
+    "required": ["libraries"],
+}
+
+_GREP_DOCS_OUTPUT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "pattern": {"type": "string"},
+        "total_matches": {"type": "integer"},
+        "files": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string"},
+                    "match_count": {"type": "integer"},
+                    "matches": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "lineno": {"type": "integer"},
+                                "before": {"type": "array", "items": {"type": "string"}},
+                                "line": {"type": "string"},
+                                "after": {"type": "array", "items": {"type": "string"}},
+                            },
+                            "required": ["lineno", "before", "line", "after"],
+                        },
+                    },
+                },
+                "required": ["path", "match_count", "matches"],
+            },
+        },
+        "truncated": {"type": "boolean"},
+        "timed_out": {"type": "boolean"},
+    },
+    "required": ["pattern", "total_matches", "files", "truncated", "timed_out"],
+}
+
+_READ_DOC_OUTPUT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "library": {"type": "string"},
+        "path": {"type": "string"},
+        "line_start": {"type": "integer"},
+        "line_end": {"type": "integer"},
+        "total_lines": {"type": "integer"},
+        "text": {"type": "string"},
+    },
+    "required": ["library", "path", "line_start", "line_end", "total_lines", "text"],
+}
+
+_ENSURE_DOCS_OUTPUT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "source": {"type": "string"},
+        "cached": {"type": "boolean"},
+        "file_count": {"type": "integer"},
+        "pages_fetched": {"type": "integer"},
+        "pages_skipped": {"type": "integer"},
+        "pages_failed": {"type": "integer"},
+        "target_dir": {"type": "string"},
+    },
+    "required": ["source", "cached", "target_dir"],
+}
+
+_ADD_SOURCE_OUTPUT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "name": {"type": "string"},
+        "url": {"type": "string"},
+        "replaced": {"type": "boolean"},
+        "shadowed_builtin": {"type": "boolean"},
+        "config_path": {"type": "string"},
+    },
+    "required": ["name", "url", "replaced", "shadowed_builtin", "config_path"],
+}
+
+_REMOVE_SOURCE_OUTPUT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "name": {"type": "string"},
+        "removed": {"type": "boolean"},
+        "cache_deleted": {"type": "boolean"},
+        "config_path": {"type": "string"},
+    },
+    "required": ["name", "removed", "cache_deleted"],
+}
 
 
 def _coerce_int(value: Any, *, name: str, default: int) -> int:
@@ -75,7 +208,7 @@ async def _run_stdio() -> int:
     try:
         from mcp.server import Server
         from mcp.server.stdio import stdio_server
-        from mcp.types import TextContent, Tool, ToolAnnotations
+        from mcp.types import CallToolResult, TextContent, Tool, ToolAnnotations
     except ImportError:
         print(
             "docpull mcp requires the 'mcp' package. Install with: "
@@ -153,6 +286,7 @@ async def _run_stdio() -> int:
                     },
                     "required": ["source"],
                 },
+                outputSchema=_ENSURE_DOCS_OUTPUT_SCHEMA,
             ),
             Tool(
                 name="list_sources",
@@ -177,6 +311,7 @@ async def _run_stdio() -> int:
                         }
                     },
                 },
+                outputSchema=_LIST_SOURCES_OUTPUT_SCHEMA,
             ),
             Tool(
                 name="list_indexed",
@@ -191,6 +326,7 @@ async def _run_stdio() -> int:
                     idempotentHint=True,
                 ),
                 inputSchema={"type": "object", "properties": {}},
+                outputSchema=_LIST_INDEXED_OUTPUT_SCHEMA,
             ),
             Tool(
                 name="grep_docs",
@@ -228,6 +364,7 @@ async def _run_stdio() -> int:
                     },
                     "required": ["pattern"],
                 },
+                outputSchema=_GREP_DOCS_OUTPUT_SCHEMA,
             ),
             Tool(
                 name="read_doc",
@@ -256,6 +393,89 @@ async def _run_stdio() -> int:
                     },
                     "required": ["library", "path"],
                 },
+                outputSchema=_READ_DOC_OUTPUT_SCHEMA,
+            ),
+            Tool(
+                name="add_source",
+                description=(
+                    "Add or update a user source alias in the writable "
+                    "sources.yaml. Refuses to shadow a builtin alias unless "
+                    "force=true. URL is HTTPS-only and validated against the "
+                    "same SSRF rules as fetch_url. Use list_sources to confirm "
+                    "the change."
+                ),
+                annotations=ToolAnnotations(
+                    title="Add or update a user source",
+                    readOnlyHint=False,
+                    destructiveHint=False,
+                    idempotentHint=True,
+                    openWorldHint=False,
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "pattern": "^[a-zA-Z0-9_.-]+$",
+                            "maxLength": 128,
+                            "description": "Alias name (alnum + _ . -)",
+                        },
+                        "url": {
+                            "type": "string",
+                            "pattern": "^https://",
+                            "description": "HTTPS URL to crawl",
+                        },
+                        "description": {"type": "string", "maxLength": 500},
+                        "category": {
+                            "type": "string",
+                            "enum": ["frontend", "backend", "ai", "database", "user"],
+                        },
+                        "max_pages": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 100000,
+                        },
+                        "force": {
+                            "type": "boolean",
+                            "default": False,
+                            "description": "Override a builtin alias of the same name",
+                        },
+                    },
+                    "required": ["name", "url"],
+                },
+                outputSchema=_ADD_SOURCE_OUTPUT_SCHEMA,
+            ),
+            Tool(
+                name="remove_source",
+                description=(
+                    "Remove a user source alias. Optionally delete its cached "
+                    "docs (delete_cache=true). Cannot remove a builtin source — "
+                    "to stop using one, just don't call ensure_docs on it."
+                ),
+                annotations=ToolAnnotations(
+                    title="Remove a user source",
+                    readOnlyHint=False,
+                    destructiveHint=True,
+                    idempotentHint=True,
+                    openWorldHint=False,
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "pattern": "^[a-zA-Z0-9_.-]+$",
+                            "maxLength": 128,
+                        },
+                        "delete_cache": {
+                            "type": "boolean",
+                            "default": False,
+                            "description": "Also delete the cached docs directory",
+                        },
+                    },
+                    "required": ["name"],
+                },
+                outputSchema=_REMOVE_SOURCE_OUTPUT_SCHEMA,
             ),
         ]
 
@@ -282,7 +502,7 @@ async def _run_stdio() -> int:
         return _cb
 
     @server.call_tool()  # type: ignore[misc,no-untyped-call]
-    async def _call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
+    async def _call_tool(name: str, arguments: dict[str, Any]) -> CallToolResult:
         try:
             if name == "fetch_url":
                 url = _require_str(arguments, "url")
@@ -327,6 +547,30 @@ async def _run_stdio() -> int:
                     line_start=_coerce_int(line_start, name="line_start", default=0) or None,
                     line_end=_coerce_int(line_end, name="line_end", default=0) or None,
                 )
+            elif name == "add_source":
+                add_name = _require_str(arguments, "name")
+                add_url = _require_str(arguments, "url")
+                description = arguments.get("description")
+                if description is not None and not isinstance(description, str):
+                    raise ValueError("'description' must be a string")
+                category = arguments.get("category")
+                if category is not None and not isinstance(category, str):
+                    raise ValueError("'category' must be a string")
+                max_pages = arguments.get("max_pages")
+                result = add_source(
+                    add_name,
+                    add_url,
+                    description=description,
+                    category=category,
+                    max_pages=_coerce_int(max_pages, name="max_pages", default=0) or None,
+                    force=bool(arguments.get("force", False)),
+                )
+            elif name == "remove_source":
+                rm_name = _require_str(arguments, "name")
+                result = remove_source(
+                    rm_name,
+                    delete_cache=bool(arguments.get("delete_cache", False)),
+                )
             else:
                 result = ToolResult(f"Unknown tool: {name}", is_error=True)
         except ValueError as err:
@@ -334,7 +578,18 @@ async def _run_stdio() -> int:
         except Exception as err:  # noqa: BLE001
             logger.exception("Tool %s raised", name)
             result = ToolResult(f"Tool error: {err}", is_error=True)
-        return [TextContent(type="text", text=result.text)]
+
+        # Return CallToolResult directly so:
+        # (a) ``is_error`` propagates (the SDK's tuple/list paths hardcode
+        #     isError=False), and
+        # (b) errors on tools with an outputSchema don't fail the validator
+        #     for "missing structured content."
+        content = [TextContent(type="text", text=result.text)]
+        return CallToolResult(
+            content=content,
+            structuredContent=result.data if not result.is_error else None,
+            isError=result.is_error,
+        )
 
     async with stdio_server() as (read, write):
         await server.run(read, write, server.create_initialization_options())

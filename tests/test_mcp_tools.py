@@ -14,11 +14,13 @@ from docpull.mcp.sources import (
     resolve_source,
 )
 from docpull.mcp.tools import (
+    add_source,
     fetch_url,
     grep_docs,
     list_indexed,
     list_sources,
     read_doc,
+    remove_source,
 )
 
 
@@ -383,3 +385,233 @@ def test_atomic_meta_write_no_tmp_left_behind(tmp_path):
     _write_meta(meta, "x", "https://x.test", 3)
     assert meta.exists()
     assert not (tmp_path / ".x.meta.json.tmp").exists()
+
+
+# --- add_source / remove_source --------------------------------------
+
+
+def test_add_source_writes_user_yaml(tmp_path):
+    """add_source persists the new entry to sources.yaml under config_dir."""
+    import yaml
+
+    result = add_source(
+        "mydocs",
+        "https://example.com/docs",
+        description="My internal docs",
+        category="user",
+        max_pages=100,
+        config_dir=tmp_path,
+    )
+    assert not result.is_error
+    yaml_path = tmp_path / "sources.yaml"
+    assert yaml_path.exists()
+    parsed = yaml.safe_load(yaml_path.read_text())
+    assert parsed["sources"]["mydocs"]["url"] == "https://example.com/docs"
+    assert parsed["sources"]["mydocs"]["max_pages"] == 100
+    assert result.data == {
+        "name": "mydocs",
+        "url": "https://example.com/docs",
+        "replaced": False,
+        "shadowed_builtin": False,
+        "config_path": str(yaml_path),
+    }
+
+
+def test_add_source_rejects_invalid_name(tmp_path):
+    result = add_source("../bad", "https://example.com/", config_dir=tmp_path)
+    assert result.is_error
+    assert "Invalid source name" in result.text
+
+
+def test_add_source_rejects_http(tmp_path):
+    """SSRF guard: only HTTPS allowed."""
+    result = add_source("plain", "http://example.com/", config_dir=tmp_path)
+    assert result.is_error
+    assert "rejected" in result.text.lower()
+
+
+def test_add_source_rejects_localhost(tmp_path):
+    result = add_source("local", "https://localhost/", config_dir=tmp_path)
+    assert result.is_error
+
+
+def test_add_source_rejects_private_ip(tmp_path):
+    result = add_source("internal", "https://10.0.0.1/", config_dir=tmp_path)
+    assert result.is_error
+
+
+def test_add_source_refuses_builtin_without_force(tmp_path):
+    # NB: URL must be DNS-resolvable because UrlValidator does live lookups.
+    result = add_source("react", "https://example.com/", config_dir=tmp_path)
+    assert result.is_error
+    assert "builtin" in result.text.lower()
+
+
+def test_add_source_force_overrides_builtin(tmp_path):
+    result = add_source(
+        "react", "https://example.com/", force=True, config_dir=tmp_path
+    )
+    assert not result.is_error
+    assert result.data["shadowed_builtin"] is True
+
+
+def test_add_source_updates_existing_user_source(tmp_path):
+    add_source("mydocs", "https://example.com/a", config_dir=tmp_path)
+    result = add_source("mydocs", "https://example.com/b", config_dir=tmp_path)
+    assert not result.is_error
+    assert result.data["replaced"] is True
+
+
+def test_add_source_rejects_oversized_description(tmp_path):
+    result = add_source(
+        "mydocs",
+        "https://example.com/",
+        description="x" * 1000,
+        config_dir=tmp_path,
+    )
+    assert result.is_error
+
+
+def test_add_source_rejects_unknown_category(tmp_path):
+    result = add_source(
+        "mydocs", "https://example.com/", category="bogus", config_dir=tmp_path
+    )
+    assert result.is_error
+    assert "category" in result.text.lower()
+
+
+def test_remove_source_removes_user_entry(tmp_path):
+    add_source("mydocs", "https://example.com/", config_dir=tmp_path)
+    result = remove_source("mydocs", config_dir=tmp_path, docs_dir=tmp_path)
+    assert not result.is_error
+    assert result.data["removed"] is True
+    assert result.data["cache_deleted"] is False
+
+
+def test_remove_source_refuses_builtin(tmp_path):
+    result = remove_source("react", config_dir=tmp_path, docs_dir=tmp_path)
+    assert result.is_error
+    assert "builtin" in result.text.lower()
+
+
+def test_remove_source_with_delete_cache(tmp_path):
+    add_source("mydocs", "https://example.com/", config_dir=tmp_path)
+    cache = tmp_path / "mydocs"
+    cache.mkdir()
+    (cache / "page.md").write_text("hi")
+    meta = tmp_path / ".mydocs.meta.json"
+    meta.write_text("{}")
+
+    result = remove_source(
+        "mydocs", delete_cache=True, config_dir=tmp_path, docs_dir=tmp_path
+    )
+    assert not result.is_error
+    assert result.data["removed"] is True
+    assert result.data["cache_deleted"] is True
+    assert not cache.exists()
+    assert not meta.exists()
+
+
+def test_remove_source_unknown_no_op(tmp_path):
+    result = remove_source(
+        "ghost", config_dir=tmp_path, docs_dir=tmp_path
+    )
+    # Not an error — just nothing to do.
+    assert not result.is_error
+    assert result.data["removed"] is False
+
+
+def test_remove_source_rejects_traversal(tmp_path):
+    result = remove_source("../etc", config_dir=tmp_path, docs_dir=tmp_path)
+    assert result.is_error
+
+
+def test_add_source_atomic_no_tmp_left_behind(tmp_path):
+    add_source("mydocs", "https://example.com/", config_dir=tmp_path)
+    assert (tmp_path / "sources.yaml").exists()
+    assert not (tmp_path / "sources.yaml.tmp").exists()
+
+
+# --- Structured output (outputSchema / structuredContent) ------------
+
+
+def test_list_sources_structured_payload():
+    result = list_sources()
+    assert result.data is not None
+    assert "sources" in result.data
+    assert any(s["name"] == "react" for s in result.data["sources"])
+    react = next(s for s in result.data["sources"] if s["name"] == "react")
+    assert react["url"].startswith("https://")
+    assert "category" in react
+
+
+def test_list_sources_filtered_structured_payload():
+    result = list_sources(category="ai")
+    assert all(s["category"] == "ai" for s in result.data["sources"])
+
+
+def test_list_indexed_structured_payload(tmp_path):
+    sub = tmp_path / "lib"
+    sub.mkdir()
+    (sub / "page.md").write_text("hi")
+    result = list_indexed(docs_dir=tmp_path)
+    assert result.data is not None
+    libs = result.data["libraries"]
+    assert any(lib["name"] == "lib" and lib["file_count"] == 1 for lib in libs)
+
+
+def test_list_indexed_empty_structured_payload(tmp_path):
+    result = list_indexed(docs_dir=tmp_path / "missing")
+    assert result.data == {"libraries": []}
+
+
+def test_grep_docs_structured_payload(tmp_path):
+    lib = tmp_path / "lib"
+    lib.mkdir()
+    (lib / "a.md").write_text("alpha\nTARGET\nbravo")
+    result = grep_docs("TARGET", docs_dir=tmp_path)
+    assert result.data is not None
+    assert result.data["pattern"] == "TARGET"
+    assert result.data["total_matches"] == 1
+    assert result.data["truncated"] is False
+    assert result.data["timed_out"] is False
+    files = result.data["files"]
+    assert files[0]["path"].endswith("a.md")
+    assert files[0]["matches"][0]["lineno"] == 2
+    assert files[0]["matches"][0]["line"] == "TARGET"
+
+
+def test_grep_docs_no_matches_structured_payload(tmp_path):
+    lib = tmp_path / "lib"
+    lib.mkdir()
+    (lib / "a.md").write_text("nothing here")
+    result = grep_docs("ghost", docs_dir=tmp_path)
+    assert result.data == {
+        "pattern": "ghost",
+        "total_matches": 0,
+        "files": [],
+        "truncated": False,
+        "timed_out": False,
+    }
+
+
+def test_read_doc_structured_payload(tmp_path):
+    lib = tmp_path / "lib"
+    lib.mkdir()
+    (lib / "a.md").write_text("L1\nL2\nL3")
+    result = read_doc("lib", "a.md", docs_dir=tmp_path)
+    assert result.data is not None
+    assert result.data["library"] == "lib"
+    assert result.data["path"] == "a.md"
+    assert result.data["text"] == "L1\nL2\nL3"
+    assert result.data["total_lines"] == 3
+
+
+def test_read_doc_sliced_structured_payload(tmp_path):
+    lib = tmp_path / "lib"
+    lib.mkdir()
+    (lib / "a.md").write_text("\n".join(f"L{i}" for i in range(1, 11)))
+    result = read_doc("lib", "a.md", docs_dir=tmp_path, line_start=2, line_end=4)
+    assert result.data["line_start"] == 2
+    assert result.data["line_end"] == 4
+    assert result.data["text"] == "L2\nL3\nL4"
