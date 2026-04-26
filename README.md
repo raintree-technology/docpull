@@ -140,7 +140,7 @@ pip install 'docpull[mcp]'
 docpull mcp  # starts the stdio server
 ```
 
-Add to Claude Desktop or Claude Code:
+Add to Claude Desktop or Claude Code manually:
 
 ```json
 {
@@ -153,13 +153,39 @@ Add to Claude Desktop or Claude Code:
 }
 ```
 
-Tools exposed:
+Or, if you use Claude Code, install the plugin instead — it bundles the MCP
+server, five slash commands (`/docs-add`, `/docs-search`, `/docs-list`,
+`/docs-refresh`, `/docs-remove`), and a meta-skill that teaches Claude
+when to reach for docpull automatically:
 
-- `fetch_url(url, max_tokens?)` — one-shot fetch, no crawl
-- `ensure_docs(source, force?)` — fetch a named library (cached 7 days)
+```bash
+# 1. Install docpull with the MCP extra (required for the plugin)
+pip install 'docpull[mcp]'
+```
+
+```
+# 2. Then in Claude Code:
+/plugin marketplace add raintree-technology/docpull
+/plugin install docpull@docpull
+```
+
+See [plugin/README.md](plugin/README.md) for details.
+
+Tools exposed (8 total — read tools advertise `readOnlyHint` so hosts that auto-approve safe tools won't prompt):
+
+Read:
+- `fetch_url(url, max_tokens?)` — one-shot fetch, no crawl. HTTPS-only, SSRF-validated.
 - `list_sources(category?)` — show available aliases (react, nextjs, fastapi, …)
-- `list_indexed()` — what has been fetched locally
-- `grep_docs(pattern, library?)` — regex search across fetched Markdown
+- `list_indexed()` — what has been fetched locally, with last-fetched age
+- `grep_docs(pattern, library?, limit?, context?)` — regex search across fetched Markdown (length-capped + wall-clock budgeted to mitigate ReDoS)
+- `read_doc(library, path, line_start?, line_end?)` — read a specific cached file, optionally line-sliced
+
+Write:
+- `ensure_docs(source, force?, profile?)` — fetch a named library (cached 7 days). Forwards progress to clients that supply a `progressToken`.
+- `add_source(name, url, description?, category?, max_pages?, force?)` — register a user alias (HTTPS-only, atomic write to `sources.yaml`).
+- `remove_source(name, delete_cache?)` — drop a user alias and (optionally) its cached docs.
+
+All tools that carry data also return `structuredContent` validated against an `outputSchema` for clients that prefer typed output.
 
 User-defined sources live in `~/.config/docpull-mcp/sources.yaml`:
 
