@@ -102,6 +102,23 @@ Examples:
         help="Fetch the given URL only (no discovery/crawl). Fast path for agents.",
     )
 
+    parser.add_argument(
+        "--skill",
+        type=str,
+        metavar="NAME",
+        help=(
+            "Generate a Claude Code skill directory. Output goes to "
+            "<output-dir>/<NAME>/ with hierarchical naming and a "
+            "SKILL.md manifest derived from the first page's metadata."
+        ),
+    )
+    parser.add_argument(
+        "--skill-description",
+        type=str,
+        metavar="TEXT",
+        help="Override the auto-derived `description` in SKILL.md.",
+    )
+
     # Output
     parser.add_argument(
         "--output-dir",
@@ -116,6 +133,16 @@ Examples:
         choices=["markdown", "json", "ndjson", "sqlite"],
         default=None,
         help="Output format (default: markdown; 'ndjson' streams one record per line)",
+    )
+    parser.add_argument(
+        "--naming-strategy",
+        choices=["full", "hierarchical", "flat", "short"],
+        default=None,
+        help=(
+            "URL-to-filename strategy. 'full' flattens with underscores; "
+            "'hierarchical' preserves the URL path as nested directories. "
+            "Mirror profile defaults to hierarchical."
+        ),
     )
     parser.add_argument(
         "--stream",
@@ -166,6 +193,15 @@ Examples:
         "--adaptive-rate-limit",
         action="store_true",
         help="Automatically adjust rate limits based on server responses",
+    )
+    crawl_group.add_argument(
+        "--no-streaming-discovery",
+        action="store_true",
+        help=(
+            "Fall back to discover-all-then-fetch instead of piping URLs "
+            "through a worker pool as discovery yields them. Backstop for "
+            "queue-backpressure regressions."
+        ),
     )
 
     # Content filtering
@@ -361,8 +397,20 @@ def run_fetcher(args: argparse.Namespace) -> int:
 
     # Output settings
     output_kwargs: dict = {}
-    if args.output_dir:
+    if args.skill:
+        # Skill mode: nest under <output-dir>/<skill>/, force hierarchical
+        # naming, and stamp the manifest fields. Default --output-dir to
+        # `.claude/skills` for the common drop-in use case.
+        base = args.output_dir or Path(".claude/skills")
+        output_kwargs["directory"] = base / args.skill
+        output_kwargs["naming_strategy"] = "hierarchical"
+        output_kwargs["skill_name"] = args.skill
+        if args.skill_description:
+            output_kwargs["skill_description"] = args.skill_description
+    elif args.output_dir:
         output_kwargs["directory"] = args.output_dir
+    if args.naming_strategy and "naming_strategy" not in output_kwargs:
+        output_kwargs["naming_strategy"] = args.naming_strategy
     if args.stream:
         output_kwargs["format"] = "ndjson"
         output_kwargs["ndjson_filename"] = "-"
@@ -389,6 +437,8 @@ def run_fetcher(args: argparse.Namespace) -> int:
         crawl_kwargs["rate_limit"] = args.rate_limit
     if args.adaptive_rate_limit:
         crawl_kwargs["adaptive_rate_limit"] = True
+    if args.no_streaming_discovery:
+        crawl_kwargs["streaming_discovery"] = False
     if args.include_paths:
         crawl_kwargs["include_paths"] = args.include_paths
     if args.exclude_paths:

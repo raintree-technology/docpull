@@ -110,6 +110,15 @@ class CrawlConfig(BaseModel):
         False,
         description="Automatically adjust rate limits based on server responses (429s)",
     )
+    streaming_discovery: bool = Field(
+        True,
+        description=(
+            "Pipe URLs from the discoverer directly into a worker pool, "
+            "instead of collecting the full list before fetching. Brings "
+            "first PAGE_SAVED forward on large crawl-driven sites. "
+            "Set False to fall back to discover-all-then-fetch."
+        ),
+    )
 
     model_config = {"extra": "forbid"}
 
@@ -219,6 +228,25 @@ class OutputConfig(BaseModel):
     ndjson_filename: str = Field(
         "documents.ndjson",
         description="Output filename for NDJSON format (use '-' for stdout)",
+    )
+    skill_name: str | None = Field(
+        None,
+        pattern=r"^[a-z0-9][a-z0-9-]*$",
+        description=(
+            "When set, write a Claude Code skill manifest (SKILL.md) into "
+            "the output directory after the crawl completes. Pages are "
+            "saved with hierarchical naming so the skill loads as a "
+            "ready-to-use directory. Name must be a valid skill slug "
+            "(lowercase letters, digits, hyphens)."
+        ),
+    )
+    skill_description: str | None = Field(
+        None,
+        description=(
+            "Override for the skill's `description` frontmatter. When None, "
+            "docpull derives a description from the first page's "
+            "OpenGraph / JSON-LD metadata."
+        ),
     )
 
     model_config = {"extra": "forbid"}

@@ -412,3 +412,90 @@ class TestFetchPipeline:
 
         assert execution_order == ["skip"]
         assert "never" not in execution_order
+
+
+class TestSkillManifestGeneration:
+    """SaveStep.finalize() writes a SKILL.md when output.skill_name is set.
+
+    Direct unit test against SaveStep — full integration with Fetcher
+    is exercised indirectly by the existing pipeline tests + a manual
+    smoke run that produced the expected directory layout.
+    """
+
+    @pytest.mark.asyncio
+    async def test_finalize_writes_manifest(self, tmp_path):
+        from docpull.pipeline.steps.save import SaveStep
+
+        step = SaveStep(
+            base_output_dir=tmp_path,
+            skill_name="my-skill",
+        )
+
+        # Pretend a page was just saved (the snapshot path).
+        ctx = PageContext(
+            url="https://docs.example.com/",
+            output_path=tmp_path / "index.md",
+            markdown="---\ntitle: T\n---\n\n# Hi\n",
+            metadata={"description": "Real description from OG."},
+            title="T",
+        )
+        await step.execute(ctx)
+
+        step.finalize()
+
+        manifest = (tmp_path / "SKILL.md").read_text()
+        assert "name: my-skill" in manifest
+        assert "Real description from OG." in manifest
+
+    @pytest.mark.asyncio
+    async def test_finalize_falls_back_to_title_when_no_description(self, tmp_path):
+        from docpull.pipeline.steps.save import SaveStep
+
+        step = SaveStep(
+            base_output_dir=tmp_path,
+            skill_name="my-skill",
+        )
+
+        ctx = PageContext(
+            url="https://docs.example.com/",
+            output_path=tmp_path / "index.md",
+            markdown="---\ntitle: T\n---\n\n# Hi\n",
+            metadata={},
+            title="Foo Docs",
+        )
+        await step.execute(ctx)
+        step.finalize()
+
+        manifest = (tmp_path / "SKILL.md").read_text()
+        assert "name: my-skill" in manifest
+        assert "Foo Docs" in manifest
+
+    @pytest.mark.asyncio
+    async def test_finalize_is_noop_without_skill_name(self, tmp_path):
+        from docpull.pipeline.steps.save import SaveStep
+
+        step = SaveStep(base_output_dir=tmp_path)
+        step.finalize()
+        assert not (tmp_path / "SKILL.md").exists()
+
+    @pytest.mark.asyncio
+    async def test_explicit_description_wins_over_metadata(self, tmp_path):
+        from docpull.pipeline.steps.save import SaveStep
+
+        step = SaveStep(
+            base_output_dir=tmp_path,
+            skill_name="my-skill",
+            skill_description="Override.",
+        )
+        ctx = PageContext(
+            url="https://docs.example.com/",
+            output_path=tmp_path / "index.md",
+            markdown="---\ntitle: T\n---\n\n# Hi\n",
+            metadata={"description": "From metadata."},
+        )
+        await step.execute(ctx)
+        step.finalize()
+
+        manifest = (tmp_path / "SKILL.md").read_text()
+        assert "Override." in manifest
+        assert "From metadata." not in manifest

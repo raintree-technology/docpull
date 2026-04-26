@@ -188,6 +188,7 @@ class Fetcher:
         self._json_saver: JsonSaveStep | None = None
         self._sqlite_saver: SqliteSaveStep | None = None
         self._ndjson_saver: NdjsonSaveStep | None = None
+        self._save_step: SaveStep | None = None
 
     @property
     def stats(self) -> FetchStats:
@@ -372,13 +373,15 @@ class Fetcher:
             self._sqlite_saver = SqliteSaveStep(base_output_dir=output_dir)
             steps.append(self._sqlite_saver)
         else:
-            # Default to markdown file output
-            steps.append(
-                SaveStep(
-                    base_output_dir=output_dir,
-                    emit_chunks=self.config.output.emit_chunks,
-                )
+            # Default to markdown file output. SaveStep also writes
+            # SKILL.md on finalize() when output.skill_name is set.
+            self._save_step = SaveStep(
+                base_output_dir=output_dir,
+                emit_chunks=self.config.output.emit_chunks,
+                skill_name=self.config.output.skill_name,
+                skill_description=self.config.output.skill_description,
             )
+            steps.append(self._save_step)
 
         self._pipeline = FetchPipeline(steps=steps)
 
@@ -442,6 +445,11 @@ class Fetcher:
         if self._sqlite_saver:
             self._sqlite_saver.close()
             self._sqlite_saver = None
+
+        # Write SKILL.md when --skill mode produced a manifest-shaped run.
+        if self._save_step:
+            self._save_step.finalize()
+            self._save_step = None
 
         # Flush cache to disk
         if self._cache_manager:
@@ -545,11 +553,13 @@ class Fetcher:
         """
         Execute the fetch operation, yielding events.
 
-        This is the main entry point for the streaming API.
-        Events are yielded as they occur during:
-        - URL discovery (sitemaps, crawling)
-        - Page fetching
-        - Content processing
+        Two execution modes share this entry point. The default is the
+        streaming-discovery pipeline (URLs flow through a worker pool as
+        the discoverer yields them, so the first page can save before
+        discovery completes). Setting ``crawl.streaming_discovery=False``
+        falls back to the legacy "discover all, then fetch sequentially"
+        path — useful as a backstop if a queue-backpressure regression
+        appears in 2.x.
 
         Yields:
             FetchEvent objects for each significant operation
@@ -568,160 +578,30 @@ class Fetcher:
             raise RuntimeError("Fetcher not initialized. Use 'async with' context manager.")
 
         self._start_time = time.monotonic()
-
-        # Emit start event
         yield FetchEvent(
             type=EventType.STARTED,
             message=f"Starting fetch of {self.config.url}",
         )
 
-        try:
-            # Phase 1: Discovery (or resume from previous run)
-            discovered_urls: list[str] = []
-            resumed = False
-
-            # Check for resume capability
-            if (
-                self.config.cache.enabled
-                and self.config.cache.resume
-                and self._cache_manager
-                and self.config.url
-            ):
-                pending_urls = self._cache_manager.get_pending_urls(self.config.url)
-                if pending_urls is not None:
-                    # Respect current max_pages setting even when resuming
-                    max_pages = self.config.crawl.max_pages
-                    if max_pages and len(pending_urls) > max_pages:
-                        pending_urls = pending_urls[:max_pages]
-                    discovered_urls = pending_urls
-                    resumed = True
-                    yield FetchEvent(
-                        type=EventType.RESUMED,
-                        total=len(discovered_urls),
-                        message=f"Resuming with {len(discovered_urls)} pending URLs",
-                    )
-
-            # If not resuming, run discovery
-            if not resumed and self.config.url:
-                yield FetchEvent(
-                    type=EventType.DISCOVERY_STARTED,
-                    message=f"Discovering URLs from {self.config.url}",
-                )
-
-                async for url in self._discoverer.discover(
-                    self.config.url,
-                    max_urls=self.config.crawl.max_pages,
-                ):
-                    discovered_urls.append(url)
-
-                    # Check for cancellation during discovery
-                    if self._cancelled:
-                        yield FetchEvent(type=EventType.CANCELLED, message="Fetch cancelled during discovery")
-                        return
-
-                # Save discovered URLs for resume capability (before fetching)
-                if self.config.cache.enabled and self._cache_manager:
-                    self._cache_manager.save_discovered_urls(discovered_urls, self.config.url)
-
-            if not resumed:
-                yield FetchEvent(
-                    type=EventType.DISCOVERY_COMPLETE,
-                    total=len(discovered_urls),
-                    message=f"Discovered {len(discovered_urls)} URLs",
-                )
-
-            self._stats.urls_discovered = len(discovered_urls)
-
-            # Check for cancellation
-            if self._cancelled:
-                yield FetchEvent(type=EventType.CANCELLED, message="Fetch cancelled by user")
-                return
-
-            # Phase 2: Fetch pages
-            # Collect events from the pipeline
-            collected_events: list[FetchEvent] = []
-
-            def collect_event(event: FetchEvent) -> None:
-                collected_events.append(event)
-
-            for i, url in enumerate(discovered_urls):
-                if self._cancelled:
-                    yield FetchEvent(type=EventType.CANCELLED, message="Fetch cancelled by user")
-                    return
-
-                # Emit progress event
-                yield FetchEvent(
-                    type=EventType.FETCH_PROGRESS,
-                    url=url,
-                    current=i + 1,
-                    total=len(discovered_urls),
-                    message=f"Processing {i + 1}/{len(discovered_urls)}: {url}",
-                )
-
-                # Compute output path
-                output_path = self._compute_output_path(url)
-
-                # Execute pipeline
-                collected_events.clear()
-
-                if self.config.dry_run:
-                    # Dry run - just emit what would happen
-                    yield FetchEvent(
-                        type=EventType.FETCH_SKIPPED,
-                        url=url,
-                        output_path=output_path,
-                        message=f"[dry-run] Would save to {output_path}",
-                        skip_reason=SkipReason.DRY_RUN,
-                    )
-                    self._stats.pages_skipped += 1
-                    continue
-
-                ctx = await self._pipeline.execute(url, output_path, emit=collect_event)
-
-                # Yield collected events
-                for event in collected_events:
-                    yield event
-
-                # Update stats and cache based on result
-                if ctx.error:
-                    self._stats.pages_failed += 1
-                    if self._cache_manager:
-                        self._cache_manager.mark_failed(url)
-                elif ctx.should_skip:
-                    self._stats.pages_skipped += 1
-                else:
-                    self._stats.pages_fetched += 1
-                    self._stats.bytes_downloaded += ctx.bytes_downloaded
-                    self._stats.files_saved += 1
-
-                    # Update cache with successful fetch
-                    if self._cache_manager and ctx.markdown:
-                        self._cache_manager.update_cache(
-                            url=url,
-                            content=ctx.markdown,
-                            file_path=output_path,
-                            etag=ctx.etag,
-                            last_modified=ctx.last_modified,
-                        )
-                        self._cache_manager.mark_fetched(url)
-
-            # Calculate duration
-            self._stats.duration_seconds = time.monotonic() - self._start_time
-
-            # Clear discovered URLs on successful completion (no failures)
-            if self._cache_manager and self._stats.pages_failed == 0:
-                self._cache_manager.clear_discovered_urls()
-
-            # Emit completion event
+        # Resume short-circuits both modes — the URL list is already known.
+        resume_urls = self._resume_urls()
+        if resume_urls is not None:
             yield FetchEvent(
-                type=EventType.COMPLETED,
-                message=(
-                    f"Fetch completed: {self._stats.pages_fetched} saved, "
-                    f"{self._stats.pages_skipped} skipped, "
-                    f"{self._stats.pages_failed} failed"
-                ),
+                type=EventType.RESUMED,
+                total=len(resume_urls),
+                message=f"Resuming with {len(resume_urls)} pending URLs",
             )
+            async for event in self._fetch_collected(resume_urls):
+                yield event
+            return
 
+        try:
+            if self.config.crawl.streaming_discovery:
+                async for event in self._run_streaming():
+                    yield event
+            else:
+                async for event in self._run_collected():
+                    yield event
         except Exception as e:
             self._stats.duration_seconds = time.monotonic() - self._start_time
             yield FetchEvent(
@@ -730,6 +610,308 @@ class Fetcher:
                 message=f"Fetch failed: {e}",
             )
             raise
+
+    def _resume_urls(self) -> list[str] | None:
+        """Pending-URL list when caching+resume is active and matches start_url."""
+        if (
+            not self.config.cache.enabled
+            or not self.config.cache.resume
+            or self._cache_manager is None
+            or not self.config.url
+        ):
+            return None
+        pending = self._cache_manager.get_pending_urls(self.config.url)
+        if pending is None:
+            return None
+        max_pages = self.config.crawl.max_pages
+        return pending[:max_pages] if max_pages and len(pending) > max_pages else pending
+
+    async def _run_collected(self) -> AsyncIterator[FetchEvent]:
+        """Legacy mode: discover everything, then fetch sequentially."""
+        if self.config.url is None:
+            return
+        assert self._discoverer is not None
+        start_url = self.config.url
+        yield FetchEvent(
+            type=EventType.DISCOVERY_STARTED,
+            message=f"Discovering URLs from {start_url}",
+        )
+
+        discovered: list[str] = []
+        async for url in self._discoverer.discover(
+            start_url, max_urls=self.config.crawl.max_pages
+        ):
+            discovered.append(url)
+            if self._cancelled:
+                yield FetchEvent(
+                    type=EventType.CANCELLED,
+                    message="Fetch cancelled during discovery",
+                )
+                return
+
+        if self.config.cache.enabled and self._cache_manager:
+            self._cache_manager.save_discovered_urls(discovered, start_url)
+
+        yield FetchEvent(
+            type=EventType.DISCOVERY_COMPLETE,
+            total=len(discovered),
+            message=f"Discovered {len(discovered)} URLs",
+        )
+        self._stats.urls_discovered = len(discovered)
+
+        if self._cancelled:
+            yield FetchEvent(type=EventType.CANCELLED, message="Fetch cancelled by user")
+            return
+
+        async for event in self._fetch_collected(discovered):
+            yield event
+
+    async def _fetch_collected(self, urls: list[str]) -> AsyncIterator[FetchEvent]:
+        """Process a known URL list sequentially. Used by legacy mode and resume."""
+        assert self._pipeline is not None
+        assert self._start_time is not None
+        self._stats.urls_discovered = len(urls)
+
+        collected_events: list[FetchEvent] = []
+
+        def collect(event: FetchEvent) -> None:
+            collected_events.append(event)
+
+        for i, url in enumerate(urls):
+            if self._cancelled:
+                yield FetchEvent(type=EventType.CANCELLED, message="Fetch cancelled by user")
+                return
+
+            yield FetchEvent(
+                type=EventType.FETCH_PROGRESS,
+                url=url,
+                current=i + 1,
+                total=len(urls),
+                message=f"Processing {i + 1}/{len(urls)}: {url}",
+            )
+
+            if self.config.dry_run:
+                yield FetchEvent(
+                    type=EventType.FETCH_SKIPPED,
+                    url=url,
+                    output_path=self._compute_output_path(url),
+                    message=f"[dry-run] Would save to {self._compute_output_path(url)}",
+                    skip_reason=SkipReason.DRY_RUN,
+                )
+                self._stats.pages_skipped += 1
+                continue
+
+            output_path = self._compute_output_path(url)
+            collected_events.clear()
+            ctx = await self._pipeline.execute(url, output_path, emit=collect)
+            for ev in collected_events:
+                yield ev
+            self._record_result(url, output_path, ctx)
+
+        self._stats.duration_seconds = time.monotonic() - self._start_time
+        if self._cache_manager and self._stats.pages_failed == 0:
+            self._cache_manager.clear_discovered_urls()
+        yield FetchEvent(
+            type=EventType.COMPLETED,
+            message=(
+                f"Fetch completed: {self._stats.pages_fetched} saved, "
+                f"{self._stats.pages_skipped} skipped, "
+                f"{self._stats.pages_failed} failed"
+            ),
+        )
+
+    async def _run_streaming(self) -> AsyncIterator[FetchEvent]:
+        """Producer-consumer mode: discoverer feeds a queue; N workers
+        drain it through the pipeline as URLs arrive.
+
+        Backpressure: ``url_queue`` is bounded so a runaway discoverer
+        can't pile up unbounded RAM. The discoverer awaits ``put`` when
+        the queue is full, which naturally gates discovery rate to fetch
+        rate.
+        """
+        if self.config.url is None:
+            return
+        assert self._discoverer is not None
+        assert self._pipeline is not None
+        assert self._start_time is not None
+        # Local references so the inner closures don't have to re-narrow
+        # `Optional[X]` against the same instance attributes — mypy can't
+        # prove non-None across closure boundaries otherwise.
+        discoverer = self._discoverer
+        pipeline = self._pipeline
+        start_url = self.config.url
+
+        worker_count = max(1, self.config.crawl.max_concurrent)
+        url_queue: asyncio.Queue[str | None] = asyncio.Queue(maxsize=worker_count * 4)
+        event_queue: asyncio.Queue[FetchEvent | None] = asyncio.Queue()
+
+        progress_counter = {"saved": 0}
+
+        async def discover_into_queue() -> None:
+            discovered_for_resume: list[str] = []
+            await event_queue.put(
+                FetchEvent(
+                    type=EventType.DISCOVERY_STARTED,
+                    message=f"Discovering URLs from {start_url}",
+                )
+            )
+            try:
+                async for url in discoverer.discover(
+                    start_url, max_urls=self.config.crawl.max_pages
+                ):
+                    if self._cancelled:
+                        break
+                    await url_queue.put(url)
+                    discovered_for_resume.append(url)
+                    # Periodically flush the resume snapshot so a crash
+                    # mid-discovery doesn't lose every URL we've found.
+                    if (
+                        self.config.cache.enabled
+                        and self._cache_manager
+                        and len(discovered_for_resume) % 200 == 0
+                    ):
+                        self._cache_manager.save_discovered_urls(
+                            list(discovered_for_resume), start_url
+                        )
+            finally:
+                if self.config.cache.enabled and self._cache_manager:
+                    self._cache_manager.save_discovered_urls(
+                        discovered_for_resume, start_url
+                    )
+                self._stats.urls_discovered = len(discovered_for_resume)
+                await event_queue.put(
+                    FetchEvent(
+                        type=EventType.DISCOVERY_COMPLETE,
+                        total=len(discovered_for_resume),
+                        message=f"Discovered {len(discovered_for_resume)} URLs",
+                    )
+                )
+                # Send one sentinel per worker so each consumer can exit.
+                for _ in range(worker_count):
+                    await url_queue.put(None)
+
+        async def worker() -> None:
+            while True:
+                url = await url_queue.get()
+                if url is None or self._cancelled:
+                    return
+                output_path = self._compute_output_path(url)
+                if self.config.dry_run:
+                    await event_queue.put(
+                        FetchEvent(
+                            type=EventType.FETCH_SKIPPED,
+                            url=url,
+                            output_path=output_path,
+                            message=f"[dry-run] Would save to {output_path}",
+                            skip_reason=SkipReason.DRY_RUN,
+                        )
+                    )
+                    self._stats.pages_skipped += 1
+                    continue
+
+                local_events: list[FetchEvent] = []
+                # Bind the per-iteration list as a default arg so ruff B023
+                # is happy. Closure is consumed synchronously by execute()
+                # before the next iteration anyway, so capture order is safe.
+                def emit(ev: FetchEvent, _sink: list[FetchEvent] = local_events) -> None:
+                    _sink.append(ev)
+
+                try:
+                    ctx = await pipeline.execute(url, output_path, emit=emit)
+                except Exception as err:  # noqa: BLE001
+                    await event_queue.put(
+                        FetchEvent(
+                            type=EventType.FETCH_FAILED,
+                            url=url,
+                            error=str(err),
+                            message=f"Pipeline error: {err}",
+                        )
+                    )
+                    self._stats.pages_failed += 1
+                    continue
+
+                for ev in local_events:
+                    await event_queue.put(ev)
+
+                self._record_result(url, output_path, ctx)
+                if ctx.markdown and not ctx.error and not ctx.should_skip:
+                    progress_counter["saved"] += 1
+                    # Synthesize a progress event so the CLI bar moves;
+                    # `total` may still be unknown, so report what we know.
+                    total_so_far = self._stats.urls_discovered or progress_counter["saved"]
+                    await event_queue.put(
+                        FetchEvent(
+                            type=EventType.FETCH_PROGRESS,
+                            url=url,
+                            current=progress_counter["saved"],
+                            total=total_so_far,
+                            message=f"Saved {progress_counter['saved']}/{total_so_far}: {url}",
+                        )
+                    )
+
+        discover_task = asyncio.create_task(discover_into_queue())
+        worker_tasks = [asyncio.create_task(worker()) for _ in range(worker_count)]
+
+        async def wait_for_drain() -> None:
+            await discover_task
+            await asyncio.gather(*worker_tasks, return_exceptions=True)
+            await event_queue.put(None)
+
+        drain_task = asyncio.create_task(wait_for_drain())
+
+        try:
+            while True:
+                event = await event_queue.get()
+                if event is None:
+                    break
+                yield event
+        finally:
+            await drain_task
+
+        self._stats.duration_seconds = time.monotonic() - self._start_time
+        if self._cache_manager and self._stats.pages_failed == 0:
+            self._cache_manager.clear_discovered_urls()
+        if self._cancelled:
+            yield FetchEvent(
+                type=EventType.CANCELLED,
+                message="Fetch cancelled by user",
+            )
+            return
+        yield FetchEvent(
+            type=EventType.COMPLETED,
+            message=(
+                f"Fetch completed: {self._stats.pages_fetched} saved, "
+                f"{self._stats.pages_skipped} skipped, "
+                f"{self._stats.pages_failed} failed"
+            ),
+        )
+
+    def _record_result(self, url: str, output_path: Path, ctx: PageContext) -> None:
+        """Update stats + cache from a finished pipeline run.
+
+        Called from both modes; safe in single-threaded asyncio because
+        worker tasks don't preempt mid-statement.
+        """
+        if ctx.error:
+            self._stats.pages_failed += 1
+            if self._cache_manager:
+                self._cache_manager.mark_failed(url)
+            return
+        if ctx.should_skip:
+            self._stats.pages_skipped += 1
+            return
+        self._stats.pages_fetched += 1
+        self._stats.bytes_downloaded += ctx.bytes_downloaded
+        self._stats.files_saved += 1
+        if self._cache_manager and ctx.markdown:
+            self._cache_manager.update_cache(
+                url=url,
+                content=ctx.markdown,
+                file_path=output_path,
+                etag=ctx.etag,
+                last_modified=ctx.last_modified,
+            )
+            self._cache_manager.mark_fetched(url)
 
 
 def fetch_one(url: str, **kwargs: object) -> PageContext:
