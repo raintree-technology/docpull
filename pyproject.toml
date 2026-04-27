@@ -176,11 +176,19 @@ disallow_untyped_defs = false
 disallow_any_unimported = false
 
 [tool.bandit]
-# B101 (assert_used) flags every `assert x is not None` we use for
-# type narrowing — Bandit's concern is that assertions vanish under
+# Policy: every entry in `skips` MUST have a one-line justification
+# above it explaining what bandit found, why it's a false positive
+# *for this codebase*, and (if narrow) why a `# nosec BXXX  # reason`
+# annotation at the call site would have been worse. Bandit skips
+# silence findings repo-wide, so the bar to add one is higher than
+# silencing a single line. If a new skip is unavoidable, add it here
+# in PR review, not as a drive-by.
+#
+# B101 (assert_used) — flags every `assert x is not None` we use for
+# type narrowing. Bandit's concern is that assertions vanish under
 # `python -O`. docpull is a CLI / SDK, never invoked with -O, and the
 # narrowing asserts are not load-bearing safety checks. Skipping the
-# rule here keeps the existing idiom without 8 inline `# nosec`
+# rule globally keeps the existing idiom without 8+ inline `# nosec`
 # annotations in fetcher.py / pipeline/steps/convert.py.
 skips = ["B101"]
 
