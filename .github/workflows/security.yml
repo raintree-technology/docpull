@@ -27,7 +27,7 @@ jobs:
         run: pip-audit
 
       - name: Run Bandit
-        run: bandit -q -r src
+        run: bandit -q -c pyproject.toml -r src
 
       - name: Run Python security regression tests
         run: PYTHONPATH=src pytest -q tests/test_security_hardening.py tests/test_discovery.py tests/test_integration.py

@@ -175,6 +175,15 @@ module = "tests.*"
 disallow_untyped_defs = false
 disallow_any_unimported = false
 
+[tool.bandit]
+# B101 (assert_used) flags every `assert x is not None` we use for
+# type narrowing — Bandit's concern is that assertions vanish under
+# `python -O`. docpull is a CLI / SDK, never invoked with -O, and the
+# narrowing asserts are not load-bearing safety checks. Skipping the
+# rule here keeps the existing idiom without 8 inline `# nosec`
+# annotations in fetcher.py / pipeline/steps/convert.py.
+skips = ["B101"]
+
 [tool.pytest.ini_options]
 minversion = "7.0"
 testpaths = ["tests"]
