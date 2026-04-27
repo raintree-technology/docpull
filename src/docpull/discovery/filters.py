@@ -29,19 +29,20 @@ def normalize_url(url: str) -> str:
     Returns:
         Normalized URL string
     """
-    # Use url_normalize library if available
+    # Use url_normalize library if available for case / percent-encoding
+    # cleanup. It does NOT strip fragments, so we always do that ourselves
+    # below — keeping behavior consistent whether the optional dep is
+    # installed or not.
     if URL_NORMALIZE_AVAILABLE:
         try:
-            result: str = url_normalize(url)
-            return result
+            normalized = url_normalize(url)
+            if normalized:
+                url = normalized
         except ValueError:
             logger.debug("url_normalize rejected URL during normalization", exc_info=True)
 
-    # Basic normalization
     parsed = urlparse(url)
-
-    # Remove fragment
-    normalized = urlunparse(
+    return urlunparse(
         (
             parsed.scheme.lower(),
             parsed.netloc.lower(),
@@ -51,8 +52,6 @@ def normalize_url(url: str) -> str:
             "",  # Remove fragment
         )
     )
-
-    return normalized
 
 
 class PatternFilter:
