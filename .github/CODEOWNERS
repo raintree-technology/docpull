@@ -7,8 +7,11 @@
 # GitHub Actions and CI/CD
 /.github/       @raintree-technology
 
-# Core package
-/docpull/       @raintree-technology
+# Core package and shipped subprojects
+/src/docpull/   @raintree-technology
+/mcp/           @raintree-technology
+/web/           @raintree-technology
+/security/      @raintree-technology
 
 # Documentation
 *.md            @raintree-technology

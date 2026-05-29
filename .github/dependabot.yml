@@ -37,3 +37,37 @@ updates:
           - "ruff"
           - "mypy"
           - "types-*"
+
+  # Web app npm dependencies
+  - package-ecosystem: "npm"
+    directory: "/web"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "web"
+    groups:
+      web-dependencies:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # MCP Bun dependencies
+  - package-ecosystem: "bun"
+    directory: "/mcp"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "mcp"
+    groups:
+      mcp-dependencies:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
