@@ -21,6 +21,9 @@ on:
       - "src/docpull/cache/**"
       - "tests/benchmarks/test_10k_pages.py"
 
+permissions:
+  contents: read
+
 jobs:
   benchmark:
     runs-on: ubuntu-latest
