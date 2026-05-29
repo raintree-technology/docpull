@@ -12,11 +12,11 @@ import hashlib
 import json
 import logging
 import sys
-from datetime import datetime
 from pathlib import Path
 from typing import IO
 
 from ...models.events import EventType, FetchEvent
+from ...time_utils import utc_now_iso
 from ..base import EventEmitter, PageContext
 
 logger = logging.getLogger(__name__)
@@ -77,7 +77,7 @@ class NdjsonSaveStep:
             "title": ctx.title,
             "source_type": ctx.source_type,
             "metadata": ctx.metadata,
-            "fetched_at": datetime.now().isoformat(),
+            "fetched_at": utc_now_iso(),
         }
 
         async with self._lock:

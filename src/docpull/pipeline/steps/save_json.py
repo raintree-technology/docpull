@@ -7,11 +7,11 @@ import json
 import logging
 import os
 import tempfile
-from datetime import datetime
 from pathlib import Path
 from typing import TextIO
 
 from ...models.events import EventType, FetchEvent
+from ...time_utils import utc_now_iso
 from ..base import EventEmitter, PageContext
 
 logger = logging.getLogger(__name__)
@@ -102,7 +102,7 @@ class JsonSaveStep:
             "title": ctx.title,
             "content": ctx.markdown,
             "metadata": ctx.metadata,
-            "fetched_at": datetime.now().isoformat(),
+            "fetched_at": utc_now_iso(),
         }
 
         f = self._ensure_temp_file()
@@ -142,7 +142,7 @@ class JsonSaveStep:
             # No documents written - create empty structure
             self._base_dir.mkdir(parents=True, exist_ok=True)
             output = {
-                "generated_at": datetime.now().isoformat(),
+                "generated_at": utc_now_iso(),
                 "document_count": 0,
                 "documents": [],
             }
@@ -154,7 +154,7 @@ class JsonSaveStep:
         try:
             # Close the documents array and add metadata
             self._temp_file.write("\n  ],\n")
-            self._temp_file.write(f'  "generated_at": "{datetime.now().isoformat()}",\n')
+            self._temp_file.write(f'  "generated_at": "{utc_now_iso()}",\n')
             self._temp_file.write(f'  "document_count": {self._document_count}\n')
             self._temp_file.write("}\n")
             self._temp_file.close()

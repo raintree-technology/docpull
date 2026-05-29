@@ -5,10 +5,10 @@ from __future__ import annotations
 import json
 import logging
 import sqlite3
-from datetime import datetime
 from pathlib import Path
 
 from ...models.events import EventType, FetchEvent
+from ...time_utils import utc_now_iso
 from ..base import EventEmitter, PageContext
 
 logger = logging.getLogger(__name__)
@@ -109,7 +109,7 @@ class SqliteSaveStep:
                     ctx.title,
                     ctx.markdown,
                     json.dumps(ctx.metadata, ensure_ascii=False),
-                    datetime.now().isoformat(),
+                    utc_now_iso(),
                 ),
             )
             # Only count if a row was actually inserted (not ignored)
