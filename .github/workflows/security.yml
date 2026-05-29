@@ -19,9 +19,13 @@ jobs:
           fetch-depth: 0
 
       - name: Run Gitleaks
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # Use the MIT-licensed gitleaks CLI rather than gitleaks-action@v2,
+        # which requires a paid GITLEAKS_LICENSE secret for organization repos.
+        # `detect` scans full git history (fetch-depth: 0) and exits non-zero
+        # on any finding; --redact keeps secret values out of the logs.
+        run: |
+          docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:latest \
+            detect --source=/repo --redact --no-banner
 
   python-security:
     runs-on: ubuntu-latest
