@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { Copy, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -16,11 +16,13 @@ const terminalLines = [
 ] as const;
 
 const INSTALL_COMMAND = "pip install docpull";
+const COPY_RESET_DELAY_MS = 2_000;
 
 export default function Hero() {
   const [visibleLines, setVisibleLines] = useState(0);
   const [copied, setCopied] = useState(false);
-  const [downloads, setDownloads] = useState<string | null>(null);
+  const [copyFailed, setCopyFailed] = useState(false);
+  const copyResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -36,26 +38,30 @@ export default function Hero() {
   }, []);
 
   useEffect(() => {
-    fetch("https://static.pepy.tech/badge/docpull")
-      .then((res) => res.text())
-      .then((svg) => {
-        // Extract the download count from the SVG (last text element with the count)
-        const match = svg.match(/textLength="[^"]*">(\d+[kKmM]?)<\/text>/g);
-        if (match && match.length >= 2) {
-          const countMatch = match[match.length - 1].match(/>(\d+[kKmM]?)</);
-          if (countMatch) {
-            setDownloads(countMatch[1]);
-          }
-        }
-      })
-      .catch(() => setDownloads(null));
+    return () => {
+      if (copyResetTimer.current) {
+        clearTimeout(copyResetTimer.current);
+      }
+    };
   }, []);
 
-  const handleCopy = useCallback(() => {
-    navigator.clipboard.writeText(INSTALL_COMMAND);
-    setCopied(true);
-    const timeout = setTimeout(() => setCopied(false), 2000);
-    return () => clearTimeout(timeout);
+  const handleCopy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(INSTALL_COMMAND);
+      setCopied(true);
+      setCopyFailed(false);
+      if (copyResetTimer.current) {
+        clearTimeout(copyResetTimer.current);
+      }
+      copyResetTimer.current = setTimeout(() => {
+        setCopied(false);
+        copyResetTimer.current = null;
+      }, COPY_RESET_DELAY_MS);
+    } catch (error) {
+      const writeFailed = error !== undefined;
+      setCopied(false);
+      setCopyFailed(writeFailed);
+    }
   }, []);
 
   return (
@@ -64,20 +70,6 @@ export default function Hero() {
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.3fr] gap-8 lg:gap-12 items-center">
           {/* Left: Content */}
           <div>
-            {downloads && (
-              <div className="mb-4">
-                <a
-                  href="https://pepy.tech/project/docpull"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors bg-background/50 py-0.5 px-1 rounded"
-                  aria-label={`${downloads} downloads on PyPI`}
-                >
-                  <span>{downloads} downloads on PyPI</span>
-                </a>
-              </div>
-            )}
-
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-medium tracking-tight mb-6">
               <span className="bg-background/50 px-1 rounded">Fetch docs.</span>
               <br />
@@ -100,7 +92,13 @@ export default function Hero() {
               <button
                 onClick={handleCopy}
                 className="p-2.5 rounded-xl glass hover:bg-foreground/5 transition-colors"
-                aria-label={copied ? "Copied" : "Copy install command"}
+                aria-label={
+                  copyFailed
+                    ? "Copy failed"
+                    : copied
+                      ? "Copied"
+                      : "Copy install command"
+                }
               >
                 {copied ? (
                   <Check className="h-4 w-4" />
