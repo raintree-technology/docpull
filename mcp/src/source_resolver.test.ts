@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { resolveConfiguredSource, type SourceConfig } from "./source_resolver.js";
+import {
+	normalizeSourceConfig,
+	resolveConfiguredSource,
+	type SourceConfig,
+} from "./source_resolver.js";
 
 const CONFIG_PATH = "/tmp/sources.yaml";
 const SOURCES: Record<string, SourceConfig> = {
@@ -46,6 +50,49 @@ describe("resolveConfiguredSource", () => {
 				url: "https://react.dev",
 				maxPages: 500,
 			},
+		});
+	});
+
+	test("rejects unsafe source names", () => {
+		const result = resolveConfiguredSource("../react", SOURCES, CONFIG_PATH);
+
+		expect(result).toEqual({
+			ok: false,
+			message: "Invalid source name: ../react. Use alnum plus _, ., or - with no leading dot.",
+		});
+	});
+
+	test("rejects configured local and private URLs", () => {
+		for (const url of [
+			"https://localhost",
+			"https://service.local/docs",
+			"https://127.0.0.1/docs",
+			"https://10.1.2.3/docs",
+			"https://[::1]/docs",
+			"https://[fc00::1]/docs",
+		]) {
+			expect(
+				normalizeSourceConfig("unsafe", {
+					url,
+					description: "Unsafe",
+					category: "test",
+				}),
+			).toEqual({
+				ok: false,
+				message: "Source 'unsafe' url must use HTTPS and a public host.",
+			});
+		}
+	});
+
+	test("rejects invalid maxPages values", () => {
+		const result = normalizeSourceConfig("react", {
+			url: "https://react.dev",
+			maxPages: 0,
+		});
+
+		expect(result).toEqual({
+			ok: false,
+			message: "source 'react' maxPages must be between 1 and 100000",
 		});
 	});
 });
