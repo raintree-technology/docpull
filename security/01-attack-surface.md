@@ -1,9 +1,9 @@
 # Attack Surface Map -- docpull
 
-**Audit date:** 2026-04-15
-**Auditor:** white-box recon (Claude Opus 4.6)
-**Scope:** `/Users/mb1/Code/docpull` -- commit `0487fc7`
-**Status:** RECON complete. No exploitation attempted. No vulnerability judgments issued.
+**Audit date:** 2026-05-22
+**Auditor:** Codex hardening pass after white-box recon
+**Scope:** `/Users/mb1/Code/secondary/docpull`
+**Status:** Audit findings triaged; high-signal bypasses, ignores, CI gaps, and dependency findings remediated locally.
 
 ---
 
@@ -254,7 +254,13 @@ Web frontend --> Next.js static site (no API routes, no user input)
 
 | Fix | Description | Status |
 |---|---|---|
-| `.gitignore` hardening | Added `.env.*`, `!.env.example`, `*.pem`, `*.key`, `*.p12`, `*.pfx`, `*.crt` patterns | **Staged** (pre-commit hooks timing out; change is in staging area, not yet committed) |
+| `.gitignore` hardening | Added `.env.*`, `!.env.example`, `*.pem`, `*.key`, `*.p12`, `*.pfx`, `*.crt` patterns | **Applied** |
+| Dependency lower bounds | Added explicit safe lower bounds for vulnerable transitive packages surfaced by `pip-audit` | **Applied** |
+| MCP regex search hardening | Added per-line regex timeout for `grep_docs` to prevent single-line catastrophic backtracking | **Applied** |
+| MCP source config validation | User-edited source aliases now reject unsafe names, non-HTTPS URLs, private/local literal hosts, and invalid page limits | **Applied** |
+| MCP embedding writes | Library re-indexing now replaces derived rows atomically inside one transaction instead of deleting first and inserting later | **Applied** |
+| MCP OpenAI hardening | Embedding calls now use bounded timeouts, bounded retries, dimension checks, and a small circuit breaker | **Applied** |
+| CI / supply-chain gates | Added secret scanning, dependency review, CodeQL, release gates, and PR-based metrics updates | **Applied** |
 
 No other hygiene fixes were applicable:
 - No web server to add security headers middleware to (CLI tool + static site + stdio MCP)
@@ -267,37 +273,31 @@ No other hygiene fixes were applicable:
 
 ---
 
-## 8. Open Questions / Areas Needing Deeper Review
+## 8. Reviewed Risks / Current Status
 
-### HIGH PRIORITY
+### RESOLVED
 
-1. **`post_process_hook` config field** (`config.py:251-253`): A `Path` field for a hook script exists in `IntegrationConfig`, but no code in `src/` appears to execute it. Verify it is truly dead code and not invoked in an unread path. If it were executed, it would be a **command injection** sink.
+1. **Dangerous integration hook fields removed**: `IntegrationConfig`, `post_process_hook`, `git_commit`, and `git_message` are no longer exposed on `DocpullConfig`; regression tests assert this stays removed.
 
-2. **`grepDocs` ILIKE pattern** (`db.ts:232-239`): The `pattern` MCP input is wrapped in `%${pattern}%` and passed as a parameterized query. This is safe from SQL injection, but the `%` and `_` characters in ILIKE are wildcards. A crafted pattern could cause expensive full-table scans (DoS against the database). Consider escaping ILIKE metacharacters.
+2. **`grepDocs` ILIKE wildcard DoS mitigated**: The TypeScript MCP database search escapes `%`, `_`, and `\` before building the parameterized `ILIKE` pattern.
 
-3. **DNS rebinding window with proxy** (`client.py:214-215`): When `self._proxy is not None`, the `_ValidatedResolver` is NOT installed (`client.py:214`). This means proxy-mode requests bypass connect-time SSRF validation. The proxy itself handles DNS, but if the proxy is attacker-controlled or misconfigured, SSRF is possible. Needs deeper analysis of the proxy threat model.
+3. **Header injection blocked**: User-Agent and custom auth header values reject CR, LF, and null bytes at config and transport layers.
 
-4. **`spawn("docpull", args)` argument injection** (`server.ts:261-263`): The URL is passed as a positional arg to `docpull`. The URL comes from `sources.yaml` or built-in config (not directly from MCP client input), but a malicious `sources.yaml` entry could inject CLI flags if the URL contains spaces or shell metacharacters. Since `spawn` is used (not `exec`), there is no shell interpretation, but review whether aiohttp or argparse could be tricked.
+4. **Manual source-config bypass blocked**: Python and MCP source loaders now validate hand-edited `sources.yaml` entries instead of trusting direct URL values.
 
-### MEDIUM PRIORITY
+5. **Partial MCP re-index writes blocked**: Refreshing one library's embeddings now deletes and reinserts inside the same transaction, with rollback tests.
 
-5. **Markdown output used in LLM context**: The primary use case is feeding markdown to LLMs. Malicious documentation sites could embed prompt injection payloads in their HTML that survive the markdown conversion pipeline. This is an application-level concern, not a traditional vulnerability.
+6. **Dependency audit gates clean locally**: `pip-audit`, `npm audit`, and `bun audit` are expected to be clean before release.
 
-6. **Cache poisoning via manifest.json** (`cache/manager.py`): The cache manifest maps URLs to checksums and file paths. If an attacker gains write access to the cache directory, they could redirect output to arbitrary paths (bypassing `SaveStep` path validation, which only applies on initial write). The cache directory should have restricted permissions.
+### REMAINING BY DESIGN
 
-7. **Env var expansion in auth fields** (`config.py:149-168`): The `_expand_env_var()` function substitutes `$VAR` and `${VAR}`. If the config YAML is attacker-controlled, this allows reading arbitrary environment variables. In the current architecture (local CLI, user-provided config), this is by-design, but it matters if config files are ever loaded from untrusted sources.
+1. **Proxy mode delegates DNS pinning to the proxy**: Direct connections use `_ValidatedResolver` for connect-time DNS pinning. Proxy mode cannot enforce local connect-time DNS pinning because the proxy resolves the target. Agent workflows that require the stronger posture should set `--require-pinned-dns`, which rejects `--proxy`.
 
-8. **`user_agent` header injection** (`cli.py:182`): The `--user-agent` flag value is passed directly as an HTTP header. aiohttp likely validates header values, but verify no CRLF injection is possible.
+2. **Markdown output may contain prompt-injection content**: docpull intentionally preserves documentation content. Downstream LLM clients must treat fetched content as untrusted context.
 
-### LOW PRIORITY
+3. **Auth env-var expansion assumes trusted local config**: `$VAR` / `${VAR}` expansion is useful for local secret hygiene but means config files must not be loaded from untrusted sources.
 
-9. **Web frontend**: The Next.js site is a static marketing page with no API routes, no forms, no user input, and no server-side processing. Attack surface is minimal (standard Next.js/CDN concerns only).
-
-10. **MCP server stdio transport**: The MCP server uses stdio (not HTTP), so it's only accessible to the local MCP client process. Network-level attacks are not applicable.
-
-11. **`git_commit` integration field** (`config.py:241-245`): `IntegrationConfig` has `git_commit` and `git_message` fields. Like `post_process_hook`, verify whether these are actually wired up or dead config.
-
-12. **Dependency supply chain**: The project uses `>=` minimum-version pinning without a lockfile. This is standard for Python libraries but means builds aren't reproducible. Consider adding a lockfile for development/CI (`pip-compile` or similar).
+4. **Cache integrity depends on local filesystem trust**: If an attacker can write to the cache directory, they can tamper with cached metadata. Keep cache directories user-owned and non-shared.
 
 ---
 
@@ -313,4 +313,4 @@ The docpull codebase demonstrates **above-average security posture** for a docum
 - Input validation uses Pydantic (strict) and Zod
 - The MCP server properly rejects direct URL input, requiring named source aliases
 
-The primary areas warranting deeper review are the proxy-mode SSRF bypass, the ILIKE wildcard DoS vector, and confirming `post_process_hook` is dead code.
+The primary residual risks are operational: proxy mode delegates DNS resolution to the configured proxy, fetched Markdown is untrusted LLM context, and local cache/config files must be treated as trusted user-controlled inputs.
