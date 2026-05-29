@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.2] - 2026-05-29
+
+A small release hygiene patch for the MCP hardening release. No API changes;
+no migration needed.
+
+### Fixed
+- **Runtime version now matches package metadata.** `docpull --version` and the
+  default HTTP `User-Agent` report `3.0.2` instead of the stale `3.0.0` value
+  that remained in `docpull.__version__` after the 3.0.1 publish.
+
+### Tests
+- **Added a stdio MCP smoke test.** The test starts `docpull mcp` through the
+  official MCP client, verifies the advertised 8-tool surface, checks
+  structured `list_sources` output, and confirms SSRF rejection still flows
+  through a real MCP `call_tool` request.
+
 ## [3.0.1] - 2026-05-29
 
 A security and correctness patch. No API changes; no migration needed.

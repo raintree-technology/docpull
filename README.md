@@ -140,18 +140,28 @@ pip install 'docpull[mcp]'
 docpull mcp  # starts the stdio server
 ```
 
-Add to Claude Desktop or Claude Code manually:
+Claude Code:
+
+```bash
+claude mcp add --transport stdio docpull -- docpull mcp
+```
+
+Cursor (`.cursor/mcp.json` in a project, or `~/.cursor/mcp.json` globally):
 
 ```json
 {
   "mcpServers": {
     "docpull": {
+      "type": "stdio",
       "command": "docpull",
       "args": ["mcp"]
     }
   }
 }
 ```
+
+Claude Desktop uses the same `mcpServers` shape in
+`claude_desktop_config.json`.
 
 Or, if you use Claude Code, install the plugin instead — it bundles the MCP
 server, five slash commands (`/docs-add`, `/docs-search`, `/docs-list`,
