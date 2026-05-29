@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.1] - 2026-05-29
+
+A security and correctness patch. No API changes; no migration needed.
+
+### Security
+- **User-defined MCP sources are validated on load.** Entries in
+  `~/.config/docpull-mcp/sources.yaml` are now rejected unless the name is a
+  safe identifier, the URL is HTTPS to a public host (private, loopback,
+  link-local, and internal-suffix hosts are blocked), and `max_pages` is in
+  range. Previously a hand-edited config could point `ensure_docs` at an
+  internal address.
+- **`grep_docs` bounds regex execution per line.** On top of the existing
+  total wall-clock budget, each line now matches under a per-line timeout,
+  closing the remaining catastrophic-backtracking (ReDoS) window for a
+  pathological pattern against a single long line.
+
+### Fixed
+- **Cache timestamps are timezone-aware UTC.** Persisted timestamps (cache
+  manifest, save steps, MCP metadata) use UTC consistently; legacy naive
+  timestamps are parsed as UTC so cache-TTL comparisons stay deterministic
+  instead of mis-expiring entries.
+- **Swallowed exceptions are now logged.** robots.txt parsing, the OpenAPI
+  and SPA heuristics, and link extraction log skipped or invalid input at
+  debug level instead of silently dropping it.
+
 ## [3.0.0] - 2026-04-26
 
 The deprecations 2.4 promised. Six config fields that have emitted a
