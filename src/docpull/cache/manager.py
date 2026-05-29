@@ -5,9 +5,11 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
 from typing import TypedDict
+
+from ..time_utils import parse_persisted_datetime, utc_now, utc_now_iso
 
 logger = logging.getLogger(__name__)
 
@@ -257,7 +259,7 @@ class CacheManager:
         self.manifest[url] = {
             "checksum": self.compute_checksum(content),
             "file_path": str(file_path),
-            "fetched_at": datetime.now().isoformat(),
+            "fetched_at": utc_now_iso(),
             "size": len(content),
         }
 
@@ -314,7 +316,7 @@ class CacheManager:
         Note:
             Changes are batched. Call flush() to persist to disk.
         """
-        self._state.last_run = datetime.now().isoformat()
+        self._state.last_run = utc_now_iso()
         self._state_dirty = True
 
     def clear_state(self) -> None:
@@ -354,18 +356,18 @@ class CacheManager:
         if ttl is None:
             return 0
 
-        cutoff = datetime.now() - timedelta(days=ttl)
+        cutoff = utc_now() - timedelta(days=ttl)
         to_remove = []
 
         for url, entry in self.manifest.items():
             fetched_at = entry.get("fetched_at")
             if fetched_at:
                 try:
-                    entry_time = datetime.fromisoformat(fetched_at)
+                    entry_time = parse_persisted_datetime(fetched_at)
                     if entry_time < cutoff:
                         to_remove.append(url)
-                except ValueError:
-                    pass  # Invalid date format, skip
+                except ValueError as err:
+                    logger.warning("Invalid cache timestamp for %s: %s", url, err)
 
         for url in to_remove:
             del self.manifest[url]
@@ -413,7 +415,7 @@ class CacheManager:
         """
         data: DiscoveredUrlsState = {
             "start_url": start_url,
-            "discovered_at": datetime.now().isoformat(),
+            "discovered_at": utc_now_iso(),
             "urls": urls,
         }
         try:
