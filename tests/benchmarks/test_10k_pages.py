@@ -11,15 +11,14 @@ falsifiable scaling claim:
 - Dedup rate (we inject 5% duplicate content)
 - Discovery time vs fetch time split
 
-This is gated behind `DOCPULL_BENCHMARK_10K=1` because it takes 30-60s
-and stands up a localhost aiohttp server. CI nightly should set the
-env var; local `pytest tests/` should skip it.
+This is collected only when `DOCPULL_BENCHMARK_10K=1` because it takes
+30-60s and stands up a localhost aiohttp server. CI nightly and
+`make benchmark` set that env var; local `pytest tests/` ignores the file.
 """
 
 from __future__ import annotations
 
 import json
-import os
 import resource
 import statistics
 import sys
@@ -37,12 +36,6 @@ from docpull.security.url_validator import UrlValidator
 
 PAGE_COUNT = 10_000
 DUPLICATE_FRACTION = 0.05  # 5% pages are content-duplicates of another page
-
-pytestmark = pytest.mark.skipif(
-    os.environ.get("DOCPULL_BENCHMARK_10K") != "1",
-    reason="set DOCPULL_BENCHMARK_10K=1 to run the 10k-page benchmark",
-)
-
 
 # Generate pseudo-realistic page bodies. Cheap (no Faker dep): repeat a
 # small library of paragraphs keyed on the page index so output is

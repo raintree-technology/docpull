@@ -1,11 +1,24 @@
 """Pytest configuration and fixtures."""
 
+from __future__ import annotations
+
+import os
+from pathlib import Path
+
 import pytest
+
+
+def pytest_ignore_collect(collection_path: object, config: pytest.Config) -> bool:
+    """Keep the long benchmark out of default test collection unless enabled."""
+    path = Path(str(collection_path))
+    if os.environ.get("DOCPULL_BENCHMARK_10K") == "1":
+        return False
+    return path.name == "test_10k_pages.py" and path.parent.name == "benchmarks"
 
 
 @pytest.fixture
 def temp_output_dir(tmp_path):
-    """Provide a temporary output directory for tests."""
+    """Provide an isolated output directory for tests."""
     output_dir = tmp_path / "test_docs"
     output_dir.mkdir()
     return output_dir
