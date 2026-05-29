@@ -71,8 +71,10 @@ class ByteSize(int):
             # Try parsing as plain number
             try:
                 return int(v)
-            except ValueError:
-                pass
+            except ValueError as err:
+                raise ValueError(
+                    f"Invalid byte size: {v}. Use format like '200kb', '1mb', or integer bytes."
+                ) from err
         raise ValueError(f"Invalid byte size: {v}. Use format like '200kb', '1mb', or integer bytes.")
 
 
