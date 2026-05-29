@@ -9,15 +9,18 @@ import {
 	writeFileSync,
 	mkdirSync,
 	statSync,
+	renameSync,
 } from "fs";
 import { readdir, stat } from "fs/promises";
 import { join } from "path";
 import { homedir } from "os";
 import { parse as parseYaml } from "yaml";
-import { OpenAI } from "openai";
 import { isDbConfigured, searchDocs, grepDocs, listLibraries } from "./db.js";
+import { createEmbeddings, getConfiguredOpenAIClient } from "./embeddings.js";
+import { errorMessage, logStructured } from "./logger.js";
 import { ingestSingleLibrary } from "./ingest.js";
 import {
+	normalizeSourceConfig,
 	resolveConfiguredSource,
 	type SourceConfig,
 } from "./source_resolver.js";
@@ -34,10 +37,12 @@ const CONFIG_DIR = join(homedir(), ".config", "docpull-mcp");
 const META_DIR = join(CONFIG_DIR, "meta");
 const SOURCES_CONFIG_PATH = join(CONFIG_DIR, "sources.yaml");
 const CACHE_TTL_DAYS = 7;
-const DOCPULL_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
+const MS_PER_DAY = 86_400_000;
+const DOCPULL_TIMEOUT_MS = 10 * 60 * 1_000;
+const DOCPULL_KILL_GRACE_MS = 5_000;
+const MAX_DOCPULL_STDERR_BYTES = 10_000;
 
-const OPENAI_KEY = process.env.OPENAI_API_KEY;
-const openai = OPENAI_KEY ? new OpenAI({ apiKey: OPENAI_KEY }) : null;
+const openai = getConfiguredOpenAIClient();
 
 // ============================================================================
 // SOURCE CONFIG
@@ -132,6 +137,10 @@ const BUILTIN_SOURCES: Record<string, SourceConfig> = {
 let userSourcesCache: Record<string, SourceConfig> | null = null;
 let userSourcesMtime: number = 0;
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 function loadUserSources(): Record<string, SourceConfig> {
 	if (!existsSync(SOURCES_CONFIG_PATH)) {
 		userSourcesCache = {};
@@ -142,19 +151,55 @@ function loadUserSources(): Record<string, SourceConfig> {
 		if (userSourcesCache && mtime === userSourcesMtime) {
 			return userSourcesCache;
 		}
-		const parsed = parseYaml(readFileSync(SOURCES_CONFIG_PATH, "utf-8")) as {
-			sources?: Record<string, SourceConfig>;
-		};
-		userSourcesCache = parsed.sources || {};
+		const parsed = parseYaml(readFileSync(SOURCES_CONFIG_PATH, "utf-8"));
+		if (!isRecord(parsed)) {
+			logStructured("warn", "Ignoring sources.yaml: top-level value must be a mapping", {
+				path: SOURCES_CONFIG_PATH,
+			});
+			userSourcesCache = {};
+			userSourcesMtime = mtime;
+			return userSourcesCache;
+		}
+		const rawSources = parsed.sources;
+		if (rawSources === undefined || rawSources === null) {
+			userSourcesCache = {};
+			userSourcesMtime = mtime;
+			return userSourcesCache;
+		}
+		if (!isRecord(rawSources)) {
+			logStructured("warn", "Ignoring sources.yaml: sources must be a mapping", {
+				path: SOURCES_CONFIG_PATH,
+			});
+			userSourcesCache = {};
+			userSourcesMtime = mtime;
+			return userSourcesCache;
+		}
+		const normalized: Record<string, SourceConfig> = {};
+		for (const [name, value] of Object.entries(rawSources)) {
+			const result = normalizeSourceConfig(name, value);
+			if (result.ok) {
+				normalized[name] = result.config;
+			} else {
+				logStructured("warn", "Ignoring invalid source config", {
+					source: name,
+					reason: result.message,
+					path: SOURCES_CONFIG_PATH,
+				});
+			}
+		}
+		userSourcesCache = normalized;
 		userSourcesMtime = mtime;
 		return userSourcesCache;
-	} catch (e) {
-		console.error("Failed to parse sources.yaml:", e);
+	} catch (error) {
+		logStructured("error", "Failed to parse sources.yaml", {
+			path: SOURCES_CONFIG_PATH,
+			error: errorMessage(error),
+		});
 		return userSourcesCache || {};
 	}
 }
 
-function getAllSources() {
+function getAllSources(): Record<string, SourceConfig> {
 	return { ...BUILTIN_SOURCES, ...loadUserSources() };
 }
 
@@ -174,17 +219,52 @@ function getMetaPath(source: string) {
 
 function readMeta(source: string): FetchMeta | null {
 	const p = getMetaPath(source);
-	if (!existsSync(p)) return null;
+	if (!existsSync(p)) {
+		return null;
+	}
 	try {
-		return JSON.parse(readFileSync(p, "utf-8"));
-	} catch {
+		const parsed = JSON.parse(readFileSync(p, "utf-8"));
+		if (!isRecord(parsed)) {
+			logStructured("warn", "Ignoring malformed fetch metadata", {
+				source,
+				path: p,
+				reason: "metadata root is not an object",
+			});
+			return null;
+		}
+		if (
+			typeof parsed.fetchedAt !== "number" ||
+			typeof parsed.fileCount !== "number" ||
+			(parsed.indexed !== undefined && typeof parsed.indexed !== "boolean")
+		) {
+			logStructured("warn", "Ignoring malformed fetch metadata", {
+				source,
+				path: p,
+				reason: "metadata fields have invalid types",
+			});
+			return null;
+		}
+		return {
+			fetchedAt: parsed.fetchedAt,
+			fileCount: parsed.fileCount,
+			indexed: parsed.indexed,
+		};
+	} catch (error) {
+		logStructured("warn", "Could not read fetch metadata", {
+			source,
+			path: p,
+			error: errorMessage(error),
+		});
 		return null;
 	}
 }
 
 function writeMeta(source: string, meta: FetchMeta) {
 	mkdirSync(META_DIR, { recursive: true });
-	writeFileSync(getMetaPath(source), JSON.stringify(meta));
+	const path = getMetaPath(source);
+	const tmp = `${path}.tmp`;
+	writeFileSync(tmp, JSON.stringify(meta));
+	renameSync(tmp, path);
 }
 
 async function countMarkdownFiles(dir: string): Promise<number> {
@@ -220,7 +300,7 @@ async function getCacheInfo(source: string): Promise<CacheInfo> {
 
 	const meta = readMeta(source);
 	if (meta) {
-		const isStale = Date.now() - meta.fetchedAt > CACHE_TTL_DAYS * 86400000;
+		const isStale = Date.now() - meta.fetchedAt > CACHE_TTL_DAYS * MS_PER_DAY;
 		return {
 			exists: true,
 			fetchedAt: new Date(meta.fetchedAt),
@@ -233,7 +313,7 @@ async function getCacheInfo(source: string): Promise<CacheInfo> {
 	const dirStat = await stat(dir);
 	const fileCount = await countMarkdownFiles(dir);
 	const isStale =
-		Date.now() - dirStat.mtime.getTime() > CACHE_TTL_DAYS * 86400000;
+		Date.now() - dirStat.mtime.getTime() > CACHE_TTL_DAYS * MS_PER_DAY;
 	return {
 		exists: true,
 		fetchedAt: dirStat.mtime,
@@ -259,48 +339,52 @@ async function runDocpull(
 ): Promise<{ success: boolean; message: string }> {
 	return new Promise((resolve) => {
 		const args = [url, "-o", outputDir, "--cache", "--profile", "rag"];
-		if (maxPages) args.push("--max-pages", String(maxPages));
-		const proc = spawn("docpull", args, { stdio: ["ignore", "pipe", "pipe"] });
+		if (maxPages) {
+			args.push("--max-pages", String(maxPages));
+		}
+		const proc = spawn("docpull", args, { stdio: ["ignore", "ignore", "pipe"] });
 
 		let stderr = "";
 		let resolved = false;
+		let forceKillTimer: NodeJS.Timeout | null = null;
+
+		const finish = (
+			success: boolean,
+			message: string,
+			clearForceKill = true,
+		): void => {
+			if (resolved) {
+				return;
+			}
+			resolved = true;
+			clearTimeout(timeout);
+			if (clearForceKill && forceKillTimer) {
+				clearTimeout(forceKillTimer);
+			}
+			resolve({ success, message });
+		};
 
 		const timeout = setTimeout(() => {
-			if (!resolved) {
-				resolved = true;
-				proc.kill("SIGTERM");
-				resolve({ success: false, message: "Timeout after 10 minutes" });
-			}
+			proc.kill("SIGTERM");
+			forceKillTimer = setTimeout(() => {
+				proc.kill("SIGKILL");
+			}, DOCPULL_KILL_GRACE_MS);
+			finish(false, "Timeout after 10 minutes", false);
 		}, DOCPULL_TIMEOUT_MS);
 
 		proc.stderr.on("data", (d) => {
-			stderr += d;
-			if (stderr.length > 10000) {
-				stderr = stderr.slice(-10000);
+			stderr += String(d);
+			if (stderr.length > MAX_DOCPULL_STDERR_BYTES) {
+				stderr = stderr.slice(-MAX_DOCPULL_STDERR_BYTES);
 			}
 		});
 
 		proc.on("close", (code) => {
-			if (!resolved) {
-				resolved = true;
-				clearTimeout(timeout);
-				resolve(
-					code === 0
-						? { success: true, message: "Done" }
-						: { success: false, message: stderr || "failed" },
-				);
-			}
+			finish(code === 0, code === 0 ? "Done" : stderr || "failed");
 		});
 
-		proc.on("error", (e) => {
-			if (!resolved) {
-				resolved = true;
-				clearTimeout(timeout);
-				resolve({
-					success: false,
-					message: "Is docpull installed? " + e.message,
-				});
-			}
+		proc.on("error", (error) => {
+			finish(false, "Is docpull installed? " + errorMessage(error));
 		});
 	});
 }
@@ -342,7 +426,29 @@ server.tool(
 
 		const cache = await getCacheInfo(name);
 		const needsFetch = !cache.exists || cache.isStale || force;
-		const needsIndex = index && isDbConfigured() && openai;
+		if (index && !isDbConfigured()) {
+			return {
+				content: [
+					{
+						type: "text" as const,
+						text: "Indexing requested but DATABASE_URL is not configured.",
+					},
+				],
+				isError: true,
+			};
+		}
+		if (index && !openai) {
+			return {
+				content: [
+					{
+						type: "text" as const,
+						text: "Indexing requested but OPENAI_API_KEY is not configured.",
+					},
+				],
+				isError: true,
+			};
+		}
+		const needsIndex = index && isDbConfigured() && openai !== null;
 
 		// Return early if cached and indexed
 		if (!needsFetch && cache.exists && (!needsIndex || cache.indexed)) {
@@ -399,8 +505,8 @@ server.tool(
 			try {
 				await ingestSingleLibrary(name);
 				indexed = true;
-			} catch (e) {
-				const msg = e instanceof Error ? e.message : String(e);
+			} catch (error) {
+				const msg = errorMessage(error);
 				return {
 					content: [
 						{
@@ -502,11 +608,7 @@ Examples:
 		},
 		async ({ query, library, limit }) => {
 			try {
-				const response = await openai.embeddings.create({
-					model: "text-embedding-3-small",
-					input: query,
-				});
-				const queryEmbedding = response.data[0]?.embedding;
+				const [queryEmbedding] = await createEmbeddings(openai, query);
 				if (!queryEmbedding) {
 					throw new Error("Failed to generate embedding");
 				}
@@ -532,8 +634,8 @@ Examples:
 					.join("\n\n---\n\n");
 
 				return { content: [{ type: "text" as const, text: output }] };
-			} catch (e) {
-				const msg = e instanceof Error ? e.message : String(e);
+			} catch (error) {
+				const msg = errorMessage(error);
 				return {
 					content: [{ type: "text" as const, text: "Search failed: " + msg }],
 					isError: true,
@@ -583,9 +685,10 @@ Examples:
 				const output = results
 					.map((r) => {
 						const lines = r.content.split("\n");
+						const patternLower = pattern.toLowerCase();
 						const matchingLines = lines
 							.map((line, idx) => ({ line, idx }))
-							.filter(({ line }) => line.includes(pattern))
+							.filter(({ line }) => line.toLowerCase().includes(patternLower))
 							.slice(0, 3)
 							.map(({ line, idx }) => `  ${idx + 1}: ${line.trim()}`)
 							.join("\n");
@@ -594,8 +697,8 @@ Examples:
 					.join("\n\n");
 
 				return { content: [{ type: "text" as const, text: output }] };
-			} catch (e) {
-				const msg = e instanceof Error ? e.message : String(e);
+			} catch (error) {
+				const msg = errorMessage(error);
 				return {
 					content: [{ type: "text" as const, text: "Grep failed: " + msg }],
 					isError: true,
@@ -633,8 +736,8 @@ Examples:
 				return {
 					content: [{ type: "text" as const, text: lines.join("\n") }],
 				};
-			} catch (e) {
-				const msg = e instanceof Error ? e.message : String(e);
+			} catch (error) {
+				const msg = errorMessage(error);
 				return {
 					content: [{ type: "text" as const, text: "Failed to list: " + msg }],
 					isError: true,

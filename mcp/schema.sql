@@ -11,9 +11,9 @@ CREATE TABLE IF NOT EXISTS doc_embeddings (
 	file_path TEXT NOT NULL,
 	chunk_index INTEGER NOT NULL,
 	content TEXT NOT NULL,
-	embedding vector(1536),  -- OpenAI text-embedding-3-small dimension
+	embedding vector(1536) NOT NULL,  -- OpenAI text-embedding-3-small dimension
 	metadata JSONB,
-	created_at TIMESTAMPTZ DEFAULT NOW()
+	created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- Performance indexes

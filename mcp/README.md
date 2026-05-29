@@ -33,6 +33,18 @@ export DATABASE_URL="postgresql://user:pass@localhost:5432/docs"
 export OPENAI_API_KEY="sk-..."
 ```
 
+Existing databases should apply migrations in order:
+
+```bash
+psql $DATABASE_URL -f migrations/001_harden_embeddings.up.sql
+```
+
+Rollback for that migration:
+
+```bash
+psql $DATABASE_URL -f migrations/001_harden_embeddings.down.sql
+```
+
 ## Usage
 
 ### Claude Desktop
@@ -172,6 +184,15 @@ bun run ingest react
 | `DATABASE_URL` | For search | PostgreSQL connection string with pgvector |
 | `OPENAI_API_KEY` | For search | OpenAI API key for embeddings |
 | `DOCS_DIR` | No | Custom docs directory (default: `~/.local/share/docpull-mcp/docs`) |
+| `OPENAI_TIMEOUT_MS` | No | Embedding request timeout in milliseconds (default: `30000`) |
+| `OPENAI_MAX_RETRIES` | No | OpenAI SDK retry count for embedding calls (default: `2`) |
+| `OPENAI_CIRCUIT_FAILURE_THRESHOLD` | No | Consecutive embedding failures before opening the circuit (default: `5`) |
+| `OPENAI_CIRCUIT_RESET_MS` | No | Circuit reset window in milliseconds (default: `60000`) |
+| `DB_POOL_MAX` | No | Maximum PostgreSQL pool size (default: `10`) |
+| `DB_POOL_MIN` | No | Minimum PostgreSQL pool size (default: `2`) |
+| `DB_IDLE_TIMEOUT_MS` | No | PostgreSQL idle connection timeout (default: `30000`) |
+| `DB_CONNECTION_TIMEOUT_MS` | No | PostgreSQL connection timeout (default: `5000`) |
+| `DB_STATEMENT_TIMEOUT_MS` | No | PostgreSQL statement/query timeout (default: `30000`) |
 
 ## Cost
 

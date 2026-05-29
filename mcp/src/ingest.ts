@@ -4,11 +4,25 @@
  * Chunks and embeds markdown files, then stores in pgvector
  */
 
-import { readdirSync, readFileSync, statSync, existsSync } from "node:fs";
-import { join } from "node:path";
+import {
+	existsSync,
+	lstatSync,
+	readdirSync,
+	readFileSync,
+	statSync,
+} from "node:fs";
+import { join, relative, resolve } from "node:path";
 import { homedir } from "node:os";
-import { OpenAI } from "openai";
-import { deleteLibraryDocs, insertEmbeddingsBatch } from "./db.js";
+import {
+	replaceLibraryEmbeddings,
+	type EmbeddingDocument,
+} from "./db.js";
+import {
+	createEmbeddings,
+	requireConfiguredOpenAIClient,
+} from "./embeddings.js";
+import { errorMessage, logStructured } from "./logger.js";
+import { isSafeSourceName } from "./source_resolver.js";
 
 // ============================================================================
 // CONFIG
@@ -23,17 +37,19 @@ const DEFAULT_DOCS_DIR = join(
 );
 const DOCS_DIR = process.env.DOCS_DIR || DEFAULT_DOCS_DIR;
 
-const CHUNK_SIZE = 1000; // tokens (roughly 750 words)
-const CHUNK_OVERLAP = 200; // tokens
-const MAX_BATCH_TOKENS = 7000; // Leave headroom under OpenAI's 8192 limit
+const CHUNK_SIZE_TOKENS = 1_000;
+const CHUNK_OVERLAP_TOKENS = 200;
+const MAX_BATCH_TOKENS = 7_000;
 const MAX_BATCH_SIZE = 100;
+const EXIT_SUCCESS = 0;
+const EXIT_FAILURE = 1;
 
-function getOpenAI(): OpenAI {
-	const key = process.env.OPENAI_API_KEY;
-	if (!key) {
-		throw new Error("OPENAI_API_KEY environment variable required");
-	}
-	return new OpenAI({ apiKey: key });
+function writeLine(message = ""): void {
+	process.stdout.write(`${message}\n`);
+}
+
+function writeErrorLine(message: string): void {
+	process.stderr.write(`${message}\n`);
 }
 
 // ============================================================================
@@ -126,6 +142,19 @@ function batchByTokens(chunks: ChunkData[]): ChunkData[][] {
 	return batches;
 }
 
+function resolveLibraryPath(libraryName: string): string {
+	if (!isSafeSourceName(libraryName)) {
+		throw new Error(`Invalid library name: ${libraryName}`);
+	}
+	const docsRoot = resolve(DOCS_DIR);
+	const libraryPath = resolve(docsRoot, libraryName);
+	const rel = relative(docsRoot, libraryPath);
+	if (rel === "" || rel.startsWith("..")) {
+		throw new Error(`Library path escapes docs directory: ${libraryName}`);
+	}
+	return libraryPath;
+}
+
 function getAllMarkdownFiles(
 	dir: string,
 	library: string,
@@ -137,9 +166,14 @@ function getAllMarkdownFiles(
 
 		for (const entry of entries) {
 			const fullPath = join(currentDir, entry);
-			const stat = statSync(fullPath);
+			const stat = lstatSync(fullPath);
 
-			if (stat.isDirectory()) {
+			if (stat.isSymbolicLink()) {
+				logStructured("warn", "Skipping symlink during ingestion", {
+					library: lib,
+					path: fullPath,
+				});
+			} else if (stat.isDirectory()) {
 				traverse(fullPath, lib);
 			} else if (entry.endsWith(".md")) {
 				files.push({ path: fullPath, library: lib });
@@ -155,26 +189,23 @@ function getAllMarkdownFiles(
 // INGESTION
 // ============================================================================
 
-async function ingestLibrary(libraryPath: string, libraryName: string) {
-	console.log(`\nIngesting ${libraryName}...`);
+async function ingestLibrary(libraryPath: string, libraryName: string): Promise<void> {
+	writeLine(`\nIngesting ${libraryName}...`);
 
 	const files = getAllMarkdownFiles(libraryPath, libraryName);
-	console.log(`Found ${files.length} markdown files`);
+	writeLine(`Found ${files.length} markdown files`);
 
 	if (files.length === 0) {
-		console.log(`Skipping ${libraryName} - no markdown files`);
+		writeLine(`Skipping ${libraryName} - no markdown files`);
 		return;
 	}
-
-	await deleteLibraryDocs(libraryName);
-	console.log(`Cleared existing ${libraryName} embeddings`);
 
 	const allChunks: ChunkData[] = [];
 
 	for (const file of files) {
 		const content = readFileSync(file.path, "utf-8");
-		const chunks = chunkText(content, CHUNK_SIZE, CHUNK_OVERLAP);
-		const relativePath = file.path.replace(libraryPath + "/", "");
+		const chunks = chunkText(content, CHUNK_SIZE_TOKENS, CHUNK_OVERLAP_TOKENS);
+		const relativePath = relative(libraryPath, file.path);
 
 		for (let i = 0; i < chunks.length; i++) {
 			const chunk = chunks[i];
@@ -194,103 +225,119 @@ async function ingestLibrary(libraryPath: string, libraryName: string) {
 		}
 	}
 
-	console.log(`Created ${allChunks.length} chunks`);
+	writeLine(`Created ${allChunks.length} chunks`);
 
 	const batches = batchByTokens(allChunks);
-	console.log(`Generating embeddings in ${batches.length} batches...`);
+	writeLine(`Generating embeddings in ${batches.length} batches...`);
 
-	const openai = getOpenAI();
+	const openai = requireConfiguredOpenAIClient();
 	let processed = 0;
+	const docs: EmbeddingDocument[] = [];
 	for (const batch of batches) {
 		const texts = batch.map((e) => e.content);
+		const embeddings = await createEmbeddings(openai, texts);
 
-		const response = await openai.embeddings.create({
-			model: "text-embedding-3-small",
-			input: texts,
-		});
-
-		await insertEmbeddingsBatch(
-			batch.map((item, idx) => ({
+		docs.push(
+			...batch.map((item, idx) => ({
 				library: item.library,
 				file_path: item.filePath,
 				chunk_index: item.chunkIndex,
 				content: item.content,
-				embedding: response.data[idx].embedding,
+				embedding: embeddings[idx],
 				metadata: item.metadata,
 			})),
 		);
 
 		processed += batch.length;
-		console.log(`  Processed ${processed}/${allChunks.length}`);
+		writeLine(`  Processed ${processed}/${allChunks.length}`);
 	}
 
-	console.log(`${libraryName} complete: ${allChunks.length} chunks embedded`);
+	await replaceLibraryEmbeddings(libraryName, docs);
+	writeLine(`${libraryName} complete: ${allChunks.length} chunks embedded`);
 }
 
 export async function ingestSingleLibrary(libraryName: string): Promise<void> {
-	const libraryPath = join(DOCS_DIR, libraryName);
+	const libraryPath = resolveLibraryPath(libraryName);
 	if (!existsSync(libraryPath)) {
 		throw new Error(`Library not found: ${libraryPath}`);
 	}
 	await ingestLibrary(libraryPath, libraryName);
 }
 
-async function main() {
-	console.log("docpull-mcp Documentation Ingestion");
-	console.log("=".repeat(50));
-	console.log(`Docs directory: ${DOCS_DIR}`);
-	console.log("");
+async function main(): Promise<number> {
+	writeLine("docpull-mcp Documentation Ingestion");
+	writeLine("=".repeat(50));
+	writeLine(`Docs directory: ${DOCS_DIR}`);
+	writeLine();
 
 	if (!existsSync(DOCS_DIR)) {
-		console.error(`Error: Docs directory not found: ${DOCS_DIR}`);
-		console.error("\nFetch some docs first with ensure_docs tool, or run:");
-		console.error(
+		writeErrorLine(`Error: Docs directory not found: ${DOCS_DIR}`);
+		writeErrorLine("\nFetch some docs first with ensure_docs tool, or run:");
+		writeErrorLine(
 			"  docpull https://example.com/docs -o ~/.local/share/docpull-mcp/docs/example",
 		);
-		process.exit(1);
+		return EXIT_FAILURE;
 	}
 
-	// Get specific library from args, or ingest all
 	const targetLibrary = process.argv[2];
 
 	if (targetLibrary) {
-		const libraryPath = join(DOCS_DIR, targetLibrary);
+		const libraryPath = resolveLibraryPath(targetLibrary);
 		if (!existsSync(libraryPath)) {
-			console.error(`Error: Library not found: ${libraryPath}`);
-			process.exit(1);
+			writeErrorLine(`Error: Library not found: ${libraryPath}`);
+			return EXIT_FAILURE;
 		}
 		await ingestLibrary(libraryPath, targetLibrary);
+		return EXIT_SUCCESS;
 	} else {
 		const libraries = readdirSync(DOCS_DIR).filter((name) => {
+			if (!isSafeSourceName(name)) {
+				logStructured("warn", "Skipping unsafe library directory name", {
+					library: name,
+				});
+				return false;
+			}
 			const stat = statSync(join(DOCS_DIR, name));
 			return stat.isDirectory();
 		});
 
 		if (libraries.length === 0) {
-			console.error(`Error: No library directories found in ${DOCS_DIR}`);
-			process.exit(1);
+			writeErrorLine(`Error: No library directories found in ${DOCS_DIR}`);
+			return EXIT_FAILURE;
 		}
 
-		console.log(`Found ${libraries.length} libraries:`);
-		libraries.forEach((lib) => console.log(`  - ${lib}`));
+		writeLine(`Found ${libraries.length} libraries:`);
+		for (const library of libraries) {
+			writeLine(`  - ${library}`);
+		}
 
+		const failures: string[] = [];
 		for (const library of libraries) {
 			try {
 				await ingestLibrary(join(DOCS_DIR, library), library);
 			} catch (error) {
-				console.error(`Error ingesting ${library}:`, error);
+				failures.push(library);
+				writeErrorLine(`Error ingesting ${library}: ${errorMessage(error)}`);
 			}
+		}
+
+		if (failures.length > 0) {
+			writeErrorLine(`Ingestion failed for ${failures.length} libraries.`);
+			return EXIT_FAILURE;
 		}
 	}
 
-	console.log("\nIngestion complete!");
-	process.exit(0);
+	writeLine("\nIngestion complete!");
+	return EXIT_SUCCESS;
 }
 
-// Only run main if executed directly
 if (import.meta.main) {
-	main().catch((error) => {
-		console.error("Fatal error:", error);
-		process.exit(1);
-	});
+	main()
+		.then((exitCode) => {
+			process.exit(exitCode);
+		})
+		.catch((error) => {
+			writeErrorLine(`Fatal error: ${errorMessage(error)}`);
+			process.exit(EXIT_FAILURE);
+		});
 }
