@@ -22,6 +22,7 @@ from docpull.mcp.tools import (
     read_doc,
     remove_source,
 )
+from docpull.security.url_validator import UrlValidationResult
 
 
 def test_builtin_sources_include_common_libraries():
@@ -329,6 +330,18 @@ def test_grep_docs_rejects_invalid_regex(tmp_path):
     assert "Invalid pattern" in result.text
 
 
+def test_grep_docs_times_out_pathological_regex(tmp_path, monkeypatch):
+    lib = tmp_path / "lib"
+    lib.mkdir()
+    (lib / "a.md").write_text("a" * 20_000 + "!")
+    monkeypatch.setattr("docpull.mcp.tools.GREP_LINE_TIMEOUT_SECONDS", 0.001)
+
+    result = grep_docs(r"(a+)+$", docs_dir=tmp_path)
+
+    assert result.is_error is False
+    assert result.data["timed_out"] is True
+
+
 # --- Robustness -------------------------------------------------------
 
 
@@ -339,6 +352,44 @@ def test_load_user_sources_logs_yaml_error(tmp_path, caplog):
         sources = load_user_sources(path=path)
     assert sources == {}
     assert any("Failed to parse" in rec.message for rec in caplog.records)
+
+
+def test_load_user_sources_rejects_unsafe_manual_entries(tmp_path, caplog, monkeypatch):
+    class FakeValidator:
+        def validate(self, url: str) -> UrlValidationResult:
+            if "blocked.example" in url:
+                return UrlValidationResult.invalid("blocked test host")
+            return UrlValidationResult.valid()
+
+    monkeypatch.setattr("docpull.mcp.sources._USER_SOURCE_URL_VALIDATOR", FakeValidator())
+    path = tmp_path / "sources.yaml"
+    path.write_text(
+        """
+sources:
+  good:
+    url: https://example.com/docs
+    max_pages: "5"
+  ../bad:
+    url: https://example.com/docs
+  plain_http:
+    url: http://example.com/docs
+  blocked:
+    url: https://blocked.example/docs
+  too_many:
+    url: https://example.com/docs
+    max_pages: 100001
+"""
+    )
+
+    with caplog.at_level(logging.WARNING, logger="docpull.mcp.sources"):
+        sources = load_user_sources(path=path)
+
+    assert list(sources) == ["good"]
+    assert sources["good"].max_pages == 5
+    assert any("unsafe source name" in rec.message for rec in caplog.records)
+    assert any("url must be an HTTPS URL" in rec.message for rec in caplog.records)
+    assert any("blocked test host" in rec.message for rec in caplog.records)
+    assert any("max_pages must be between" in rec.message for rec in caplog.records)
 
 
 def test_partial_meta_treats_cache_as_stale(tmp_path):

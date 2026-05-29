@@ -14,20 +14,20 @@ from __future__ import annotations
 import json
 import logging
 import os
-import re
 import shutil
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+import regex
 import yaml
 
 from ..core.fetcher import Fetcher
 from ..models.config import CrawlConfig, DocpullConfig, OutputConfig, ProfileName
 from ..security.url_validator import UrlValidator
+from ..time_utils import utc_now_iso
 from .sources import (
     _URL_SCHEME_RE,
     BUILTIN_SOURCES,
@@ -44,6 +44,7 @@ logger = logging.getLogger(__name__)
 CACHE_TTL_SECONDS = 7 * 24 * 60 * 60  # 7 days
 MAX_GREP_PATTERN_LEN = 1000
 GREP_TIMEOUT_SECONDS = 10.0
+GREP_LINE_TIMEOUT_SECONDS = 0.05
 MAX_READ_DOC_BYTES = 1_000_000
 
 _FETCH_URL_VALIDATOR = UrlValidator(allowed_schemes={"https"})
@@ -99,7 +100,7 @@ def _write_meta(meta_path: Path, source: str, url: str, pages: int) -> None:
                 "source": source,
                 "url": url,
                 "fetched_at_epoch": time.time(),
-                "fetched_at": datetime.now().isoformat(),
+                "fetched_at": utc_now_iso(),
                 "page_count": pages,
             },
             indent=2,
@@ -118,7 +119,7 @@ def _write_partial_meta(meta_path: Path, source: str, url: str, pages: int) -> N
                 "source": source,
                 "url": url,
                 "fetched_at_epoch": time.time(),
-                "fetched_at": datetime.now().isoformat(),
+                "fetched_at": utc_now_iso(),
                 "page_count": pages,
                 "partial": True,
             },
@@ -180,6 +181,11 @@ async def ensure_docs(
             return ToolResult(
                 f"Direct URLs are disabled. Add an alias in {sources_config_path()} "
                 "and call ensure_docs with that name.",
+                is_error=True,
+            )
+        if not is_safe_library_name(source):
+            return ToolResult(
+                f"Invalid source name '{source}'. Use names from list_sources.",
                 is_error=True,
             )
         available = ", ".join(sorted(all_sources().keys()))
@@ -409,9 +415,7 @@ def grep_docs(
 
     Hardened against (a) path traversal via ``library`` (rejected by
     ``is_safe_library_name``) and (b) catastrophic regex via a pattern
-    length cap and a wall-clock budget. Python's ``re`` has no built-in
-    timeout, so the budget is checked between files; a single pathological
-    pattern+line combination can still wedge for one file's worth of work.
+    length cap, a total wall-clock budget, and a per-line regex timeout.
     """
     docs_dir = docs_dir or default_docs_dir()
     if not docs_dir.exists():
@@ -430,9 +434,9 @@ def grep_docs(
     context = max(0, min(context, 3))
 
     try:
-        flags = 0 if case_sensitive else re.IGNORECASE
-        regex = re.compile(pattern, flags)
-    except re.error as err:
+        flags = 0 if case_sensitive else regex.IGNORECASE
+        compiled = regex.compile(pattern, flags)
+    except regex.error as err:
         return ToolResult(f"Invalid pattern: {err}", is_error=True)
 
     roots = (
@@ -459,7 +463,12 @@ def grep_docs(
                 continue
             matches: list[tuple[int, list[str], str, list[str]]] = []
             for idx, line in enumerate(lines):
-                if regex.search(line):
+                try:
+                    matched = compiled.search(line, timeout=GREP_LINE_TIMEOUT_SECONDS) is not None
+                except TimeoutError:
+                    timed_out = True
+                    break
+                if matched:
                     before = [lines[i].rstrip() for i in range(max(0, idx - context), idx)] if context else []
                     after = (
                         [lines[i].rstrip() for i in range(idx + 1, min(len(lines), idx + 1 + context))]
@@ -476,6 +485,8 @@ def grep_docs(
                     )
                 )
                 total += len(matches)
+            if timed_out:
+                break
         if timed_out:
             break
 

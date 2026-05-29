@@ -150,9 +150,7 @@ class UrlValidator:
             ipaddress.ip_address(normalized)
             return [normalized]
         except ValueError:
-            pass
-
-        return self._resolver(normalized)
+            return self._resolver(normalized)
 
     def _resolve_hostname(self, hostname: str) -> list[str]:
         """Resolve hostname to a deduplicated list of IP addresses."""
@@ -212,11 +210,13 @@ class UrlValidator:
         This closes the gap where attacker-controlled DNS maps a public-looking
         hostname to a private or loopback address.
         """
+        is_hostname_ip = True
         try:
             ipaddress.ip_address(hostname)
-            return None
         except ValueError:
-            pass
+            is_hostname_ip = False
+        if is_hostname_ip:
+            return None
 
         try:
             addresses = self._resolver(hostname)
