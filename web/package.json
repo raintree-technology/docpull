@@ -30,7 +30,7 @@
     "@types/react-dom": "^19",
     "autoprefixer": "^10.4.16",
     "clsx": "^2.1.1",
-    "eslint": "^9",
+    "eslint": "^10",
     "eslint-plugin-react-hooks": "^7.0.1",
     "postcss": "^8.5.15",
     "tailwind-merge": "^2.6.0",
