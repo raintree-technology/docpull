@@ -148,7 +148,8 @@ class StaticLinkExtractor:
         """
         try:
             absolute_url = urljoin(base_url, href)
-        except Exception:
+        except Exception as err:
+            logger.debug("Could not resolve href %r against %s: %s", href, base_url, err)
             return None
 
         # Remove fragment

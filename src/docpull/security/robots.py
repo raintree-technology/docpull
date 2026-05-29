@@ -348,7 +348,8 @@ class RobotsChecker:
             delay = parser.crawl_delay(self.user_agent)
             if delay is not None:
                 return float(delay)
-        except (TypeError, ValueError):
+        except (TypeError, ValueError) as err:
+            self.logger.debug("Ignoring invalid Crawl-delay for %s: %s", url, err)
             return None
 
         return None
@@ -372,7 +373,8 @@ class RobotsChecker:
         try:
             sitemaps = parser.site_maps()
             return list(sitemaps) if sitemaps else []
-        except Exception:
+        except Exception as err:
+            self.logger.debug("Could not read Sitemap entries for %s: %s", url, err)
             return []
 
     def clear_cache(self) -> None:

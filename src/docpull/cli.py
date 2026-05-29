@@ -13,12 +13,10 @@ if "--doctor" in sys.argv:
 
     output_dir = None
     if "--output-dir" in sys.argv or "-o" in sys.argv:
-        try:
-            flag_idx = sys.argv.index("--output-dir") if "--output-dir" in sys.argv else sys.argv.index("-o")
-            if flag_idx + 1 < len(sys.argv):
-                output_dir = Path(sys.argv[flag_idx + 1])
-        except (ValueError, IndexError):
-            pass
+        flag = "--output-dir" if "--output-dir" in sys.argv else "-o"
+        flag_idx = sys.argv.index(flag)
+        if flag_idx + 1 < len(sys.argv):
+            output_dir = Path(sys.argv[flag_idx + 1])
     sys.exit(run_doctor(output_dir=output_dir))
 
 # Verify core dependencies

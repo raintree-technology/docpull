@@ -320,7 +320,8 @@ class OpenApiExtractor:
             return None
         try:
             data = json.loads(text)
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as err:
+            logger.debug("OpenAPI extractor skipped %s: JSON parse failed: %s", url, err)
             return None
         if not isinstance(data, dict):
             return None
@@ -569,8 +570,8 @@ def looks_like_spa(html: bytes, min_body_ratio: float = 0.05) -> bool:
     """Heuristic: does this HTML appear to be a JS-only SPA?
 
     True when the non-script body text is very small relative to the overall
-    page size and the page contains script tags. Not perfect, but good enough
-    to warn an agent before it consumes empty Markdown.
+    page size and the page contains script tags. This is a conservative signal
+    for warning an agent before it consumes empty Markdown.
     """
     if len(html) < 500:
         return False
@@ -578,7 +579,8 @@ def looks_like_spa(html: bytes, min_body_ratio: float = 0.05) -> bool:
         return False
     try:
         soup = _soup(html)
-    except Exception:  # noqa: BLE001
+    except Exception as err:  # noqa: BLE001
+        logger.debug("SPA heuristic skipped malformed HTML: %s", err)
         return False
     # Remove scripts/styles before measuring.
     for tag in soup(["script", "style", "noscript"]):
