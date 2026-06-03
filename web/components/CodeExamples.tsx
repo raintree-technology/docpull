@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, memo } from "react";
+import { useState, useCallback, memo, type KeyboardEvent } from "react";
 import { Copy, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -105,8 +105,9 @@ const CodeBlock = memo(function CodeBlock({
           <code className="whitespace-pre">{code}</code>
         </pre>
         <button
+          type="button"
           onClick={handleCopy}
-          className="absolute top-8 right-3 p-1.5 rounded-lg glass opacity-100 sm:opacity-0 sm:group-hover:opacity-100 hover:bg-foreground/5 transition-all"
+          className="absolute top-7 right-2 min-h-11 min-w-11 p-2 rounded-lg glass opacity-100 sm:opacity-0 sm:group-hover:opacity-100 hover:bg-foreground/5 transition-all"
           aria-label={copied ? "Copied" : "Copy code"}
         >
           {copied ? (
@@ -131,30 +132,69 @@ const CodeBlock = memo(function CodeBlock({
 export default function CodeExamples() {
   const [active, setActive] = useState<string>("default");
   const activeExample = examples.find((e) => e.id === active);
+  const activeIndex = examples.findIndex((e) => e.id === active);
 
   const handleTabClick = useCallback((id: string) => {
     setActive(id);
   }, []);
+
+  const handleTabKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLButtonElement>) => {
+      if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) {
+        return;
+      }
+
+      event.preventDefault();
+      const lastIndex = examples.length - 1;
+      const nextIndex =
+        event.key === "Home"
+          ? 0
+          : event.key === "End"
+            ? lastIndex
+            : event.key === "ArrowRight"
+              ? activeIndex === lastIndex
+                ? 0
+                : activeIndex + 1
+              : activeIndex === 0
+                ? lastIndex
+                : activeIndex - 1;
+      const nextId = examples[nextIndex].id;
+      setActive(nextId);
+      document.getElementById(`example-tab-${nextId}`)?.focus();
+    },
+    [activeIndex],
+  );
 
   return (
     <section id="examples" className="py-16 sm:py-24 border-t">
       <div className="mx-auto max-w-5xl px-6">
         <div className="mb-8 sm:mb-12 text-center sm:text-left">
           <h2 className="text-xl sm:text-2xl font-medium mb-2 sm:mb-3">
-            <span className="bg-background/50 px-1 rounded">Examples</span>
+            <span>Examples</span>
           </h2>
-          <p className="text-sm sm:text-base text-muted-foreground bg-background/50 py-1 rounded inline-block">
+          <p className="text-sm sm:text-base text-muted-foreground">
             Real commands, real output — from one-shot fetches to Claude Code skills.
           </p>
         </div>
 
-        <div className="flex flex-wrap justify-center sm:justify-start gap-2 mb-6">
+        <div
+          className="flex flex-wrap justify-center sm:justify-start gap-2 mb-6"
+          role="tablist"
+          aria-label="Code example categories"
+        >
           {examples.map((example) => (
             <button
+              type="button"
               key={example.id}
+              id={`example-tab-${example.id}`}
               onClick={() => handleTabClick(example.id)}
+              onKeyDown={handleTabKeyDown}
+              role="tab"
+              aria-selected={active === example.id}
+              aria-controls={`example-panel-${example.id}`}
+              tabIndex={active === example.id ? 0 : -1}
               className={cn(
-                "px-3 py-1.5 text-xs sm:text-sm rounded-md transition-all duration-200",
+                "min-h-11 px-3 py-2 text-xs sm:text-sm rounded-md transition-all duration-200",
                 active === example.id
                   ? "bg-foreground text-background"
                   : "glass text-muted-foreground hover:text-foreground",
@@ -166,7 +206,13 @@ export default function CodeExamples() {
         </div>
 
         {activeExample && (
-          <CodeBlock code={activeExample.code} output={activeExample.output} />
+          <div
+            id={`example-panel-${activeExample.id}`}
+            role="tabpanel"
+            aria-labelledby={`example-tab-${activeExample.id}`}
+          >
+            <CodeBlock code={activeExample.code} output={activeExample.output} />
+          </div>
         )}
       </div>
     </section>

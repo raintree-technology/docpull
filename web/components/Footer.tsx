@@ -88,7 +88,7 @@ export default function Footer() {
               href="https://pypi.org/project/docpull/"
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:text-foreground transition-colors"
+              className="min-h-11 inline-flex items-center hover:text-foreground transition-colors"
             >
               PyPI
             </a>
@@ -96,7 +96,7 @@ export default function Footer() {
               href="https://github.com/raintree-technology/docpull#readme"
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:text-foreground transition-colors"
+              className="min-h-11 inline-flex items-center hover:text-foreground transition-colors"
             >
               Docs
             </a>
@@ -104,7 +104,8 @@ export default function Footer() {
               href="https://github.com/raintree-technology/docpull"
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:text-foreground transition-colors"
+              className="min-h-11 min-w-11 inline-flex items-center justify-center hover:text-foreground transition-colors"
+              aria-label="GitHub repository"
             >
               <Github className="h-4 w-4" />
             </a>
@@ -112,7 +113,8 @@ export default function Footer() {
               href="https://x.com/raintree_tech"
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:text-foreground transition-colors"
+              className="min-h-11 min-w-11 inline-flex items-center justify-center hover:text-foreground transition-colors"
+              aria-label="X profile"
             >
               <XIcon className="h-4 w-4" />
             </a>
@@ -120,7 +122,7 @@ export default function Footer() {
               href="https://raintree.technology"
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:text-foreground transition-colors"
+              className="min-h-11 min-w-11 inline-flex items-center justify-center hover:text-foreground transition-colors"
               aria-label="Raintree Technology"
             >
               <RaintreeLogo size={22} className="-mt-0.5 -ml-0.5" />
@@ -131,7 +133,7 @@ export default function Footer() {
               href="https://github.com/raintree-technology/docpull/blob/main/LICENSE"
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:text-foreground transition-colors"
+              className="min-h-11 inline-flex items-center hover:text-foreground transition-colors"
             >
               MIT
             </a>
@@ -145,7 +147,7 @@ export default function Footer() {
               href="https://pypi.org/project/docpull/"
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:text-foreground transition-colors"
+              className="min-h-11 min-w-11 inline-flex items-center justify-center hover:text-foreground transition-colors"
             >
               PyPI
             </a>
@@ -153,7 +155,7 @@ export default function Footer() {
               href="https://github.com/raintree-technology/docpull#readme"
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:text-foreground transition-colors"
+              className="min-h-11 min-w-11 inline-flex items-center justify-center hover:text-foreground transition-colors"
             >
               Docs
             </a>
@@ -161,7 +163,7 @@ export default function Footer() {
               href="https://github.com/raintree-technology/docpull/blob/main/docs/CHANGELOG.md"
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:text-foreground transition-colors"
+              className="min-h-11 min-w-11 inline-flex items-center justify-center hover:text-foreground transition-colors"
             >
               Changelog
             </a>

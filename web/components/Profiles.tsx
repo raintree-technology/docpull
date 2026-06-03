@@ -28,9 +28,9 @@ export default function Profiles() {
       <div className="mx-auto max-w-5xl px-6">
         <div className="mb-8 sm:mb-12 text-center sm:text-left">
           <h2 className="text-xl sm:text-2xl font-medium mb-2 sm:mb-3">
-            <span className="bg-background/50 px-1 rounded">Profiles</span>
+            <span>Profiles</span>
           </h2>
-          <p className="text-sm sm:text-base text-muted-foreground bg-background/50 py-1 rounded inline-block">
+          <p className="text-sm sm:text-base text-muted-foreground">
             Pick a profile for your use case.
           </p>
         </div>

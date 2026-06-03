@@ -25,7 +25,10 @@ export default function Header() {
     >
       <div className="flex h-14 items-center justify-between px-6 max-w-5xl mx-auto">
         {/* Logo */}
-        <a href="#" className="font-medium text-sm h-8 flex items-center gap-2">
+        <a
+          href="#"
+          className="font-medium text-sm min-h-11 flex items-center gap-2"
+        >
           <svg
             width="18"
             height="18"
@@ -54,19 +57,19 @@ export default function Header() {
         <nav className="hidden md:flex items-center gap-6">
           <a
             href="#features"
-            className="text-sm text-muted-foreground hover:text-foreground bg-background/50 py-1 rounded"
+            className="text-sm text-muted-foreground hover:text-foreground"
           >
             Features
           </a>
           <a
             href="#examples"
-            className="text-sm text-muted-foreground hover:text-foreground bg-background/50 py-1 rounded"
+            className="text-sm text-muted-foreground hover:text-foreground"
           >
             Examples
           </a>
           <a
             href="#install"
-            className="text-sm text-muted-foreground hover:text-foreground bg-background/50 py-1 rounded"
+            className="text-sm text-muted-foreground hover:text-foreground"
           >
             Install
           </a>
@@ -78,7 +81,8 @@ export default function Header() {
             href="https://github.com/raintree-technology/docpull"
             target="_blank"
             rel="noopener noreferrer"
-            className="w-8 h-8 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            className="w-11 h-11 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            aria-label="GitHub repository"
           >
             <Github className="h-4 w-4" />
           </a>
