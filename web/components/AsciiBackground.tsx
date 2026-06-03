@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useReducedMotion } from "@/lib/use-reduced-motion";
 
 const ASCII_CHARS = " .·:;+*#%@";
 const TARGET_FPS = 24;
@@ -11,6 +12,7 @@ export default function AsciiBackground() {
   const timeRef = useRef(0);
   const animationRef = useRef<number>(0);
   const lastFrameRef = useRef(0);
+  const reducedMotion = useReducedMotion();
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -26,17 +28,12 @@ export default function AsciiBackground() {
     const resize = () => {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
+      if (reducedMotion) {
+        renderFrame();
+      }
     };
 
-    const animate = (timestamp: number) => {
-      animationRef.current = requestAnimationFrame(animate);
-
-      // Throttle to target FPS
-      const elapsed = timestamp - lastFrameRef.current;
-      if (elapsed < FRAME_INTERVAL) return;
-      lastFrameRef.current = timestamp - (elapsed % FRAME_INTERVAL);
-
-      timeRef.current += 0.035;
+    const renderFrame = () => {
       const t = timeRef.current;
 
       const cols = Math.ceil(canvas.width / charWidth);
@@ -88,8 +85,24 @@ export default function AsciiBackground() {
       }
     };
 
+    const animate = (timestamp: number) => {
+      animationRef.current = requestAnimationFrame(animate);
+
+      // Throttle to target FPS
+      const elapsed = timestamp - lastFrameRef.current;
+      if (elapsed < FRAME_INTERVAL) return;
+      lastFrameRef.current = timestamp - (elapsed % FRAME_INTERVAL);
+
+      timeRef.current += 0.035;
+      renderFrame();
+    };
+
     resize();
-    animationRef.current = requestAnimationFrame(animate);
+    if (reducedMotion) {
+      renderFrame();
+    } else {
+      animationRef.current = requestAnimationFrame(animate);
+    }
 
     window.addEventListener("resize", resize);
 
@@ -97,7 +110,7 @@ export default function AsciiBackground() {
       cancelAnimationFrame(animationRef.current);
       window.removeEventListener("resize", resize);
     };
-  }, []);
+  }, [reducedMotion]);
 
   return (
     <canvas

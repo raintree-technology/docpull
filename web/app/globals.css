@@ -65,6 +65,21 @@ html {
     scroll-behavior: smooth;
 }
 
+@media (prefers-reduced-motion: reduce) {
+    html {
+        scroll-behavior: auto;
+    }
+
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
 /* Minimal scrollbar */
 ::-webkit-scrollbar {
     width: 6px;
@@ -203,12 +218,10 @@ body {
         min-height: 44px;
         min-width: 44px;
     }
+}
 
-    /* Allow smaller buttons when explicitly sized */
-    button.p-1\.5,
-    button.p-2,
-    button.p-2\.5 {
-        min-height: unset;
-        min-width: unset;
-    }
+button:focus-visible,
+a:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 3px;
 }

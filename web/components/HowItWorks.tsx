@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Database, Workflow, Sparkles } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useReducedMotion } from "@/lib/use-reduced-motion";
 
 const URL = "docs.anthropic.com";
 const TOTAL_PAGES = 247;
@@ -15,8 +16,10 @@ export default function HowItWorks() {
   const [typed, setTyped] = useState("");
   const [pages, setPages] = useState(0);
   const [destLit, setDestLit] = useState(-1);
+  const reducedMotion = useReducedMotion();
 
   useEffect(() => {
+    if (reducedMotion) return;
     if (typed.length < URL.length) {
       const t = setTimeout(
         () => setTyped(URL.slice(0, typed.length + 1)),
@@ -24,16 +27,18 @@ export default function HowItWorks() {
       );
       return () => clearTimeout(t);
     }
-  }, [typed]);
+  }, [reducedMotion, typed]);
 
   useEffect(() => {
+    if (reducedMotion) return;
     if (stage !== "point") return;
     if (typed.length < URL.length) return;
     const t = setTimeout(() => setStage("fetch"), 700);
     return () => clearTimeout(t);
-  }, [stage, typed]);
+  }, [reducedMotion, stage, typed]);
 
   useEffect(() => {
+    if (reducedMotion) return;
     if (stage !== "fetch") return;
     if (pages >= TOTAL_PAGES) {
       const t = setTimeout(() => setStage("use"), 500);
@@ -45,9 +50,10 @@ export default function HowItWorks() {
       );
     }, 70);
     return () => clearTimeout(t);
-  }, [stage, pages]);
+  }, [reducedMotion, stage, pages]);
 
   useEffect(() => {
+    if (reducedMotion) return;
     if (stage !== "use") return;
     if (destLit < 2) {
       const t = setTimeout(() => setDestLit((s) => s + 1), 500);
@@ -55,9 +61,10 @@ export default function HowItWorks() {
     }
     const t = setTimeout(() => setStage("done"), 1200);
     return () => clearTimeout(t);
-  }, [stage, destLit]);
+  }, [reducedMotion, stage, destLit]);
 
   useEffect(() => {
+    if (reducedMotion) return;
     if (stage !== "done") return;
     const t = setTimeout(() => {
       setPages(0);
@@ -65,13 +72,25 @@ export default function HowItWorks() {
       setStage("point");
     }, 1400);
     return () => clearTimeout(t);
-  }, [stage]);
+  }, [reducedMotion, stage]);
+
+  const displayTyped = reducedMotion ? URL : typed;
+  const displayPages = reducedMotion ? TOTAL_PAGES : pages;
+  const displayDestLit = reducedMotion ? 2 : destLit;
 
   const activeIdx =
-    stage === "point" ? 0 : stage === "fetch" ? 1 : stage === "use" ? 2 : 3;
+    reducedMotion
+      ? 2
+      : stage === "point"
+        ? 0
+        : stage === "fetch"
+          ? 1
+          : stage === "use"
+            ? 2
+            : 3;
 
-  const flow1Active = stage === "fetch";
-  const flow2Active = stage === "use";
+  const flow1Active = !reducedMotion && stage === "fetch";
+  const flow2Active = !reducedMotion && stage === "use";
   const flow1Lit = activeIdx >= 1;
   const flow2Lit = activeIdx >= 2;
 
@@ -80,9 +99,9 @@ export default function HowItWorks() {
       <div className="mx-auto max-w-5xl px-6">
         <div className="mb-10 sm:mb-14 text-center sm:text-left">
           <h2 className="text-xl sm:text-2xl font-medium mb-2 sm:mb-3">
-            <span className="bg-background/50 px-1 rounded">How it works</span>
+            <span>How it works</span>
           </h2>
-          <p className="text-sm sm:text-base text-muted-foreground bg-background/50 py-1 rounded inline-block">
+          <p className="text-sm sm:text-base text-muted-foreground">
             Three steps from URL to AI-ready output.
           </p>
         </div>
@@ -90,15 +109,15 @@ export default function HowItWorks() {
         <div className="glass rounded-2xl p-5 sm:p-8">
           <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1fr)] gap-4 md:gap-0 items-start">
             <Stage num="01" active={activeIdx === 0} done={activeIdx > 0}>
-              <UrlBar typed={typed} />
+              <UrlBar typed={displayTyped} />
             </Stage>
             <Connector active={flow1Active} lit={flow1Lit} />
             <Stage num="02" active={activeIdx === 1} done={activeIdx > 1}>
-              <FetchDisplay pages={pages} />
+              <FetchDisplay pages={displayPages} />
             </Stage>
             <Connector active={flow2Active} lit={flow2Lit} />
             <Stage num="03" active={activeIdx === 2} done={activeIdx > 2}>
-              <DestList lit={destLit} />
+              <DestList lit={displayDestLit} />
             </Stage>
           </div>
 
@@ -153,12 +172,7 @@ function Stage({
           STEP {num}
         </span>
       </div>
-      <div
-        className={cn(
-          "transition-opacity duration-500 min-h-[96px]",
-          !active && !done && "opacity-40",
-        )}
-      >
+      <div className="transition-opacity duration-500 min-h-[96px]">
         {children}
       </div>
     </div>
@@ -183,11 +197,11 @@ function UrlBar({ typed }: { typed: string }) {
           strokeLinecap="round"
         />
       </svg>
-      <span className="text-muted-foreground/70 select-none shrink-0">
+      <span className="text-muted-foreground select-none shrink-0">
         https://
       </span>
       <span className="relative flex items-center min-w-0 flex-1 whitespace-nowrap overflow-hidden">
-        <span className="text-foreground/90">{typed}</span>
+        <span className="text-foreground">{typed}</span>
         <span
           className="inline-block w-[2px] h-3.5 bg-foreground/70 animate-pulse shrink-0 ml-px"
           aria-hidden
@@ -207,7 +221,7 @@ function FetchDisplay({ pages }: { pages: number }) {
           <span className="text-foreground/90">
             {pages.toString().padStart(3, "0")}
           </span>
-          <span className="text-muted-foreground/60"> / {TOTAL_PAGES}</span>
+          <span className="text-muted-foreground"> / {TOTAL_PAGES}</span>
         </span>
       </div>
       <div className="relative h-1 rounded-full bg-foreground/10 overflow-hidden">
@@ -216,7 +230,7 @@ function FetchDisplay({ pages }: { pages: number }) {
           style={{ width: `${pct}%` }}
         />
       </div>
-      <div className="flex items-center gap-1.5 font-mono text-[10px] text-muted-foreground pt-0.5">
+      <div className="flex items-center gap-1.5 font-mono text-[10px] text-foreground/80 pt-0.5">
         <span className="px-1.5 py-0.5 rounded bg-foreground/5 border border-foreground/10">
           HTML
         </span>
@@ -286,7 +300,7 @@ function DestChip({
       <span
         className={cn(
           "text-[11px] font-mono transition-colors duration-300",
-          on ? "text-foreground/80" : "text-muted-foreground/50",
+          on ? "text-foreground/80" : "text-muted-foreground",
         )}
       >
         {label}
@@ -404,9 +418,7 @@ function StepText({
   active: boolean;
 }) {
   return (
-    <div
-      className={cn("transition-opacity duration-500", !active && "opacity-60")}
-    >
+    <div className="transition-opacity duration-500">
       <h3
         className={cn(
           "font-medium text-sm mb-1 transition-colors duration-300",

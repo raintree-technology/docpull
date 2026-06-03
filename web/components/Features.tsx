@@ -32,9 +32,9 @@ export default function Features() {
       <div className="mx-auto max-w-5xl px-6">
         <div className="mb-12 text-center sm:text-left">
           <h2 className="text-2xl font-medium mb-3">
-            <span className="bg-background/50 px-1 rounded">Features</span>
+            <span>Features</span>
           </h2>
-          <p className="text-muted-foreground bg-background/50 py-1 rounded inline-block">
+          <p className="text-muted-foreground">
             Everything you need for production-grade doc ingestion.
           </p>
         </div>

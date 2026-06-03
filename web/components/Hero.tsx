@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Copy, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useReducedMotion } from "@/lib/use-reduced-motion";
 
 const terminalLines = [
   { type: "command", content: "docpull https://docs.anthropic.com" },
@@ -23,8 +24,13 @@ export default function Hero() {
   const [copied, setCopied] = useState(false);
   const [copyFailed, setCopyFailed] = useState(false);
   const copyResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reducedMotion = useReducedMotion();
 
   useEffect(() => {
+    if (reducedMotion) {
+      return;
+    }
+
     const timer = setInterval(() => {
       setVisibleLines((prev) => {
         if (prev >= terminalLines.length) {
@@ -35,7 +41,7 @@ export default function Hero() {
       });
     }, 350);
     return () => clearInterval(timer);
-  }, []);
+  }, [reducedMotion]);
 
   useEffect(() => {
     return () => {
@@ -64,6 +70,8 @@ export default function Hero() {
     }
   }, []);
 
+  const renderedVisibleLines = reducedMotion ? terminalLines.length : visibleLines;
+
   return (
     <section className="flex items-start justify-center pt-20 lg:pt-56 pb-16 lg:pb-32">
       <div className="mx-auto max-w-6xl w-full px-6">
@@ -71,14 +79,12 @@ export default function Hero() {
           {/* Left: Content */}
           <div>
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-medium tracking-tight mb-6">
-              <span className="bg-background/50 px-1 rounded">Fetch docs.</span>
+              <span>Fetch docs.</span>
               <br />
-              <span className="text-muted-foreground bg-background/50 px-1 rounded">
-                Get clean Markdown.
-              </span>
+              <span className="text-muted-foreground">Get clean Markdown.</span>
             </h1>
 
-            <p className="text-muted-foreground text-base sm:text-lg mb-8 max-w-md bg-background/50 py-1 rounded">
+            <p className="text-muted-foreground text-base sm:text-lg mb-8 max-w-md">
               Local Python crawler that turns server-rendered docs into
               clean Markdown. Zero API keys, zero data leaving your
               machine. Built for RAG pipelines and Claude Code skills.
@@ -91,7 +97,7 @@ export default function Hero() {
               </code>
               <button
                 onClick={handleCopy}
-                className="p-2.5 rounded-xl glass hover:bg-foreground/5 transition-colors"
+                className="min-h-11 min-w-11 p-2.5 rounded-xl glass hover:bg-foreground/5 transition-colors"
                 aria-label={
                   copyFailed
                     ? "Copy failed"
@@ -108,13 +114,13 @@ export default function Hero() {
               </button>
               <a
                 href="#examples"
-                className="px-4 py-2.5 rounded-xl bg-foreground text-background text-sm font-medium hover:opacity-90 transition-opacity"
+                className="min-h-11 inline-flex items-center px-4 py-2.5 rounded-xl bg-foreground text-background text-sm font-medium hover:opacity-90 transition-opacity"
               >
                 See examples
               </a>
             </div>
 
-            <p className="mt-4 text-xs text-muted-foreground/80 max-w-md leading-relaxed bg-background/50 py-1 rounded">
+            <p className="mt-4 text-xs text-muted-foreground max-w-md leading-relaxed">
               Static and server-rendered sites only. JS-rendered SPAs are
               detected and skipped — pass{" "}
               <code className="font-mono text-[11px] bg-background/60 px-1 rounded">
@@ -132,7 +138,7 @@ export default function Hero() {
               <div className="terminal-dot terminal-dot-maximize" />
             </div>
             <div className="p-5 lg:p-8 font-mono text-sm sm:text-base lg:text-lg min-h-[220px] lg:min-h-[320px]">
-              {terminalLines.slice(0, visibleLines).map((line, i) => (
+              {terminalLines.slice(0, renderedVisibleLines).map((line, i) => (
                 <div
                   key={i}
                   className={cn(
@@ -150,7 +156,7 @@ export default function Hero() {
                   {line.content}
                 </div>
               ))}
-              {visibleLines < terminalLines.length && (
+              {renderedVisibleLines < terminalLines.length && (
                 <span className="inline-block w-2 h-4 bg-neutral-500 animate-pulse" />
               )}
             </div>

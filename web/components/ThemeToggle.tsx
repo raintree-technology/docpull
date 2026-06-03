@@ -22,7 +22,7 @@ export function ThemeToggle() {
   }, [resolvedTheme, setTheme]);
 
   if (!mounted) {
-    return <div className="w-8 h-8" aria-hidden="true" />;
+    return <div className="w-11 h-11" aria-hidden="true" />;
   }
 
   const isDark = resolvedTheme === "dark";
@@ -30,7 +30,7 @@ export function ThemeToggle() {
   return (
     <button
       onClick={toggleTheme}
-      className="relative w-8 h-8 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-foreground/20"
+      className="relative w-11 h-11 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-foreground/20"
       aria-label={`Switch to ${isDark ? "light" : "dark"} mode`}
     >
       <Sun

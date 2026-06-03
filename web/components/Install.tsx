@@ -26,20 +26,21 @@ export default function Install() {
       <div className="mx-auto max-w-5xl px-6">
         <div className="max-w-2xl mx-auto text-center">
           <h2 className="text-xl sm:text-2xl font-medium mb-2 sm:mb-3">
-            <span className="bg-background/50 px-1 rounded">Install</span>
+            <span>Install</span>
           </h2>
-          <p className="text-sm sm:text-base text-muted-foreground mb-6 bg-background/50 py-1 rounded inline-block">
+          <p className="text-sm sm:text-base text-muted-foreground mb-6">
             A single command to get docpull on your machine. Requires Python
             3.10 or newer.
           </p>
           {/* Main pip command */}
-          <div className="flex items-center justify-center gap-2 mb-6">
+          <div className="flex flex-wrap items-center justify-center gap-2 mb-6">
             <code className="px-6 py-3 glass rounded-xl text-sm sm:text-base font-mono">
               pip install docpull
             </code>
             <button
+              type="button"
               onClick={() => handleCopy("pip install docpull", "main")}
-              className="p-3 rounded-xl glass hover:bg-foreground/5 transition-colors"
+              className="min-h-11 min-w-11 p-3 rounded-xl glass hover:bg-foreground/5 transition-colors"
               aria-label={copied === "main" ? "Copied" : "Copy command"}
             >
               {copied === "main" ? (
@@ -53,8 +54,10 @@ export default function Install() {
           {/* Collapsible alternatives */}
           <div>
             <button
+              type="button"
               onClick={() => setShowAlt(!showAlt)}
-              className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              className="min-h-11 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              aria-expanded={showAlt}
             >
               <ChevronDown
                 className={cn(
@@ -81,8 +84,9 @@ export default function Install() {
                       </code>
                     </div>
                     <button
+                      type="button"
                       onClick={() => handleCopy(method.command, `alt-${i}`)}
-                      className="p-1.5 rounded-lg hover:bg-foreground/5 transition-colors ml-2"
+                      className="min-h-11 min-w-11 p-2 rounded-lg hover:bg-foreground/5 transition-colors ml-2"
                       aria-label={
                         copied === `alt-${i}` ? "Copied" : "Copy command"
                       }
