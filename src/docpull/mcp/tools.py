@@ -452,12 +452,22 @@ def grep_docs(
     for root in roots:
         if not root.exists() or not root.is_dir():
             continue
+        resolved_root = root.resolve()
         for file in root.rglob("*.md"):
             if time.monotonic() > deadline:
                 timed_out = True
                 break
+            if file.is_symlink():
+                logger.debug("skip symlinked doc file: %s", file)
+                continue
+            resolved_file = file.resolve()
             try:
-                lines = file.read_text(errors="replace").splitlines()
+                resolved_file.relative_to(resolved_root)
+            except ValueError:
+                logger.debug("skip doc file outside library root: %s", file)
+                continue
+            try:
+                lines = resolved_file.read_text(errors="replace").splitlines()
             except OSError as err:
                 logger.debug("skip %s: %s", file, err)
                 continue

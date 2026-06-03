@@ -7,6 +7,7 @@ from collections.abc import AsyncIterator
 from urllib.parse import urlparse
 
 from defusedxml import ElementTree
+from defusedxml.common import DefusedXmlException
 
 from ..http.protocols import HttpClient
 from ..security.robots import RobotsChecker
@@ -160,7 +161,7 @@ class SitemapDiscoverer:
 
         try:
             root = ElementTree.fromstring(content)
-        except ElementTree.ParseError as e:
+        except (ElementTree.ParseError, DefusedXmlException) as e:
             logger.warning(f"Failed to parse sitemap XML: {e}")
             return page_urls, sitemap_urls
 
