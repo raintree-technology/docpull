@@ -226,6 +226,39 @@ class TestSitemapDiscoverer:
 
         assert urls == ["https://example.com/page1"]
 
+    def test_parse_sitemap_rejects_external_entity_payload(self, mock_http_client, mock_validator):
+        """Hostile sitemap XML must not resolve external entities."""
+        sitemap_content = b"""<?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE urlset [
+          <!ENTITY xxe SYSTEM "file:///etc/passwd">
+        ]>
+        <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+            <url><loc>&xxe;</loc></url>
+        </urlset>"""
+
+        discoverer = SitemapDiscoverer(mock_http_client, mock_validator)
+        page_urls, sitemap_urls = discoverer._parse_sitemap(sitemap_content)
+
+        assert page_urls == []
+        assert sitemap_urls == []
+
+    def test_parse_sitemap_rejects_entity_expansion_payload(self, mock_http_client, mock_validator):
+        """Entity expansion payloads should be rejected by defusedxml."""
+        sitemap_content = b"""<?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE urlset [
+          <!ENTITY a "aaaaaaaaaa">
+          <!ENTITY b "&a;&a;&a;&a;&a;&a;&a;&a;&a;&a;">
+        ]>
+        <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+            <url><loc>https://example.com/&b;</loc></url>
+        </urlset>"""
+
+        discoverer = SitemapDiscoverer(mock_http_client, mock_validator)
+        page_urls, sitemap_urls = discoverer._parse_sitemap(sitemap_content)
+
+        assert page_urls == []
+        assert sitemap_urls == []
+
 
 class TestLinkCrawler:
     """Tests for LinkCrawler."""

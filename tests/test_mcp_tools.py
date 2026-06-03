@@ -265,6 +265,26 @@ def test_grep_docs_rejects_traversal_library(tmp_path):
     assert "Invalid library" in result.text
 
 
+def test_grep_docs_skips_symlinked_markdown_escape(tmp_path):
+    lib = tmp_path / "lib"
+    lib.mkdir()
+    (lib / "safe.md").write_text("inside")
+    secret = tmp_path / "secret.md"
+    secret.write_text("SECRET_NEEDLE")
+    (lib / "leak.md").symlink_to(secret)
+
+    result = grep_docs("SECRET_NEEDLE", docs_dir=tmp_path)
+
+    assert result.is_error is False
+    assert result.data == {
+        "pattern": "SECRET_NEEDLE",
+        "total_matches": 0,
+        "files": [],
+        "truncated": False,
+        "timed_out": False,
+    }
+
+
 def test_read_doc_rejects_traversal_library(tmp_path):
     (tmp_path / "real").mkdir()
     result = read_doc("../etc", "passwd", docs_dir=tmp_path)
