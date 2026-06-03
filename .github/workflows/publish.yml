@@ -16,7 +16,6 @@ on:
   push:
     tags:
       - "v*.*.*"
-  workflow_dispatch:
 
 permissions:
   contents: read
@@ -27,9 +26,9 @@ jobs:
     outputs:
       version: ${{ steps.meta.outputs.version }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: "3.11"
 
@@ -39,10 +38,6 @@ jobs:
           set -e
           PROJECT_VERSION=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
           echo "pyproject=$PROJECT_VERSION"
-          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ] && [ "${GITHUB_REF_NAME}" != "main" ]; then
-            echo "::error::Manual publish can only run from main"
-            exit 1
-          fi
           if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
             TAG="${GITHUB_REF_NAME#v}"
             echo "tag=$TAG"
@@ -50,6 +45,9 @@ jobs:
               echo "::error::Tag $TAG does not match pyproject.toml version $PROJECT_VERSION"
               exit 1
             fi
+          else
+            echo "::error::Publish workflow only runs from vX.Y.Z tags"
+            exit 1
           fi
           echo "version=$PROJECT_VERSION" >> "$GITHUB_OUTPUT"
 
@@ -74,7 +72,7 @@ jobs:
       - name: Verify wheel and sdist
         run: python -m twine check dist/*
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: dist
           path: dist/
@@ -88,12 +86,12 @@ jobs:
     permissions:
       id-token: write  # Required for OIDC / trusted publishing
     steps:
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: dist
           path: dist/
 
-      - uses: pypa/gh-action-pypi-publish@release/v1
+      - uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b
         with:
           packages-dir: dist/
           # No password: trusted publishing via OIDC
