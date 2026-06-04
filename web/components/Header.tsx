@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Github } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "./ThemeToggle";
+import { GithubIcon } from "./GithubIcon";
 
 export default function Header() {
   const [scrolled, setScrolled] = useState(false);
@@ -84,7 +84,7 @@ export default function Header() {
             className="w-11 h-11 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             aria-label="GitHub repository"
           >
-            <Github className="h-4 w-4" />
+            <GithubIcon className="h-4 w-4" />
           </a>
           <ThemeToggle />
         </div>
