@@ -1,6 +1,6 @@
 {
 	"name": "docpull-mcp",
-	"version": "0.2.1",
+	"version": "0.3.0",
 	"description": "MCP server for fetching and searching documentation with semantic search",
 	"type": "module",
 	"main": "src/server.ts",
