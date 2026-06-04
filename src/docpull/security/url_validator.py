@@ -49,6 +49,11 @@ class UrlValidator:
     DEFAULT_ALLOWED_SCHEMES = {"https"}
     INTERNAL_SUFFIXES = {".internal", ".local", ".localhost", ".localdomain"}
     LOCALHOST_NAMES = {"localhost", "localhost.localdomain"}
+    # RFC 6598 carrier-grade NAT / shared address space. Python's ``ipaddress``
+    # does not flag 100.64.0.0/10 as private, but it is non-globally-routable and
+    # is used as internal address space by many cloud and Kubernetes networks, so
+    # we block it the same way the TypeScript MCP gate does (``isCGNAT()``).
+    _CGNAT_NETWORK = ipaddress.ip_network("100.64.0.0/10")
 
     def __init__(
         self,
@@ -105,10 +110,18 @@ class UrlValidator:
 
         return self.validate_hostname(hostname)
 
-    def validate_hostname(self, hostname: str) -> UrlValidationResult:
-        """Validate a hostname against domain and IP safety rules."""
-        normalized = hostname.lower()
+    @staticmethod
+    def _normalize_hostname(hostname: str) -> str:
+        """Lowercase and strip the trailing DNS root dot before policy checks.
 
+        ``urlparse``/WHATWG preserve the trailing dot (``localhost.`` stays
+        ``localhost.``), which would otherwise slip past the localhost and
+        internal-suffix comparisons and reach an internal host.
+        """
+        return hostname.lower().rstrip(".")
+
+    def _check_static_policy(self, normalized: str) -> UrlValidationResult | None:
+        """Run the DNS-free policy checks (allow-list, localhost, suffixes)."""
         # Check allowed domains
         if self.allowed_domains is not None and normalized not in self.allowed_domains:
             return UrlValidationResult.invalid(f"Domain '{normalized}' not in allowed list")
@@ -121,6 +134,16 @@ class UrlValidator:
         for suffix in self.INTERNAL_SUFFIXES:
             if normalized.endswith(suffix):
                 return UrlValidationResult.invalid(f"Internal domain suffix '{suffix}' not allowed")
+
+        return None
+
+    def validate_hostname(self, hostname: str) -> UrlValidationResult:
+        """Validate a hostname against domain and IP safety rules."""
+        normalized = self._normalize_hostname(hostname)
+
+        static_result = self._check_static_policy(normalized)
+        if static_result is not None:
+            return static_result
 
         # Check for private/internal IPs
         if self.block_private_ips:
@@ -137,20 +160,41 @@ class UrlValidator:
         """
         Resolve a hostname to transport-safe IP addresses.
 
-        The returned addresses have already been checked against the same
-        private-network policy enforced by validate().
+        Resolution happens exactly once: the addresses screened against the
+        private-network policy are the *same* addresses returned to (and dialed
+        by) the caller. Resolving a second time would reopen a DNS-rebinding
+        TOCTOU in which a hostile resolver returns a public IP to the policy
+        check and an internal IP to the connect path.
         """
-        normalized = hostname.lower()
-        validation = self.validate_hostname(normalized)
-        if not validation.is_valid:
-            reason = validation.rejection_reason or "Hostname failed validation"
-            raise ValueError(reason)
+        normalized = self._normalize_hostname(hostname)
 
+        static_result = self._check_static_policy(normalized)
+        if static_result is not None:
+            raise ValueError(static_result.rejection_reason or "Hostname failed validation")
+
+        is_literal_ip = True
         try:
             ipaddress.ip_address(normalized)
-            return [normalized]
         except ValueError:
-            return self._resolver(normalized)
+            is_literal_ip = False
+
+        if is_literal_ip:
+            if self.block_private_ips:
+                ip_result = self._check_ip_address(normalized)
+                if ip_result is not None:
+                    raise ValueError(ip_result.rejection_reason or "Blocked IP address")
+            return [normalized]
+
+        if not self.block_private_ips:
+            addresses = self._resolver(normalized)
+            if not addresses:
+                raise ValueError(f"No addresses found for {normalized}")
+            return addresses
+
+        addresses, rejection = self._resolve_and_screen(normalized)
+        if rejection is not None:
+            raise ValueError(rejection.rejection_reason or "Hostname failed validation")
+        return addresses
 
     def _resolve_hostname(self, hostname: str) -> list[str]:
         """Resolve hostname to a deduplicated list of IP addresses."""
@@ -166,6 +210,14 @@ class UrlValidator:
 
     def _blocked_ip_reason(self, ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> str | None:
         """Return a rejection reason for disallowed IP addresses."""
+        # Unwrap IPv4-mapped IPv6 (``::ffff:a.b.c.d``) so the full IPv4 policy —
+        # including CGNAT below — applies. Python's ``is_private`` does not catch
+        # the mapped form of every blocked range (e.g. ``::ffff:100.64.0.1``).
+        if isinstance(ip, ipaddress.IPv6Address):
+            mapped = ip.ipv4_mapped
+            if mapped is not None:
+                return self._blocked_ip_reason(mapped)
+
         if ip.is_private:
             return "Private IP address"
         if ip.is_loopback:
@@ -178,6 +230,8 @@ class UrlValidator:
             return "Multicast IP address"
         if ip.is_unspecified:
             return "Unspecified IP address"
+        if isinstance(ip, ipaddress.IPv4Address) and ip in self._CGNAT_NETWORK:
+            return "Carrier-grade NAT IP address"
         if isinstance(ip, ipaddress.IPv6Address) and ip.is_site_local:
             return "Site-local IPv6 address"
         return None
@@ -210,36 +264,49 @@ class UrlValidator:
         This closes the gap where attacker-controlled DNS maps a public-looking
         hostname to a private or loopback address.
         """
-        is_hostname_ip = True
         try:
             ipaddress.ip_address(hostname)
         except ValueError:
-            is_hostname_ip = False
-        if is_hostname_ip:
-            return None
+            pass
+        else:
+            return None  # Literal IPs are screened by _check_ip_address.
 
+        _addresses, rejection = self._resolve_and_screen(hostname)
+        return rejection
+
+    def _resolve_and_screen(self, hostname: str) -> tuple[list[str], UrlValidationResult | None]:
+        """Resolve ``hostname`` once and screen every answer against the policy.
+
+        Returns ``(addresses, None)`` when all resolved addresses are allowed,
+        or ``([], rejection)`` on the first failed/blocked/invalid answer. A
+        hostname that resolves to no addresses is rejected (fail-closed) rather
+        than treated as safe.
+        """
         try:
             addresses = self._resolver(hostname)
         except OSError as err:
-            return UrlValidationResult.invalid(f"Hostname '{hostname}' could not be resolved: {err}")
+            return [], UrlValidationResult.invalid(f"Hostname '{hostname}' could not be resolved: {err}")
+
+        if not addresses:
+            return [], UrlValidationResult.invalid(f"Hostname '{hostname}' did not resolve to any address")
 
         for address in addresses:
             try:
                 ip = ipaddress.ip_address(address)
             except ValueError:
-                return UrlValidationResult.invalid(
+                return [], UrlValidationResult.invalid(
                     f"Hostname '{hostname}' resolved to invalid address '{address}'"
                 )
 
             blocked_reason = self._blocked_ip_reason(ip)
             if blocked_reason is not None:
-                return UrlValidationResult.invalid(
+                return [], UrlValidationResult.invalid(
                     "Hostname "
                     f"'{hostname}' resolves to blocked address '{address}' "
                     f"({blocked_reason.lower()})"
                 )
 
-        return None
+        return addresses, None
 
     def is_valid(self, url: str) -> bool:
         """

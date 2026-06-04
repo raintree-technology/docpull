@@ -109,6 +109,61 @@ class TestUrlValidatorResolution:
 
         assert addresses == ["93.184.216.34", "2606:2800:220:1:248:1893:25c8:1946"]
 
+    def test_resolve_allowed_addresses_resolves_exactly_once(self) -> None:
+        """DNS-rebinding TOCTOU regression.
+
+        resolve_allowed_addresses() must resolve a hostname once and return the
+        addresses it screened. A second resolution would let a hostile resolver
+        serve a public IP to the check and an internal IP to the connect path.
+        """
+        answers = [["1.2.3.4"], ["169.254.169.254"]]
+        calls = {"n": 0}
+
+        def rebinding_resolver(hostname: str) -> list[str]:
+            index = calls["n"]
+            calls["n"] += 1
+            return answers[min(index, len(answers) - 1)]
+
+        validator = UrlValidator(resolver=rebinding_resolver)
+
+        addresses = validator.resolve_allowed_addresses("rebind.example.com")
+
+        assert calls["n"] == 1
+        assert addresses == ["1.2.3.4"]
+
+    def test_resolve_allowed_addresses_rejects_blocked_resolution(self) -> None:
+        validator = UrlValidator(resolver=lambda hostname: ["169.254.169.254"])
+
+        with pytest.raises(ValueError, match="blocked address '169.254.169.254'"):
+            validator.resolve_allowed_addresses("rebind.example.com")
+
+    def test_resolve_allowed_addresses_rejects_empty_resolution(self) -> None:
+        validator = UrlValidator(resolver=lambda hostname: [])
+
+        with pytest.raises(ValueError, match="did not resolve"):
+            validator.resolve_allowed_addresses("void.example.com")
+
+    def test_blocks_cgnat_shared_address_space(self) -> None:
+        validator = UrlValidator()
+
+        for host in ("100.64.0.1", "100.127.255.254", "::ffff:100.64.0.1"):
+            result = validator.validate_hostname(host)
+            assert result.is_valid is False, host
+            assert "Carrier-grade NAT" in (result.rejection_reason or "")
+
+    def test_blocks_ipv4_mapped_loopback(self) -> None:
+        validator = UrlValidator()
+
+        result = validator.validate_hostname("::ffff:127.0.0.1")
+
+        assert result.is_valid is False
+
+    def test_trailing_dot_does_not_bypass_localhost(self) -> None:
+        validator = UrlValidator()
+
+        assert validator.validate("https://localhost./admin").is_valid is False
+        assert validator.validate_hostname("service.internal.").is_valid is False
+
 
 class TestValidatedResolver:
     @pytest.mark.asyncio
@@ -265,6 +320,43 @@ class TestRedirectValidation:
         )
 
         assert checker.is_allowed("https://public.example/docs") is False
+
+    def test_robots_checker_caps_response_size(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A hostile site cannot stream an unbounded robots.txt into memory."""
+        import docpull.security.robots as robots_mod
+
+        class _HugeResponse:
+            status = 200
+
+            def read(self, amt: int | None = None) -> bytes:
+                payload = b"x" * (RobotsChecker.MAX_ROBOTS_SIZE + 1024)
+                return payload[:amt] if amt is not None else payload
+
+            def getheaders(self) -> list[tuple[str, str]]:
+                return []
+
+            def getheader(self, name: str, default: str | None = None) -> str | None:
+                return default
+
+        class _FakeConn:
+            def __init__(self, *args: object, **kwargs: object) -> None:
+                pass
+
+            def request(self, *args: object, **kwargs: object) -> None:
+                pass
+
+            def getresponse(self) -> _HugeResponse:
+                return _HugeResponse()
+
+            def close(self) -> None:
+                pass
+
+        monkeypatch.setattr(robots_mod, "_PinnedHTTPSConnection", _FakeConn)
+        checker = RobotsChecker()
+        monkeypatch.setattr(checker, "_resolve_addresses", lambda hostname: ["1.2.3.4"])
+
+        with pytest.raises(ValueError, match="exceeds maximum size"):
+            checker._fetch_url("https://evil.example.com/robots.txt")
 
 
 # ---------------------------------------------------------------------------

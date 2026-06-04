@@ -1,6 +1,6 @@
 {
 	"name": "docpull-mcp",
-	"version": "0.2.0",
+	"version": "0.2.1",
 	"description": "MCP server for fetching and searching documentation with semantic search",
 	"type": "module",
 	"main": "src/server.ts",
@@ -10,16 +10,10 @@
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
-		"@hono/node-server": "^2.0.4",
 		"@modelcontextprotocol/sdk": "^1.29.0",
-		"ajv": "^8.18.0",
-		"fast-uri": "^3.1.2",
-		"hono": "^4.12.22",
 		"ip-address": "^10.2.0",
 		"openai": "^6.39.1",
-		"path-to-regexp": "^8.4.2",
 		"pg": "^8.21.0",
-		"qs": "^6.15.2",
 		"yaml": "^2.9.0",
 		"zod": "^4.4.3"
 	},

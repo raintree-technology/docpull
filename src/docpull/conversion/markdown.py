@@ -215,6 +215,17 @@ class FrontmatterBuilder:
         )
     """
 
+    @staticmethod
+    def _inline(value: Any) -> str:
+        """Collapse CR/LF/NUL so an interpolated value stays on its own YAML line.
+
+        Page-supplied metadata (JSON-LD ``keywords``, OpenGraph ``article:tag``,
+        etc.) flows into frontmatter. Without this, a newline in a tag/keyword
+        would break out of the list item and inject attacker-chosen top-level
+        keys (e.g. ``draft: true``) into the document frontmatter.
+        """
+        return str(value).replace("\r", " ").replace("\n", " ").replace("\x00", " ")
+
     def build(
         self,
         title: str | None = None,
@@ -238,28 +249,32 @@ class FrontmatterBuilder:
 
         if title:
             # Escape quotes in title
-            safe_title = title.replace('"', '\\"')
+            safe_title = self._inline(title).replace('"', '\\"')
             lines.append(f'title: "{safe_title}"')
 
         if url:
-            lines.append(f"source: {url}")
+            lines.append(f"source: {self._inline(url)}")
 
         if description:
             # Escape quotes and truncate long descriptions
-            safe_desc = description[:500].replace('"', '\\"')
+            safe_desc = self._inline(description[:500]).replace('"', '\\"')
             lines.append(f'description: "{safe_desc}"')
 
         for key, value in extra_fields.items():
             if value is not None:
                 if isinstance(value, str):
-                    safe_value = value.replace('"', '\\"')
+                    safe_value = self._inline(value).replace('"', '\\"')
                     lines.append(f'{key}: "{safe_value}"')
                 elif isinstance(value, (list, tuple)):
                     lines.append(f"{key}:")
                     for item in value:
-                        lines.append(f"  - {item}")
+                        # Quote + escape each item so a hostile tag/keyword (from
+                        # page JSON-LD / OpenGraph) stays a single YAML string and
+                        # cannot inject new keys or produce malformed frontmatter.
+                        safe_item = self._inline(item).replace('"', '\\"')
+                        lines.append(f'  - "{safe_item}"')
                 else:
-                    lines.append(f"{key}: {value}")
+                    lines.append(f"{key}: {self._inline(value)}")
 
         lines.append("---")
         return "\n".join(lines) + "\n\n"

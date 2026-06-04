@@ -94,6 +94,10 @@ class RobotsChecker:
             time.sleep(delay)
     """
 
+    # robots.txt is a tiny text file; cap the read so a hostile site cannot stream
+    # gigabytes into memory (mirrors the sitemap path's MAX_SITEMAP_SIZE guard).
+    MAX_ROBOTS_SIZE = 512 * 1024  # 512 KB
+
     def __init__(
         self,
         user_agent: str = "docpull",
@@ -267,7 +271,9 @@ class RobotsChecker:
             try:
                 conn.request("GET", path, headers=headers)
                 response = conn.getresponse()
-                body = response.read()
+                body = response.read(self.MAX_ROBOTS_SIZE + 1)
+                if len(body) > self.MAX_ROBOTS_SIZE:
+                    raise ValueError(f"robots.txt exceeds maximum size of {self.MAX_ROBOTS_SIZE} bytes")
                 return _RobotsResponse(
                     status_code=response.status,
                     headers=_CaseInsensitiveHeaders(list(response.getheaders())),

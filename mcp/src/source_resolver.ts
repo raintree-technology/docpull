@@ -21,7 +21,20 @@ const URL_SCHEME_RE = /^[a-z][a-z0-9+.-]*:\/\//i;
 const SOURCE_NAME_RE = /^[a-zA-Z0-9_.-]+$/;
 const MAX_SOURCE_NAME_LENGTH = 128;
 const MAX_SOURCE_PAGES = 100_000;
-const BLOCKED_HOST_SUFFIXES = [".localhost", ".local", ".internal", ".lan"];
+const BLOCKED_HOST_SUFFIXES = [
+	".localhost",
+	".local",
+	".internal",
+	".lan",
+	// Wildcard DNS-rebinding services that encode an arbitrary target IP in the
+	// hostname (e.g. 169.254.169.254.nip.io -> 169.254.169.254). They exist only
+	// to point a public-looking name at an internal address, so deny them
+	// outright. docpull (the fetcher) re-validates the resolved IP as well; this
+	// is the first, defence-in-depth gate.
+	".nip.io",
+	".sslip.io",
+	".xip.io",
+];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -84,7 +97,13 @@ function isBlockedIpv6(host: string): boolean {
 }
 
 function isBlockedHost(hostname: string): boolean {
-	const host = hostname.toLowerCase().replace(/^\[|\]$/g, "");
+	// Strip IPv6 brackets and the trailing DNS root dot. `new URL()` keeps the
+	// trailing dot (`localhost.` stays `localhost.`), which would otherwise slip
+	// past the `=== "localhost"` and `.endsWith(suffix)` comparisons below.
+	const host = hostname
+		.toLowerCase()
+		.replace(/^\[|\]$/g, "")
+		.replace(/\.+$/, "");
 	return (
 		host === "localhost" ||
 		BLOCKED_HOST_SUFFIXES.some((suffix) => host.endsWith(suffix)) ||

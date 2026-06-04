@@ -85,4 +85,27 @@ describe("replaceLibraryEmbeddingsWithClient", () => {
 
 		expect(client.queries).toEqual([]);
 	});
+
+	test("splits inserts that exceed the postgres bind-parameter ceiling", async () => {
+		const client = new FakeClient();
+		// 5462 docs * 6 params = 32772 > 32767, so it must split into 2 inserts,
+		// both still inside the single delete+insert transaction.
+		const docs = Array.from({ length: 5462 }, (_, i) =>
+			doc({ file_path: `f${i}.md`, chunk_index: i }),
+		);
+
+		await replaceLibraryEmbeddingsWithClient(client, "react", docs);
+
+		const inserts = client.queries.filter((query) =>
+			query.sql.includes("INSERT INTO doc_embeddings"),
+		);
+		expect(inserts.length).toBe(2);
+		for (const insert of inserts) {
+			expect((insert.params ?? []).length).toBeLessThanOrEqual(32767);
+		}
+
+		const sqls = client.queries.map((query) => query.sql);
+		expect(sqls.filter((sql) => sql === "BEGIN").length).toBe(1);
+		expect(sqls[sqls.length - 1]).toBe("COMMIT");
+	});
 });

@@ -525,9 +525,7 @@ class AsyncHttpClient:
                     allow_redirects=False,
                 ) as response,
             ):
-                redirect = self._next_redirect(
-                    response, current_url, current_headers, redirect_count, url
-                )
+                redirect = self._next_redirect(response, current_url, current_headers, redirect_count, url)
                 if redirect is not None:
                     current_url, current_headers, redirect_count = redirect
                     continue

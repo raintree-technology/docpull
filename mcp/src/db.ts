@@ -21,6 +21,11 @@ const SEARCH_LIMIT_DEFAULT = 5;
 const SEARCH_LIMIT_MAX = 50;
 const GREP_LIMIT_DEFAULT = 5;
 const GREP_LIMIT_MAX = 50;
+const PARAMS_PER_EMBEDDING_ROW = 6;
+// PostgreSQL encodes the bind-parameter count as an Int16, so one statement can
+// carry at most 32767 parameters. Chunk the multi-row INSERT to stay under that
+// ceiling — otherwise large libraries (thousands of chunks) fail to index.
+const MAX_EMBEDDING_ROWS_PER_INSERT = Math.floor(32767 / PARAMS_PER_EMBEDDING_ROW);
 
 const DB_POOL_MAX = readIntegerEnv("DB_POOL_MAX", DEFAULT_DB_POOL_MAX, {
 	min: 1,
@@ -193,34 +198,37 @@ async function insertEmbeddingRows(
 	client: DbClient,
 	docs: readonly EmbeddingDocument[],
 ): Promise<void> {
-	if (docs.length === 0) {
-		return;
-	}
+	for (
+		let start = 0;
+		start < docs.length;
+		start += MAX_EMBEDDING_ROWS_PER_INSERT
+	) {
+		const slice = docs.slice(start, start + MAX_EMBEDDING_ROWS_PER_INSERT);
+		const values: string[] = [];
+		const params: unknown[] = [];
+		let paramIndex = 1;
 
-	const values: string[] = [];
-	const params: unknown[] = [];
-	let paramIndex = 1;
+		for (const doc of slice) {
+			values.push(
+				`($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3}, $${paramIndex + 4}, $${paramIndex + 5})`,
+			);
+			params.push(
+				doc.library,
+				doc.file_path,
+				doc.chunk_index,
+				doc.content,
+				vectorLiteral(doc.embedding),
+				doc.metadata ? JSON.stringify(doc.metadata) : null,
+			);
+			paramIndex += 6;
+		}
 
-	for (const doc of docs) {
-		values.push(
-			`($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3}, $${paramIndex + 4}, $${paramIndex + 5})`,
+		await client.query(
+			`INSERT INTO doc_embeddings (library, file_path, chunk_index, content, embedding, metadata)
+			 VALUES ${values.join(", ")}`,
+			params,
 		);
-		params.push(
-			doc.library,
-			doc.file_path,
-			doc.chunk_index,
-			doc.content,
-			vectorLiteral(doc.embedding),
-			doc.metadata ? JSON.stringify(doc.metadata) : null,
-		);
-		paramIndex += 6;
 	}
-
-	await client.query(
-		`INSERT INTO doc_embeddings (library, file_path, chunk_index, content, embedding, metadata)
-		 VALUES ${values.join(", ")}`,
-		params,
-	);
 }
 
 /**

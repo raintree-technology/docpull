@@ -246,8 +246,36 @@ class TestFrontmatterBuilder:
         )
 
         assert "tags:" in result
-        assert "- python" in result
-        assert "- testing" in result
+        assert '- "python"' in result
+        assert '- "testing"' in result
+
+    def test_list_field_cannot_inject_top_level_keys(self):
+        """A newline in an attacker-controlled tag must not create new YAML keys
+        or produce malformed frontmatter."""
+        import yaml
+
+        builder = FrontmatterBuilder()
+        result = builder.build(
+            title="Doc",
+            tags=["ok", 'x\ndraft: true\npublish: false\n"q": z'],
+        )
+
+        parsed = yaml.safe_load(result.split("---")[1])
+        assert "draft" not in parsed
+        assert "publish" not in parsed
+        assert set(parsed.keys()) <= {"title", "tags"}
+        # Every tag stays a single string (no map, no injected key).
+        assert all(isinstance(tag, str) for tag in parsed["tags"])
+        assert parsed["tags"][0] == "ok"
+
+    def test_string_field_cannot_inject_via_newline(self):
+        import yaml
+
+        builder = FrontmatterBuilder()
+        result = builder.build(title="A\ninjected: true", description="ok")
+
+        parsed = yaml.safe_load(result.split("---")[1])
+        assert "injected" not in parsed
 
 
 class TestIntegration:
@@ -484,11 +512,11 @@ class TestFrontmatterEnrichment:
         )
         md = self._convert_step_run(html)
         assert "headings:" in md
-        assert "- Top" in md
-        assert "- Section A" in md
-        assert "- Section B" in md
+        assert '- "Top"' in md
+        assert '- "Section A"' in md
+        assert '- "Section B"' in md
         # h3+ should NOT appear by default (outline depth = 2)
-        assert "- Skipped" not in md
+        assert '- "Skipped"' not in md
 
     def test_headings_skip_inside_code_fences(self):
         html = (
