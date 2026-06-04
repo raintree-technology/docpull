@@ -8,6 +8,7 @@ from urllib.parse import urljoin, urlparse
 from bs4 import BeautifulSoup
 
 from ...http.protocols import HttpClient
+from .._fetch import fetch_html
 
 logger = logging.getLogger(__name__)
 
@@ -56,38 +57,11 @@ class StaticLinkExtractor:
             List of absolute URLs found on the page
         """
         if content is None:
-            content = await self._fetch_content(url)
+            content = await fetch_html(self._client, url)
             if content is None:
                 return []
 
         return self._parse_links(content, url)
-
-    async def _fetch_content(self, url: str) -> bytes | None:
-        """
-        Fetch page content for link extraction.
-
-        Args:
-            url: URL to fetch
-
-        Returns:
-            HTML content as bytes, or None if fetch failed
-        """
-        try:
-            response = await self._client.get(url, timeout=30.0)
-
-            if response.status_code != 200:
-                return None
-
-            # Only process HTML content
-            content_type = response.content_type.lower()
-            if "text/html" not in content_type and "application/xhtml" not in content_type:
-                return None
-
-            return response.content
-
-        except Exception as e:
-            logger.debug(f"Failed to fetch {url}: {e}")
-            return None
 
     def _parse_links(self, html: bytes, base_url: str) -> list[str]:
         """

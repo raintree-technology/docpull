@@ -377,10 +377,6 @@ class RobotsChecker:
             self.logger.debug("Could not read Sitemap entries for %s: %s", url, err)
             return []
 
-    def clear_cache(self) -> None:
-        """Clear the robots.txt cache."""
-        self._cache.clear()
-
     def get_stats(self) -> dict:
         """Get cache statistics."""
         return {

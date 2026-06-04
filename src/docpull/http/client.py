@@ -234,6 +234,38 @@ class AsyncHttpClient:
 
         return {key: value for key, value in headers.items() if key.lower() not in self.SENSITIVE_HEADERS}
 
+    def _next_redirect(
+        self,
+        response: aiohttp.ClientResponse,
+        current_url: str,
+        current_headers: dict[str, str],
+        redirect_count: int,
+        original_url: str,
+    ) -> tuple[str, dict[str, str], int] | None:
+        """Re-validate and follow one redirect hop, shared by GET and HEAD.
+
+        Returns the updated ``(url, headers, redirect_count)`` when ``response``
+        is a redirect, or ``None`` when it is not. Raises ``ValueError`` once
+        ``MAX_REDIRECTS`` is exceeded. Centralising this keeps GET and HEAD on
+        identical redirect/SSRF re-validation.
+        """
+        location = response.headers.get("Location")
+        if response.status in self.REDIRECT_STATUS_CODES and location:
+            if redirect_count >= self.MAX_REDIRECTS:
+                raise ValueError(f"Too many redirects while fetching {original_url}")
+
+            redirect_url = self._resolve_redirect_url(current_url, location)
+            new_headers = self._headers_for_url(
+                self._headers_for_redirect(
+                    current_headers,
+                    current_url,
+                    redirect_url,
+                ),
+                redirect_url,
+            )
+            return redirect_url, new_headers, redirect_count + 1
+        return None
+
     async def __aenter__(self) -> AsyncHttpClient:
         """Enter async context and create session."""
         resolver: AbstractResolver | None = None
@@ -382,22 +414,11 @@ class AsyncHttpClient:
                             allow_redirects=False,
                         ) as response,
                     ):
-                        location = response.headers.get("Location")
-                        if response.status in self.REDIRECT_STATUS_CODES and location:
-                            if redirect_count >= self.MAX_REDIRECTS:
-                                raise ValueError(f"Too many redirects while fetching {url}")
-
-                            redirect_url = self._resolve_redirect_url(current_url, location)
-                            current_headers = self._headers_for_url(
-                                self._headers_for_redirect(
-                                    current_headers,
-                                    current_url,
-                                    redirect_url,
-                                ),
-                                redirect_url,
-                            )
-                            current_url = redirect_url
-                            redirect_count += 1
+                        redirect = self._next_redirect(
+                            response, current_url, current_headers, redirect_count, url
+                        )
+                        if redirect is not None:
+                            current_url, current_headers, redirect_count = redirect
                             continue
 
                         if response.status in self.RETRYABLE_STATUS_CODES:
@@ -504,22 +525,11 @@ class AsyncHttpClient:
                     allow_redirects=False,
                 ) as response,
             ):
-                location = response.headers.get("Location")
-                if response.status in self.REDIRECT_STATUS_CODES and location:
-                    if redirect_count >= self.MAX_REDIRECTS:
-                        raise ValueError(f"Too many redirects while fetching {url}")
-
-                    redirect_url = self._resolve_redirect_url(current_url, location)
-                    current_headers = self._headers_for_url(
-                        self._headers_for_redirect(
-                            current_headers,
-                            current_url,
-                            redirect_url,
-                        ),
-                        redirect_url,
-                    )
-                    current_url = redirect_url
-                    redirect_count += 1
+                redirect = self._next_redirect(
+                    response, current_url, current_headers, redirect_count, url
+                )
+                if redirect is not None:
+                    current_url, current_headers, redirect_count = redirect
                     continue
 
                 return HttpResponse(
@@ -529,17 +539,3 @@ class AsyncHttpClient:
                     headers=dict(response.headers),
                     url=str(response.url),
                 )
-
-    def decode_content(self, response: HttpResponse) -> str:
-        """
-        Decode response content to string.
-
-        Convenience method that uses intelligent encoding detection.
-
-        Args:
-            response: HttpResponse to decode
-
-        Returns:
-            Decoded string content
-        """
-        return self._decode_content(response.content, response.content_type)

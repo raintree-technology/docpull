@@ -181,16 +181,3 @@ class FetchPipeline:
                 break
 
         return ctx
-
-    def add_step(self, step: FetchStep) -> FetchPipeline:
-        """
-        Add a step to the pipeline (fluent API).
-
-        Args:
-            step: The step to add
-
-        Returns:
-            Self for chaining
-        """
-        self.steps.append(step)
-        return self

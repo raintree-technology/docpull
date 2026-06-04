@@ -4,6 +4,7 @@
 
 import { Pool } from "pg";
 import { EMBEDDING_DIMENSIONS } from "./embeddings.js";
+import { readIntegerEnv } from "./env.js";
 import { errorMessage, logStructured } from "./logger.js";
 
 // ============================================================================
@@ -20,22 +21,6 @@ const SEARCH_LIMIT_DEFAULT = 5;
 const SEARCH_LIMIT_MAX = 50;
 const GREP_LIMIT_DEFAULT = 5;
 const GREP_LIMIT_MAX = 50;
-
-function readIntegerEnv(
-	name: string,
-	defaultValue: number,
-	{ min, max }: { min: number; max: number },
-): number {
-	const raw = process.env[name];
-	if (raw === undefined || raw === "") {
-		return defaultValue;
-	}
-	const parsed = Number.parseInt(raw, 10);
-	if (!Number.isInteger(parsed) || parsed < min || parsed > max) {
-		throw new Error(`${name} must be an integer between ${min} and ${max}`);
-	}
-	return parsed;
-}
 
 const DB_POOL_MAX = readIntegerEnv("DB_POOL_MAX", DEFAULT_DB_POOL_MAX, {
 	min: 1,
@@ -63,7 +48,7 @@ const DB_STATEMENT_TIMEOUT_MS = readIntegerEnv(
 
 let pool: Pool | null = null;
 
-export function getPool(): Pool {
+function getPool(): Pool {
 	if (!DATABASE_URL) {
 		throw new Error("DATABASE_URL environment variable is required");
 	}
@@ -141,7 +126,7 @@ export interface EmbeddingDocument {
 	metadata?: Record<string, unknown> | null;
 }
 
-export interface QueryResultShape {
+interface QueryResultShape {
 	rowCount: number | null;
 	rows: Array<Record<string, unknown>>;
 }
@@ -236,30 +221,6 @@ async function insertEmbeddingRows(
 		 VALUES ${values.join(", ")}`,
 		params,
 	);
-}
-
-/**
- * Insert multiple embeddings in a single transaction.
- */
-export async function insertEmbeddingsBatch(
-	docs: readonly EmbeddingDocument[],
-): Promise<void> {
-	if (docs.length === 0) {
-		return;
-	}
-	validateEmbeddingDocuments(null, docs);
-
-	const client = await getPool().connect();
-	try {
-		await client.query("BEGIN");
-		await insertEmbeddingRows(client, docs);
-		await client.query("COMMIT");
-	} catch (error) {
-		await client.query("ROLLBACK");
-		throw error;
-	} finally {
-		client.release();
-	}
 }
 
 /**
@@ -359,7 +320,7 @@ export async function searchDocs(
 /**
  * Escape ILIKE metacharacters so the pattern matches literally.
  */
-export function escapeIlikePattern(raw: string): string {
+function escapeIlikePattern(raw: string): string {
 	return raw.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
 }
 

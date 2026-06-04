@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Removed
+- **Unused public methods on `CacheManager`** (breaking for any external caller):
+  `has_changed`, `is_fetched`, `is_failed`, `get_failed_urls`, `get_cache_stats`,
+  `clear_state`, and `has_resume_data` had no callers in the library or tests.
+  Incremental fetch and resume are unaffected — they use the retained
+  `update_cache`, `mark_fetched`, `mark_failed`, `get_fetched_urls`,
+  `get_pending_urls`, `save_/load_/clear_discovered_urls`, and `evict_expired`.
+- **`StreamingDeduplicator.is_duplicate`** (breaking): unused read-only probe.
+  Use `check_and_register`, whose first return value reports whether content was new.
+- **`DocpullConfig.from_yaml_file`** (breaking): unused convenience wrapper.
+  Use `DocpullConfig.from_yaml(path.read_text())`.
+
+### Changed
+- Internal cleanup with no API or behaviour change: removed dead code (the unused
+  `concurrency` package, `logging_config`, and several private dead methods) and
+  de-duplicated the discovery HTML-fetch helper and the HTTP GET/HEAD redirect
+  re-validation path.
+
 ## [3.0.2] - 2026-05-29
 
 A small release hygiene patch for the MCP hardening release. No API changes;

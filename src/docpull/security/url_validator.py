@@ -252,15 +252,3 @@ class UrlValidator:
             True if valid, False otherwise
         """
         return self.validate(url).is_valid
-
-    def get_rejection_reason(self, url: str) -> str | None:
-        """
-        Get rejection reason for a URL.
-
-        Args:
-            url: The URL to check
-
-        Returns:
-            Rejection reason string if invalid, None if valid
-        """
-        return self.validate(url).rejection_reason
