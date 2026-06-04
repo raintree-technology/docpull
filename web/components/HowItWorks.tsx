@@ -281,8 +281,8 @@ function DestChip({
       className={cn(
         "flex items-center gap-2 rounded-md border px-2 py-1 transition-colors duration-300",
         on
-          ? "border-foreground/20 bg-foreground/[0.06]"
-          : "border-foreground/10 bg-foreground/[0.02]",
+          ? "border-foreground/20 bg-foreground/6"
+          : "border-foreground/10 bg-foreground/2",
       )}
     >
       <span
@@ -345,7 +345,7 @@ function Connector({ active, lit }: { active: boolean; lit: boolean }) {
               strokeWidth="1.75"
               strokeLinecap="round"
               strokeDasharray="6 50"
-              className="[animation:flow-right_1.5s_linear_infinite] motion-reduce:[animation:none]"
+              className="animate-[flow-right_1.5s_linear_infinite] motion-reduce:animate-none"
             />
           )}
           <path
@@ -390,7 +390,7 @@ function Connector({ active, lit }: { active: boolean; lit: boolean }) {
               strokeWidth="1.75"
               strokeLinecap="round"
               strokeDasharray="6 22"
-              className="[animation:flow-down_1.5s_linear_infinite] motion-reduce:[animation:none]"
+              className="animate-[flow-down_1.5s_linear_infinite] motion-reduce:animate-none"
             />
           )}
           <path

@@ -30,7 +30,7 @@ export function ThemeToggle() {
   return (
     <button
       onClick={toggleTheme}
-      className="relative w-11 h-11 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-foreground/20"
+      className="relative w-11 h-11 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors focus:outline-hidden focus-visible:ring-1 focus-visible:ring-foreground/20"
       aria-label={`Switch to ${isDark ? "light" : "dark"} mode`}
     >
       <Sun

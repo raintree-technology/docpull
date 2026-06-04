@@ -1,6 +1,62 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+}
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}
+
+@utility safe-padding {
+  padding-left: max(1.5rem, env(safe-area-inset-left));
+  padding-right: max(1.5rem, env(safe-area-inset-right));
+}
 
 @layer base {
     :root {
@@ -61,88 +117,89 @@
     }
 }
 
-html {
+@layer utilities {
+  html {
     scroll-behavior: smooth;
-}
+  }
 
-@media (prefers-reduced-motion: reduce) {
+  @media (prefers-reduced-motion: reduce) {
     html {
-        scroll-behavior: auto;
+      scroll-behavior: auto;
     }
 
     *,
     *::before,
     *::after {
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
-        scroll-behavior: auto !important;
-        transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      scroll-behavior: auto !important;
+      transition-duration: 0.01ms !important;
     }
-}
+  }
 
-/* Minimal scrollbar */
-::-webkit-scrollbar {
+  /* Minimal scrollbar */
+  ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
-}
+  }
 
-::-webkit-scrollbar-track {
+  ::-webkit-scrollbar-track {
     background: transparent;
-}
+  }
 
-::-webkit-scrollbar-thumb {
+  ::-webkit-scrollbar-thumb {
     background: hsl(var(--border));
     border-radius: 3px;
-}
+  }
 
-::-webkit-scrollbar-thumb:hover {
+  ::-webkit-scrollbar-thumb:hover {
     background: hsl(var(--muted-foreground));
-}
+  }
 
-/* Glass effect for code blocks and inputs */
-.glass {
+  /* Glass effect for code blocks and inputs */
+  .glass {
     background: rgba(255, 255, 255, 0.05);
     backdrop-filter: blur(32px);
     -webkit-backdrop-filter: blur(32px);
     border: 1px solid rgba(255, 255, 255, 0.1);
     box-shadow:
-        0 4px 24px rgba(0, 0, 0, 0.06),
-        inset 0 1px 0 rgba(255, 255, 255, 0.1);
-}
+      0 4px 24px rgba(0, 0, 0, 0.06),
+      inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  }
 
-:root .glass {
+  :root .glass {
     background: rgba(255, 255, 255, 0.85);
     backdrop-filter: blur(32px);
     -webkit-backdrop-filter: blur(32px);
     border: 1px solid rgba(0, 0, 0, 0.06);
     box-shadow:
-        0 4px 24px rgba(0, 0, 0, 0.04),
-        inset 0 1px 0 rgba(255, 255, 255, 0.8);
-}
+      0 4px 24px rgba(0, 0, 0, 0.04),
+      inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  }
 
-.dark .glass {
+  .dark .glass {
     background: rgba(30, 30, 30, 0.85);
     backdrop-filter: blur(32px);
     -webkit-backdrop-filter: blur(32px);
     border: 1px solid rgba(255, 255, 255, 0.08);
     box-shadow:
-        0 4px 24px rgba(0, 0, 0, 0.2),
-        inset 0 1px 0 rgba(255, 255, 255, 0.1);
-}
+      0 4px 24px rgba(0, 0, 0, 0.2),
+      inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  }
 
-/* Code styling */
-pre {
+  /* Code styling */
+  pre {
     @apply rounded-lg overflow-x-auto;
-}
+  }
 
-code {
+  code {
     font-family:
-        "SF Mono", "Fira Code", "Fira Mono", Menlo, Monaco, Consolas, monospace;
+      'SF Mono', 'Fira Code', 'Fira Mono', Menlo, Monaco, Consolas, monospace;
     font-size: 0.875rem;
-}
+  }
 
-/* Terminal */
-.terminal {
+  /* Terminal */
+  .terminal {
     background: rgba(10, 10, 10, 0.95);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
@@ -150,39 +207,34 @@ code {
     border-radius: 0.75rem;
     overflow: hidden;
     box-shadow:
-        0 8px 32px rgba(0, 0, 0, 0.3),
-        inset 0 1px 0 rgba(255, 255, 255, 0.05);
-}
+      0 8px 32px rgba(0, 0, 0, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  }
 
-.terminal-header {
+  .terminal-header {
     background: rgba(15, 15, 15, 0.6);
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
     padding: 0.75rem 1rem;
     display: flex;
     align-items: center;
     gap: 0.5rem;
-}
+  }
 
-.terminal-dot {
+  .terminal-dot {
     @apply w-3 h-3 rounded-full;
-}
+  }
 
-.terminal-dot-close {
+  .terminal-dot-close {
     @apply bg-[#ff5f57];
-}
-.terminal-dot-minimize {
+  }
+  .terminal-dot-minimize {
     @apply bg-[#febc2e];
-}
-.terminal-dot-maximize {
+  }
+  .terminal-dot-maximize {
     @apply bg-[#28c840];
-}
+  }
 
-/* Responsive utilities */
-@layer utilities {
-    .safe-padding {
-        padding-left: max(1.5rem, env(safe-area-inset-left));
-        padding-right: max(1.5rem, env(safe-area-inset-right));
-    }
+  /* Responsive utilities */
 }
 
 /* Flow animations for How-it-works connectors */
