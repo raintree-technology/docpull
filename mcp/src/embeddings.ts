@@ -1,29 +1,14 @@
 import { OpenAI } from "openai";
+import { readIntegerEnv } from "./env.js";
 import { errorMessage, logStructured } from "./logger.js";
 
-export const EMBEDDING_MODEL = "text-embedding-3-small";
+const EMBEDDING_MODEL = "text-embedding-3-small";
 export const EMBEDDING_DIMENSIONS = 1536;
 
 const DEFAULT_OPENAI_TIMEOUT_MS = 30_000;
 const DEFAULT_OPENAI_MAX_RETRIES = 2;
 const DEFAULT_CIRCUIT_FAILURE_THRESHOLD = 5;
 const DEFAULT_CIRCUIT_RESET_MS = 60_000;
-
-function readIntegerEnv(
-	name: string,
-	defaultValue: number,
-	{ min, max }: { min: number; max: number },
-): number {
-	const raw = process.env[name];
-	if (raw === undefined || raw === "") {
-		return defaultValue;
-	}
-	const parsed = Number.parseInt(raw, 10);
-	if (!Number.isInteger(parsed) || parsed < min || parsed > max) {
-		throw new Error(`${name} must be an integer between ${min} and ${max}`);
-	}
-	return parsed;
-}
 
 const OPENAI_TIMEOUT_MS = readIntegerEnv(
 	"OPENAI_TIMEOUT_MS",
@@ -84,7 +69,7 @@ class CircuitBreaker {
 
 const embeddingCircuit = new CircuitBreaker();
 
-export function createOpenAIClient(apiKey: string): OpenAI {
+function createOpenAIClient(apiKey: string): OpenAI {
 	return new OpenAI({
 		apiKey,
 		timeout: OPENAI_TIMEOUT_MS,

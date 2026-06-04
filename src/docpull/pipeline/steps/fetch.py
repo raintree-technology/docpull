@@ -136,13 +136,27 @@ class FetchStep:
         if not output_path_exists:
             return {}
         headers: dict[str, str] = {}
-        etag = entry.get("etag")
+        etag = self._sanitize_validator(entry.get("etag"))
         if etag:
             headers["If-None-Match"] = etag
-        last_modified = entry.get("last_modified")
+        last_modified = self._sanitize_validator(entry.get("last_modified"))
         if last_modified:
             headers["If-Modified-Since"] = last_modified
         return headers
+
+    @staticmethod
+    def _sanitize_validator(value: str | None) -> str | None:
+        """Strip CR/LF/NUL from cached validators before they become request headers.
+
+        ``ETag`` / ``Last-Modified`` are echoed back from the remote (untrusted)
+        server and persisted in the cache manifest. Re-sending them verbatim as
+        ``If-None-Match`` / ``If-Modified-Since`` would let a malicious server
+        smuggle CRLF into an outbound request header on the next incremental run.
+        A mangled validator simply misses and triggers a full re-fetch.
+        """
+        if not value:
+            return value
+        return value.replace("\r", "").replace("\n", "").replace("\x00", "")
 
     async def execute(
         self,

@@ -84,6 +84,27 @@ describe("resolveConfiguredSource", () => {
 		}
 	});
 
+	test("rejects trailing-dot and DNS-rebinding host bypasses", () => {
+		for (const url of [
+			"https://localhost./docs", // trailing root dot evades === "localhost"
+			"https://service.internal./docs", // trailing dot evades suffix check
+			"https://169.254.169.254.nip.io/latest/meta-data/", // wildcard rebinding
+			"https://10.0.0.1.sslip.io/admin",
+			"https://127.0.0.1.xip.io/",
+		]) {
+			expect(
+				normalizeSourceConfig("unsafe", {
+					url,
+					description: "Unsafe",
+					category: "test",
+				}),
+			).toEqual({
+				ok: false,
+				message: "Source 'unsafe' url must use HTTPS and a public host.",
+			});
+		}
+	});
+
 	test("rejects invalid maxPages values", () => {
 		const result = normalizeSourceConfig("react", {
 			url: "https://react.dev",

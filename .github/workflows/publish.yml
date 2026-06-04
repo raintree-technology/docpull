@@ -53,7 +53,9 @@ jobs:
 
       - name: Install release dependencies
         run: |
-          python -m pip install --upgrade pip build twine
+          # Pinned (see requirements-release.txt) so a compromised *latest* release
+          # of pip/build/twine cannot be auto-pulled into the wheel-building job.
+          python -m pip install -r requirements-release.txt
           pip install -e ".[all,dev]"
 
       - name: Run release gates

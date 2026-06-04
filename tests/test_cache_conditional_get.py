@@ -117,6 +117,34 @@ async def _run(config: DocpullConfig) -> tuple[int, list[SkipReason | None]]:
     return fetcher.stats.pages_fetched, skip_reasons
 
 
+def test_conditional_headers_strip_crlf_from_cached_validators():
+    """A malicious server's ETag/Last-Modified must not smuggle CRLF into the
+    next run's conditional request headers."""
+    from types import SimpleNamespace
+
+    from docpull.pipeline.steps.fetch import FetchStep
+
+    url = "https://docs.example.com/page"
+    manifest = {
+        url: {
+            "etag": "abc\r\nX-Evil: injected",
+            "last_modified": "Mon\r\n01 Jan 2025",
+        }
+    }
+    step = FetchStep(
+        http_client=object(),  # not exercised by _conditional_headers
+        cache_manager=SimpleNamespace(manifest=manifest),
+        skip_unchanged=True,
+    )
+
+    headers = step._conditional_headers(url, output_path_exists=True)
+
+    assert headers["If-None-Match"] == "abcX-Evil: injected"
+    assert headers["If-Modified-Since"] == "Mon01 Jan 2025"
+    for value in headers.values():
+        assert "\r" not in value and "\n" not in value
+
+
 @pytest.mark.asyncio
 async def test_conditional_get_returns_304_on_second_run(server, tmp_path: Path, monkeypatch):
     """Second `--cache` run sends If-None-Match and gets 304."""

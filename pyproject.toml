@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "docpull"
-version = "3.0.2"
+version = "3.0.3"
 dynamic = []
 description = "Pull documentation from the web and convert to clean markdown"
 readme = {file = "README.md", content-type = "text/markdown"}
@@ -66,7 +66,7 @@ dependencies = [
     "html2text>=2020.1.16",
     "defusedxml>=0.7.1",
     "extruct>=0.15.0",
-    "aiohttp>=3.9.0",
+    "aiohttp>=3.14.0",  # 3.14.0 fixes CVE-2026-34993 and CVE-2026-47265
     "idna>=3.15",
     "regex>=2024.11.6",
     "rich>=13.0.0",

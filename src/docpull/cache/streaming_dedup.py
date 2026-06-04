@@ -90,23 +90,6 @@ class StreamingDeduplicator:
             self._seen[content_hash] = url
             return (True, None)
 
-    async def is_duplicate(self, content: str | bytes) -> bool:
-        """
-        Check if content has been seen before (read-only).
-
-        Unlike check_and_register, this doesn't register the content.
-        Useful for checking without committing to save.
-
-        Args:
-            content: The content to check (str or bytes)
-
-        Returns:
-            True if content has been seen before
-        """
-        content_hash = self.compute_hash(content)
-        async with self._lock:
-            return content_hash in self._seen
-
     def get_stats(self) -> dict:
         """
         Get deduplication statistics.

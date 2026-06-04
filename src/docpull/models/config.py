@@ -396,8 +396,3 @@ class DocpullConfig(BaseModel):
 
         data = yaml.safe_load(yaml_str)
         return cls.model_validate(data)
-
-    @classmethod
-    def from_yaml_file(cls, path: Path) -> DocpullConfig:
-        """Load config from YAML file."""
-        return cls.from_yaml(path.read_text())

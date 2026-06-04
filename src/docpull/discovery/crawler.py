@@ -13,6 +13,7 @@ from bs4 import BeautifulSoup
 from ..http.protocols import HttpClient
 from ..security.robots import RobotsChecker
 from ..security.url_validator import UrlValidator
+from ._fetch import fetch_html
 from .filters import DomainFilter, PatternFilter, SeenUrlTracker
 
 if TYPE_CHECKING:
@@ -114,33 +115,6 @@ class LinkCrawler:
 
         return links
 
-    async def _fetch_page(self, url: str) -> bytes | None:
-        """
-        Fetch a page for link extraction.
-
-        Args:
-            url: URL to fetch
-
-        Returns:
-            HTML content as bytes, or None if fetch failed
-        """
-        try:
-            response = await self._client.get(url, timeout=30.0)
-
-            if response.status_code != 200:
-                return None
-
-            # Only process HTML content
-            content_type = response.content_type.lower()
-            if "text/html" not in content_type and "application/xhtml" not in content_type:
-                return None
-
-            return response.content
-
-        except Exception as e:
-            logger.debug(f"Failed to fetch {url}: {e}")
-            return None
-
     def _should_crawl(self, url: str) -> bool:
         """
         Check if a URL should be crawled.
@@ -225,7 +199,7 @@ class LinkCrawler:
                 links = await self._link_extractor.extract_links(current_url)
             else:
                 # Built-in extraction with separate fetch
-                html = await self._fetch_page(current_url)
+                html = await fetch_html(self._client, current_url)
                 if html is None:
                     continue
                 links = self._extract_links(html, current_url)

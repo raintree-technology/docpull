@@ -7,7 +7,7 @@ import { type ReactNode } from "react";
 
 const REPO = "https://github.com/raintree-technology/docpull/blob/main";
 
-export function Src({
+function Src({
   path,
   line,
   children,

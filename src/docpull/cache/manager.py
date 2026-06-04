@@ -197,45 +197,6 @@ class CacheManager:
             content = content.encode("utf-8")
         return hashlib.sha256(content).hexdigest()
 
-    def has_changed(
-        self,
-        url: str,
-        content: str | None = None,
-        etag: str | None = None,
-        last_modified: str | None = None,
-    ) -> bool:
-        """Check if content has changed since last fetch.
-
-        Args:
-            url: URL to check
-            content: Current content (for checksum comparison)
-            etag: HTTP ETag header
-            last_modified: HTTP Last-Modified header
-
-        Returns:
-            True if content has changed or is new
-        """
-        if url not in self.manifest:
-            return True  # New URL
-
-        cached = self.manifest[url]
-
-        # Check ETag first (most reliable)
-        if etag and "etag" in cached:
-            return bool(etag != cached["etag"])
-
-        # Check Last-Modified
-        if last_modified and "last_modified" in cached:
-            return bool(last_modified != cached["last_modified"])
-
-        # Check content checksum
-        if content and "checksum" in cached:
-            current_checksum = self.compute_checksum(content)
-            return bool(current_checksum != cached["checksum"])
-
-        # Can't determine, assume changed
-        return True
-
     def update_cache(
         self,
         url: str,
@@ -302,14 +263,6 @@ class CacheManager:
         """
         return self._state.fetched_urls.copy()
 
-    def get_failed_urls(self) -> set[str]:
-        """Get set of URLs that failed to fetch.
-
-        Returns:
-            Set of failed URLs (copy to prevent mutation)
-        """
-        return self._state.failed_urls.copy()
-
     def start_session(self) -> None:
         """Start a new fetch session.
 
@@ -318,30 +271,6 @@ class CacheManager:
         """
         self._state.last_run = utc_now_iso()
         self._state_dirty = True
-
-    def clear_state(self) -> None:
-        """Clear incremental state (for fresh start).
-
-        Note:
-            This immediately flushes to disk.
-        """
-        self._state = _InternalState()
-        self._state_dirty = True
-        self.flush()
-        logger.info("Cleared incremental state")
-
-    def get_cache_stats(self) -> dict[str, str | int | None]:
-        """Get cache statistics.
-
-        Returns:
-            Dict with cache stats
-        """
-        return {
-            "cached_urls": len(self.manifest),
-            "fetched_urls": len(self._state.fetched_urls),
-            "failed_urls": len(self._state.failed_urls),
-            "last_run": self._state.last_run,
-        }
 
     def evict_expired(self, ttl_days: int | None = None) -> int:
         """Remove cache entries older than TTL.
@@ -377,28 +306,6 @@ class CacheManager:
             logger.info(f"Evicted {len(to_remove)} expired cache entries")
 
         return len(to_remove)
-
-    def is_fetched(self, url: str) -> bool:
-        """Check if URL has been fetched (O(1) lookup).
-
-        Args:
-            url: URL to check
-
-        Returns:
-            True if URL was successfully fetched
-        """
-        return url in self._state.fetched_urls
-
-    def is_failed(self, url: str) -> bool:
-        """Check if URL has failed (O(1) lookup).
-
-        Args:
-            url: URL to check
-
-        Returns:
-            True if URL failed to fetch
-        """
-        return url in self._state.failed_urls
 
     # Resume capability methods
 
@@ -483,22 +390,3 @@ class CacheManager:
                 logger.info("Cleared discovered URLs file")
             except Exception as e:
                 logger.warning(f"Could not clear discovered URLs file: {e}")
-
-    def has_resume_data(self, start_url: str) -> bool:
-        """Check if there is resume data available for the given URL.
-
-        Args:
-            start_url: The starting URL to check
-
-        Returns:
-            True if resume data exists and matches the start URL
-        """
-        if not self.discovered_urls_file.exists():
-            return False
-
-        try:
-            with open(self.discovered_urls_file, encoding="utf-8") as f:
-                data: DiscoveredUrlsState = json.load(f)
-            return data.get("start_url") == start_url
-        except Exception:
-            return False
