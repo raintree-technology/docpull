@@ -5,7 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [4.0.0] - 2026-06-04
+
+A security + cleanup release. A multi-agent security audit closed a high-severity
+SSRF and nine further findings (see Security); it ships alongside a tech-debt
+cleanup that removes several unused public APIs (see Removed — the breaking
+changes that make this a major release).
+
+### Security
+- **DNS-rebinding TOCTOU in the URL validator (high).** `UrlValidator.resolve_allowed_addresses()`
+  resolved the hostname a second time and used that unscreened answer as the
+  connect target, so a TTL-0 attacker could pass validation with a public IP and
+  have the socket dialed at an internal one (e.g. cloud metadata). It now resolves
+  once and returns exactly the addresses it screened.
+- **Wider SSRF coverage.** Block CGNAT shared address space (`100.64.0.0/10`) and
+  IPv4-mapped IPv6 forms, and strip the trailing DNS root dot (`localhost.`) before
+  the localhost/suffix checks — in both the Python validator and the TypeScript MCP
+  source gate. The MCP gate additionally denies wildcard DNS-rebinding hosts
+  (`*.nip.io`, `*.sslip.io`, `*.xip.io`).
+- **robots.txt memory-exhaustion DoS.** Cap the robots.txt body read at 512 KB,
+  matching the existing sitemap limit.
+- **YAML frontmatter injection.** Frontmatter list items (tags/keywords sourced from
+  page JSON-LD / OpenGraph) are quoted, escaped, and stripped of CR/LF so a hostile
+  page cannot inject top-level frontmatter keys.
+- **Conditional-request header injection.** Cached `ETag` / `Last-Modified` values are
+  stripped of CR/LF/NUL before being reused as `If-None-Match` / `If-Modified-Since`.
+- **Supply chain.** Pin release tooling (`pip` / `build` / `twine`) via
+  `requirements-release.txt`; drop six unused (ghost) dependencies from the MCP
+  package; bump `aiohttp` to `>=3.14.0` (CVE-2026-34993, CVE-2026-47265).
 
 ### Removed
 - **Unused public methods on `CacheManager`** (breaking for any external caller):
@@ -24,6 +51,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `concurrency` package, `logging_config`, and several private dead methods) and
   de-duplicated the discovery HTML-fetch helper and the HTTP GET/HEAD redirect
   re-validation path.
+
+### Fixed
+- **MCP indexing of large libraries.** pgvector embedding inserts are now batched
+  under PostgreSQL's 32767 bind-parameter ceiling, so a library with thousands of
+  chunks indexes in one transaction instead of failing.
 
 ## [3.0.2] - 2026-05-29
 
