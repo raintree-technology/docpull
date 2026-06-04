@@ -21,7 +21,7 @@
 		"pg": "^8.21.0",
 		"qs": "^6.15.2",
 		"yaml": "^2.9.0",
-		"zod": "^3.22.4"
+		"zod": "^4.4.3"
 	},
 	"overrides": {
 		"@hono/node-server": "^2.0.4",
@@ -30,7 +30,8 @@
 		"hono": "^4.12.22",
 		"ip-address": "^10.2.0",
 		"path-to-regexp": "^8.4.2",
-		"qs": "^6.15.2"
+		"qs": "^6.15.2",
+		"zod": "^4.4.3"
 	},
 	"devDependencies": {
 		"@types/node": "^25.9.1",
