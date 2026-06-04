@@ -10,6 +10,24 @@ export const metadata: Metadata = {
   title: "docpull - Fetch docs. Get AI-ready Markdown.",
   description:
     "Fast, type-safe, secure documentation fetcher. Transform any docs site into clean, AI-ready Markdown for LLMs, RAG pipelines, and offline archives.",
+  applicationName: "docpull",
+  authors: [{ name: "Raintree Technology", url: "https://raintree.technology" }],
+  creator: "Raintree Technology",
+  publisher: "Raintree Technology",
+  alternates: {
+    canonical: "/",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
   icons: {
     icon: "/logo.svg",
   },
@@ -30,8 +48,10 @@ export const metadata: Metadata = {
     title: "docpull - Fetch docs. Get clean, AI-ready Markdown.",
     description:
       "Turn any documentation site into clean Markdown for LLMs, RAG pipelines, and training datasets. Fast, secure, and built for AI workflows.",
+    url: baseUrl,
     type: "website",
     siteName: "docpull",
+    locale: "en_US",
     images: [
       {
         url: "/og-image.png",
@@ -43,6 +63,12 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
+    title: "docpull - Fetch docs. Get clean, AI-ready Markdown.",
+    description:
+      "Turn any documentation site into clean Markdown for LLMs, RAG pipelines, and training datasets. Fast, secure, and built for AI workflows.",
+    site: "@raintree_tech",
+    creator: "@raintree_tech",
+    images: ["/og-image.png"],
   },
 };
 

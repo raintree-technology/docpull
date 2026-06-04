@@ -8,10 +8,12 @@ import Profiles from "@/components/Profiles";
 import CodeExamples from "@/components/CodeExamples";
 import Install from "@/components/Install";
 import FAQ from "@/components/FAQ";
+import StructuredData from "@/components/StructuredData";
 
 export default function Home() {
   return (
     <>
+      <StructuredData />
       <AsciiBackgroundLoader />
       <Header />
       <main className="relative z-10">
