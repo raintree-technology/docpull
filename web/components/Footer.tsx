@@ -1,4 +1,4 @@
-import { Github } from "lucide-react";
+import { GithubIcon } from "./GithubIcon";
 
 function XIcon({ className }: { className?: string }) {
   return (
@@ -107,7 +107,7 @@ export default function Footer() {
               className="min-h-11 min-w-11 inline-flex items-center justify-center hover:text-foreground transition-colors"
               aria-label="GitHub repository"
             >
-              <Github className="h-4 w-4" />
+              <GithubIcon className="h-4 w-4" />
             </a>
             <a
               href="https://x.com/raintree_tech"
@@ -194,7 +194,7 @@ export default function Footer() {
               className="hover:text-foreground transition-colors"
               aria-label="GitHub"
             >
-              <Github className="h-4 w-4" />
+              <GithubIcon className="h-4 w-4" />
             </a>
             <a
               href="https://raintree.technology"
