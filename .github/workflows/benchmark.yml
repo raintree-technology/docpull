@@ -1,7 +1,7 @@
 name: Benchmark
 
-# 10,000-page end-to-end performance benchmark. Runs nightly on main and
-# on-demand. Numbers are surfaced in the workflow summary so regressions
+# 10,000-page end-to-end performance benchmark. Runs nightly and on-demand.
+# Numbers are surfaced in the workflow summary so regressions
 # are caught early; the test itself fails CI if peak RSS exceeds 200 MB
 # or if the injected duplicate fraction isn't detected.
 
@@ -10,16 +10,6 @@ on:
     # 04:17 UTC daily — slightly off the hour to avoid runner contention.
     - cron: "17 4 * * *"
   workflow_dispatch:
-  push:
-    branches:
-      - main
-    paths:
-      # Re-run on changes that could plausibly move the numbers.
-      - "src/docpull/core/fetcher.py"
-      - "src/docpull/pipeline/**"
-      - "src/docpull/conversion/**"
-      - "src/docpull/cache/**"
-      - "tests/benchmarks/test_10k_pages.py"
 
 permissions:
   contents: read
