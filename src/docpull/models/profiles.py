@@ -20,16 +20,14 @@ PROFILES: dict[ProfileName, dict[str, Any]] = {
         },
     },
     ProfileName.MIRROR: {
-        # Full site mirror for offline archive.
-        #
-        # NOTE: hierarchical naming is intentionally NOT in this profile
-        # in 2.x to preserve existing users' output paths. They opt in via
-        # `--naming-strategy hierarchical` or `output.naming_strategy:
-        # hierarchical` in YAML. In 3.0 the Mirror default flips to
-        # hierarchical (per the SemVer plan).
+        # Full site mirror for offline archive. Preserve URL paths so the
+        # on-disk archive is navigable and stable for citation.
         "crawl": {
             "max_depth": 10,
             "max_concurrent": 5,  # Be polite
+        },
+        "output": {
+            "naming_strategy": "hierarchical",
         },
         "cache": {
             "enabled": True,

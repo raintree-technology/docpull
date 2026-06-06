@@ -78,7 +78,7 @@ export const profiles = [
   },
   {
     name: "Mirror",
-    description: "Full archive with caching and resume support.",
+    description: "Full archive with caching, resume support, and hierarchical paths.",
     example: "docpull URL --profile mirror",
     accent: "Best when you want the whole site on disk.",
   },
@@ -91,7 +91,7 @@ export const profiles = [
   {
     name: "LLM",
     description:
-      "Token-aware NDJSON for LLM ingestion: chunked, deduped, clear on JS-only skips.",
+      "Token-aware NDJSON for LLM ingestion: chunked, deduped, skips JS-only pages unless strict mode is enabled.",
     example: "docpull URL --profile llm --stream | jq .",
     accent: "Purpose-built for ingestion pipelines.",
   },

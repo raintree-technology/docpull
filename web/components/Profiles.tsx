@@ -61,7 +61,7 @@ export default function Profiles() {
                 </p>
                 <p className="text-sm text-foreground/72 leading-relaxed">
                   JS-only pages are skipped with a clear reason; add
-                  --strict-js-required when an agent needs fail-loud routing.
+                  --strict-js-required when they should fail instead.
                 </p>
               </div>
             </div>

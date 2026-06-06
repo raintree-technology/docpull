@@ -226,7 +226,7 @@ async def test_chunked_output_uses_conditional_get_from_persisted_chunk(server, 
         url=server["url"],
         output={
             "directory": output_dir,
-            "max_tokens_per_file": 10,
+            "max_tokens_per_file": 100,
             "emit_chunks": True,
         },
         cache={"enabled": True, "directory": cache_dir, "skip_unchanged": True},

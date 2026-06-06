@@ -7,7 +7,7 @@ from importlib.metadata import version
 import pytest
 
 import docpull
-from docpull.cli import create_parser
+from docpull.cli import create_parser, run_fetcher
 
 
 def test_runtime_version_matches_package_metadata():
@@ -49,3 +49,23 @@ def test_importing_cli_has_no_doctor_side_effect():
     assert result.returncode == 0
     assert result.stdout.strip() == "imported"
     assert "Running docpull diagnostics" not in result.stdout
+
+
+def test_help_describes_insecure_tls_as_rejected():
+    parser = create_parser()
+
+    assert "Deprecated and rejected" in parser.format_help()
+
+
+def test_help_describes_mirror_naming_override():
+    parser = create_parser()
+    help_text = " ".join(parser.format_help().split())
+
+    assert "Mirror profile defaults to hierarchical unless explicitly overridden" in help_text
+
+
+def test_single_invalid_url_returns_nonzero(tmp_path):
+    parser = create_parser()
+    args = parser.parse_args(["http://example.com", "--single", "--output-dir", str(tmp_path)])
+
+    assert run_fetcher(args) == 1

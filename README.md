@@ -73,7 +73,7 @@ content directly from framework data feeds:
 | Mintlify  | `__NEXT_DATA__` with Mintlify tagging |
 | OpenAPI   | Renders `openapi.json` / `swagger.json` into Markdown |
 | Docusaurus| Detected and tagged; generic extractor produces Markdown |
-| Sphinx    | Detected and tagged; generic extractor produces Markdown |
+| Sphinx    | Detected from generator metadata / Read the Docs hosts and tagged; generic extractor produces Markdown |
 
 JS-only SPAs with no server-rendered content are detected and skipped with a
 clear reason (or, with `--strict-js-required`, reported as an error so agents
@@ -138,8 +138,8 @@ async def tool_call(url: str) -> str:
 
 ```bash
 docpull https://site.com --profile rag      # Default. Dedup, rich metadata.
-docpull https://site.com --profile llm      # NDJSON + chunks + metadata.
-docpull https://site.com --profile mirror   # Full archive, polite, cached.
+docpull https://site.com --profile llm      # NDJSON + chunks + metadata; JS-only pages skip unless --strict-js-required is passed.
+docpull https://site.com --profile mirror   # Full archive, polite, cached, hierarchical paths.
 docpull https://site.com --profile quick    # Sampling: 50 pages, depth 2.
 ```
 
@@ -279,7 +279,9 @@ Write:
 - `add_source(name, url, description?, category?, max_pages?, force?)` — register a user alias (HTTPS-only, atomic write to `sources.yaml`).
 - `remove_source(name, delete_cache?)` — drop a user alias and (optionally) its cached docs.
 
-All tools that carry data also return `structuredContent` validated against an `outputSchema` for clients that prefer typed output.
+All schema-backed tools return `structuredContent` validated against an
+`outputSchema` for clients that prefer typed output. `fetch_url` intentionally
+returns Markdown text directly.
 
 User-defined sources live in `~/.config/docpull-mcp/sources.yaml`:
 
@@ -302,9 +304,8 @@ The `mcp/` directory at the repo root is a separate TypeScript + Bun MCP
 server backed by PostgreSQL with pgvector for semantic search. It is not
 the Python MCP server shipped in the `docpull` package described above
 — that one is the right choice for almost every user and is installed
-with `pip install 'docpull[mcp]'`. The `mcp/` tree is mirrored to its
-own repo at [`raintree-technology/docpull-mcp`](https://github.com/raintree-technology/docpull-mcp);
-unless you specifically need pgvector-backed semantic search, ignore it
+with `pip install 'docpull[mcp]'`. The `mcp/` tree lives in this repository
+under `mcp/`; unless you specifically need pgvector-backed semantic search, ignore it
 and use `docpull mcp`. Advanced users who do need vector search should run
 `bun run db:setup` inside `mcp/` after configuring `DATABASE_URL`.
 See [docs/mcp-pgvector-setup.md](docs/mcp-pgvector-setup.md) for the focused

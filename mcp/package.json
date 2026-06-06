@@ -39,7 +39,8 @@
 	},
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/raintree-technology/docpull-mcp.git"
+		"url": "git+https://github.com/raintree-technology/docpull.git",
+		"directory": "mcp"
 	},
 	"license": "MIT",
 	"author": "Raintree Technology",

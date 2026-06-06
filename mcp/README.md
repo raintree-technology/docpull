@@ -26,8 +26,7 @@ as the fetcher and pgvector for search.
 ## Install
 
 ```bash
-git clone https://github.com/raintree-technology/docpull-mcp
-cd docpull-mcp
+cd mcp
 bun install
 
 # Requires the docpull CLI for fetching
@@ -73,7 +72,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
   "mcpServers": {
     "docpull": {
       "command": "bun",
-      "args": ["run", "/path/to/docpull-mcp/src/server.ts"],
+      "args": ["run", "/path/to/docpull/mcp/src/server.ts"],
       "env": {
         "DATABASE_URL": "postgresql://...",
         "OPENAI_API_KEY": "sk-..."
@@ -92,7 +91,7 @@ Add to `~/.claude/settings.json`:
   "mcpServers": {
     "docpull": {
       "command": "bun",
-      "args": ["run", "/path/to/docpull-mcp/src/server.ts"],
+      "args": ["run", "/path/to/docpull/mcp/src/server.ts"],
       "env": {
         "DATABASE_URL": "postgresql://...",
         "OPENAI_API_KEY": "sk-..."

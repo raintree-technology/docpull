@@ -70,9 +70,9 @@ docpull https://docs.example.com --skill example-docs --max-pages 100
 ## Profiles
 
 - RAG: deduped, metadata-rich output for LLMs and vector stores.
-- Mirror: full archive with caching and resume support.
+- Mirror: full archive with caching, resume support, and hierarchical paths.
 - Quick: 50 pages, depth 2, for testing and sampling.
-- LLM: token-aware NDJSON for model ingestion, with clear skip reasons for JS-only pages. Add --strict-js-required when fail-loud routing is needed.
+- LLM: token-aware NDJSON for model ingestion, with clear skip reasons for JS-only pages. Add --strict-js-required when JS-only pages should fail instead of skip.
 
 ## Example output
 
