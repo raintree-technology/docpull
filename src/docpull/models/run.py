@@ -6,11 +6,20 @@ from pydantic import BaseModel, Field
 
 from .config import DocpullConfig
 
+RUN_IDENTITY_SCHEMA_VERSION = 1
+DOCUMENT_RECORD_SCHEMA_VERSION = 1
+FRONTIER_SCHEMA_VERSION = 1
+MCP_META_SCHEMA_VERSION = 1
+PROGRESS_EVENT_SCHEMA_VERSION = 1
+
 
 class RunIdentity(BaseModel):
     """Stable, non-secret description of a docpull run's semantics."""
 
-    schema_version: int = Field(1, description="Schema version for RunIdentity itself")
+    schema_version: int = Field(
+        RUN_IDENTITY_SCHEMA_VERSION,
+        description="Schema version for RunIdentity itself",
+    )
     profile: str
     start_url: str | None = None
     max_pages: int | None = None
