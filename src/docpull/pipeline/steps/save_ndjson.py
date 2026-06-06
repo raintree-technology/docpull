@@ -18,6 +18,7 @@ from ...models.document import DocumentRecord
 from ...models.events import EventType, FetchEvent
 from ...models.run import RunIdentity
 from ..base import EventEmitter, PageContext
+from ..manifest import CorpusManifest
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +48,11 @@ class NdjsonSaveStep:
         self._output_path: Path | None = None
         self._lock = asyncio.Lock()
         self._run_identity = run_identity
+        self._manifest = CorpusManifest(
+            self._base_dir,
+            output_format="ndjson",
+            run_identity=run_identity,
+        )
 
     def _ensure_open(self) -> IO[str]:
         if self._fp is not None:
@@ -92,6 +98,7 @@ class NdjsonSaveStep:
                         chunk_heading=getattr(chunk, "heading", None),
                         token_count=getattr(chunk, "token_count", None),
                     )
+                    self._manifest.add_record(record, self._output_path)
                     self._write_record(record.model_dump(mode="json", exclude_none=True))
                     self._chunk_count += 1
             else:
@@ -104,6 +111,7 @@ class NdjsonSaveStep:
                     source_type=ctx.source_type,
                     run_identity=self._run_identity,
                 )
+                self._manifest.add_record(record, self._output_path)
                 self._write_record(record.model_dump(mode="json", exclude_none=True))
             self._document_count += 1
             ctx.persisted_path = self._output_path
@@ -126,6 +134,7 @@ class NdjsonSaveStep:
             except Exception as err:  # noqa: BLE001
                 logger.warning("Error closing NDJSON file: %s", err)
         self._fp = None
+        self._manifest.finalize()
         if self._output_path:
             logger.info(
                 "Wrote %d records (%d chunks) to %s",

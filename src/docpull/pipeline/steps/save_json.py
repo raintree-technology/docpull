@@ -15,6 +15,7 @@ from ...models.events import EventType, FetchEvent
 from ...models.run import RunIdentity
 from ...time_utils import utc_now_iso
 from ..base import EventEmitter, PageContext
+from ..manifest import CorpusManifest
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +68,11 @@ class JsonSaveStep:
         self._temp_path: str | None = None
         self._first_doc = True
         self._run_identity = run_identity
+        self._manifest = CorpusManifest(
+            self._base_dir,
+            output_format="json",
+            run_identity=run_identity,
+        )
 
     def _ensure_temp_file(self) -> TextIO:
         """Create temp file for streaming writes if not already open."""
@@ -111,6 +117,7 @@ class JsonSaveStep:
             run_identity=self._run_identity,
         )
         doc = record.model_dump(mode="json", exclude_none=True)
+        self._manifest.add_record(record, self._output_file)
 
         f = self._ensure_temp_file()
 
@@ -158,6 +165,7 @@ class JsonSaveStep:
             }
             with open(self._output_file, "w", encoding="utf-8") as f:
                 json.dump(output, f, indent=2, ensure_ascii=False)
+            self._manifest.finalize()
             logger.info(f"Saved 0 documents to {self._output_file}")
             return self._output_file
 
@@ -178,6 +186,7 @@ class JsonSaveStep:
             if self._temp_path is None:
                 raise RuntimeError("Temporary JSON output path was not initialized")
             os.replace(self._temp_path, self._output_file)
+            self._manifest.finalize()
             logger.info(f"Saved {self._document_count} documents to {self._output_file}")
 
         except Exception:

@@ -4,8 +4,11 @@ import asyncio
 import logging
 from pathlib import Path
 
+from ...models.document import DocumentRecord
 from ...models.events import EventType, FetchEvent, SkipReason
+from ...models.run import RunIdentity
 from ..base import EventEmitter, PageContext
+from ..manifest import CorpusManifest
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +36,7 @@ class SaveStep:
         emit_chunks: bool = False,
         skill_name: str | None = None,
         skill_description: str | None = None,
+        run_identity: RunIdentity | None = None,
     ) -> None:
         """
         Initialize the save step.
@@ -55,6 +59,16 @@ class SaveStep:
         self._skill_description = skill_description
         self._first_metadata: dict[str, object] | None = None
         self._first_title: str | None = None
+        self._run_identity = run_identity
+        self._manifest = (
+            CorpusManifest(
+                base_output_dir,
+                output_format="markdown",
+                run_identity=run_identity,
+            )
+            if base_output_dir is not None
+            else None
+        )
 
     def _validate_output_path(self, output_path: Path) -> Path:
         """
@@ -138,6 +152,20 @@ class SaveStep:
                     text = getattr(chunk, "text", "")
                     chunk_path = parent / f"{stem}.{idx:0{width}d}{ext}"
                     await asyncio.to_thread(chunk_path.write_text, text, encoding="utf-8")
+                    if self._manifest is not None:
+                        record = DocumentRecord.from_page(
+                            url=ctx.url,
+                            title=ctx.title,
+                            content=text,
+                            metadata=ctx.metadata,
+                            extraction=ctx.extraction_info,
+                            source_type=ctx.source_type,
+                            run_identity=self._run_identity,
+                            chunk_index=idx,
+                            chunk_heading=getattr(chunk, "heading", None),
+                            token_count=getattr(chunk, "token_count", None),
+                        )
+                        self._manifest.add_record(record, chunk_path)
                     if first_chunk_path is None:
                         first_chunk_path = chunk_path
                 ctx.persisted_path = first_chunk_path
@@ -151,6 +179,17 @@ class SaveStep:
                 )
                 ctx.persisted_path = validated_path
                 logger.info(f"Saved: {validated_path}")
+                if self._manifest is not None:
+                    record = DocumentRecord.from_page(
+                        url=ctx.url,
+                        title=ctx.title,
+                        content=content,
+                        metadata=ctx.metadata,
+                        extraction=ctx.extraction_info,
+                        source_type=ctx.source_type,
+                        run_identity=self._run_identity,
+                    )
+                    self._manifest.add_record(record, validated_path)
 
             # Snapshot the first successful page's metadata for SKILL.md.
             if self._skill_name and self._first_metadata is None:
@@ -210,7 +249,11 @@ class SaveStep:
         re-written with the same content).
         """
         if not self._skill_name or self._base_output_dir is None:
+            if self._manifest is not None:
+                self._manifest.finalize()
             return
+        if self._manifest is not None:
+            self._manifest.finalize()
         manifest_path = self._base_output_dir / "SKILL.md"
         description = self._skill_description or self._derive_description()
         body = self._render_skill_manifest(description)

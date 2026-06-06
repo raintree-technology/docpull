@@ -81,6 +81,59 @@ class TestDocpullConfig:
                 network={"insecure_tls": True},
             )
 
+    def test_fetcher_applies_robots_crawl_delay_to_rate_limiter(self):
+        """Robots Crawl-delay becomes a per-host limiter override."""
+
+        class FakeRobots:
+            def get_crawl_delay(self, url: str) -> float:
+                assert url == "https://example.com/docs"
+                return 2.0
+
+        class FakeRateLimiter:
+            def __init__(self):
+                self.calls: list[tuple[str, float | None]] = []
+
+            def update_host_config(
+                self, host: str, delay: float | None = None, concurrent: int | None = None
+            ):
+                self.calls.append((host, delay))
+
+        config = DocpullConfig(url="https://example.com/docs", crawl={"rate_limit": 0.5})
+        fetcher = Fetcher(config)
+        limiter = FakeRateLimiter()
+        fetcher._robots_checker = FakeRobots()  # type: ignore[assignment]
+        fetcher._rate_limiter = limiter  # type: ignore[assignment]
+
+        fetcher._apply_robots_crawl_delay()
+
+        assert limiter.calls == [("example.com", 2.0)]
+
+    def test_fetcher_keeps_stricter_user_rate_limit_over_crawl_delay(self):
+        """A faster Crawl-delay must not loosen an explicit slower rate limit."""
+
+        class FakeRobots:
+            def get_crawl_delay(self, url: str) -> float:
+                return 1.0
+
+        class FakeRateLimiter:
+            def __init__(self):
+                self.delay: float | None = None
+
+            def update_host_config(
+                self, host: str, delay: float | None = None, concurrent: int | None = None
+            ):
+                self.delay = delay
+
+        config = DocpullConfig(url="https://example.com/docs", crawl={"rate_limit": 3.0})
+        fetcher = Fetcher(config)
+        limiter = FakeRateLimiter()
+        fetcher._robots_checker = FakeRobots()  # type: ignore[assignment]
+        fetcher._rate_limiter = limiter  # type: ignore[assignment]
+
+        fetcher._apply_robots_crawl_delay()
+
+        assert limiter.delay == 3.0
+
     def test_config_dry_run(self):
         """Test config with dry run enabled."""
         config = DocpullConfig(url="https://example.com", dry_run=True)
@@ -308,6 +361,20 @@ class TestProfileDefaults:
         config = apply_profile(config)
         # Mirror profile should have no page limit
         assert config.crawl.max_pages is None
+        assert config.output.naming_strategy == "hierarchical"
+
+    def test_mirror_profile_respects_explicit_naming_strategy(self):
+        """Explicit output naming still wins over the mirror profile default."""
+        from docpull.models.profiles import apply_profile
+
+        config = DocpullConfig(
+            url="https://example.com",
+            profile=ProfileName.MIRROR,
+            output={"naming_strategy": "full"},
+        )
+        config = apply_profile(config)
+
+        assert config.output.naming_strategy == "full"
 
     def test_quick_profile_defaults(self):
         """Test quick profile applies correct defaults."""
