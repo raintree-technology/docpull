@@ -16,7 +16,7 @@ from ...conversion.special_cases import (
     looks_like_spa,
     looks_like_spa_output,
 )
-from ...models.events import EventType, FetchEvent
+from ...models.events import EventType, FetchEvent, SkipReason
 from ..base import EventEmitter, PageContext
 
 if TYPE_CHECKING:
@@ -150,23 +150,28 @@ class ConvertStep:
             return ctx
 
         if ctx.html is None:
-            ctx.error = "No HTML content to convert"
+            ctx.mark_failed("No HTML content to convert")
             if emit:
                 emit(FetchEvent(type=EventType.FETCH_FAILED, url=ctx.url, error=ctx.error))
             return ctx
 
         try:
             ctx.source_type = detect_source_type(ctx.html, ctx.url)
+            ctx.extraction_info["detected_source_type"] = ctx.source_type
 
             special_markdown = self._try_special_cases(ctx)
             if special_markdown is not None:
                 markdown = special_markdown
+                ctx.extraction_info["method"] = "special_case"
             elif self._trafilatura is not None:
                 markdown = self._trafilatura.extract(ctx.html, ctx.url)
+                ctx.extraction_info["method"] = "trafilatura"
             else:
                 assert self._extractor is not None
                 assert self._converter is not None
                 extracted_html = self._extractor.extract(ctx.html, ctx.url)
+                ctx.extraction_info["method"] = "generic"
+                ctx.extraction_info["extracted_html_bytes"] = len(extracted_html.encode("utf-8"))
                 if not extracted_html.strip():
                     return self._handle_empty_content(ctx, emit)
                 markdown = self._converter.convert(extracted_html, ctx.url)
@@ -204,6 +209,9 @@ class ConvertStep:
                 markdown = frontmatter + markdown
 
             ctx.markdown = markdown
+            ctx.extraction_info["markdown_bytes"] = len(markdown.encode("utf-8"))
+            ctx.extraction_info["heading_count"] = len(_extract_headings(markdown, max_level=6, limit=1000))
+            ctx.extraction_info["confidence"] = self._confidence(ctx)
 
             if emit:
                 emit(
@@ -218,7 +226,7 @@ class ConvertStep:
 
         except Exception as e:  # noqa: BLE001
             logger.error("Conversion failed for %s: %s", ctx.url, e)
-            ctx.error = f"Conversion failed: {e}"
+            ctx.mark_failed(f"Conversion failed: {e}")
             if emit:
                 emit(FetchEvent(type=EventType.FETCH_FAILED, url=ctx.url, error=ctx.error))
             return ctx
@@ -241,13 +249,16 @@ class ConvertStep:
                 for k, v in result.extra.items():
                     ctx.metadata.setdefault(k, v)
             logger.debug("Special-case %s matched for %s", extractor.name, ctx.url)
+            ctx.extraction_info["special_case"] = extractor.name
             return result.markdown
         return None
 
     def _handle_empty_content(self, ctx: PageContext, emit: EventEmitter | None) -> PageContext:
         is_spa = ctx.html is not None and looks_like_spa(ctx.html)
+        ctx.extraction_info["confidence"] = 0.0
+        ctx.extraction_info["empty_reason"] = "js_only_spa" if is_spa else "no_content_extracted"
         if self._strict_js_required and is_spa:
-            ctx.error = (
+            ctx.mark_failed(
                 "Page appears to be a JavaScript-only SPA; rendered content was empty. "
                 "docpull does not execute JavaScript. Either disable --strict-js-required "
                 "or fetch a server-rendered mirror."
@@ -255,8 +266,10 @@ class ConvertStep:
             if emit:
                 emit(FetchEvent(type=EventType.FETCH_FAILED, url=ctx.url, error=ctx.error))
             return ctx
-        ctx.should_skip = True
-        ctx.skip_reason = "JS-only SPA: no content without JS render" if is_spa else "No content extracted"
+        ctx.mark_skipped(
+            "JS-only SPA: no content without JS render" if is_spa else "No content extracted",
+            SkipReason.JS_ONLY_SPA if is_spa else SkipReason.NO_CONTENT_EXTRACTED,
+        )
         if is_spa:
             logger.warning("Likely JS-only SPA at %s (no server-rendered content)", ctx.url)
         else:
@@ -267,6 +280,26 @@ class ConvertStep:
                     type=EventType.FETCH_SKIPPED,
                     url=ctx.url,
                     message=ctx.skip_reason,
+                    skip_reason=ctx.skip_code,
                 )
             )
         return ctx
+
+    @staticmethod
+    def _confidence(ctx: PageContext) -> float:
+        """Cheap extraction quality signal for downstream consumers."""
+        markdown = ctx.markdown or ""
+        if not markdown.strip():
+            return 0.0
+        score = 0.35
+        if ctx.extraction_info.get("method") == "special_case":
+            score += 0.35
+        elif ctx.extraction_info.get("method") == "trafilatura":
+            score += 0.25
+        elif len(markdown) > 500:
+            score += 0.15
+        if ctx.extraction_info.get("heading_count", 0):
+            score += 0.15
+        if ctx.source_type and ctx.source_type != "generic":
+            score += 0.1
+        return min(1.0, round(score, 2))

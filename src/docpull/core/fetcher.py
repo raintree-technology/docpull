@@ -17,6 +17,7 @@ from ..http import AdaptiveRateLimiter, AsyncHttpClient, PerHostRateLimiter
 from ..models.config import DocpullConfig
 from ..models.events import EventType, FetchEvent, FetchStats, SkipReason
 from ..models.profiles import apply_profile
+from ..models.run import RunIdentity
 from ..pipeline.base import FetchPipeline, PageContext
 from ..pipeline.base import FetchStep as FetchStepProtocol
 from ..pipeline.steps import (
@@ -172,6 +173,7 @@ class Fetcher:
                     Profile defaults will be applied automatically.
         """
         self.config = apply_profile(config)
+        self.run_identity = RunIdentity.from_config(self.config)
         self._cancelled = False
         self._stats = FetchStats()
         self._start_time: float | None = None
@@ -189,6 +191,30 @@ class Fetcher:
         self._sqlite_saver: SqliteSaveStep | None = None
         self._ndjson_saver: NdjsonSaveStep | None = None
         self._save_step: SaveStep | None = None
+
+    def _run_fingerprint(self) -> dict[str, object]:
+        return self.run_identity.fingerprint()
+
+    @staticmethod
+    def _update_progress_counts(counts: dict[str, int], ctx: PageContext | None = None) -> None:
+        counts["processed"] += 1
+        if ctx is None or ctx.error:
+            counts["failed"] += 1
+        elif ctx.should_skip:
+            counts["skipped"] += 1
+        else:
+            counts["saved"] += 1
+
+    @staticmethod
+    def _progress_event(url: str, counts: dict[str, int], total: int | None) -> FetchEvent:
+        return FetchEvent.progress(
+            url=url,
+            processed=counts["processed"],
+            total=total,
+            saved=counts["saved"],
+            skipped=counts["skipped"],
+            failed=counts["failed"],
+        )
 
     @property
     def stats(self) -> FetchStats:
@@ -358,17 +384,18 @@ class Fetcher:
 
         # Add appropriate save step based on output format
         if self.config.output.format == "json":
-            self._json_saver = JsonSaveStep(base_output_dir=output_dir)
+            self._json_saver = JsonSaveStep(base_output_dir=output_dir, run_identity=self.run_identity)
             steps.append(self._json_saver)
         elif self.config.output.format == "ndjson":
             self._ndjson_saver = NdjsonSaveStep(
                 base_output_dir=output_dir,
                 filename=self.config.output.ndjson_filename,
                 emit_chunks=self.config.output.emit_chunks,
+                run_identity=self.run_identity,
             )
             steps.append(self._ndjson_saver)
         elif self.config.output.format == "sqlite":
-            self._sqlite_saver = SqliteSaveStep(base_output_dir=output_dir)
+            self._sqlite_saver = SqliteSaveStep(base_output_dir=output_dir, run_identity=self.run_identity)
             steps.append(self._sqlite_saver)
         else:
             # Default to markdown file output. SaveStep also writes
@@ -613,7 +640,10 @@ class Fetcher:
             or not self.config.url
         ):
             return None
-        pending = self._cache_manager.get_pending_urls(self.config.url)
+        pending = self._cache_manager.get_pending_urls(
+            self.config.url,
+            config_fingerprint=self._run_fingerprint(),
+        )
         if pending is None:
             return None
         max_pages = self.config.crawl.max_pages
@@ -641,7 +671,11 @@ class Fetcher:
                 return
 
         if self.config.cache.enabled and self._cache_manager:
-            self._cache_manager.save_discovered_urls(discovered, start_url)
+            self._cache_manager.save_discovered_urls(
+                discovered,
+                start_url,
+                config_fingerprint=self._run_fingerprint(),
+            )
 
         yield FetchEvent(
             type=EventType.DISCOVERY_COMPLETE,
@@ -662,24 +696,17 @@ class Fetcher:
         assert self._pipeline is not None
         assert self._start_time is not None
         self._stats.urls_discovered = len(urls)
+        progress_counts = {"processed": 0, "saved": 0, "skipped": 0, "failed": 0}
 
         collected_events: list[FetchEvent] = []
 
         def collect(event: FetchEvent) -> None:
             collected_events.append(event)
 
-        for i, url in enumerate(urls):
+        for url in urls:
             if self._cancelled:
                 yield FetchEvent(type=EventType.CANCELLED, message="Fetch cancelled by user")
                 return
-
-            yield FetchEvent(
-                type=EventType.FETCH_PROGRESS,
-                url=url,
-                current=i + 1,
-                total=len(urls),
-                message=f"Processing {i + 1}/{len(urls)}: {url}",
-            )
 
             if self.config.dry_run:
                 yield FetchEvent(
@@ -690,14 +717,28 @@ class Fetcher:
                     skip_reason=SkipReason.DRY_RUN,
                 )
                 self._stats.pages_skipped += 1
+                self._update_progress_counts(
+                    progress_counts,
+                    PageContext(
+                        url=url,
+                        output_path=self._compute_output_path(url),
+                        should_skip=True,
+                    ),
+                )
+                yield self._progress_event(url, progress_counts, len(urls))
                 continue
 
             output_path = self._compute_output_path(url)
             collected_events.clear()
-            ctx = await self._pipeline.execute(url, output_path, emit=collect)
+            if self._cache_manager:
+                self._cache_manager.frontier.mark_processing(url)
+            result = await self._pipeline.execute_result(url, output_path, emit=collect)
+            ctx = result.ctx
             for ev in collected_events:
                 yield ev
             self._record_result(url, output_path, ctx)
+            self._update_progress_counts(progress_counts, ctx)
+            yield self._progress_event(url, progress_counts, len(urls))
 
         self._stats.duration_seconds = time.monotonic() - self._start_time
         if self._cache_manager and self._stats.pages_failed == 0:
@@ -736,7 +777,7 @@ class Fetcher:
         url_queue: asyncio.Queue[str | None] = asyncio.Queue(maxsize=worker_count * 4)
         event_queue: asyncio.Queue[FetchEvent | None] = asyncio.Queue()
 
-        progress_counter = {"saved": 0}
+        progress_counter = {"processed": 0, "saved": 0, "skipped": 0, "failed": 0}
 
         async def discover_into_queue() -> None:
             discovered_for_resume: list[str] = []
@@ -759,10 +800,18 @@ class Fetcher:
                         and self._cache_manager
                         and len(discovered_for_resume) % 200 == 0
                     ):
-                        self._cache_manager.save_discovered_urls(list(discovered_for_resume), start_url)
+                        self._cache_manager.save_discovered_urls(
+                            list(discovered_for_resume),
+                            start_url,
+                            config_fingerprint=self._run_fingerprint(),
+                        )
             finally:
                 if self.config.cache.enabled and self._cache_manager:
-                    self._cache_manager.save_discovered_urls(discovered_for_resume, start_url)
+                    self._cache_manager.save_discovered_urls(
+                        discovered_for_resume,
+                        start_url,
+                        config_fingerprint=self._run_fingerprint(),
+                    )
                 self._stats.urls_discovered = len(discovered_for_resume)
                 await event_queue.put(
                     FetchEvent(
@@ -792,6 +841,10 @@ class Fetcher:
                         )
                     )
                     self._stats.pages_skipped += 1
+                    skipped_ctx = PageContext(url=url, output_path=output_path, should_skip=True)
+                    self._update_progress_counts(progress_counter, skipped_ctx)
+                    total_so_far = self._stats.urls_discovered or progress_counter["processed"]
+                    await event_queue.put(self._progress_event(url, progress_counter, total_so_far))
                     continue
 
                 local_events: list[FetchEvent] = []
@@ -803,7 +856,10 @@ class Fetcher:
                     _sink.append(ev)
 
                 try:
-                    ctx = await pipeline.execute(url, output_path, emit=emit)
+                    if self._cache_manager:
+                        self._cache_manager.frontier.mark_processing(url)
+                    result = await pipeline.execute_result(url, output_path, emit=emit)
+                    ctx = result.ctx
                 except Exception as err:  # noqa: BLE001
                     await event_queue.put(
                         FetchEvent(
@@ -814,26 +870,18 @@ class Fetcher:
                         )
                     )
                     self._stats.pages_failed += 1
+                    self._update_progress_counts(progress_counter)
+                    total_so_far = self._stats.urls_discovered or progress_counter["processed"]
+                    await event_queue.put(self._progress_event(url, progress_counter, total_so_far))
                     continue
 
                 for ev in local_events:
                     await event_queue.put(ev)
 
                 self._record_result(url, output_path, ctx)
-                if ctx.markdown and not ctx.error and not ctx.should_skip:
-                    progress_counter["saved"] += 1
-                    # Synthesize a progress event so the CLI bar moves;
-                    # `total` may still be unknown, so report what we know.
-                    total_so_far = self._stats.urls_discovered or progress_counter["saved"]
-                    await event_queue.put(
-                        FetchEvent(
-                            type=EventType.FETCH_PROGRESS,
-                            url=url,
-                            current=progress_counter["saved"],
-                            total=total_so_far,
-                            message=f"Saved {progress_counter['saved']}/{total_so_far}: {url}",
-                        )
-                    )
+                self._update_progress_counts(progress_counter, ctx)
+                total_so_far = self._stats.urls_discovered or progress_counter["processed"]
+                await event_queue.put(self._progress_event(url, progress_counter, total_so_far))
 
         discover_task = asyncio.create_task(discover_into_queue())
         worker_tasks = [asyncio.create_task(worker()) for _ in range(worker_count)]
@@ -884,7 +932,11 @@ class Fetcher:
                 self._cache_manager.mark_failed(url)
             return
         if ctx.should_skip:
+            if ctx.skip_code == SkipReason.DUPLICATE_CONTENT:
+                self._stats.pages_deduplicated += 1
             self._stats.pages_skipped += 1
+            if self._cache_manager:
+                self._cache_manager.frontier.mark_skipped(url)
             return
         self._stats.pages_fetched += 1
         self._stats.bytes_downloaded += ctx.bytes_downloaded
@@ -893,9 +945,10 @@ class Fetcher:
             self._cache_manager.update_cache(
                 url=url,
                 content=ctx.markdown,
-                file_path=output_path,
+                file_path=ctx.persisted_path or output_path,
                 etag=ctx.etag,
                 last_modified=ctx.last_modified,
+                run_fingerprint=self._run_fingerprint(),
             )
             self._cache_manager.mark_fetched(url)
 

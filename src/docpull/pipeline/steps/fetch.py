@@ -1,6 +1,7 @@
 """FetchStep - HTTP fetching pipeline step."""
 
 import logging
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from ...http.protocols import HttpClient
@@ -130,10 +131,12 @@ class FetchStep:
         entry = self._cache_manager.manifest.get(url)
         if not entry:
             return {}
+        persisted_file = entry.get("file_path")
+        persisted_exists = isinstance(persisted_file, str) and Path(persisted_file).exists()
         # Force a fresh body when the cache has us on record but the file
         # is missing. Otherwise a 304 would short-circuit to skip and we'd
         # never write the file the user expects.
-        if not output_path_exists:
+        if not output_path_exists and not persisted_exists:
             return {}
         headers: dict[str, str] = {}
         etag = self._sanitize_validator(entry.get("etag"))
@@ -200,8 +203,7 @@ class FetchStep:
             # distinct reason so the CLI summary can count "unchanged" hits
             # separately from "blocked by robots" or "JS-only SPA."
             if response.status_code == 304:
-                ctx.should_skip = True
-                ctx.skip_reason = "Not modified (304)"
+                ctx.mark_skipped("Not modified (304)", SkipReason.CACHE_UNCHANGED)
                 logger.debug(f"304 Not Modified: {url}")
                 if emit:
                     emit(
@@ -217,8 +219,7 @@ class FetchStep:
 
             # Check for client errors (skip, don't fail)
             if 400 <= response.status_code < 500:
-                ctx.should_skip = True
-                ctx.skip_reason = f"HTTP {response.status_code}"
+                ctx.mark_skipped(f"HTTP {response.status_code}", SkipReason.HTTP_ERROR)
                 logger.debug(f"Skipping {url}: HTTP {response.status_code}")
 
                 if emit:
@@ -228,14 +229,17 @@ class FetchStep:
                             url=url,
                             status_code=response.status_code,
                             message=f"Skipped: HTTP {response.status_code}",
+                            skip_reason=SkipReason.HTTP_ERROR,
                         )
                     )
                 return ctx
 
             # Validate content type
             if self._validate_content_type and not self._is_valid_content_type(response.content_type):
-                ctx.should_skip = True
-                ctx.skip_reason = f"Invalid content type: {response.content_type}"
+                ctx.mark_skipped(
+                    f"Invalid content type: {response.content_type}",
+                    SkipReason.INVALID_CONTENT_TYPE,
+                )
                 logger.debug(f"Skipping {url}: invalid content type {response.content_type}")
 
                 if emit:
@@ -245,6 +249,7 @@ class FetchStep:
                             url=url,
                             content_type=response.content_type,
                             message="Skipped: invalid content type",
+                            skip_reason=SkipReason.INVALID_CONTENT_TYPE,
                         )
                     )
                 return ctx

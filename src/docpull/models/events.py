@@ -1,10 +1,13 @@
 """Event types for the streaming fetch API."""
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
-from typing import Optional
+
+from .run import PROGRESS_EVENT_SCHEMA_VERSION
 
 
 class SkipReason(str, Enum):
@@ -20,6 +23,10 @@ class SkipReason(str, Enum):
     HTTP_ERROR = "http_error"
     FILE_EXISTS = "file_exists"
     DRY_RUN = "dry_run"
+    URL_VALIDATION_FAILED = "url_validation_failed"
+    JS_ONLY_SPA = "js_only_spa"
+    NO_CONTENT_EXTRACTED = "no_content_extracted"
+    NO_CONTENT_TO_SAVE = "no_content_to_save"
 
 
 class EventType(str, Enum):
@@ -90,6 +97,11 @@ class FetchEvent:
     # Progress tracking
     current: int | None = None
     total: int | None = None
+    progress_schema_version: int | None = None
+    processed_count: int | None = None
+    saved_count: int | None = None
+    skipped_count: int | None = None
+    failed_count: int | None = None
 
     # Typed payload fields for specific events
     bytes_downloaded: int | None = None
@@ -98,7 +110,7 @@ class FetchEvent:
     content_type: str | None = None
     retry_attempt: int | None = None
     duplicate_of: str | None = None  # URL of original for dedup events
-    skip_reason: Optional["SkipReason"] = None  # Reason for skipping a URL
+    skip_reason: SkipReason | None = None  # Reason for skipping a URL
 
     @property
     def progress_percent(self) -> float | None:
@@ -116,6 +128,33 @@ class FetchEvent:
     def is_progress(self) -> bool:
         """Check if this is a progress event."""
         return self.type == EventType.FETCH_PROGRESS
+
+    @staticmethod
+    def progress(
+        *,
+        url: str,
+        processed: int,
+        total: int | None,
+        saved: int,
+        skipped: int,
+        failed: int,
+    ) -> FetchEvent:
+        total_for_message = total if total is not None else processed
+        return FetchEvent(
+            type=EventType.FETCH_PROGRESS,
+            url=url,
+            current=processed,
+            total=total,
+            progress_schema_version=PROGRESS_EVENT_SCHEMA_VERSION,
+            processed_count=processed,
+            saved_count=saved,
+            skipped_count=skipped,
+            failed_count=failed,
+            message=(
+                f"Processed {processed}/{total_for_message} "
+                f"(saved {saved}, skipped {skipped}, failed {failed}): {url}"
+            ),
+        )
 
 
 @dataclass

@@ -4,7 +4,7 @@ import asyncio
 import logging
 from pathlib import Path
 
-from ...models.events import EventType, FetchEvent
+from ...models.events import EventType, FetchEvent, SkipReason
 from ..base import EventEmitter, PageContext
 
 logger = logging.getLogger(__name__)
@@ -105,8 +105,7 @@ class SaveStep:
             # Fall back to raw HTML if no markdown conversion
             content = ctx.html.decode("utf-8", errors="replace")
         else:
-            ctx.should_skip = True
-            ctx.skip_reason = "No content to save"
+            ctx.mark_skipped("No content to save", SkipReason.NO_CONTENT_TO_SAVE)
             logger.warning(f"Skipping {url}: no content to save")
 
             if emit:
@@ -115,6 +114,7 @@ class SaveStep:
                         type=EventType.FETCH_SKIPPED,
                         url=url,
                         message="No content to save",
+                        skip_reason=SkipReason.NO_CONTENT_TO_SAVE,
                     )
                 )
             return ctx
@@ -132,11 +132,15 @@ class SaveStep:
                 parent = validated_path.parent
                 ext = validated_path.suffix or ".md"
                 width = max(2, len(str(len(ctx.chunks) - 1)))
+                first_chunk_path: Path | None = None
                 for chunk in ctx.chunks:
                     idx = getattr(chunk, "index", 0)
                     text = getattr(chunk, "text", "")
                     chunk_path = parent / f"{stem}.{idx:0{width}d}{ext}"
                     await asyncio.to_thread(chunk_path.write_text, text, encoding="utf-8")
+                    if first_chunk_path is None:
+                        first_chunk_path = chunk_path
+                ctx.persisted_path = first_chunk_path
                 logger.info("Saved %d chunks: %s.*%s", len(ctx.chunks), parent / stem, ext)
             else:
                 # Write full document (use asyncio.to_thread to avoid blocking)
@@ -145,6 +149,7 @@ class SaveStep:
                     content,
                     encoding="utf-8",
                 )
+                ctx.persisted_path = validated_path
                 logger.info(f"Saved: {validated_path}")
 
             # Snapshot the first successful page's metadata for SKILL.md.
@@ -166,8 +171,7 @@ class SaveStep:
 
         except ValueError as e:
             # Path validation error
-            ctx.error = str(e)
-            ctx.should_skip = True
+            ctx.mark_failed(str(e))
             logger.error(f"Path validation failed for {url}: {e}")
 
             if emit:
@@ -183,7 +187,7 @@ class SaveStep:
 
         except OSError as e:
             # File system error
-            ctx.error = f"Failed to save: {e}"
+            ctx.mark_failed(f"Failed to save: {e}")
             logger.error(f"Failed to save {url} to {output_path}: {e}")
 
             if emit:

@@ -10,7 +10,9 @@ import tempfile
 from pathlib import Path
 from typing import TextIO
 
+from ...models.document import DocumentRecord
 from ...models.events import EventType, FetchEvent
+from ...models.run import RunIdentity
 from ...time_utils import utc_now_iso
 from ..base import EventEmitter, PageContext
 
@@ -49,6 +51,7 @@ class JsonSaveStep:
         self,
         base_output_dir: Path,
         filename: str = "documents.json",
+        run_identity: RunIdentity | None = None,
     ) -> None:
         """
         Initialize the JSON save step.
@@ -63,6 +66,7 @@ class JsonSaveStep:
         self._temp_file: TextIO | None = None
         self._temp_path: str | None = None
         self._first_doc = True
+        self._run_identity = run_identity
 
     def _ensure_temp_file(self) -> TextIO:
         """Create temp file for streaming writes if not already open."""
@@ -97,13 +101,16 @@ class JsonSaveStep:
         if ctx.should_skip or not ctx.markdown:
             return ctx
 
-        doc = {
-            "url": ctx.url,
-            "title": ctx.title,
-            "content": ctx.markdown,
-            "metadata": ctx.metadata,
-            "fetched_at": utc_now_iso(),
-        }
+        record = DocumentRecord.from_page(
+            url=ctx.url,
+            title=ctx.title,
+            content=ctx.markdown,
+            metadata=ctx.metadata,
+            extraction=ctx.extraction_info,
+            source_type=ctx.source_type,
+            run_identity=self._run_identity,
+        )
+        doc = record.model_dump(mode="json", exclude_none=True)
 
         f = self._ensure_temp_file()
 
@@ -119,6 +126,7 @@ class JsonSaveStep:
         f.write(indented)
 
         self._document_count += 1
+        ctx.persisted_path = self._output_file
 
         if emit:
             emit(
@@ -142,7 +150,9 @@ class JsonSaveStep:
             # No documents written - create empty structure
             self._base_dir.mkdir(parents=True, exist_ok=True)
             output = {
+                "schema_version": 1,
                 "generated_at": utc_now_iso(),
+                "run": self._run_identity.model_dump(mode="json") if self._run_identity else None,
                 "document_count": 0,
                 "documents": [],
             }
@@ -154,7 +164,11 @@ class JsonSaveStep:
         try:
             # Close the documents array and add metadata
             self._temp_file.write("\n  ],\n")
+            self._temp_file.write('  "schema_version": 1,\n')
             self._temp_file.write(f'  "generated_at": "{utc_now_iso()}",\n')
+            if self._run_identity:
+                run_json = json.dumps(self._run_identity.model_dump(mode="json"), ensure_ascii=False)
+                self._temp_file.write(f'  "run": {run_json},\n')
             self._temp_file.write(f'  "document_count": {self._document_count}\n')
             self._temp_file.write("}\n")
             self._temp_file.close()

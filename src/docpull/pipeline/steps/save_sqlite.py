@@ -7,8 +7,9 @@ import logging
 import sqlite3
 from pathlib import Path
 
+from ...models.document import DocumentRecord
 from ...models.events import EventType, FetchEvent
-from ...time_utils import utc_now_iso
+from ...models.run import RunIdentity
 from ..base import EventEmitter, PageContext
 
 logger = logging.getLogger(__name__)
@@ -41,6 +42,7 @@ class SqliteSaveStep:
         self,
         base_output_dir: Path,
         filename: str = "documents.db",
+        run_identity: RunIdentity | None = None,
     ) -> None:
         """
         Initialize the SQLite save step.
@@ -54,6 +56,7 @@ class SqliteSaveStep:
         self._conn: sqlite3.Connection | None = None
         self._document_count = 0
         self._pending_count = 0  # Track uncommitted documents
+        self._run_identity = run_identity
 
     def _ensure_db(self) -> sqlite3.Connection:
         """Ensure the database and table exist."""
@@ -65,19 +68,52 @@ class SqliteSaveStep:
             self._conn.execute("""
                 CREATE TABLE IF NOT EXISTS documents (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    schema_version INTEGER NOT NULL DEFAULT 1,
                     url TEXT UNIQUE NOT NULL,
                     title TEXT,
                     content TEXT,
+                    content_hash TEXT,
+                    source_type TEXT,
                     metadata TEXT,
+                    extraction TEXT,
                     fetched_at TEXT
                 )
             """)
+            self._conn.execute("""
+                CREATE TABLE IF NOT EXISTS run_metadata (
+                    key TEXT PRIMARY KEY,
+                    value TEXT NOT NULL
+                )
+            """)
+            self._ensure_columns(
+                self._conn,
+                "documents",
+                {
+                    "schema_version": "INTEGER NOT NULL DEFAULT 1",
+                    "content_hash": "TEXT",
+                    "source_type": "TEXT",
+                    "extraction": "TEXT",
+                },
+            )
+            if self._run_identity:
+                self._conn.execute(
+                    "INSERT OR REPLACE INTO run_metadata (key, value) VALUES (?, ?)",
+                    ("run", json.dumps(self._run_identity.model_dump(mode="json"), ensure_ascii=False)),
+                )
             self._conn.execute("CREATE INDEX IF NOT EXISTS idx_url ON documents(url)")
             self._conn.commit()
 
             logger.info(f"Initialized SQLite database at {self._db_path}")
 
         return self._conn
+
+    @staticmethod
+    def _ensure_columns(conn: sqlite3.Connection, table: str, columns: dict[str, str]) -> None:
+        """Add schema-v1 columns when opening a DB created by older docpull."""
+        existing = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
+        for name, definition in columns.items():
+            if name not in existing:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {definition}")
 
     async def execute(
         self,
@@ -98,18 +134,32 @@ class SqliteSaveStep:
             return ctx
 
         conn = self._ensure_db()
+        record = DocumentRecord.from_page(
+            url=ctx.url,
+            title=ctx.title,
+            content=ctx.markdown,
+            metadata=ctx.metadata,
+            extraction=ctx.extraction_info,
+            source_type=ctx.source_type,
+            run_identity=self._run_identity,
+        )
 
         try:
             cursor = conn.execute(
                 """INSERT OR IGNORE INTO documents
-                   (url, title, content, metadata, fetched_at)
-                   VALUES (?, ?, ?, ?, ?)""",
+                   (schema_version, url, title, content, content_hash,
+                    source_type, metadata, extraction, fetched_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
-                    ctx.url,
-                    ctx.title,
-                    ctx.markdown,
-                    json.dumps(ctx.metadata, ensure_ascii=False),
-                    utc_now_iso(),
+                    record.schema_version,
+                    record.url,
+                    record.title,
+                    record.content,
+                    record.content_hash,
+                    record.source_type,
+                    json.dumps(record.metadata, ensure_ascii=False),
+                    json.dumps(record.extraction, ensure_ascii=False),
+                    record.fetched_at,
                 ),
             )
             # Only count if a row was actually inserted (not ignored)
@@ -130,10 +180,11 @@ class SqliteSaveStep:
                         message=f"Saved to SQLite ({self._document_count} docs)",
                     )
                 )
+            ctx.persisted_path = self._db_path
 
         except sqlite3.Error as e:
             logger.error(f"SQLite error saving {ctx.url}: {e}")
-            ctx.error = f"SQLite error: {e}"
+            ctx.mark_failed(f"SQLite error: {e}")
 
             if emit:
                 emit(

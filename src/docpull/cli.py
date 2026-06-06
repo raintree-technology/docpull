@@ -594,9 +594,21 @@ def run_fetcher(args: argparse.Namespace) -> int:
                             elif event.type == EventType.DISCOVERY_COMPLETE:
                                 progress.update(task, description=f"[green]Found {event.total} URLs")
                             elif event.type == EventType.FETCH_PROGRESS:
+                                processed = (
+                                    event.processed_count
+                                    if event.processed_count is not None
+                                    else event.current
+                                )
+                                total = event.total if event.total is not None else "?"
+                                saved = event.saved_count if event.saved_count is not None else "?"
+                                skipped = event.skipped_count if event.skipped_count is not None else "?"
+                                failed = event.failed_count if event.failed_count is not None else "?"
                                 progress.update(
                                     task,
-                                    description=f"[cyan]Fetching {event.current}/{event.total}: {event.url}",
+                                    description=(
+                                        f"[cyan]Processed {processed}/{total} "
+                                        f"(saved {saved}, skipped {skipped}, failed {failed}): {event.url}"
+                                    ),
                                 )
                             elif event.type == EventType.FETCH_SKIPPED:
                                 if event.skip_reason:

@@ -2,7 +2,7 @@
 
 import logging
 
-from ...models.events import EventType, FetchEvent
+from ...models.events import EventType, FetchEvent, SkipReason
 from ...security.robots import RobotsChecker
 from ...security.url_validator import UrlValidator
 from ..base import EventEmitter, PageContext
@@ -76,8 +76,10 @@ class ValidateStep:
         # 1. URL security validation
         validation_result = self._url_validator.validate(url)
         if not validation_result.is_valid:
-            ctx.should_skip = True
-            ctx.skip_reason = f"URL validation failed: {validation_result.rejection_reason}"
+            ctx.mark_skipped(
+                f"URL validation failed: {validation_result.rejection_reason}",
+                SkipReason.URL_VALIDATION_FAILED,
+            )
             logger.debug(f"Skipping {url}: {validation_result.rejection_reason}")
 
             if emit:
@@ -86,14 +88,14 @@ class ValidateStep:
                         type=EventType.FETCH_SKIPPED,
                         url=url,
                         message=f"URL validation failed: {validation_result.rejection_reason}",
+                        skip_reason=SkipReason.URL_VALIDATION_FAILED,
                     )
                 )
             return ctx
 
         # 2. robots.txt compliance
         if not self._robots_checker.is_allowed(url):
-            ctx.should_skip = True
-            ctx.skip_reason = "Blocked by robots.txt"
+            ctx.mark_skipped("Blocked by robots.txt", SkipReason.ROBOTS_DISALLOWED)
             logger.debug(f"Skipping {url}: blocked by robots.txt")
 
             if emit:
@@ -102,14 +104,14 @@ class ValidateStep:
                         type=EventType.FETCH_SKIPPED,
                         url=url,
                         message="Blocked by robots.txt",
+                        skip_reason=SkipReason.ROBOTS_DISALLOWED,
                     )
                 )
             return ctx
 
         # 3. Check if output file already exists
         if self._check_existing and ctx.output_path.exists():
-            ctx.should_skip = True
-            ctx.skip_reason = "Output file already exists"
+            ctx.mark_skipped("Output file already exists", SkipReason.FILE_EXISTS)
             logger.debug(f"Skipping {url}: output file exists at {ctx.output_path}")
 
             if emit:
@@ -119,6 +121,7 @@ class ValidateStep:
                         url=url,
                         output_path=ctx.output_path,
                         message="Output file already exists",
+                        skip_reason=SkipReason.FILE_EXISTS,
                     )
                 )
             return ctx

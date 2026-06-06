@@ -423,6 +423,7 @@ def test_partial_meta_treats_cache_as_stale(tmp_path):
     meta.write_text(
         json.dumps(
             {
+                "schema_version": 1,
                 "fetched_at_epoch": time.time(),
                 "page_count": 5,
                 "partial": True,
@@ -449,7 +450,7 @@ def test_atomic_meta_write_no_tmp_left_behind(tmp_path):
     from docpull.mcp.tools import _write_meta
 
     meta = tmp_path / ".x.meta.json"
-    _write_meta(meta, "x", "https://x.test", 3)
+    _write_meta(meta, "x", "https://x.test", 3, profile="rag", max_pages=100)
     assert meta.exists()
     assert not (tmp_path / ".x.meta.json.tmp").exists()
 
