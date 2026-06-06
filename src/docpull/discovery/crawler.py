@@ -117,13 +117,13 @@ class LinkCrawler:
 
     def _should_crawl(self, url: str) -> bool:
         """
-        Check if a URL should be crawled.
+        Check if a URL is safe and in-scope for crawling.
 
         Args:
             url: URL to check
 
         Returns:
-            True if URL should be crawled
+            True if URL can be fetched and traversed
         """
         # Security validation
         if not self._validator.is_valid(url):
@@ -134,10 +134,10 @@ class LinkCrawler:
             return False
 
         # Domain filter
-        if self._domain_filter and not self._domain_filter.should_include(url):
-            return False
+        return not self._domain_filter or self._domain_filter.should_include(url)
 
-        # Pattern filter
+    def _should_include(self, url: str) -> bool:
+        """Check whether a crawled URL should be emitted to consumers."""
         return not (self._pattern_filter and not self._pattern_filter.should_include(url))
 
     async def discover(
@@ -171,15 +171,20 @@ class LinkCrawler:
         # Use provided max_depth or instance default
         effective_max_depth = max_depth if max_depth is not None else self._max_depth
 
+        count = 0
+
+        if not self._should_crawl(start_url):
+            logger.info("Skipping disallowed start URL: %s", start_url)
+            return
+
         # BFS queue: (url, depth)
         queue: deque[tuple[str, int]] = deque()
         queue.append((start_url, 0))
         self._seen.add(start_url)
 
-        count = 0
-
-        # Yield the starting URL first
-        if self._should_crawl(start_url):
+        # Traverse the seed even if path filters exclude it, otherwise a common
+        # "start at /, include only /docs/*" crawl never reaches the docs tree.
+        if self._should_include(start_url):
             yield start_url
             count += 1
 
@@ -215,15 +220,18 @@ class LinkCrawler:
                 if not self._should_crawl(link):
                     continue
 
+                # Add to queue for further crawling
+                if depth + 1 < effective_max_depth:
+                    queue.append((link, depth + 1))
+
+                if not self._should_include(link):
+                    continue
+
                 # Yield the URL
                 yield link
                 count += 1
 
                 if max_urls is not None and count >= max_urls:
                     return
-
-                # Add to queue for further crawling
-                if depth + 1 < effective_max_depth:
-                    queue.append((link, depth + 1))
 
         logger.info(f"Crawl complete: found {count} URLs")

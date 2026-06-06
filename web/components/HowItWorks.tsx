@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { useReducedMotion } from "@/lib/use-reduced-motion";
 
 const URL = "docs.anthropic.com";
-const TOTAL_PAGES = 247;
+const TOTAL_PAGES = 38;
 
 type Stage = "point" | "fetch" | "use" | "done";
 
@@ -95,18 +95,24 @@ export default function HowItWorks() {
   const flow2Lit = activeIdx >= 2;
 
   return (
-    <section id="how-it-works" className="py-16 sm:py-24 border-t">
+    <section
+      id="how-it-works"
+      className="border-t border-foreground/8 py-16 sm:py-24"
+    >
       <div className="mx-auto max-w-5xl px-6">
-        <div className="mb-10 sm:mb-14 text-center sm:text-left">
-          <h2 className="text-xl sm:text-2xl font-medium mb-2 sm:mb-3">
-            <span>How it works</span>
+        <div className="mb-10 max-w-3xl text-center sm:text-left">
+          <p className="section-kicker mb-3">URL in, corpus out</p>
+          <h2 className="section-title mb-4">
+            Point docpull at a site. It handles the boring parts locally.
           </h2>
-          <p className="text-sm sm:text-base text-muted-foreground">
-            Three steps from URL to AI-ready output.
+          <p className="section-copy">
+            The flow is simple on purpose: pick a web entry point, let the
+            fetch pipeline walk and convert it, then drop the output into the
+            system you already use.
           </p>
         </div>
 
-        <div className="glass rounded-2xl p-5 sm:p-8">
+        <div className="apple-panel rounded-[1.9rem] p-5 sm:p-8">
           <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1fr)] gap-4 md:gap-0 items-start">
             <Stage num="01" active={activeIdx === 0} done={activeIdx > 0}>
               <UrlBar typed={displayTyped} />
@@ -121,20 +127,20 @@ export default function HowItWorks() {
             </Stage>
           </div>
 
-          <div className="mt-6 sm:mt-8 pt-5 sm:pt-6 border-t border-foreground/10 grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+          <div className="mt-6 grid grid-cols-1 gap-4 border-t border-foreground/10 pt-5 md:grid-cols-3 md:gap-6 sm:mt-8 sm:pt-6">
             <StepText
-              title="Point"
-              desc="Give docpull a URL — any documentation site, public or gated."
+              title="Aim at the site"
+              desc="Give docpull a server-rendered URL. Public sites work, and authenticated pages can be fetched through your local session setup."
               active={activeIdx === 0}
             />
             <StepText
-              title="Fetch"
-              desc="It discovers pages, fetches them politely, and converts HTML to clean Markdown."
+              title="Fetch without chaos"
+              desc="It discovers pages, respects site rules, and converts the HTML you actually got into clean Markdown."
               active={activeIdx === 1}
             />
             <StepText
-              title="Use"
-              desc="Drop the output into your vector store, RAG pipeline, or Claude Code skill."
+              title="Plug it into real work"
+              desc="Use the output in a local docs folder, a search index, or an agent skill without another export step."
               active={activeIdx === 2}
             />
           </div>
@@ -421,13 +427,13 @@ function StepText({
     <div className="transition-opacity duration-500">
       <h3
         className={cn(
-          "font-medium text-sm mb-1 transition-colors duration-300",
-          active ? "text-foreground" : "text-muted-foreground",
+          "font-medium text-sm mb-1.5 transition-colors duration-300",
+          active ? "text-foreground" : "text-foreground/60",
         )}
       >
         {title}
       </h3>
-      <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+      <p className="text-xs sm:text-sm text-foreground/70 leading-relaxed">
         {desc}
       </p>
     </div>

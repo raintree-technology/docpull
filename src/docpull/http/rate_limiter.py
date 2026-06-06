@@ -28,7 +28,7 @@ class PerHostRateLimiter:
             await fetch_page(...)
 
         async with limiter.limit("https://example.com/page2"):
-            # Will wait at least 0.5s after page1 completes
+            # Will wait at least 0.5s after page1 starts
             await fetch_page(...)
     """
 
@@ -47,23 +47,58 @@ class PerHostRateLimiter:
             host_configs: Optional per-host overrides, e.g.:
                 {"api.example.com": {"delay": 1.0, "concurrent": 2}}
         """
+        self._validate_delay(default_delay)
+        self._validate_concurrency(default_concurrent)
+
         self.default_delay = default_delay
         self.default_concurrent = default_concurrent
-        self.host_configs = host_configs or {}
+        self.host_configs = {}
+        for host, config in (host_configs or {}).items():
+            normalized_host = self._normalize_host(host)
+            delay = config.get("delay", self.default_delay)
+            concurrent = config.get("concurrent", self.default_concurrent)
+            self._validate_delay(delay)
+            self._validate_concurrency(concurrent)
+            self.host_configs[normalized_host] = {
+                "delay": delay,
+                "concurrent": concurrent,
+            }
 
         # Per-host state
         self._semaphores: dict[str, asyncio.Semaphore] = {}
+        self._timing_locks: dict[str, asyncio.Lock] = {}
         self._last_request: dict[str, float] = {}
-        self._lock = asyncio.Lock()
+        self._state_lock = asyncio.Lock()
 
     def _get_host(self, url: str) -> str:
-        """Extract host from URL."""
-        return urlparse(url).netloc
+        """Extract a normalized host key from URL."""
+        parsed = urlparse(url)
+        if parsed.hostname:
+            return self._normalize_host(parsed.hostname)
+        return self._normalize_host(parsed.netloc)
+
+    @staticmethod
+    def _normalize_host(host: str) -> str:
+        """Normalize host keys for configs and runtime tracking."""
+        return host.lower().rstrip(".")
+
+    @staticmethod
+    def _validate_delay(delay: float) -> None:
+        """Reject invalid delay values early."""
+        if delay < 0:
+            raise ValueError("Rate limit delay must be >= 0")
+
+    @staticmethod
+    def _validate_concurrency(concurrent: int) -> None:
+        """Reject invalid concurrency values early."""
+        if concurrent < 1:
+            raise ValueError("Per-host concurrency must be >= 1")
 
     def _get_config(self, host: str) -> tuple[float, int]:
         """Get delay and concurrency for a specific host."""
-        if host in self.host_configs:
-            cfg = self.host_configs[host]
+        normalized_host = self._normalize_host(host)
+        if normalized_host in self.host_configs:
+            cfg = self.host_configs[normalized_host]
             return (
                 cfg.get("delay", self.default_delay),
                 cfg.get("concurrent", self.default_concurrent),
@@ -72,11 +107,18 @@ class PerHostRateLimiter:
 
     async def _get_semaphore(self, host: str) -> asyncio.Semaphore:
         """Get or create semaphore for a host."""
-        async with self._lock:
+        async with self._state_lock:
             if host not in self._semaphores:
                 _, concurrent = self._get_config(host)
                 self._semaphores[host] = asyncio.Semaphore(concurrent)
             return self._semaphores[host]
+
+    async def _get_timing_lock(self, host: str) -> asyncio.Lock:
+        """Get or create the delay-enforcement lock for a host."""
+        async with self._state_lock:
+            if host not in self._timing_locks:
+                self._timing_locks[host] = asyncio.Lock()
+            return self._timing_locks[host]
 
     @asynccontextmanager
     async def limit(self, url: str) -> AsyncIterator[None]:
@@ -103,8 +145,9 @@ class PerHostRateLimiter:
 
         # Acquire semaphore slot
         async with sem:
-            # Enforce per-host delay
-            async with self._lock:
+            # Enforce per-host delay without serializing unrelated hosts.
+            timing_lock = await self._get_timing_lock(host)
+            async with timing_lock:
                 now = time.monotonic()
                 last = self._last_request.get(host, 0.0)
                 wait_time = max(0.0, delay - (now - last))
@@ -136,13 +179,16 @@ class PerHostRateLimiter:
             Changes to concurrent won't affect existing semaphores.
             For safety, set host configs before starting requests.
         """
-        if host not in self.host_configs:
-            self.host_configs[host] = {}
+        normalized_host = self._normalize_host(host)
+        if normalized_host not in self.host_configs:
+            self.host_configs[normalized_host] = {}
 
         if delay is not None:
-            self.host_configs[host]["delay"] = delay
+            self._validate_delay(delay)
+            self.host_configs[normalized_host]["delay"] = delay
         if concurrent is not None:
-            self.host_configs[host]["concurrent"] = concurrent
+            self._validate_concurrency(concurrent)
+            self.host_configs[normalized_host]["concurrent"] = concurrent
 
     def get_stats(self) -> dict:
         """Get rate limiter statistics."""

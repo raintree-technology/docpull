@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
 import socket
+import time
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -10,6 +12,7 @@ import pytest
 from pydantic import ValidationError
 
 from docpull.http.client import AsyncHttpClient, _ValidatedResolver
+from docpull.http.rate_limiter import AdaptiveRateLimiter, PerHostRateLimiter
 from docpull.security.robots import RobotsChecker, _RobotsResponse
 from docpull.security.url_validator import UrlValidationResult, UrlValidator
 
@@ -23,6 +26,8 @@ class _NullAsyncContext:
 
 
 class _DummyRateLimiter:
+    default_concurrent = 3
+
     def limit(self, url: str) -> _NullAsyncContext:
         return _NullAsyncContext()
 
@@ -80,6 +85,19 @@ class _FakeSession:
         return _FakeRequestContext(self._responses.pop(0))
 
 
+class _RecordingAdaptiveRateLimiter(AdaptiveRateLimiter):
+    def __init__(self) -> None:
+        super().__init__(default_delay=0.0, default_concurrent=3)
+        self.rate_limit_calls: list[tuple[str, int | None]] = []
+        self.success_calls: list[str] = []
+
+    async def record_rate_limit(self, url: str, retry_after: int | None = None) -> None:
+        self.rate_limit_calls.append((url, retry_after))
+
+    async def record_success(self, url: str) -> None:
+        self.success_calls.append(url)
+
+
 class TestUrlValidatorResolution:
     def test_rejects_public_hostname_that_resolves_to_loopback(self) -> None:
         validator = UrlValidator(resolver=lambda hostname: ["127.0.0.1"])
@@ -131,6 +149,35 @@ class TestUrlValidatorResolution:
         assert calls["n"] == 1
         assert addresses == ["1.2.3.4"]
 
+    def test_validate_and_connect_path_share_screened_resolution(self) -> None:
+        calls = {"n": 0}
+
+        def resolver(hostname: str) -> list[str]:
+            calls["n"] += 1
+            return ["93.184.216.34"]
+
+        validator = UrlValidator(resolver=resolver)
+
+        assert validator.validate("https://docs.example.com").is_valid is True
+        assert validator.resolve_allowed_addresses("docs.example.com") == ["93.184.216.34"]
+        assert calls["n"] == 1
+
+    def test_resolution_cache_expires_and_reresolves(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        calls = {"n": 0}
+        now = {"value": 100.0}
+
+        def resolver(hostname: str) -> list[str]:
+            calls["n"] += 1
+            return [f"93.184.216.{calls['n']}"]
+
+        validator = UrlValidator(resolver=resolver)
+        monkeypatch.setattr("docpull.security.url_validator.time.monotonic", lambda: now["value"])
+
+        assert validator.resolve_allowed_addresses("docs.example.com") == ["93.184.216.1"]
+        now["value"] += UrlValidator._RESOLUTION_CACHE_TTL_SECONDS + 0.01
+        assert validator.resolve_allowed_addresses("docs.example.com") == ["93.184.216.2"]
+        assert calls["n"] == 2
+
     def test_resolve_allowed_addresses_rejects_blocked_resolution(self) -> None:
         validator = UrlValidator(resolver=lambda hostname: ["169.254.169.254"])
 
@@ -163,6 +210,23 @@ class TestUrlValidatorResolution:
 
         assert validator.validate("https://localhost./admin").is_valid is False
         assert validator.validate_hostname("service.internal.").is_valid is False
+
+    def test_blocks_dns_rebinding_suffixes_without_resolution(self) -> None:
+        validator = UrlValidator(resolver=lambda hostname: ["93.184.216.34"])
+
+        for host in ("docs.nip.io", "api.sslip.io", "box.xip.io", "router.lan"):
+            result = validator.validate(f"https://{host}/")
+            assert result.is_valid is False, host
+            assert result.rejection_reason is not None
+            assert "not allowed" in result.rejection_reason
+
+    def test_allowed_domains_are_normalized(self) -> None:
+        validator = UrlValidator(
+            allowed_domains={"Docs.Example.com."},
+            resolver=lambda hostname: ["93.184.216.34"],
+        )
+
+        assert validator.validate("https://docs.example.com/page").is_valid is True
 
 
 class TestValidatedResolver:
@@ -251,6 +315,87 @@ class TestRedirectValidation:
         _, kwargs = client._session.calls[0]
         assert kwargs["headers"] == {"X-Trace": "keep-me"}
 
+    @pytest.mark.asyncio
+    async def test_http_client_head_accepts_request_headers(self) -> None:
+        client = AsyncHttpClient(rate_limiter=_DummyRateLimiter())
+        client._session = _FakeSession(
+            [
+                _FakeResponse(
+                    200,
+                    headers={"Content-Type": "text/html"},
+                    url="https://docs.example.com/page",
+                )
+            ]
+        )
+
+        await client.head("https://docs.example.com/page", headers={"X-Test": "1"})
+
+        assert client._session is not None
+        _, kwargs = client._session.calls[0]
+        assert kwargs["headers"]["X-Test"] == "1"
+
+    @pytest.mark.asyncio
+    async def test_http_client_uses_separate_connect_and_read_timeouts(self) -> None:
+        client = AsyncHttpClient(
+            rate_limiter=_DummyRateLimiter(),
+            default_timeout=7.0,
+            connect_timeout=2.0,
+        )
+        client._session = _FakeSession(
+            [
+                _FakeResponse(
+                    200,
+                    headers={"Content-Type": "text/html"},
+                    chunks=[b"ok"],
+                    url="https://docs.example.com/page",
+                )
+            ]
+        )
+
+        await client.get("https://docs.example.com/page")
+
+        assert client._session is not None
+        _, kwargs = client._session.calls[0]
+        timeout = kwargs["timeout"]
+        assert timeout.total == 9.0
+        assert timeout.connect == 2.0
+        assert timeout.sock_read == 7.0
+
+    @pytest.mark.asyncio
+    async def test_http_client_rejects_crlf_in_request_headers(self) -> None:
+        client = AsyncHttpClient(rate_limiter=_DummyRateLimiter())
+        client._session = _FakeSession([])
+
+        with pytest.raises(ValueError, match="header injection"):
+            await client.get("https://docs.example.com/page", headers={"X-Test": "ok\r\nbad: yes"})
+
+    @pytest.mark.asyncio
+    async def test_http_head_retries_and_tracks_adaptive_backoff(self) -> None:
+        limiter = _RecordingAdaptiveRateLimiter()
+        client = AsyncHttpClient(rate_limiter=limiter, max_retries=1, retry_base_delay=0.0)
+        client._session = _FakeSession(
+            [
+                _FakeResponse(
+                    429,
+                    headers={"Retry-After": "120", "Content-Type": "text/html"},
+                    url="https://docs.example.com/page",
+                ),
+                _FakeResponse(
+                    200,
+                    headers={"Content-Type": "text/html"},
+                    url="https://docs.example.com/page",
+                ),
+            ]
+        )
+
+        response = await client.head("https://docs.example.com/page")
+
+        assert response.status_code == 200
+        assert client._session is not None
+        assert len(client._session.calls) == 2
+        assert limiter.rate_limit_calls == [("https://docs.example.com/page", 120)]
+        assert limiter.success_calls == ["https://docs.example.com/page"]
+
     def test_http_client_rejects_insecure_tls_override(self) -> None:
         with pytest.raises(ValueError, match="Insecure TLS is not supported"):
             AsyncHttpClient(
@@ -298,12 +443,23 @@ class TestRedirectValidation:
 
         assert checker.is_allowed("https://public.example/docs") is False
 
+    def test_robots_checker_uses_validator_by_default(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        checker = RobotsChecker()
+        monkeypatch.setattr(
+            checker._url_validator,
+            "validate",
+            lambda url: UrlValidationResult.invalid("blocked for test"),
+        )
+
+        assert checker.is_allowed("https://public.example/docs") is False
+
     def test_robots_checker_allows_when_robots_missing(self, monkeypatch: pytest.MonkeyPatch) -> None:
         checker = RobotsChecker()
 
         def fake_fetch(url: str) -> _RobotsResponse:
             return _RobotsResponse(status_code=404, headers={}, text="")
 
+        monkeypatch.setattr(checker, "_validate_url", lambda url: True)
         monkeypatch.setattr(checker, "_fetch_url", fake_fetch)
 
         assert checker.is_allowed("https://public.example/docs") is True
@@ -358,6 +514,29 @@ class TestRedirectValidation:
         with pytest.raises(ValueError, match="exceeds maximum size"):
             checker._fetch_url("https://evil.example.com/robots.txt")
 
+    def test_robots_cache_key_is_canonicalized(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        checker = RobotsChecker()
+        calls: list[tuple[str, str]] = []
+
+        def fake_fetch(domain: str, robots_url: str):
+            calls.append((domain, robots_url))
+            return SimpleNamespace(parser=None, status="missing")
+
+        monkeypatch.setattr(checker, "_fetch_robots", fake_fetch)
+
+        assert checker.is_allowed("HTTPS://Example.com/docs") is True
+        assert checker.is_allowed("https://example.com:443/other") is True
+
+        assert calls == [("example.com", "https://example.com/robots.txt")]
+
+    def test_robots_url_preserves_ipv6_brackets(self) -> None:
+        checker = RobotsChecker()
+
+        assert (
+            checker._get_robots_url("https://[2606:2800:220:1:248:1893:25c8:1946]:8443/docs")
+            == "https://[2606:2800:220:1:248:1893:25c8:1946]:8443/robots.txt"
+        )
+
 
 # ---------------------------------------------------------------------------
 # CRLF header injection prevention
@@ -402,6 +581,22 @@ class TestCrlfHeaderInjection:
 
         with pytest.raises(ValidationError, match="must not contain CR, LF"):
             AuthConfig(type=AuthType.HEADER, header_name="X-Auth", header_value="token\r\nX-Evil: true")
+
+    def test_auth_token_env_expansion_rejects_crlf(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from docpull.models.config import AuthConfig, AuthType
+
+        monkeypatch.setenv("DOCPULL_TEST_TOKEN", "tok\r\nX-Evil: true")
+
+        with pytest.raises(ValueError, match="token must not contain CR, LF, or null"):
+            AuthConfig(type=AuthType.BEARER, token="$DOCPULL_TEST_TOKEN")
+
+    def test_auth_cookie_env_expansion_rejects_crlf(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from docpull.models.config import AuthConfig, AuthType
+
+        monkeypatch.setenv("DOCPULL_TEST_COOKIE", "session=abc\r\nX-Evil: true")
+
+        with pytest.raises(ValueError, match="cookie must not contain CR, LF, or null"):
+            AuthConfig(type=AuthType.COOKIE, cookie="$DOCPULL_TEST_COOKIE")
 
     def test_auth_header_accepts_clean_values(self) -> None:
         from docpull.models.config import AuthConfig, AuthType
@@ -483,3 +678,40 @@ class TestDeadCodeRemoved:
         from docpull.models.events import EventType
 
         assert not hasattr(EventType, "GIT_COMMITTED")
+
+
+class TestRateLimiterIsolation:
+    @pytest.mark.asyncio
+    async def test_waiting_host_does_not_block_other_hosts(self) -> None:
+        limiter = PerHostRateLimiter(default_delay=0.2, default_concurrent=1)
+        limiter._last_request["slow.example"] = time.monotonic()
+
+        entered_fast = asyncio.Event()
+
+        async def slow_request() -> None:
+            async with limiter.limit("https://slow.example/page"):
+                await asyncio.sleep(0.01)
+
+        async def fast_request() -> None:
+            async with limiter.limit("https://fast.example/page"):
+                entered_fast.set()
+
+        slow_task = asyncio.create_task(slow_request())
+        await asyncio.sleep(0)
+        fast_task = asyncio.create_task(fast_request())
+
+        await asyncio.wait_for(entered_fast.wait(), timeout=0.05)
+        await asyncio.gather(slow_task, fast_task)
+
+    def test_default_ports_and_case_share_one_host_key(self) -> None:
+        limiter = PerHostRateLimiter(default_delay=0.1, default_concurrent=1)
+
+        assert limiter._get_host("HTTPS://Example.com:443/path") == "example.com"
+        assert limiter._get_host("https://example.com./path") == "example.com"
+
+    def test_invalid_rate_limiter_config_is_rejected(self) -> None:
+        with pytest.raises(ValueError, match="delay must be >= 0"):
+            PerHostRateLimiter(default_delay=-0.1)
+
+        with pytest.raises(ValueError, match="concurrency must be >= 1"):
+            PerHostRateLimiter(default_concurrent=0)

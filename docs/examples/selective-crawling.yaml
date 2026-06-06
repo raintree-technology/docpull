@@ -1,26 +1,22 @@
-# Selective crawling example
-# Only fetch specific sections of documentation
+# Selective crawling example for docpull 4.x
+# CLI equivalent:
+#   docpull https://docs.anthropic.com --include-paths "*/api/*" "*/reference/*" --exclude-paths "*/changelog" "*/release-notes" --output-dir ./docs-selective/anthropic-api
 
-sources:
-  aptos-guides-only:
-    url: https://aptos.dev
-    include_paths:
-      - "build/guides/*"
-      - "build/tutorials/*"
-    exclude_paths:
-      - "*/changelog"
-      - "*/release-notes"
-      - "*/api-reference"
-    create_index: true
-
-  anthropic-api-only:
-    url: https://docs.anthropic.com
-    include_paths:
-      - "*/api/*"
-      - "*/reference/*"
-    language: en
-    create_index: true
-
-output_dir: ./docs-selective
-rate_limit: 0.5
+profile: rag
+url: https://docs.anthropic.com
+crawl:
+  max_pages: 200
+  rate_limit: 0.5
+  include_paths:
+    - "*/api/*"
+    - "*/reference/*"
+  exclude_paths:
+    - "*/changelog"
+    - "*/release-notes"
+content_filter:
+  streaming_dedup: true
+output:
+  directory: ./docs-selective/anthropic-api
+  format: markdown
+  rich_metadata: true
 log_level: INFO

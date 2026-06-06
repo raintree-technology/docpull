@@ -206,6 +206,38 @@ class TestSitemapDiscoverer:
         assert len(urls) == 2
 
     @pytest.mark.asyncio
+    async def test_deduplicates_nested_sitemap_documents(self, mock_http_client, mock_validator):
+        """Repeated nested sitemap references should only fetch each document once."""
+        index_content = b"""<?xml version="1.0" encoding="UTF-8"?>
+        <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+            <sitemap><loc>https://example.com/child.xml</loc></sitemap>
+            <sitemap><loc>https://example.com/child.xml</loc></sitemap>
+        </sitemapindex>"""
+        child_content = b"""<?xml version="1.0" encoding="UTF-8"?>
+        <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+            <url><loc>https://example.com/page1</loc></url>
+        </urlset>"""
+
+        def make_response(content: bytes) -> MagicMock:
+            response = MagicMock()
+            response.status_code = 200
+            response.content = content
+            return response
+
+        mock_http_client.get.side_effect = [
+            make_response(index_content),
+            make_response(child_content),
+        ]
+
+        discoverer = SitemapDiscoverer(mock_http_client, mock_validator)
+        urls = []
+        async for url in discoverer.discover("https://example.com/sitemap.xml"):
+            urls.append(url)
+
+        assert urls == ["https://example.com/page1"]
+        assert mock_http_client.get.await_count == 2
+
+    @pytest.mark.asyncio
     async def test_blocks_off_domain_urls_from_sitemap(self, mock_http_client, mock_validator):
         """Test that sitemap discovery stays on the crawl origin."""
         sitemap_content = b"""<?xml version="1.0" encoding="UTF-8"?>
@@ -225,6 +257,30 @@ class TestSitemapDiscoverer:
             urls.append(url)
 
         assert urls == ["https://example.com/page1"]
+
+    @pytest.mark.asyncio
+    async def test_treats_direct_sitemap_url_with_query_as_sitemap(self, mock_http_client, mock_validator):
+        """Direct sitemap URLs should still be honored when they include a query string."""
+        sitemap_content = b"""<?xml version="1.0" encoding="UTF-8"?>
+        <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+            <url><loc>https://example.com/page1</loc></url>
+        </urlset>"""
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.content = sitemap_content
+        mock_http_client.get.return_value = mock_response
+
+        discoverer = SitemapDiscoverer(mock_http_client, mock_validator)
+        urls = []
+        async for url in discoverer.discover("https://example.com/sitemap.xml?source=test"):
+            urls.append(url)
+
+        assert urls == ["https://example.com/page1"]
+        mock_http_client.get.assert_awaited_once_with(
+            "https://example.com/sitemap.xml?source=test",
+            timeout=30.0,
+        )
 
     def test_parse_sitemap_rejects_external_entity_payload(self, mock_http_client, mock_validator):
         """Hostile sitemap XML must not resolve external entities."""
@@ -333,6 +389,53 @@ class TestLinkCrawler:
 
         # Only start URL, no crawling
         assert len(urls) == 1
+
+    @pytest.mark.asyncio
+    async def test_skips_disallowed_start_url(self, mock_http_client, mock_validator, mock_robots):
+        """The crawler must not fetch a blocked seed URL."""
+        mock_robots.is_allowed.return_value = False
+
+        crawler = LinkCrawler(
+            mock_http_client,
+            mock_validator,
+            mock_robots,
+            max_depth=1,
+        )
+
+        urls = []
+        async for url in crawler.discover("https://example.com"):
+            urls.append(url)
+
+        assert urls == []
+        mock_http_client.get.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_crawls_seed_even_when_include_filter_excludes_it(
+        self, mock_http_client, mock_validator, mock_robots
+    ):
+        """The seed URL should still be traversed so included descendants can be found."""
+        html_content = b"""<html><body><a href="/docs/getting-started">Docs</a></body></html>"""
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.content = html_content
+        mock_response.content_type = "text/html"
+        mock_http_client.get.return_value = mock_response
+
+        crawler = LinkCrawler(
+            mock_http_client,
+            mock_validator,
+            mock_robots,
+            max_depth=1,
+            pattern_filter=PatternFilter(include_patterns=["/docs/*"]),
+        )
+
+        urls = []
+        async for url in crawler.discover("https://example.com", max_depth=1):
+            urls.append(url)
+
+        assert urls == ["https://example.com/docs/getting-started"]
+        mock_http_client.get.assert_awaited_once()
 
 
 class TestCompositeDiscoverer:

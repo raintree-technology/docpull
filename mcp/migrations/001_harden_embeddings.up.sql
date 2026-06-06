@@ -1,5 +1,5 @@
-BEGIN;
-
+-- Embeddings are required for pgvector similarity operators. Refuse to
+-- silently harden a table that already contains unusable cache rows.
 DO $$
 BEGIN
 	IF EXISTS (
@@ -11,6 +11,7 @@ BEGIN
 	END IF;
 END $$;
 
+-- Existing rows predate the NOT NULL/default requirement.
 UPDATE doc_embeddings
 SET created_at = NOW()
 WHERE created_at IS NULL;
@@ -19,5 +20,3 @@ ALTER TABLE doc_embeddings
 	ALTER COLUMN embedding SET NOT NULL,
 	ALTER COLUMN created_at SET DEFAULT NOW(),
 	ALTER COLUMN created_at SET NOT NULL;
-
-COMMIT;

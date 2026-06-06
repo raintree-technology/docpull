@@ -69,7 +69,11 @@ async def server(monkeypatch):
     runner = web.AppRunner(app)
     await runner.setup()
     site = web.TCPSite(runner, "127.0.0.1", 0)
-    await site.start()
+    try:
+        await site.start()
+    except PermissionError as err:
+        await runner.cleanup()
+        pytest.skip(f"localhost bind unavailable in this environment: {err}")
     server_socket = site._server.sockets[0]  # type: ignore[union-attr]
     port = server_socket.getsockname()[1]
 
@@ -84,6 +88,11 @@ async def server(monkeypatch):
         return UrlValidationResult.valid()
 
     monkeypatch.setattr(UrlValidator, "validate_hostname", permissive_validate)
+    monkeypatch.setattr(
+        UrlValidator,
+        "resolve_allowed_addresses",
+        lambda self, hostname: ["127.0.0.1"],
+    )
 
     # Also override scheme to allow http (test server is plain HTTP).
     original_init = UrlValidator.__init__
@@ -206,3 +215,33 @@ async def test_missing_output_file_forces_full_fetch(server, tmp_path: Path, mon
     # And no conditional header should have been sent.
     no_ifmatch = [h for h in server["request_log"] if "If-None-Match" not in h]
     assert no_ifmatch, "expected at least one unconditional request"
+
+
+@pytest.mark.asyncio
+async def test_chunked_output_uses_conditional_get_from_persisted_chunk(server, tmp_path: Path):
+    """Chunked markdown output should still send validators on the second run."""
+    output_dir = tmp_path / "out"
+    cache_dir = tmp_path / "cache"
+    cfg = DocpullConfig(
+        url=server["url"],
+        output={
+            "directory": output_dir,
+            "max_tokens_per_file": 10,
+            "emit_chunks": True,
+        },
+        cache={"enabled": True, "directory": cache_dir, "skip_unchanged": True},
+        crawl={"max_pages": 1, "max_depth": 1},
+    )
+
+    fetched1, _ = await _run(cfg)
+    assert fetched1 == 1
+    chunk_files = list(output_dir.glob("*.md"))
+    assert chunk_files, f"expected chunk files in {output_dir}"
+
+    server["request_log"].clear()
+
+    fetched2, skip_reasons = await _run(cfg)
+    assert fetched2 == 0
+    assert SkipReason.CACHE_UNCHANGED in skip_reasons
+    headers_seen = [h.get("If-None-Match") for h in server["request_log"] if "If-None-Match" in h]
+    assert headers_seen == ['"abc123"']

@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 
-const baseUrl = "https://docpull.raintree.technology";
+import { absoluteUrl, discoveryPaths, site } from "@/lib/site";
 
 // Spec: SEO / robots.txt (RFC 9309). Allow all crawlers and point them at the sitemap.
 export default function robots(): MetadataRoute.Robots {
@@ -9,7 +9,7 @@ export default function robots(): MetadataRoute.Robots {
       userAgent: "*",
       allow: "/",
     },
-    sitemap: `${baseUrl}/sitemap.xml`,
-    host: baseUrl,
+    sitemap: absoluteUrl(discoveryPaths.sitemap),
+    host: site.baseUrl,
   };
 }

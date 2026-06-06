@@ -64,6 +64,7 @@ class HttpClient(Protocol):
         url: str,
         *,
         timeout: float = 10.0,
+        headers: dict[str, str] | None = None,
     ) -> HttpResponse:
         """
         Perform an HTTP HEAD request.
@@ -71,6 +72,7 @@ class HttpClient(Protocol):
         Args:
             url: The URL to check
             timeout: Request timeout in seconds
+            headers: Optional additional headers
 
         Returns:
             HttpResponse (content will be empty bytes)

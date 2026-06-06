@@ -5,9 +5,10 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import tempfile
 from datetime import timedelta
 from pathlib import Path
-from typing import TypedDict
+from typing import Any, TypedDict
 
 from ..time_utils import parse_persisted_datetime, utc_now, utc_now_iso
 
@@ -41,6 +42,7 @@ class DiscoveredUrlsState(TypedDict, total=False):
 
     start_url: str
     discovered_at: str
+    config_fingerprint: dict[str, Any]
     urls: list[str]
 
 
@@ -56,18 +58,26 @@ class _InternalState:
     def from_cache_state(cls, state: CacheState) -> _InternalState:
         """Create internal state from serialized CacheState."""
         internal = cls()
-        internal.fetched_urls = set(state.get("fetched_urls", []))
-        internal.failed_urls = set(state.get("failed_urls", []))
-        internal.last_run = state.get("last_run")
+        internal.fetched_urls = set(_string_list(state.get("fetched_urls")))
+        internal.failed_urls = set(_string_list(state.get("failed_urls")))
+        last_run = state.get("last_run")
+        internal.last_run = last_run if isinstance(last_run, str) else None
         return internal
 
     def to_cache_state(self) -> CacheState:
         """Convert to serializable CacheState."""
         return {
-            "fetched_urls": list(self.fetched_urls),
-            "failed_urls": list(self.failed_urls),
+            "fetched_urls": sorted(self.fetched_urls),
+            "failed_urls": sorted(self.failed_urls),
             "last_run": self.last_run,
         }
+
+
+def _string_list(value: object) -> list[str]:
+    """Return only string items from a persisted JSON list."""
+    if not isinstance(value, list):
+        return []
+    return [item for item in value if isinstance(item, str)]
 
 
 class CacheManager:
@@ -111,20 +121,66 @@ class CacheManager:
         if self.manifest_file.exists():
             try:
                 with open(self.manifest_file, encoding="utf-8") as f:
-                    data: dict[str, ManifestEntry] = json.load(f)
-                    return data
+                    data: Any = json.load(f)
+                if not isinstance(data, dict):
+                    msg = "manifest root is not an object"
+                    raise ValueError(msg)
+                manifest: dict[str, ManifestEntry] = {}
+                for url, raw_entry in data.items():
+                    if not isinstance(url, str) or not isinstance(raw_entry, dict):
+                        logger.warning("Skipping invalid cache manifest entry for %r", url)
+                        continue
+                    entry: ManifestEntry = {}
+                    checksum = raw_entry.get("checksum")
+                    if isinstance(checksum, str):
+                        entry["checksum"] = checksum
+                    file_path = raw_entry.get("file_path")
+                    if isinstance(file_path, str):
+                        entry["file_path"] = file_path
+                    fetched_at = raw_entry.get("fetched_at")
+                    if isinstance(fetched_at, str):
+                        entry["fetched_at"] = fetched_at
+                    etag = raw_entry.get("etag")
+                    if isinstance(etag, str):
+                        entry["etag"] = etag
+                    last_modified = raw_entry.get("last_modified")
+                    if isinstance(last_modified, str):
+                        entry["last_modified"] = last_modified
+                    size = raw_entry.get("size")
+                    if isinstance(size, int):
+                        entry["size"] = size
+                    manifest[url] = entry
+                return manifest
             except Exception as e:
                 logger.warning(f"Could not load manifest: {e}")
 
         return {}
+
+    def _write_json(self, path: Path, data: object) -> None:
+        """Atomically write JSON data to a cache file."""
+        with tempfile.NamedTemporaryFile(
+            "w",
+            encoding="utf-8",
+            dir=self.cache_dir,
+            prefix=f".{path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as f:
+            temp_path = Path(f.name)
+            json.dump(data, f, indent=2, ensure_ascii=False)
+            f.write("\n")
+        try:
+            temp_path.replace(path)
+        except Exception:
+            temp_path.unlink(missing_ok=True)
+            raise
 
     def _save_manifest(self) -> None:
         """Save manifest to disk (internal, called by flush)."""
         if not self._manifest_dirty:
             return
         try:
-            with open(self.manifest_file, "w", encoding="utf-8") as f:
-                json.dump(self.manifest, f, indent=2, ensure_ascii=False)
+            self._write_json(self.manifest_file, self.manifest)
             self._manifest_dirty = False
         except Exception as e:
             logger.error(f"Could not save manifest: {e}")
@@ -138,8 +194,16 @@ class CacheManager:
         if self.state_file.exists():
             try:
                 with open(self.state_file, encoding="utf-8") as f:
-                    data: CacheState = json.load(f)
-                    return data
+                    data: Any = json.load(f)
+                if not isinstance(data, dict):
+                    msg = "state root is not an object"
+                    raise ValueError(msg)
+                last_run = data.get("last_run")
+                return {
+                    "fetched_urls": _string_list(data.get("fetched_urls")),
+                    "failed_urls": _string_list(data.get("failed_urls")),
+                    "last_run": last_run if isinstance(last_run, str) else None,
+                }
             except Exception as e:
                 logger.warning(f"Could not load state: {e}")
 
@@ -155,8 +219,7 @@ class CacheManager:
             return
         try:
             state = self._state.to_cache_state()
-            with open(self.state_file, "w", encoding="utf-8") as f:
-                json.dump(state, f, indent=2, ensure_ascii=False)
+            self._write_json(self.state_file, state)
             self._state_dirty = False
         except Exception as e:
             logger.error(f"Could not save state: {e}")
@@ -197,6 +260,13 @@ class CacheManager:
             content = content.encode("utf-8")
         return hashlib.sha256(content).hexdigest()
 
+    @staticmethod
+    def _content_size(content: str | bytes) -> int:
+        """Return content size in bytes, matching checksum input."""
+        if isinstance(content, str):
+            return len(content.encode("utf-8"))
+        return len(content)
+
     def update_cache(
         self,
         url: str,
@@ -221,7 +291,7 @@ class CacheManager:
             "checksum": self.compute_checksum(content),
             "file_path": str(file_path),
             "fetched_at": utc_now_iso(),
-            "size": len(content),
+            "size": self._content_size(content),
         }
 
         if etag:
@@ -241,7 +311,11 @@ class CacheManager:
             Changes are batched. Call flush() to persist to disk.
         """
         self._state.fetched_urls.add(url)
+        was_failed = url in self._state.failed_urls
+        self._state.failed_urls.discard(url)
         self._state_dirty = True
+        if was_failed:
+            logger.debug("Cleared previous failure state for fetched URL: %s", url)
 
     def mark_failed(self, url: str) -> None:
         """Mark URL as failed.
@@ -253,6 +327,7 @@ class CacheManager:
             Changes are batched. Call flush() to persist to disk.
         """
         self._state.failed_urls.add(url)
+        self._state.fetched_urls.discard(url)
         self._state_dirty = True
 
     def get_fetched_urls(self) -> set[str]:
@@ -302,19 +377,29 @@ class CacheManager:
             del self.manifest[url]
 
         if to_remove:
+            for url in to_remove:
+                self._state.fetched_urls.discard(url)
+                self._state.failed_urls.discard(url)
             self._manifest_dirty = True
+            self._state_dirty = True
             logger.info(f"Evicted {len(to_remove)} expired cache entries")
 
         return len(to_remove)
 
     # Resume capability methods
 
-    def save_discovered_urls(self, urls: list[str], start_url: str) -> None:
+    def save_discovered_urls(
+        self,
+        urls: list[str],
+        start_url: str,
+        config_fingerprint: dict[str, Any] | None = None,
+    ) -> None:
         """Save discovered URLs for resume capability.
 
         Args:
             urls: List of discovered URLs
             start_url: The starting URL for this crawl
+            config_fingerprint: Deterministic crawl-shaping config snapshot.
 
         Note:
             This is written immediately (not batched) to ensure
@@ -325,18 +410,24 @@ class CacheManager:
             "discovered_at": utc_now_iso(),
             "urls": urls,
         }
+        if config_fingerprint is not None:
+            data["config_fingerprint"] = config_fingerprint
         try:
-            with open(self.discovered_urls_file, "w", encoding="utf-8") as f:
-                json.dump(data, f, indent=2, ensure_ascii=False)
+            self._write_json(self.discovered_urls_file, data)
             logger.info(f"Saved {len(urls)} discovered URLs for resume capability")
         except Exception as e:
             logger.error(f"Could not save discovered URLs: {e}")
 
-    def load_discovered_urls(self, start_url: str) -> list[str] | None:
+    def load_discovered_urls(
+        self,
+        start_url: str,
+        config_fingerprint: dict[str, Any] | None = None,
+    ) -> list[str] | None:
         """Load previously discovered URLs if they match the start URL.
 
         Args:
             start_url: The starting URL to match
+            config_fingerprint: Deterministic crawl-shaping config snapshot.
 
         Returns:
             List of discovered URLs if found and matching, None otherwise
@@ -346,29 +437,45 @@ class CacheManager:
 
         try:
             with open(self.discovered_urls_file, encoding="utf-8") as f:
-                data: DiscoveredUrlsState = json.load(f)
+                data: Any = json.load(f)
+            if not isinstance(data, dict):
+                msg = "discovered URLs root is not an object"
+                raise ValueError(msg)
 
             if data.get("start_url") != start_url:
                 logger.info("Discovered URLs file exists but start_url doesn't match")
                 return None
+            if config_fingerprint is not None:
+                persisted_fingerprint = data.get("config_fingerprint")
+                if not isinstance(persisted_fingerprint, dict):
+                    logger.info("Discovered URLs file exists but has no compatible config fingerprint")
+                    return None
+                if persisted_fingerprint != config_fingerprint:
+                    logger.info("Discovered URLs file exists but crawl fingerprint doesn't match")
+                    return None
 
-            urls = data.get("urls", [])
+            urls = _string_list(data.get("urls"))
             logger.info(f"Loaded {len(urls)} discovered URLs from previous run")
             return urls
         except Exception as e:
             logger.warning(f"Could not load discovered URLs: {e}")
             return None
 
-    def get_pending_urls(self, start_url: str) -> list[str] | None:
+    def get_pending_urls(
+        self,
+        start_url: str,
+        config_fingerprint: dict[str, Any] | None = None,
+    ) -> list[str] | None:
         """Get URLs that were discovered but not yet fetched.
 
         Args:
             start_url: The starting URL to match
+            config_fingerprint: Deterministic crawl-shaping config snapshot.
 
         Returns:
             List of pending URLs, or None if no resume data available
         """
-        discovered = self.load_discovered_urls(start_url)
+        discovered = self.load_discovered_urls(start_url, config_fingerprint=config_fingerprint)
         if discovered is None:
             return None
 

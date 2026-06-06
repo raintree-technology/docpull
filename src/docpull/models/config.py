@@ -7,7 +7,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class ProfileName(str, Enum):
@@ -192,6 +192,16 @@ class OutputConfig(BaseModel):
 
     model_config = {"extra": "forbid"}
 
+    @model_validator(mode="after")
+    def _validate_chunk_and_skill_settings(self) -> OutputConfig:
+        if self.emit_chunks and self.max_tokens_per_file is None:
+            raise ValueError("emit_chunks requires max_tokens_per_file so chunked output actually exists")
+
+        if self.skill_name is not None:
+            object.__setattr__(self, "naming_strategy", "hierarchical")
+
+        return self
+
 
 def _expand_env_var(value: str | None) -> str | None:
     """Expand environment variable references in a string.
@@ -254,16 +264,49 @@ class AuthConfig(BaseModel):
         # Use object.__setattr__ to bypass frozen model if needed
         if self.token:
             object.__setattr__(self, "token", _expand_env_var(self.token))
+            _reject_header_injection(self.token, "token")
         if self.password:
             object.__setattr__(self, "password", _expand_env_var(self.password))
         if self.cookie:
             object.__setattr__(self, "cookie", _expand_env_var(self.cookie))
+            _reject_header_injection(self.cookie, "cookie")
         if self.header_value:
             object.__setattr__(self, "header_value", _expand_env_var(self.header_value))
             # Re-check after env var expansion (env vars could introduce CRLF)
             _reject_header_injection(self.header_value, "header_value")
         if self.header_name:
             _reject_header_injection(self.header_name, "header_name")
+
+    @model_validator(mode="after")
+    def _validate_auth_payload(self) -> AuthConfig:
+        if self.type == AuthType.NONE:
+            if any(
+                value is not None
+                for value in (
+                    self.token,
+                    self.username,
+                    self.password,
+                    self.cookie,
+                    self.header_name,
+                    self.header_value,
+                )
+            ):
+                raise ValueError("auth fields were provided but auth.type is 'none'")
+            return self
+
+        if self.type == AuthType.BEARER and not self.token:
+            raise ValueError("auth.type 'bearer' requires token")
+
+        if self.type == AuthType.BASIC and (not self.username or not self.password):
+            raise ValueError("auth.type 'basic' requires both username and password")
+
+        if self.type == AuthType.COOKIE and not self.cookie:
+            raise ValueError("auth.type 'cookie' requires cookie")
+
+        if self.type == AuthType.HEADER and (not self.header_name or not self.header_value):
+            raise ValueError("auth.type 'header' requires both header_name and header_value")
+
+        return self
 
 
 class NetworkConfig(BaseModel):
@@ -302,6 +345,15 @@ class NetworkConfig(BaseModel):
     def _reject_crlf_in_user_agent(cls, v: str | None, info: Any) -> str | None:
         return _reject_header_injection(v, info.field_name)
 
+    @model_validator(mode="after")
+    def _validate_proxy_dns_posture(self) -> NetworkConfig:
+        if self.require_pinned_dns and self.proxy is not None:
+            raise ValueError(
+                "require_pinned_dns is set but a proxy was configured. "
+                "Remove proxy or disable require_pinned_dns."
+            )
+        return self
+
 
 class PerformanceConfig(BaseModel):
     """Configuration for performance tuning."""
@@ -335,6 +387,12 @@ class CacheConfig(BaseModel):
     )
 
     model_config = {"extra": "forbid"}
+
+    @model_validator(mode="after")
+    def _validate_resume_requires_cache(self) -> CacheConfig:
+        if self.resume and not self.enabled:
+            raise ValueError("cache.resume requires cache.enabled=True")
+        return self
 
 
 class DocpullConfig(BaseModel):

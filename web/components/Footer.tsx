@@ -43,146 +43,119 @@ function RaintreeLogo({
   );
 }
 
+const links = [
+  {
+    label: "PyPI",
+    href: "https://pypi.org/project/docpull/",
+  },
+  {
+    label: "README",
+    href: "https://github.com/raintree-technology/docpull#readme",
+  },
+  {
+    label: "llms.txt",
+    href: "/llms.txt",
+  },
+  {
+    label: "llms-full.txt",
+    href: "/llms-full.txt",
+  },
+  {
+    label: "Agent Skills",
+    href: "/.well-known/agent-skills.json",
+  },
+  {
+    label: "RSS",
+    href: "/rss.xml",
+  },
+  {
+    label: "security.txt",
+    href: "/.well-known/security.txt",
+  },
+  {
+    label: "Sitemap",
+    href: "/sitemap.xml",
+  },
+] as const;
+
 export default function Footer() {
   return (
-    <footer className="border-t py-10 sm:py-12 relative z-10 bg-background">
-      <div className="mx-auto max-w-5xl px-6">
-        {/* Brand blurb */}
-        <div className="mb-8 max-w-md mx-auto text-center sm:mx-0 sm:text-left">
-          <div className="flex items-center gap-2 justify-center sm:justify-start mb-2 text-sm font-medium">
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 32 32"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              aria-hidden="true"
-            >
-              <path
-                d="M8 6h12l6 6v14a2 2 0 01-2 2H8a2 2 0 01-2-2V8a2 2 0 012-2z"
-                stroke="currentColor"
-                strokeWidth="2"
+    <footer className="relative z-10 border-t border-foreground/8 bg-background/90 py-10 sm:py-12">
+      <div className="mx-auto max-w-6xl px-6">
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] gap-8">
+          <div>
+            <div className="flex items-center gap-2 mb-3 text-sm font-medium">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 32 32"
                 fill="none"
-              />
-              <path
-                d="M20 6v6h6"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-            docpull
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true"
+              >
+                <path
+                  d="M8 6h12l6 6v14a2 2 0 01-2 2H8a2 2 0 01-2-2V8a2 2 0 012-2z"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  fill="none"
+                />
+                <path
+                  d="M20 6v6h6"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              docpull
+            </div>
+
+            <h2 className="mb-3 text-2xl font-medium tracking-tight text-foreground sm:text-3xl">
+              Local web pulls should stay inspectable.
+            </h2>
+            <p className="max-w-2xl text-sm sm:text-base text-foreground/72 leading-relaxed">
+              Pull the site, keep the files, inspect the Markdown, and wire the
+              result into the rest of your stack without a hosted black box in
+              the middle.
+            </p>
           </div>
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            An open-source documentation fetcher that turns any docs site into
-            clean Markdown for RAG pipelines, Claude Code skills, and LLM
-            training.
-          </p>
+
+          <div className="grid grid-cols-2 gap-3 sm:gap-4">
+            {links.map((link) => (
+              <a
+                key={link.label}
+                href={link.href}
+                className="rounded-[1.1rem] border border-foreground/10 bg-foreground/[0.025] px-4 py-3 text-sm text-foreground/68 transition-colors hover:text-foreground"
+              >
+                <span className="block text-[10px] font-mono uppercase tracking-[0.16em] text-foreground/48 mb-1.5">
+                  Link
+                </span>
+                {link.label}
+              </a>
+            ))}
+          </div>
         </div>
 
-        {/* Mobile: simple centered layout */}
-        <div className="flex flex-col items-center gap-4 text-sm text-muted-foreground sm:hidden">
-          <div className="flex items-center gap-4">
-            <a
-              href="https://pypi.org/project/docpull/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="min-h-11 inline-flex items-center hover:text-foreground transition-colors"
-            >
-              PyPI
-            </a>
-            <a
-              href="https://github.com/raintree-technology/docpull#readme"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="min-h-11 inline-flex items-center hover:text-foreground transition-colors"
-            >
-              Docs
-            </a>
-            <a
-              href="https://github.com/raintree-technology/docpull"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="min-h-11 min-w-11 inline-flex items-center justify-center hover:text-foreground transition-colors"
-              aria-label="GitHub repository"
-            >
-              <GithubIcon className="h-4 w-4" />
-            </a>
-            <a
-              href="https://x.com/raintree_tech"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="min-h-11 min-w-11 inline-flex items-center justify-center hover:text-foreground transition-colors"
-              aria-label="X profile"
-            >
-              <XIcon className="h-4 w-4" />
-            </a>
+        <div className="mt-8 pt-5 border-t border-foreground/10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs sm:text-sm text-foreground/56">
+            Open source by{" "}
             <a
               href="https://raintree.technology"
               target="_blank"
               rel="noopener noreferrer"
-              className="min-h-11 min-w-11 inline-flex items-center justify-center hover:text-foreground transition-colors"
-              aria-label="Raintree Technology"
+              className="text-foreground/72 hover:text-foreground transition-colors"
             >
-              <RaintreeLogo size={22} className="-mt-0.5 -ml-0.5" />
+              Raintree Technology
             </a>
-          </div>
-          <span className="text-xs">
-            <a
-              href="https://github.com/raintree-technology/docpull/blob/main/LICENSE"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="min-h-11 inline-flex items-center hover:text-foreground transition-colors"
-            >
-              MIT
-            </a>
-          </span>
-        </div>
+            .
+          </p>
 
-        {/* Desktop: full layout */}
-        <div className="hidden sm:flex sm:items-center sm:justify-between">
-          <div className="flex items-center gap-6 text-sm text-muted-foreground">
-            <a
-              href="https://pypi.org/project/docpull/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="min-h-11 min-w-11 inline-flex items-center justify-center hover:text-foreground transition-colors"
-            >
-              PyPI
-            </a>
-            <a
-              href="https://github.com/raintree-technology/docpull#readme"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="min-h-11 min-w-11 inline-flex items-center justify-center hover:text-foreground transition-colors"
-            >
-              Docs
-            </a>
-            <a
-              href="https://github.com/raintree-technology/docpull/blob/main/docs/CHANGELOG.md"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="min-h-11 min-w-11 inline-flex items-center justify-center hover:text-foreground transition-colors"
-            >
-              Changelog
-            </a>
-            <a
-              href="https://github.com/raintree-technology/docpull/blob/main/LICENSE"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:text-foreground transition-colors"
-            >
-              MIT
-            </a>
-          </div>
-
-          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2 text-foreground/56">
             <a
               href="https://x.com/raintree_tech"
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:text-foreground transition-colors"
+              className="min-h-11 min-w-11 inline-flex items-center justify-center rounded-lg hover:bg-foreground/[0.04] hover:text-foreground transition-colors"
               aria-label="X"
             >
               <XIcon className="h-4 w-4" />
@@ -191,7 +164,7 @@ export default function Footer() {
               href="https://github.com/raintree-technology"
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:text-foreground transition-colors"
+              className="min-h-11 min-w-11 inline-flex items-center justify-center rounded-lg hover:bg-foreground/[0.04] hover:text-foreground transition-colors"
               aria-label="GitHub"
             >
               <GithubIcon className="h-4 w-4" />
@@ -200,7 +173,7 @@ export default function Footer() {
               href="https://raintree.technology"
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:text-foreground transition-colors"
+              className="min-h-11 min-w-11 inline-flex items-center justify-center rounded-lg hover:bg-foreground/[0.04] hover:text-foreground transition-colors"
               aria-label="Raintree Technology"
             >
               <RaintreeLogo size={22} className="-mt-0.5 -ml-0.5" />

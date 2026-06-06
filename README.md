@@ -1,6 +1,6 @@
 # docpull
 
-**Security-hardened, browser-free crawler that turns static documentation sites into clean, AI-ready Markdown — fast.**
+**Security-hardened, browser-free web puller that turns server-rendered sites into clean, AI-ready Markdown — fast.**
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![PyPI version](https://badge.fury.io/py/docpull.svg)](https://badge.fury.io/py/docpull)
@@ -15,13 +15,14 @@
 
 docpull uses async HTTP (not Playwright) to fetch server-rendered pages,
 extracts main content, and writes clean Markdown with source-URL frontmatter —
-in seconds, with a small install footprint. It won't render JavaScript, but for
-the large class of docs that don't need it (API references, Python/Go stdlib,
-most dev-tool docs, OpenAPI specs, Next.js and Docusaurus builds), it is a
-fast, auditable, sandbox-friendly way to pipe documentation into an LLM context,
-a RAG index, or an offline archive. SSRF, XXE, DNS-rebinding, and
-CRLF-injection protections are on by default — a necessity when an AI agent
-is choosing the URLs.
+in seconds, with a small install footprint. It will not render JavaScript, but
+for the large class of pages that arrive as HTML without a browser
+(documentation, blogs, help centers, knowledge bases, changelogs, policy pages,
+marketing pages, and many framework-built sites), it is a fast, auditable,
+sandbox-friendly way to pull web content into an LLM context, a RAG index, a
+local archive, or an agent workflow. SSRF, XXE, DNS-rebinding, and
+CRLF-injection protections are on by default — a necessity when an AI agent is
+choosing the URLs.
 
 ## Install
 
@@ -39,17 +40,27 @@ pip install 'docpull[all]'           # everything above
 
 ```bash
 # Crawl and save Markdown
-docpull https://docs.example.com
+docpull https://example.com
 
 # One page, no crawl — the fast path for agents
-docpull https://docs.example.com/guide --single
+docpull https://example.com/pricing --single
 
 # LLM-ready NDJSON with 4k-token chunks streamed to stdout
-docpull https://docs.example.com --profile llm --stream | jq .
+docpull https://example.com --profile llm --stream | jq .
 
 # Mirror a site for offline use
-docpull https://docs.example.com --profile mirror --cache
+docpull https://example.com --profile mirror --cache
+
+# Generate a docs-backed agent skill
+docpull https://docs.example.com --skill example-docs --max-pages 100
 ```
+
+## What it is best at
+
+docpull is strongest on server-rendered sites where the HTML already contains
+the content you care about. Documentation is the most common use case, but it
+also works well for many blogs, company sites, release notes, help centers, and
+other content-heavy sections of the web.
 
 ## Framework-aware extraction
 
@@ -77,6 +88,8 @@ can route elsewhere).
 - **`--emit-chunks`** — write one file or record per chunk instead of per page.
 - **`--strict-js-required`** — hard-fail on JS-only pages instead of silently
   skipping.
+- **`--skill NAME`** — write a hierarchical docs snapshot plus a `SKILL.md`
+  manifest under `.claude/skills/NAME` by default.
 - **`--extractor trafilatura`** — swap in [trafilatura](https://trafilatura.readthedocs.io/)
   for sites where the default heuristics struggle.
 
@@ -130,6 +143,36 @@ docpull https://site.com --profile mirror   # Full archive, polite, cached.
 docpull https://site.com --profile quick    # Sampling: 50 pages, depth 2.
 ```
 
+## Configuration files
+
+The public config model is `DocpullConfig`. It accepts one target URL per
+config; for multiple sites, run the CLI once per URL, load several configs in
+Python, or use the MCP alias workflow.
+
+```yaml
+profile: rag
+url: https://docs.example.com
+crawl:
+  max_pages: 200
+  max_depth: 3
+output:
+  directory: ./docs/example
+  format: markdown
+content_filter:
+  streaming_dedup: true
+cache:
+  enabled: true
+```
+
+```python
+from pathlib import Path
+from docpull import DocpullConfig
+
+cfg = DocpullConfig.from_yaml(Path("docpull.yaml").read_text())
+```
+
+See [docs/](docs/) and [docs/examples/](docs/examples/) for current examples.
+
 ## MCP server
 
 docpull ships an MCP (Model Context Protocol) server so AI agents can call it
@@ -143,10 +186,12 @@ docpull mcp  # starts the stdio server
 Claude Code:
 
 ```bash
-claude mcp add --transport stdio docpull -- docpull mcp
+claude mcp add --transport stdio --scope user docpull -- docpull mcp
 ```
 
-Cursor (`.cursor/mcp.json` in a project, or `~/.cursor/mcp.json` globally):
+This repo also includes a project `.mcp.json` with the same server command.
+
+Cursor (`.cursor/mcp.json` in this project, or `~/.cursor/mcp.json` globally):
 
 ```json
 {
@@ -160,13 +205,44 @@ Cursor (`.cursor/mcp.json` in a project, or `~/.cursor/mcp.json` globally):
 }
 ```
 
+Codex:
+
+```bash
+codex mcp add docpull -- docpull mcp
+```
+
+For project-scoped Codex setup in a trusted repo, use `.codex/config.toml`:
+
+```toml
+[mcp_servers.docpull]
+command = "docpull"
+args = ["mcp"]
+```
+
+Regenerate the project-local Codex config, repo-scoped skill, and local plugin
+marketplace entry with:
+
+```bash
+make sync-agent-host-configs
+```
+
 Claude Desktop uses the same `mcpServers` shape in
 `claude_desktop_config.json`.
 
-Or, if you use Claude Code, install the plugin instead — it bundles the MCP
-server, five slash commands (`/docs-add`, `/docs-search`, `/docs-list`,
-`/docs-refresh`, `/docs-remove`), and a meta-skill that teaches Claude
-when to reach for docpull automatically:
+Project-local agent guidance is included for all supported coding agents:
+
+- Claude Code: `CLAUDE.md` and `plugin/skills/docpull-research/SKILL.md`
+- Cursor: `.cursor/rules/docpull-research.mdc`
+- Codex: `AGENTS.md`; Codex repo-scoped skills can use `.agents/skills/docpull-research/SKILL.md`
+
+Claude Code also surfaces docpull's MCP prompts as commands, including
+`/mcp__docpull__docs_add`, `/mcp__docpull__docs_search`,
+`/mcp__docpull__docs_list`, `/mcp__docpull__docs_refresh`, and
+`/mcp__docpull__docs_remove`.
+
+If you specifically want marketplace distribution in Claude Code, install the
+minimal plugin. It registers the same MCP server and adds a meta-skill that
+teaches Claude when to reach for docpull automatically:
 
 ```bash
 # 1. Install docpull with the MCP extra (required for the plugin)
@@ -180,6 +256,14 @@ pip install 'docpull[mcp]'
 ```
 
 See [plugin/README.md](plugin/README.md) for details.
+The `plugin/` directory is the source of truth. The marketplace catalog lives
+at `.claude-plugin/marketplace.json`; the copied plugin payload under
+`.claude-plugin/plugin/` is generated on demand via
+`python scripts/sync_claude_plugin.py`.
+The same `plugin/` folder also includes `.codex-plugin/plugin.json` so it can
+be packaged as a Codex plugin with the shared `docpull-research` skill.
+Use `make sync-agent-host-configs` after editing `plugin/skills/docpull-research`
+to refresh Codex's repo-scoped `.agents/skills` copy and local plugin marketplace.
 
 Tools exposed (8 total — read tools advertise `readOnlyHint` so hosts that auto-approve safe tools won't prompt):
 
@@ -208,6 +292,10 @@ sources:
     maxPages: 200
 ```
 
+Fetched MCP docs are cached for seven days under
+`~/.local/share/docpull-mcp/docs` by default. Override that location with
+`DOCPULL_DOCS_DIR` or `DOCS_DIR`.
+
 ### About the `mcp/` directory in this repo
 
 The `mcp/` directory at the repo root is a separate TypeScript + Bun MCP
@@ -217,7 +305,10 @@ the Python MCP server shipped in the `docpull` package described above
 with `pip install 'docpull[mcp]'`. The `mcp/` tree is mirrored to its
 own repo at [`raintree-technology/docpull-mcp`](https://github.com/raintree-technology/docpull-mcp);
 unless you specifically need pgvector-backed semantic search, ignore it
-and use `docpull mcp`.
+and use `docpull mcp`. Advanced users who do need vector search should run
+`bun run db:setup` inside `mcp/` after configuring `DATABASE_URL`.
+See [docs/mcp-pgvector-setup.md](docs/mcp-pgvector-setup.md) for the focused
+setup guide.
 
 ## Output
 
@@ -259,8 +350,9 @@ Run `docpull --help` for the full list. Highlights:
 
 ```
 Core:
-  --profile {rag,mirror,quick,llm,custom}
+  --profile {rag,mirror,quick,llm}
   --single                Fetch one URL (no crawl)
+  --skill NAME            Generate a docs-backed agent skill
   --format {markdown,json,ndjson,sqlite}
   --stream                Stream NDJSON to stdout
 
@@ -278,6 +370,7 @@ Cache:
   --cache                 Enable incremental updates
   --cache-dir DIR
   --cache-ttl DAYS
+  --resume                Resume an interrupted cached run
 ```
 
 ## Performance

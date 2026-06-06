@@ -1,30 +1,27 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import Image from "next/image";
+import { useEffect, useState } from "react";
 import { Copy, Check } from "lucide-react";
+import {
+  claudePluginUrl,
+  installCommand,
+} from "@/lib/content/install";
+import {
+  heroHighlights,
+  heroMetrics,
+  heroTerminalLines,
+} from "@/lib/content/home";
 import { cn } from "@/lib/utils";
 import { useReducedMotion } from "@/lib/use-reduced-motion";
-
-const terminalLines = [
-  { type: "command", content: "docpull https://docs.anthropic.com" },
-  { type: "output", content: "" },
-  { type: "dim", content: "Discovering URLs..." },
-  { type: "normal", content: "Found 247 pages" },
-  { type: "dim", content: "Fetching with RAG profile" },
-  { type: "normal", content: "[=============================] 247/247" },
-  { type: "output", content: "" },
-  { type: "success", content: "Done in 34s. Saved 12.3 MB to ./docs" },
-] as const;
-
-const INSTALL_COMMAND = "pip install docpull";
-const COPY_RESET_DELAY_MS = 2_000;
+import { useCopyToClipboard } from "@/lib/hooks/use-copy-to-clipboard";
+import { HostTab } from "./HostBadge";
 
 export default function Hero() {
   const [visibleLines, setVisibleLines] = useState(0);
-  const [copied, setCopied] = useState(false);
-  const [copyFailed, setCopyFailed] = useState(false);
-  const copyResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { copiedId, copyFailed, copy } = useCopyToClipboard();
   const reducedMotion = useReducedMotion();
+  const copied = copiedId === "install";
 
   useEffect(() => {
     if (reducedMotion) {
@@ -33,7 +30,7 @@ export default function Hero() {
 
     const timer = setInterval(() => {
       setVisibleLines((prev) => {
-        if (prev >= terminalLines.length) {
+        if (prev >= heroTerminalLines.length) {
           clearInterval(timer);
           return prev;
         }
@@ -43,126 +40,163 @@ export default function Hero() {
     return () => clearInterval(timer);
   }, [reducedMotion]);
 
-  useEffect(() => {
-    return () => {
-      if (copyResetTimer.current) {
-        clearTimeout(copyResetTimer.current);
-      }
-    };
-  }, []);
-
-  const handleCopy = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(INSTALL_COMMAND);
-      setCopied(true);
-      setCopyFailed(false);
-      if (copyResetTimer.current) {
-        clearTimeout(copyResetTimer.current);
-      }
-      copyResetTimer.current = setTimeout(() => {
-        setCopied(false);
-        copyResetTimer.current = null;
-      }, COPY_RESET_DELAY_MS);
-    } catch (error) {
-      const writeFailed = error !== undefined;
-      setCopied(false);
-      setCopyFailed(writeFailed);
-    }
-  }, []);
-
-  const renderedVisibleLines = reducedMotion ? terminalLines.length : visibleLines;
+  const renderedVisibleLines = reducedMotion
+    ? heroTerminalLines.length
+    : visibleLines;
 
   return (
-    <section className="flex items-start justify-center pt-20 lg:pt-56 pb-16 lg:pb-32">
-      <div className="mx-auto max-w-6xl w-full px-6">
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.3fr] gap-8 lg:gap-12 items-center">
-          {/* Left: Content */}
-          <div>
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-medium tracking-tight mb-6">
-              <span>Fetch docs.</span>
-              <br />
-              <span className="text-muted-foreground">Get clean Markdown.</span>
+    <section
+      id="overview"
+      className="relative flex items-start justify-center overflow-hidden pt-24 pb-16 sm:pt-28 lg:pt-36 lg:pb-24"
+    >
+      <div className="pointer-events-none absolute inset-0 hairline-grid opacity-50" />
+      <div className="mx-auto w-full max-w-6xl px-6">
+        <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-14">
+          <div className="relative z-10">
+            <p className="section-kicker mb-4">Local-first web capture</p>
+            <h1 className="max-w-[12ch] text-4xl font-medium tracking-tight sm:text-5xl lg:text-7xl lg:leading-[0.95]">
+              Turn the web into Markdown that stays yours.
             </h1>
 
-            <p className="text-muted-foreground text-base sm:text-lg mb-8 max-w-md">
-              Local Python crawler that turns server-rendered docs into
-              clean Markdown. Zero API keys, zero data leaving your
-              machine. Built for RAG pipelines and Claude Code skills.
+            <p className="mt-6 max-w-2xl text-base leading-relaxed text-foreground/74 sm:text-lg">
+              docpull pulls server-rendered pages into clean Markdown on your
+              machine. It keeps the workflow inspectable, avoids hosted crawler
+              black boxes, and gives agents a stable local corpus to work from.
             </p>
 
-            {/* Install command + CTA */}
-            <div className="flex flex-wrap items-center gap-3">
-              <code className="px-4 py-2.5 glass rounded-xl text-sm font-mono">
-                {INSTALL_COMMAND}
-              </code>
-              <button
-                onClick={handleCopy}
-                className="min-h-11 min-w-11 p-2.5 rounded-xl glass hover:bg-foreground/5 transition-colors"
-                aria-label={
-                  copyFailed
-                    ? "Copy failed"
-                    : copied
-                      ? "Copied"
-                      : "Copy install command"
-                }
-              >
-                {copied ? (
-                  <Check className="h-4 w-4" />
-                ) : (
-                  <Copy className="h-4 w-4" />
-                )}
-              </button>
+            <div className="mt-8 flex flex-wrap items-center gap-3">
+              <a href="#install" className="apple-button">
+                Install locally
+              </a>
+              <a href="#mcp" className="apple-button-secondary">
+                Choose your client
+              </a>
               <a
-                href="#examples"
-                className="min-h-11 inline-flex items-center px-4 py-2.5 rounded-xl bg-foreground text-background text-sm font-medium hover:opacity-90 transition-opacity"
+                href={claudePluginUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="apple-button-secondary gap-2"
               >
-                See examples
+                <Image
+                  src="/brands/anthropic-symbol-dark.svg"
+                  alt="Anthropic"
+                  width={18}
+                  height={18}
+                  unoptimized
+                  className="h-[18px] w-[18px]"
+                />
+                Add to Claude
               </a>
             </div>
 
-            <p className="mt-4 text-xs text-muted-foreground max-w-md leading-relaxed">
-              Static and server-rendered sites only. JS-rendered SPAs are
-              detected and skipped — pass{" "}
-              <code className="font-mono text-[11px] bg-background/60 px-1 rounded">
-                --strict-js-required
-              </code>{" "}
-              to make that an error so your agent can route elsewhere.
-            </p>
+            <div className="mt-8 apple-panel rounded-[1.75rem] p-4 sm:p-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-mono uppercase tracking-[0.18em] text-foreground/48">
+                    Quick start
+                  </p>
+                  <code className="mt-2 block text-sm text-foreground/84 sm:text-base">
+                    {installCommand}
+                  </code>
+                </div>
+                <button
+                  onClick={() => copy(installCommand, "install")}
+                  className="flex min-h-11 min-w-11 items-center justify-center rounded-full border border-foreground/10 bg-background/70 p-2.5 transition-colors hover:bg-foreground/5"
+                  aria-label={
+                    copyFailed
+                      ? "Copy failed"
+                      : copied
+                        ? "Copied"
+                        : "Copy install command"
+                  }
+                >
+                  {copied ? (
+                    <Check className="h-4 w-4" />
+                  ) : (
+                    <Copy className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
+
+              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                {heroHighlights.map((item) => (
+                  <div
+                    key={item}
+                    className="rounded-2xl border border-foreground/8 bg-background/54 px-4 py-3 text-sm text-foreground/68"
+                  >
+                    {item}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-7 flex flex-wrap items-center gap-x-6 gap-y-3 text-sm text-muted-foreground/90">
+              <HostTab brand="anthropic" label="Claude Code" />
+              <HostTab brand="cursor" label="Cursor" />
+              <HostTab brand="openai" label="Codex" />
+            </div>
           </div>
 
-          {/* Right: Terminal */}
-          <div className="terminal w-full overflow-hidden">
-            <div className="terminal-header">
-              <div className="terminal-dot terminal-dot-close" />
-              <div className="terminal-dot terminal-dot-minimize" />
-              <div className="terminal-dot terminal-dot-maximize" />
-            </div>
-            <div className="p-5 lg:p-8 font-mono text-sm sm:text-base lg:text-lg min-h-[220px] lg:min-h-[320px]">
-              {terminalLines.slice(0, renderedVisibleLines).map((line, i) => (
-                <div
-                  key={i}
-                  className={cn(
-                    "mb-0.5",
-                    line.type === "command" && "text-white",
-                    line.type === "dim" && "text-neutral-500",
-                    line.type === "normal" && "text-neutral-400",
-                    line.type === "success" && "text-neutral-300",
-                    line.type === "output" && "h-4",
-                  )}
-                >
-                  {line.type === "command" && (
-                    <span className="text-neutral-500">$ </span>
-                  )}
-                  {line.content}
+          <div className="relative z-10">
+            <div className="apple-panel rounded-[2rem] p-3 sm:p-4">
+              <div className="terminal w-full overflow-hidden text-left">
+                <div className="terminal-header">
+                  <div className="terminal-dot terminal-dot-close" />
+                  <div className="terminal-dot terminal-dot-minimize" />
+                  <div className="terminal-dot terminal-dot-maximize" />
+                  <span className="ml-2 text-xs text-neutral-500">
+                    Local run
+                  </span>
                 </div>
-              ))}
-              {renderedVisibleLines < terminalLines.length && (
-                <span className="inline-block w-2 h-4 bg-neutral-500 animate-pulse" />
-              )}
+                <div className="min-h-[220px] p-5 font-mono text-sm sm:text-base lg:min-h-[288px] lg:text-[0.98rem]">
+                  {heroTerminalLines
+                    .slice(0, renderedVisibleLines)
+                    .map((line, i) => (
+                    <div
+                      key={i}
+                      className={cn(
+                        "mb-0.5",
+                        line.type === "command" && "text-white",
+                        line.type === "dim" && "text-neutral-500",
+                        line.type === "normal" && "text-neutral-400",
+                        line.type === "success" && "text-neutral-300",
+                        line.type === "output" && "h-4",
+                      )}
+                    >
+                      {line.type === "command" && (
+                        <span className="text-neutral-500">$ </span>
+                      )}
+                      {line.content}
+                    </div>
+                  ))}
+                  {renderedVisibleLines < heroTerminalLines.length && (
+                    <span className="inline-block h-4 w-2 animate-pulse bg-neutral-500" />
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                {heroMetrics.map((metric) => (
+                  <Metric
+                    key={metric.value}
+                    value={metric.value}
+                    label={metric.label}
+                  />
+                ))}
+              </div>
             </div>
           </div>
         </div>
       </div>
     </section>
+  );
+}
+
+function Metric({ value, label }: { value: string; label: string }) {
+  return (
+    <div className="rounded-[1.4rem] border border-foreground/8 bg-background/58 px-4 py-4">
+      <p className="text-sm font-medium text-foreground">{value}</p>
+      <p className="mt-1 text-sm leading-relaxed text-foreground/62">{label}</p>
+    </div>
   );
 }

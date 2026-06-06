@@ -31,6 +31,7 @@ from ..time_utils import utc_now_iso
 from .sources import (
     _URL_SCHEME_RE,
     BUILTIN_SOURCES,
+    _registry_resolver,
     all_sources,
     default_config_dir,
     default_docs_dir,
@@ -42,6 +43,7 @@ from .sources import (
 logger = logging.getLogger(__name__)
 
 CACHE_TTL_SECONDS = 7 * 24 * 60 * 60  # 7 days
+META_SCHEMA_VERSION = 1
 MAX_GREP_PATTERN_LEN = 1000
 GREP_TIMEOUT_SECONDS = 10.0
 GREP_LINE_TIMEOUT_SECONDS = 0.05
@@ -74,7 +76,13 @@ def _source_dir(docs_dir: Path, source: str) -> Path:
     return docs_dir / source
 
 
-def _cache_fresh(meta_path: Path) -> bool:
+def _cache_fresh(
+    meta_path: Path,
+    *,
+    expected_url: str | None = None,
+    expected_profile: str | None = None,
+    expected_max_pages: int | None = None,
+) -> bool:
     if not meta_path.exists():
         return False
     try:
@@ -86,10 +94,26 @@ def _cache_fresh(meta_path: Path) -> bool:
         return False
     if data.get("partial") is True:
         return False
+    if data.get("schema_version") != META_SCHEMA_VERSION:
+        return False
+    if expected_url is not None and data.get("url") != expected_url:
+        return False
+    if expected_profile is not None and data.get("profile") != expected_profile:
+        return False
+    if data.get("max_pages") != expected_max_pages:
+        return False
     return (time.time() - fetched_at) < CACHE_TTL_SECONDS
 
 
-def _write_meta(meta_path: Path, source: str, url: str, pages: int) -> None:
+def _write_meta(
+    meta_path: Path,
+    source: str,
+    url: str,
+    pages: int,
+    *,
+    profile: str,
+    max_pages: int | None,
+) -> None:
     """Atomic-ish meta write: tmp file + rename so a crash mid-write
     never leaves a half-parsed JSON behind."""
     meta_path.parent.mkdir(parents=True, exist_ok=True)
@@ -99,6 +123,9 @@ def _write_meta(meta_path: Path, source: str, url: str, pages: int) -> None:
             {
                 "source": source,
                 "url": url,
+                "schema_version": META_SCHEMA_VERSION,
+                "profile": profile,
+                "max_pages": max_pages,
                 "fetched_at_epoch": time.time(),
                 "fetched_at": utc_now_iso(),
                 "page_count": pages,
@@ -109,7 +136,15 @@ def _write_meta(meta_path: Path, source: str, url: str, pages: int) -> None:
     os.replace(tmp, meta_path)
 
 
-def _write_partial_meta(meta_path: Path, source: str, url: str, pages: int) -> None:
+def _write_partial_meta(
+    meta_path: Path,
+    source: str,
+    url: str,
+    pages: int,
+    *,
+    profile: str,
+    max_pages: int | None,
+) -> None:
     """Mark a fetch as partial. ``_cache_fresh`` treats partial as stale."""
     meta_path.parent.mkdir(parents=True, exist_ok=True)
     tmp = meta_path.with_suffix(meta_path.suffix + ".tmp")
@@ -118,6 +153,9 @@ def _write_partial_meta(meta_path: Path, source: str, url: str, pages: int) -> N
             {
                 "source": source,
                 "url": url,
+                "schema_version": META_SCHEMA_VERSION,
+                "profile": profile,
+                "max_pages": max_pages,
                 "fetched_at_epoch": time.time(),
                 "fetched_at": utc_now_iso(),
                 "page_count": pages,
@@ -200,9 +238,19 @@ async def ensure_docs(
 
     target_dir = _source_dir(docs_dir, source)
     meta_path = _meta_path(docs_dir, source)
+    profile_name = profile_enum.value
 
-    if not force and _cache_fresh(meta_path) and target_dir.exists() and any(target_dir.rglob("*.md")):
-        files = list(target_dir.rglob("*.md"))
+    files = list(target_dir.rglob("*.md")) if target_dir.exists() else []
+    if (
+        not force
+        and _cache_fresh(
+            meta_path,
+            expected_url=resolved.url,
+            expected_profile=profile_name,
+            expected_max_pages=resolved.max_pages,
+        )
+        and files
+    ):
         return ToolResult(
             f"Cached: {source} ({len(files)} files at {target_dir}). Call with force=true to refresh.",
             data={
@@ -233,11 +281,25 @@ async def ensure_docs(
         crashed = True
         # Mark whatever made it to disk as a partial fetch so future
         # ensure_docs calls re-fetch instead of trusting half a crawl.
-        _write_partial_meta(meta_path, source, resolved.url, fetched)
+        _write_partial_meta(
+            meta_path,
+            source,
+            resolved.url,
+            fetched,
+            profile=profile_name,
+            max_pages=resolved.max_pages,
+        )
         raise
 
     if not crashed:
-        _write_meta(meta_path, source, resolved.url, stats.pages_fetched)
+        _write_meta(
+            meta_path,
+            source,
+            resolved.url,
+            stats.pages_fetched,
+            profile=profile_name,
+            max_pages=resolved.max_pages,
+        )
     return ToolResult(
         f"Fetched {source}: {stats.pages_fetched} pages saved to {target_dir} "
         f"({stats.pages_skipped} skipped, {stats.pages_failed} failed).",
@@ -649,7 +711,7 @@ def read_doc(
 
 MAX_DESCRIPTION_LEN = 500
 ALLOWED_USER_CATEGORIES = {"frontend", "backend", "ai", "database", "user"}
-_ADD_SOURCE_VALIDATOR = UrlValidator(allowed_schemes={"https"})
+_ADD_SOURCE_VALIDATOR = UrlValidator(allowed_schemes={"https"}, resolver=_registry_resolver)
 
 
 def _user_sources_path(config_dir: Path | None = None) -> Path:
@@ -678,9 +740,12 @@ def _read_user_sources_raw(path: Path) -> dict[str, dict[str, Any]]:
     try:
         raw = yaml.safe_load(path.read_text()) or {}
     except yaml.YAMLError as err:
-        logger.warning("user sources.yaml is malformed; treating as empty: %s", err)
-        return {}
+        raise ValueError(f"user sources.yaml is malformed: {err}") from err
+    if not isinstance(raw, dict):
+        raise ValueError("user sources.yaml root must be a mapping")
     entries = raw.get("sources") or {}
+    if not isinstance(entries, dict):
+        raise ValueError("user sources.yaml 'sources' key must be a mapping")
     out: dict[str, dict[str, Any]] = {}
     for name, cfg in entries.items():
         if isinstance(cfg, dict) and isinstance(cfg.get("url"), str):
@@ -701,17 +766,15 @@ def add_source(
     """Add or update a user source alias in ``sources.yaml``.
 
     Refuses to shadow a builtin alias unless ``force=True`` (the agent is
-    explicitly choosing to override it). URL is validated with the same
-    SSRF rules ``fetch_url`` uses.
+    explicitly choosing to override it). Registration applies the same
+    static hostname/IP policy as the TS source resolver; fetch-time
+    validators still re-check resolved addresses before connecting.
     """
     if not is_safe_library_name(name):
         return ToolResult(
             f"Invalid source name '{name}'. Use alnum + ``_ . -``, max 128 chars.",
             is_error=True,
         )
-    validation = _ADD_SOURCE_VALIDATOR.validate(url)
-    if not validation.is_valid:
-        return ToolResult(f"URL rejected: {validation.rejection_reason}", is_error=True)
     if description is not None and len(description) > MAX_DESCRIPTION_LEN:
         return ToolResult(f"Description too long (>{MAX_DESCRIPTION_LEN} chars).", is_error=True)
     if category is not None and category not in ALLOWED_USER_CATEGORIES:
@@ -726,9 +789,15 @@ def add_source(
             f"'{name}' is a builtin source. Pass force=true to shadow it with a user override.",
             is_error=True,
         )
+    validation = _ADD_SOURCE_VALIDATOR.validate(url)
+    if not validation.is_valid:
+        return ToolResult(f"URL rejected: {validation.rejection_reason}", is_error=True)
 
     path = _user_sources_path(config_dir)
-    existing = _read_user_sources_raw(path)
+    try:
+        existing = _read_user_sources_raw(path)
+    except ValueError as err:
+        return ToolResult(f"Refusing to modify {path}: {err}.", is_error=True)
     replaced = name in existing
 
     entry: dict[str, Any] = {"url": url}
@@ -782,7 +851,10 @@ def remove_source(
         )
 
     path = _user_sources_path(config_dir)
-    existing = _read_user_sources_raw(path)
+    try:
+        existing = _read_user_sources_raw(path)
+    except ValueError as err:
+        return ToolResult(f"Refusing to modify {path}: {err}.", is_error=True)
     removed = name in existing
     if removed:
         del existing[name]

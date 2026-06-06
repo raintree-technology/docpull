@@ -25,6 +25,19 @@ from docpull.mcp.tools import (
 from docpull.security.url_validator import UrlValidationResult
 
 
+class _AllowAllValidator:
+    def validate(self, url: str) -> UrlValidationResult:
+        return UrlValidationResult.valid()
+
+
+def _allow_user_source_validation(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("docpull.mcp.sources._USER_SOURCE_URL_VALIDATOR", _AllowAllValidator())
+
+
+def _allow_add_source_validation(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("docpull.mcp.tools._ADD_SOURCE_VALIDATOR", _AllowAllValidator())
+
+
 def test_builtin_sources_include_common_libraries():
     assert "react" in BUILTIN_SOURCES
     assert "nextjs" in BUILTIN_SOURCES
@@ -82,7 +95,8 @@ def test_load_user_sources_missing_file(tmp_path):
     assert sources == {}
 
 
-def test_load_user_sources_parses_yaml(tmp_path):
+def test_load_user_sources_parses_yaml(tmp_path, monkeypatch):
+    _allow_user_source_validation(monkeypatch)
     path = tmp_path / "sources.yaml"
     path.write_text("""
 sources:
@@ -99,6 +113,7 @@ sources:
 
 
 def test_all_sources_merges_builtin_and_user(tmp_path, monkeypatch):
+    _allow_user_source_validation(monkeypatch)
     path = tmp_path / "sources.yaml"
     path.write_text("sources:\n  custom1:\n    url: https://example.com\n")
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
@@ -228,6 +243,12 @@ async def test_fetch_url_rejects_localhost():
     result = await fetch_url("https://localhost/admin")
     assert result.is_error
     assert "localhost" in result.text.lower() or "rejected" in result.text.lower()
+
+
+@pytest.mark.asyncio
+async def test_fetch_url_rejects_dns_rebinding_suffix():
+    result = await fetch_url("https://169.254.169.254.nip.io/latest/meta-data/")
+    assert result.is_error
 
 
 @pytest.mark.asyncio
@@ -374,6 +395,15 @@ def test_load_user_sources_logs_yaml_error(tmp_path, caplog):
     assert any("Failed to parse" in rec.message for rec in caplog.records)
 
 
+def test_load_user_sources_ignores_non_mapping_root(tmp_path, caplog):
+    path = tmp_path / "sources.yaml"
+    path.write_text("not-a-mapping\n")
+    with caplog.at_level(logging.WARNING, logger="docpull.mcp.sources"):
+        sources = load_user_sources(path=path)
+    assert sources == {}
+    assert any("root YAML value must be a mapping" in rec.message for rec in caplog.records)
+
+
 def test_load_user_sources_rejects_unsafe_manual_entries(tmp_path, caplog, monkeypatch):
     class FakeValidator:
         def validate(self, url: str) -> UrlValidationResult:
@@ -432,6 +462,79 @@ def test_partial_meta_treats_cache_as_stale(tmp_path):
     assert _cache_fresh(meta) is False
 
 
+def test_meta_cache_rejects_changed_url_or_profile(tmp_path):
+    """Meta freshness should include the crawl fingerprint, not only TTL."""
+    import json
+    import time
+
+    from docpull.mcp.tools import _cache_fresh
+
+    meta = tmp_path / ".x.meta.json"
+    meta.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "url": "https://old.example/docs",
+                "profile": "rag",
+                "max_pages": 50,
+                "fetched_at_epoch": time.time(),
+                "page_count": 5,
+            }
+        )
+    )
+    assert _cache_fresh(
+        meta,
+        expected_url="https://old.example/docs",
+        expected_profile="rag",
+        expected_max_pages=50,
+    )
+    assert not _cache_fresh(
+        meta,
+        expected_url="https://new.example/docs",
+        expected_profile="rag",
+        expected_max_pages=50,
+    )
+    assert not _cache_fresh(
+        meta,
+        expected_url="https://old.example/docs",
+        expected_profile="mirror",
+        expected_max_pages=50,
+    )
+    assert not _cache_fresh(
+        meta,
+        expected_url="https://old.example/docs",
+        expected_profile="rag",
+        expected_max_pages=100,
+    )
+
+
+def test_meta_cache_rejects_wrong_schema_version(tmp_path):
+    import json
+    import time
+
+    from docpull.mcp.tools import _cache_fresh
+
+    meta = tmp_path / ".x.meta.json"
+    meta.write_text(
+        json.dumps(
+            {
+                "schema_version": 999,
+                "url": "https://old.example/docs",
+                "profile": "rag",
+                "max_pages": 50,
+                "fetched_at_epoch": time.time(),
+                "page_count": 5,
+            }
+        )
+    )
+    assert not _cache_fresh(
+        meta,
+        expected_url="https://old.example/docs",
+        expected_profile="rag",
+        expected_max_pages=50,
+    )
+
+
 def test_grep_docs_context_two_renders_two_lines(tmp_path):
     """`context=2` should render two lines above and below, not silently cap at 1."""
     lib = tmp_path / "lib"
@@ -449,7 +552,7 @@ def test_atomic_meta_write_no_tmp_left_behind(tmp_path):
     from docpull.mcp.tools import _write_meta
 
     meta = tmp_path / ".x.meta.json"
-    _write_meta(meta, "x", "https://x.test", 3)
+    _write_meta(meta, "x", "https://x.test", 3, profile="rag", max_pages=10)
     assert meta.exists()
     assert not (tmp_path / ".x.meta.json.tmp").exists()
 
@@ -457,10 +560,11 @@ def test_atomic_meta_write_no_tmp_left_behind(tmp_path):
 # --- add_source / remove_source --------------------------------------
 
 
-def test_add_source_writes_user_yaml(tmp_path):
+def test_add_source_writes_user_yaml(tmp_path, monkeypatch):
     """add_source persists the new entry to sources.yaml under config_dir."""
     import yaml
 
+    _allow_add_source_validation(monkeypatch)
     result = add_source(
         "mydocs",
         "https://example.com/docs",
@@ -502,25 +606,33 @@ def test_add_source_rejects_localhost(tmp_path):
     assert result.is_error
 
 
+def test_add_source_rejects_dns_rebinding_suffix(tmp_path):
+    result = add_source("rebind", "https://169.254.169.254.nip.io/", config_dir=tmp_path)
+    assert result.is_error
+
+
 def test_add_source_rejects_private_ip(tmp_path):
     result = add_source("internal", "https://10.0.0.1/", config_dir=tmp_path)
     assert result.is_error
 
 
-def test_add_source_refuses_builtin_without_force(tmp_path):
+def test_add_source_refuses_builtin_without_force(tmp_path, monkeypatch):
     # NB: URL must be DNS-resolvable because UrlValidator does live lookups.
+    _allow_add_source_validation(monkeypatch)
     result = add_source("react", "https://example.com/", config_dir=tmp_path)
     assert result.is_error
     assert "builtin" in result.text.lower()
 
 
-def test_add_source_force_overrides_builtin(tmp_path):
+def test_add_source_force_overrides_builtin(tmp_path, monkeypatch):
+    _allow_add_source_validation(monkeypatch)
     result = add_source("react", "https://example.com/", force=True, config_dir=tmp_path)
     assert not result.is_error
     assert result.data["shadowed_builtin"] is True
 
 
-def test_add_source_updates_existing_user_source(tmp_path):
+def test_add_source_updates_existing_user_source(tmp_path, monkeypatch):
+    _allow_add_source_validation(monkeypatch)
     add_source("mydocs", "https://example.com/a", config_dir=tmp_path)
     result = add_source("mydocs", "https://example.com/b", config_dir=tmp_path)
     assert not result.is_error
@@ -537,13 +649,15 @@ def test_add_source_rejects_oversized_description(tmp_path):
     assert result.is_error
 
 
-def test_add_source_rejects_unknown_category(tmp_path):
+def test_add_source_rejects_unknown_category(tmp_path, monkeypatch):
+    _allow_add_source_validation(monkeypatch)
     result = add_source("mydocs", "https://example.com/", category="bogus", config_dir=tmp_path)
     assert result.is_error
     assert "category" in result.text.lower()
 
 
-def test_remove_source_removes_user_entry(tmp_path):
+def test_remove_source_removes_user_entry(tmp_path, monkeypatch):
+    _allow_add_source_validation(monkeypatch)
     add_source("mydocs", "https://example.com/", config_dir=tmp_path)
     result = remove_source("mydocs", config_dir=tmp_path, docs_dir=tmp_path)
     assert not result.is_error
@@ -557,7 +671,8 @@ def test_remove_source_refuses_builtin(tmp_path):
     assert "builtin" in result.text.lower()
 
 
-def test_remove_source_with_delete_cache(tmp_path):
+def test_remove_source_with_delete_cache(tmp_path, monkeypatch):
+    _allow_add_source_validation(monkeypatch)
     add_source("mydocs", "https://example.com/", config_dir=tmp_path)
     cache = tmp_path / "mydocs"
     cache.mkdir()
@@ -585,10 +700,34 @@ def test_remove_source_rejects_traversal(tmp_path):
     assert result.is_error
 
 
-def test_add_source_atomic_no_tmp_left_behind(tmp_path):
+def test_add_source_atomic_no_tmp_left_behind(tmp_path, monkeypatch):
+    _allow_add_source_validation(monkeypatch)
     add_source("mydocs", "https://example.com/", config_dir=tmp_path)
     assert (tmp_path / "sources.yaml").exists()
     assert not (tmp_path / "sources.yaml.tmp").exists()
+
+
+def test_add_source_refuses_to_overwrite_malformed_yaml(tmp_path, monkeypatch):
+    _allow_add_source_validation(monkeypatch)
+    path = tmp_path / "sources.yaml"
+    path.write_text("not-a-mapping\n")
+
+    result = add_source("mydocs", "https://example.com/", config_dir=tmp_path)
+
+    assert result.is_error
+    assert "Refusing to modify" in result.text
+    assert path.read_text() == "not-a-mapping\n"
+
+
+def test_remove_source_refuses_to_overwrite_malformed_yaml(tmp_path):
+    path = tmp_path / "sources.yaml"
+    path.write_text("sources: nope\n")
+
+    result = remove_source("mydocs", config_dir=tmp_path, docs_dir=tmp_path)
+
+    assert result.is_error
+    assert "Refusing to modify" in result.text
+    assert path.read_text() == "sources: nope\n"
 
 
 # --- Structured output (outputSchema / structuredContent) ------------

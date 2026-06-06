@@ -63,6 +63,7 @@ class SitemapDiscoverer:
         self._filter = pattern_filter
         self._robots = robots_checker
         self._seen = SeenUrlTracker()
+        self._seen_sitemaps = SeenUrlTracker()
         self._domain_filter: DomainFilter | None = None
 
     def _is_in_scope(self, url: str) -> bool:
@@ -206,6 +207,10 @@ class SitemapDiscoverer:
             logger.warning(f"Max sitemap depth exceeded at {sitemap_url}")
             return
 
+        if not self._seen_sitemaps.add(sitemap_url):
+            logger.debug("Skipping duplicate sitemap document: %s", sitemap_url)
+            return
+
         content = await self._fetch_sitemap(sitemap_url)
         if content is None:
             return
@@ -276,10 +281,12 @@ class SitemapDiscoverer:
             Discovered URLs
         """
         self._seen.clear()
+        self._seen_sitemaps.clear()
         self._domain_filter = DomainFilter(start_url, allow_subdomains=False)
 
-        # If URL looks like a sitemap, use it directly
-        if start_url.endswith(".xml"):
+        # If the URL path looks like a sitemap, use it directly even when the
+        # caller passed a query string or fragment.
+        if urlparse(start_url).path.endswith(".xml"):
             async for url in self._discover_from_sitemap(start_url, max_urls=max_urls):
                 yield url
             return

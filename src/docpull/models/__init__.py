@@ -15,6 +15,7 @@ from .config import (
 )
 from .events import EventType, FetchEvent, FetchStats, SkipReason
 from .profiles import PROFILES, apply_profile
+from .run import RunIdentity
 
 __all__ = [
     # Config
@@ -34,6 +35,7 @@ __all__ = [
     "FetchEvent",
     "FetchStats",
     "SkipReason",
+    "RunIdentity",
     # Profiles
     "PROFILES",
     "apply_profile",

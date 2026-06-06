@@ -10,26 +10,34 @@ const DEFAULT_OPENAI_MAX_RETRIES = 2;
 const DEFAULT_CIRCUIT_FAILURE_THRESHOLD = 5;
 const DEFAULT_CIRCUIT_RESET_MS = 60_000;
 
-const OPENAI_TIMEOUT_MS = readIntegerEnv(
-	"OPENAI_TIMEOUT_MS",
-	DEFAULT_OPENAI_TIMEOUT_MS,
-	{ min: 1_000, max: 300_000 },
-);
-const OPENAI_MAX_RETRIES = readIntegerEnv(
-	"OPENAI_MAX_RETRIES",
-	DEFAULT_OPENAI_MAX_RETRIES,
-	{ min: 0, max: 10 },
-);
-const CIRCUIT_FAILURE_THRESHOLD = readIntegerEnv(
-	"OPENAI_CIRCUIT_FAILURE_THRESHOLD",
-	DEFAULT_CIRCUIT_FAILURE_THRESHOLD,
-	{ min: 1, max: 100 },
-);
-const CIRCUIT_RESET_MS = readIntegerEnv(
-	"OPENAI_CIRCUIT_RESET_MS",
-	DEFAULT_CIRCUIT_RESET_MS,
-	{ min: 1_000, max: 3_600_000 },
-);
+function getOpenAITimeoutMs(): number {
+	return readIntegerEnv("OPENAI_TIMEOUT_MS", DEFAULT_OPENAI_TIMEOUT_MS, {
+		min: 1_000,
+		max: 300_000,
+	});
+}
+
+function getOpenAIMaxRetries(): number {
+	return readIntegerEnv("OPENAI_MAX_RETRIES", DEFAULT_OPENAI_MAX_RETRIES, {
+		min: 0,
+		max: 10,
+	});
+}
+
+function getCircuitFailureThreshold(): number {
+	return readIntegerEnv(
+		"OPENAI_CIRCUIT_FAILURE_THRESHOLD",
+		DEFAULT_CIRCUIT_FAILURE_THRESHOLD,
+		{ min: 1, max: 100 },
+	);
+}
+
+function getCircuitResetMs(): number {
+	return readIntegerEnv("OPENAI_CIRCUIT_RESET_MS", DEFAULT_CIRCUIT_RESET_MS, {
+		min: 1_000,
+		max: 3_600_000,
+	});
+}
 
 class CircuitBreaker {
 	private failures = 0;
@@ -39,14 +47,15 @@ class CircuitBreaker {
 		if (this.openedAt === null) {
 			return;
 		}
+		const circuitResetMs = getCircuitResetMs();
 		const elapsedMs = Date.now() - this.openedAt;
-		if (elapsedMs >= CIRCUIT_RESET_MS) {
+		if (elapsedMs >= circuitResetMs) {
 			this.openedAt = null;
 			this.failures = 0;
 			return;
 		}
 		throw new Error(
-			`OpenAI circuit is open; retry after ${Math.ceil((CIRCUIT_RESET_MS - elapsedMs) / 1000)}s`,
+			`OpenAI circuit is open; retry after ${Math.ceil((circuitResetMs - elapsedMs) / 1000)}s`,
 		);
 	}
 
@@ -57,7 +66,10 @@ class CircuitBreaker {
 
 	recordFailure(error: unknown): void {
 		this.failures += 1;
-		if (this.failures >= CIRCUIT_FAILURE_THRESHOLD && this.openedAt === null) {
+		if (
+			this.failures >= getCircuitFailureThreshold() &&
+			this.openedAt === null
+		) {
 			this.openedAt = Date.now();
 			logStructured("error", "OpenAI circuit opened", {
 				failures: this.failures,
@@ -72,8 +84,8 @@ const embeddingCircuit = new CircuitBreaker();
 function createOpenAIClient(apiKey: string): OpenAI {
 	return new OpenAI({
 		apiKey,
-		timeout: OPENAI_TIMEOUT_MS,
-		maxRetries: OPENAI_MAX_RETRIES,
+		timeout: getOpenAITimeoutMs(),
+		maxRetries: getOpenAIMaxRetries(),
 	});
 }
 
@@ -96,14 +108,16 @@ export async function createEmbeddings(
 ): Promise<number[][]> {
 	embeddingCircuit.beforeRequest();
 	try {
+		const openAITimeoutMs = getOpenAITimeoutMs();
+		const openAIMaxRetries = getOpenAIMaxRetries();
 		const response = await client.embeddings.create(
 			{
 				model: EMBEDDING_MODEL,
 				input,
 			},
 			{
-				timeout: OPENAI_TIMEOUT_MS,
-				maxRetries: OPENAI_MAX_RETRIES,
+				timeout: openAITimeoutMs,
+				maxRetries: openAIMaxRetries,
 			},
 		);
 		const embeddings = response.data.map((item) => item.embedding);

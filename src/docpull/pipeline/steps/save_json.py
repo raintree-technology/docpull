@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import json
 import logging
@@ -63,6 +64,7 @@ class JsonSaveStep:
         self._temp_file: TextIO | None = None
         self._temp_path: str | None = None
         self._first_doc = True
+        self._lock = asyncio.Lock()
 
     def _ensure_temp_file(self) -> TextIO:
         """Create temp file for streaming writes if not already open."""
@@ -79,6 +81,19 @@ class JsonSaveStep:
             self._first_doc = True
         return self._temp_file
 
+    def _write_document(self, doc: dict[str, object]) -> None:
+        """Append one document to the temporary JSON stream."""
+        f = self._ensure_temp_file()
+
+        if not self._first_doc:
+            f.write(",\n")
+        self._first_doc = False
+
+        doc_json = json.dumps(doc, indent=2, ensure_ascii=False)
+        indented = "\n".join("    " + line for line in doc_json.split("\n"))
+        f.write(indented)
+        f.flush()
+
     async def execute(
         self,
         ctx: PageContext,
@@ -94,10 +109,10 @@ class JsonSaveStep:
         Returns:
             PageContext (unchanged)
         """
-        if ctx.should_skip or not ctx.markdown:
+        if ctx.should_skip or ctx.error or not ctx.markdown:
             return ctx
 
-        doc = {
+        doc: dict[str, object] = {
             "url": ctx.url,
             "title": ctx.title,
             "content": ctx.markdown,
@@ -105,20 +120,10 @@ class JsonSaveStep:
             "fetched_at": utc_now_iso(),
         }
 
-        f = self._ensure_temp_file()
-
-        # Write comma separator between documents
-        if not self._first_doc:
-            f.write(",\n")
-        self._first_doc = False
-
-        # Write document with indentation
-        doc_json = json.dumps(doc, indent=2, ensure_ascii=False)
-        # Indent each line by 4 spaces (2 for documents array + 2 for item)
-        indented = "\n".join("    " + line for line in doc_json.split("\n"))
-        f.write(indented)
-
-        self._document_count += 1
+        async with self._lock:
+            await asyncio.to_thread(self._write_document, doc)
+            self._document_count += 1
+            ctx.persisted_path = self._output_file
 
         if emit:
             emit(

@@ -10,11 +10,15 @@ from typing import Optional
 class SkipReason(str, Enum):
     """Reasons for skipping a URL during fetch."""
 
+    URL_VALIDATION_FAILED = "url_validation_failed"
     ROBOTS_DISALLOWED = "robots_disallowed"
     ALREADY_FETCHED = "already_fetched"
     CACHE_UNCHANGED = "cache_unchanged"
     INVALID_CONTENT_TYPE = "invalid_content_type"
     DUPLICATE_CONTENT = "duplicate_content"
+    NO_CONTENT_EXTRACTED = "no_content_extracted"
+    JS_ONLY_SPA = "js_only_spa"
+    NO_CONTENT_TO_SAVE = "no_content_to_save"
     PATTERN_EXCLUDED = "pattern_excluded"
     MAX_DEPTH_EXCEEDED = "max_depth_exceeded"
     HTTP_ERROR = "http_error"
@@ -90,6 +94,10 @@ class FetchEvent:
     # Progress tracking
     current: int | None = None
     total: int | None = None
+    processed_count: int | None = None
+    saved_count: int | None = None
+    skipped_count: int | None = None
+    failed_count: int | None = None
 
     # Typed payload fields for specific events
     bytes_downloaded: int | None = None

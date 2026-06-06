@@ -12,7 +12,18 @@ pytest.importorskip("mcp.client.stdio")
 
 from mcp.client.stdio import stdio_client
 
+from docpull.mcp.server import _coerce_bool
 from mcp import ClientSession, StdioServerParameters
+
+
+def test_coerce_bool_rejects_string_inputs():
+    with pytest.raises(ValueError, match="must be a boolean"):
+        _coerce_bool("false", name="force", default=False)
+
+
+def test_coerce_bool_accepts_bool_inputs():
+    assert _coerce_bool(True, name="force", default=False) is True
+    assert _coerce_bool(None, name="force", default=False) is False
 
 
 @pytest.mark.asyncio
@@ -41,6 +52,20 @@ async def test_stdio_server_lists_and_calls_tools(tmp_path):
             "add_source",
             "remove_source",
         }
+
+        prompts = await session.list_prompts()
+        prompt_names = {prompt.name for prompt in prompts.prompts}
+        assert prompt_names == {
+            "docs_add",
+            "docs_search",
+            "docs_list",
+            "docs_refresh",
+            "docs_remove",
+        }
+
+        prompt = await session.get_prompt("docs_search", {"input": "Depends fastapi"})
+        assert "grep_docs" in prompt.messages[0].content.text
+        assert "Depends fastapi" in prompt.messages[0].content.text
 
         result = await session.call_tool("list_sources", {})
         assert result.isError is False

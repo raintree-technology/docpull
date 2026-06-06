@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from docpull.cache import StreamingDeduplicator
+from docpull.models.events import EventType, SkipReason
 from docpull.pipeline.base import FetchPipeline, PageContext
 from docpull.pipeline.steps import (
     ConvertStep,
@@ -110,6 +111,28 @@ class TestValidateStep:
 
         assert result.should_skip is True
         assert "robots.txt" in result.skip_reason
+
+    @pytest.mark.asyncio
+    async def test_crawl_delay_updates_rate_limiter(self, mock_validator, mock_robots):
+        """Test that Crawl-delay is propagated to the rate limiter."""
+        valid_result = MagicMock()
+        valid_result.is_valid = True
+        mock_validator.validate.return_value = valid_result
+        mock_robots.is_allowed.return_value = True
+        mock_robots.get_crawl_delay.return_value = 2.5
+        mock_rate_limiter = MagicMock()
+
+        step = ValidateStep(
+            url_validator=mock_validator,
+            robots_checker=mock_robots,
+            rate_limiter=mock_rate_limiter,
+            check_existing=False,
+        )
+        ctx = PageContext(url="https://Example.com/page", output_path=Path("/tmp/out.md"))
+        result = await step.execute(ctx)
+
+        assert result.should_skip is False
+        mock_rate_limiter.update_host_config.assert_called_once_with("example.com", delay=2.5)
 
 
 class TestFetchStep:
@@ -274,6 +297,7 @@ class TestDedupStep:
     @pytest.mark.asyncio
     async def test_duplicate_content_skipped(self, deduplicator):
         """Test that duplicate content is skipped."""
+        events = []
         step = DedupStep(deduplicator=deduplicator)
 
         # First page
@@ -290,10 +314,15 @@ class TestDedupStep:
             output_path=Path("/tmp/out2.md"),
             markdown="# Same Content\n\nThis is the same.",
         )
-        result = await step.execute(ctx2)
+        result = await step.execute(ctx2, emit=events.append)
 
         assert result.should_skip is True
         assert "Duplicate" in result.skip_reason
+        assert result.skip_code == SkipReason.DUPLICATE_CONTENT
+        assert any(
+            event.type == EventType.FETCH_SKIPPED and event.skip_reason == SkipReason.DUPLICATE_CONTENT
+            for event in events
+        )
 
     @pytest.mark.asyncio
     async def test_duplicate_body_with_different_frontmatter_is_skipped(self, deduplicator):
@@ -410,6 +439,71 @@ class TestFetchPipeline:
 
         assert execution_order == ["skip"]
         assert "never" not in execution_order
+
+    @pytest.mark.asyncio
+    async def test_pipeline_stops_on_error_without_running_next_step(self):
+        """A step that sets ctx.error should halt the pipeline immediately."""
+        execution_order = []
+
+        class ErrorStep:
+            name = "error"
+
+            async def execute(self, ctx, emit=None):
+                execution_order.append("error")
+                ctx.error = "conversion failed"
+                return ctx
+
+        class NeverReached:
+            name = "never"
+
+            async def execute(self, ctx, emit=None):
+                execution_order.append("never")
+                return ctx
+
+        pipeline = FetchPipeline(steps=[ErrorStep(), NeverReached()])
+        ctx = await pipeline.execute("https://example.com", Path("/tmp/out.md"))
+
+        assert execution_order == ["error"]
+        assert ctx.error == "conversion failed"
+
+    @pytest.mark.asyncio
+    async def test_pipeline_emits_single_failure_event_for_raised_exception(self):
+        """Raised step errors should produce one FETCH_FAILED event."""
+        events = []
+
+        class ExplodingStep:
+            name = "explode"
+
+            async def execute(self, ctx, emit=None):
+                raise RuntimeError("boom")
+
+        pipeline = FetchPipeline(steps=[ExplodingStep()])
+        ctx = await pipeline.execute("https://example.com", Path("/tmp/out.md"), emit=events.append)
+
+        assert ctx.error == "explode: boom"
+        failure_events = [event for event in events if event.type == EventType.FETCH_FAILED]
+        assert len(failure_events) == 1
+        assert failure_events[0].error == "explode: boom"
+
+
+class TestSaveStepErrorHandling:
+    """SaveStep should never write when an earlier step already failed."""
+
+    @pytest.mark.asyncio
+    async def test_save_step_skips_when_context_has_error(self, tmp_path):
+        step = SaveStep(base_output_dir=tmp_path)
+        output_file = tmp_path / "test.md"
+        ctx = PageContext(
+            url="https://example.com/page",
+            output_path=output_file,
+            html=b"<html>raw</html>",
+            error="conversion failed",
+        )
+
+        result = await step.execute(ctx)
+
+        assert result.error == "conversion failed"
+        assert not output_file.exists()
 
 
 class TestSkillManifestGeneration:

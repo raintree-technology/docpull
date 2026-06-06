@@ -128,6 +128,12 @@ class StaticLinkExtractor:
 
         # Remove fragment
         parsed = urlparse(absolute_url)
+        if not parsed.scheme or not parsed.netloc:
+            return None
+
+        if parsed.scheme not in ("http", "https"):
+            return None
+
         clean_url = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
         if parsed.query:
             clean_url += f"?{parsed.query}"

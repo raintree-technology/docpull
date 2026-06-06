@@ -1,25 +1,43 @@
-# Format conversion examples
-# Convert documentation to different output formats
+# Format conversion examples for docpull 4.x
+#
+# Supported formats are markdown, json, ndjson, and sqlite.
+# CLI equivalents:
+#   docpull https://docs.anthropic.com --format json --output-dir ./docs-json
+#   docpull https://docs.anthropic.com --profile llm --stream > documents.ndjson
+#   docpull https://docs.anthropic.com --format sqlite --output-dir ./docs-db
 
-sources:
-  anthropic-toon:
-    url: https://docs.anthropic.com
-    language: en
-    format: toon  # 40-60% size reduction, optimized for LLMs
-    naming_strategy: hierarchical
-    output_dir: ./docs-toon
+- profile: rag
+  url: https://docs.anthropic.com
+  crawl:
+    max_pages: 100
+    rate_limit: 0.5
+  output:
+    format: json
+    directory: ./docs-json
+    rich_metadata: true
+  log_level: INFO
 
-  anthropic-json:
-    url: https://docs.anthropic.com
-    language: en
-    format: json  # Structured JSON with sections
-    output_dir: ./docs-json
+- profile: llm
+  url: https://docs.anthropic.com
+  crawl:
+    max_pages: 100
+    rate_limit: 0.5
+  output:
+    format: ndjson
+    directory: ./docs-ndjson
+    ndjson_filename: documents.ndjson
+    max_tokens_per_file: 4000
+    emit_chunks: true
+    rich_metadata: true
+  log_level: INFO
 
-  anthropic-sqlite:
-    url: https://docs.anthropic.com
-    language: en
-    format: sqlite  # Searchable database with FTS5
-    output_dir: ./docs-db
-
-rate_limit: 0.5
-log_level: INFO
+- profile: rag
+  url: https://docs.anthropic.com
+  crawl:
+    max_pages: 100
+    rate_limit: 0.5
+  output:
+    format: sqlite
+    directory: ./docs-db
+    rich_metadata: true
+  log_level: INFO

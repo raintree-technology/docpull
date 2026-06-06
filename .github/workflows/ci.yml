@@ -19,28 +19,20 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # pyproject.toml claims 3.10-3.14 support, but actions/setup-python
-        # may not have stable 3.14 in its release manifest yet, so leave 3.14
-        # out for now. Add it back once setup-python ships a stable 3.14.
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        uses: ./.github/actions/setup-python-docpull
         with:
           python-version: ${{ matrix.python-version }}
-          cache: pip
-          cache-dependency-path: pyproject.toml
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[all,dev]"
+          dependency-groups: all,dev
+          enable-cache: "true"
 
       - name: Run tests with coverage
-        run: pytest --cov=docpull --cov-report=xml --cov-report=term -q
+        run: make test-cov
 
       - name: Upload coverage XML
         if: matrix.python-version == '3.11'
@@ -56,25 +48,17 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
       - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        uses: ./.github/actions/setup-python-docpull
         with:
           python-version: "3.11"
-          cache: pip
-          cache-dependency-path: pyproject.toml
+          dependency-groups: all,dev
+          enable-cache: "true"
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[all,dev]"
-
-      - name: Run ruff
-        run: ruff check .
-
-      - name: Check formatting
-        run: ruff format --check .
+      - name: Run lint checks
+        run: make lint-check
 
       - name: Run pre-commit
-        run: pre-commit run --all-files --show-diff-on-failure
+        run: make pre-commit-check
 
   typecheck:
     runs-on: ubuntu-latest
@@ -83,16 +67,11 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
       - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        uses: ./.github/actions/setup-python-docpull
         with:
           python-version: "3.11"
-          cache: pip
-          cache-dependency-path: pyproject.toml
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[all,dev]"
+          dependency-groups: all,dev
+          enable-cache: "true"
 
       - name: Run mypy
-        run: mypy src
+        run: make typecheck

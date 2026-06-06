@@ -59,7 +59,20 @@ _URL_SCHEME_RE = re.compile(r"^[a-z][a-z0-9+.-]*://", re.IGNORECASE)
 _LIBRARY_NAME_RE = re.compile(r"^[a-zA-Z0-9_.-]+$")
 MAX_LIBRARY_NAME_LENGTH = 128
 MAX_USER_SOURCE_PAGES = 100_000
-_USER_SOURCE_URL_VALIDATOR = UrlValidator(allowed_schemes={"https"})
+
+
+def _registry_resolver(_hostname: str) -> list[str]:
+    """Avoid live DNS while parsing source aliases.
+
+    Source aliases are configuration, not network I/O. Fetch-time validators
+    still resolve and screen the actual destination before connecting; the
+    registry only needs deterministic checks for URL shape, blocked hostnames,
+    and literal unsafe IPs.
+    """
+    return ["93.184.216.34"]
+
+
+_USER_SOURCE_URL_VALIDATOR = UrlValidator(allowed_schemes={"https"}, resolver=_registry_resolver)
 
 
 def is_safe_library_name(name: str) -> bool:
@@ -134,7 +147,13 @@ def load_user_sources(path: Path | None = None) -> dict[str, SourceConfig]:
     except yaml.YAMLError as err:
         logger.warning("Failed to parse %s: %s", path, err)
         return {}
+    if not isinstance(raw, dict):
+        logger.warning("Ignoring %s: root YAML value must be a mapping", path)
+        return {}
     entries = raw.get("sources") or {}
+    if not isinstance(entries, dict):
+        logger.warning("Ignoring %s: 'sources' must be a mapping", path)
+        return {}
     result: dict[str, SourceConfig] = {}
     for name, cfg in entries.items():
         source_name = str(name)

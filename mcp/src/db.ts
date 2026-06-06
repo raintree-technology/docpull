@@ -11,7 +11,6 @@ import { errorMessage, logStructured } from "./logger.js";
 // SETUP
 // ============================================================================
 
-const DATABASE_URL = process.env.DATABASE_URL;
 const DEFAULT_DB_POOL_MAX = 10;
 const DEFAULT_DB_POOL_MIN = 2;
 const DEFAULT_DB_IDLE_TIMEOUT_MS = 30_000;
@@ -27,46 +26,65 @@ const PARAMS_PER_EMBEDDING_ROW = 6;
 // ceiling — otherwise large libraries (thousands of chunks) fail to index.
 const MAX_EMBEDDING_ROWS_PER_INSERT = Math.floor(32767 / PARAMS_PER_EMBEDDING_ROW);
 
-const DB_POOL_MAX = readIntegerEnv("DB_POOL_MAX", DEFAULT_DB_POOL_MAX, {
-	min: 1,
-	max: 100,
-});
-const DB_POOL_MIN = readIntegerEnv("DB_POOL_MIN", DEFAULT_DB_POOL_MIN, {
-	min: 0,
-	max: DB_POOL_MAX,
-});
-const DB_IDLE_TIMEOUT_MS = readIntegerEnv(
-	"DB_IDLE_TIMEOUT_MS",
-	DEFAULT_DB_IDLE_TIMEOUT_MS,
-	{ min: 1_000, max: 3_600_000 },
-);
-const DB_CONNECTION_TIMEOUT_MS = readIntegerEnv(
-	"DB_CONNECTION_TIMEOUT_MS",
-	DEFAULT_DB_CONNECTION_TIMEOUT_MS,
-	{ min: 1_000, max: 300_000 },
-);
-const DB_STATEMENT_TIMEOUT_MS = readIntegerEnv(
-	"DB_STATEMENT_TIMEOUT_MS",
-	DEFAULT_DB_STATEMENT_TIMEOUT_MS,
-	{ min: 1_000, max: 300_000 },
-);
-
 let pool: Pool | null = null;
 
+function getDatabaseUrl(): string | undefined {
+	return process.env.DATABASE_URL;
+}
+
+function getDbPoolMax(): number {
+	return readIntegerEnv("DB_POOL_MAX", DEFAULT_DB_POOL_MAX, {
+		min: 1,
+		max: 100,
+	});
+}
+
+function getDbPoolMin(): number {
+	return readIntegerEnv("DB_POOL_MIN", DEFAULT_DB_POOL_MIN, {
+		min: 0,
+		max: getDbPoolMax(),
+	});
+}
+
+function getDbIdleTimeoutMs(): number {
+	return readIntegerEnv("DB_IDLE_TIMEOUT_MS", DEFAULT_DB_IDLE_TIMEOUT_MS, {
+		min: 1_000,
+		max: 3_600_000,
+	});
+}
+
+function getDbConnectionTimeoutMs(): number {
+	return readIntegerEnv(
+		"DB_CONNECTION_TIMEOUT_MS",
+		DEFAULT_DB_CONNECTION_TIMEOUT_MS,
+		{ min: 1_000, max: 300_000 },
+	);
+}
+
+function getDbStatementTimeoutMs(): number {
+	return readIntegerEnv("DB_STATEMENT_TIMEOUT_MS", DEFAULT_DB_STATEMENT_TIMEOUT_MS, {
+		min: 1_000,
+		max: 300_000,
+	});
+}
+
 function getPool(): Pool {
-	if (!DATABASE_URL) {
+	const databaseUrl = getDatabaseUrl();
+	if (!databaseUrl) {
 		throw new Error("DATABASE_URL environment variable is required");
 	}
 
 	if (!pool) {
+		const dbPoolMax = getDbPoolMax();
+		const dbStatementTimeoutMs = getDbStatementTimeoutMs();
 		pool = new Pool({
-			connectionString: DATABASE_URL,
-			max: DB_POOL_MAX,
-			min: DB_POOL_MIN,
-			idleTimeoutMillis: DB_IDLE_TIMEOUT_MS,
-			connectionTimeoutMillis: DB_CONNECTION_TIMEOUT_MS,
-			statement_timeout: DB_STATEMENT_TIMEOUT_MS,
-			query_timeout: DB_STATEMENT_TIMEOUT_MS,
+			connectionString: databaseUrl,
+			max: dbPoolMax,
+			min: getDbPoolMin(),
+			idleTimeoutMillis: getDbIdleTimeoutMs(),
+			connectionTimeoutMillis: getDbConnectionTimeoutMs(),
+			statement_timeout: dbStatementTimeoutMs,
+			query_timeout: dbStatementTimeoutMs,
 		});
 
 		pool.on("error", (error) => {
@@ -80,7 +98,7 @@ function getPool(): Pool {
 }
 
 export function isDbConfigured(): boolean {
-	return !!DATABASE_URL;
+	return !!getDatabaseUrl();
 }
 
 async function closePool(signal: string): Promise<void> {

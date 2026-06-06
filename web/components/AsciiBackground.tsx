@@ -6,6 +6,7 @@ import { useReducedMotion } from "@/lib/use-reduced-motion";
 const ASCII_CHARS = " .·:;+*#%@";
 const TARGET_FPS = 24;
 const FRAME_INTERVAL = 1000 / TARGET_FPS;
+const MAX_DEVICE_PIXEL_RATIO = 2;
 
 export default function AsciiBackground() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -25,25 +26,19 @@ export default function AsciiBackground() {
     const charWidth = 14;
     const charHeight = 20;
 
-    const resize = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-      if (reducedMotion) {
-        renderFrame();
-      }
-    };
-
     const renderFrame = () => {
       const t = timeRef.current;
 
-      const cols = Math.ceil(canvas.width / charWidth);
-      const rows = Math.ceil(canvas.height / charHeight);
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      const cols = Math.ceil(width / charWidth);
+      const rows = Math.ceil(height / charHeight);
       const centerX = cols / 2;
       const centerY = rows / 2;
 
       const isDark = document.documentElement.classList.contains("dark");
 
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.clearRect(0, 0, width, height);
       ctx.font = `${charHeight - 2}px "SF Mono", "Fira Code", Consolas, monospace`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
@@ -85,6 +80,25 @@ export default function AsciiBackground() {
       }
     };
 
+    const resize = () => {
+      const pixelRatio = Math.min(
+        window.devicePixelRatio || 1,
+        MAX_DEVICE_PIXEL_RATIO,
+      );
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+
+      canvas.width = Math.floor(width * pixelRatio);
+      canvas.height = Math.floor(height * pixelRatio);
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+      ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+
+      if (reducedMotion) {
+        renderFrame();
+      }
+    };
+
     const animate = (timestamp: number) => {
       animationRef.current = requestAnimationFrame(animate);
 
@@ -96,6 +110,12 @@ export default function AsciiBackground() {
       timeRef.current += 0.035;
       renderFrame();
     };
+
+    const themeObserver = new MutationObserver(renderFrame);
+    themeObserver.observe(document.documentElement, {
+      attributeFilter: ["class"],
+      attributes: true,
+    });
 
     resize();
     if (reducedMotion) {
@@ -109,6 +129,7 @@ export default function AsciiBackground() {
     return () => {
       cancelAnimationFrame(animationRef.current);
       window.removeEventListener("resize", resize);
+      themeObserver.disconnect();
     };
   }, [reducedMotion]);
 

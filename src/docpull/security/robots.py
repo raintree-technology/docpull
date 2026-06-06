@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import http.client
+import ipaddress
 import logging
 import socket
 import ssl
@@ -118,7 +119,7 @@ class RobotsChecker:
         self.user_agent = user_agent
         self.timeout = timeout
         self.logger = logger or logging.getLogger(__name__)
-        self._url_validator = url_validator
+        self._url_validator = url_validator or UrlValidator(allowed_schemes={"https"})
         self._max_redirects = max_redirects
 
         if allow_insecure_tls:
@@ -129,9 +130,6 @@ class RobotsChecker:
 
     def _validate_url(self, url: str) -> bool:
         """Validate robots URLs before requesting them or following redirects."""
-        if self._url_validator is None:
-            return True
-
         result = self._url_validator.validate(url)
         if result.is_valid:
             return True
@@ -142,11 +140,38 @@ class RobotsChecker:
     def _get_robots_url(self, url: str) -> str:
         """Get robots.txt URL for a given page URL."""
         parsed = urlparse(url)
-        return f"{parsed.scheme}://{parsed.netloc}/robots.txt"
+        hostname = parsed.hostname
+        if hostname is None:
+            return f"{parsed.scheme.lower()}://{parsed.netloc}/robots.txt"
+
+        netloc = self._format_netloc(hostname, parsed.port)
+
+        return f"{parsed.scheme.lower()}://{netloc}/robots.txt"
 
     def _get_domain(self, url: str) -> str:
         """Extract domain from URL."""
-        return urlparse(url).netloc
+        parsed = urlparse(url)
+        hostname = parsed.hostname
+        if hostname is None:
+            return parsed.netloc.lower()
+
+        return self._format_netloc(hostname, parsed.port)
+
+    @staticmethod
+    def _format_netloc(hostname: str, port: int | None) -> str:
+        """Format a canonical host[:port] string, preserving IPv6 brackets."""
+        host = hostname
+        try:
+            ip = ipaddress.ip_address(hostname)
+        except ValueError:
+            ip = None
+
+        if isinstance(ip, ipaddress.IPv6Address):
+            host = f"[{hostname}]"
+
+        if port is None or port == 443:
+            return host
+        return f"{host}:{port}"
 
     def _fetch_robots(self, domain: str, robots_url: str) -> _RobotsCacheEntry:
         """
@@ -206,18 +231,7 @@ class RobotsChecker:
 
     def _resolve_addresses(self, hostname: str) -> list[str]:
         """Resolve hostnames through the validator so the connect path stays pinned."""
-        if self._url_validator is not None:
-            return self._url_validator.resolve_allowed_addresses(hostname)
-
-        addresses: set[str] = set()
-        for family, _, _, _, sockaddr in socket.getaddrinfo(hostname, None, type=socket.SOCK_STREAM):
-            if family in {socket.AF_INET, socket.AF_INET6}:
-                addresses.add(str(sockaddr[0]))
-
-        if not addresses:
-            raise OSError(f"No addresses found for {hostname}")
-
-        return sorted(addresses)
+        return self._url_validator.resolve_allowed_addresses(hostname)
 
     def _build_ssl_context(self) -> ssl.SSLContext:
         return ssl.create_default_context()

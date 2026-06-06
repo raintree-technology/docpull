@@ -4,7 +4,7 @@ import logging
 
 from ...cache import StreamingDeduplicator
 from ...conversion.chunking import _strip_frontmatter
-from ...models.events import EventType, FetchEvent
+from ...models.events import EventType, FetchEvent, SkipReason
 from ..base import EventEmitter, PageContext
 
 logger = logging.getLogger(__name__)
@@ -85,8 +85,18 @@ class DedupStep:
         if not should_save and duplicate_of:
             ctx.should_skip = True
             ctx.skip_reason = f"Duplicate of {duplicate_of}"
+            ctx.skip_code = SkipReason.DUPLICATE_CONTENT
 
             if emit:
+                emit(
+                    FetchEvent(
+                        type=EventType.FETCH_SKIPPED,
+                        url=ctx.url,
+                        duplicate_of=duplicate_of,
+                        message=f"Duplicate content (original: {duplicate_of})",
+                        skip_reason=SkipReason.DUPLICATE_CONTENT,
+                    )
+                )
                 emit(
                     FetchEvent(
                         type=EventType.PAGE_DEDUPLICATED,

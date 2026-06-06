@@ -60,7 +60,15 @@ function estimateTokens(text: string): number {
 	return Math.ceil(text.length / 4);
 }
 
-function chunkText(text: string, maxTokens: number, overlap: number): string[] {
+function hasNonWhitespaceContent(text: string): boolean {
+	return text.trim().length > 0;
+}
+
+export function chunkText(
+	text: string,
+	maxTokens: number,
+	overlap: number,
+): string[] {
 	const chunks: string[] = [];
 	const lines = text.split("\n");
 	let currentChunk: string[] = [];
@@ -70,7 +78,10 @@ function chunkText(text: string, maxTokens: number, overlap: number): string[] {
 		const lineTokens = estimateTokens(line);
 
 		if (currentTokens + lineTokens > maxTokens && currentChunk.length > 0) {
-			chunks.push(currentChunk.join("\n"));
+			const completedChunk = currentChunk.join("\n");
+			if (hasNonWhitespaceContent(completedChunk)) {
+				chunks.push(completedChunk);
+			}
 
 			const overlapLines: string[] = [];
 			let overlapTokens = 0;
@@ -90,7 +101,10 @@ function chunkText(text: string, maxTokens: number, overlap: number): string[] {
 	}
 
 	if (currentChunk.length > 0) {
-		chunks.push(currentChunk.join("\n"));
+		const finalChunk = currentChunk.join("\n");
+		if (hasNonWhitespaceContent(finalChunk)) {
+			chunks.push(finalChunk);
+		}
 	}
 
 	return chunks;

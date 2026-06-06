@@ -1,41 +1,55 @@
-# Multi-source configuration with full optimization
-# Real-world example: 31 MB → 13 MB (58% reduction)
+# Multi-source refresh plan for docpull 4.x
+#
+# docpull accepts one URL per DocpullConfig. Keep a multi-source refresh as a
+# list of single-source configs and run each target sequentially, or use the
+# MCP add_source / ensure_docs workflow for named aliases.
+#
+# CLI equivalents:
+#   docpull https://docs.anthropic.com --profile rag --output-dir ./optimized-docs/anthropic --max-pages 200
+#   docpull https://docs.anthropic.com/en/docs/claude-code --profile rag --output-dir ./optimized-docs/claude-code --max-pages 200
+#   docpull https://aptos.dev --profile rag --output-dir ./optimized-docs/aptos --include-paths "*/build/guides/*" "*/build/apis/*" --exclude-paths "*/changelog" "*/release-notes"
 
-sources:
-  anthropic:
-    url: https://docs.anthropic.com
-    language: en
+- profile: rag
+  url: https://docs.anthropic.com
+  crawl:
+    max_pages: 200
+    rate_limit: 0.5
+  content_filter:
+    streaming_dedup: true
     max_file_size: 200kb
-    create_index: true
-    exclude_sections:
-      - "Changelog"
-      - "Examples"
+  output:
+    directory: ./optimized-docs/anthropic
+    rich_metadata: true
+  log_level: INFO
 
-  claude-code:
-    url: https://code.claude.com/docs
-    language: en  # Skips 352 translation files!
-    create_index: true
+- profile: rag
+  url: https://docs.anthropic.com/en/docs/claude-code
+  crawl:
+    max_pages: 200
+    rate_limit: 0.5
+  content_filter:
+    streaming_dedup: true
     max_file_size: 200kb
+  output:
+    directory: ./optimized-docs/claude-code
+    rich_metadata: true
+  log_level: INFO
 
-  aptos:
-    url: https://aptos.dev
-    deduplicate: true
-    keep_variant: mainnet  # Skips 304 duplicates!
-    max_file_size: 200kb
+- profile: rag
+  url: https://aptos.dev
+  crawl:
+    max_pages: 300
+    rate_limit: 0.5
     include_paths:
-      - "build/guides/*"
-      - "build/apis/*"
+      - "*/build/guides/*"
+      - "*/build/apis/*"
     exclude_paths:
       - "*/changelog"
       - "*/release-notes"
-
-  shelby:
-    url: https://docs.shelby.xyz
-    create_index: true
+  content_filter:
+    streaming_dedup: true
     max_file_size: 200kb
-
-# Global settings
-output_dir: ./optimized-docs
-rate_limit: 0.5
-log_level: INFO
-extract_metadata: true
+  output:
+    directory: ./optimized-docs/aptos
+    rich_metadata: true
+  log_level: INFO

@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from enum import Enum
 from pathlib import Path
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
-from ..models.events import EventType, FetchEvent
+from ..models.events import EventType, FetchEvent, SkipReason
 
 # Type alias for event emitter function
 EventEmitter = Callable[[FetchEvent], None]
@@ -42,16 +43,19 @@ class PageContext:
     markdown: str | None = None
     metadata: dict = field(default_factory=dict)
     title: str | None = None
+    extraction_info: dict[str, Any] = field(default_factory=dict)
 
     # Status
     should_skip: bool = False
     skip_reason: str | None = None
+    skip_code: SkipReason | None = None
     error: str | None = None
 
     # Additional data from fetch
     status_code: int | None = None
     content_type: str | None = None
     bytes_downloaded: int = 0
+    persisted_path: Path | None = None
 
     # HTTP caching headers (for incremental updates)
     etag: str | None = None
@@ -60,6 +64,46 @@ class PageContext:
     # Framework detection and LLM-oriented output
     source_type: str | None = None
     chunks: list[object] = field(default_factory=list)
+
+    def mark_skipped(self, reason: str, code: SkipReason) -> None:
+        """Mark the page as a non-fatal skip with a typed reason."""
+        self.should_skip = True
+        self.skip_reason = reason
+        self.skip_code = code
+
+    def mark_failed(self, error: str) -> None:
+        """Mark the page as a failure."""
+        self.error = error
+        self.should_skip = False
+
+
+class PipelineStatus(str, Enum):
+    """Terminal outcome of a pipeline execution."""
+
+    SUCCEEDED = "succeeded"
+    SKIPPED = "skipped"
+    FAILED = "failed"
+
+
+@dataclass
+class PipelineResult:
+    """Typed result for a single pipeline execution."""
+
+    ctx: PageContext
+    status: PipelineStatus
+    failed_step: str | None = None
+
+    @property
+    def succeeded(self) -> bool:
+        return self.status == PipelineStatus.SUCCEEDED
+
+    @property
+    def skipped(self) -> bool:
+        return self.status == PipelineStatus.SKIPPED
+
+    @property
+    def failed(self) -> bool:
+        return self.status == PipelineStatus.FAILED
 
 
 @runtime_checkable
@@ -140,12 +184,12 @@ class FetchPipeline:
 
     steps: list[FetchStep]
 
-    async def execute(
+    async def execute_result(
         self,
         url: str,
         output_path: Path,
         emit: EventEmitter | None = None,
-    ) -> PageContext:
+    ) -> PipelineResult:
         """
         Execute the pipeline for a URL.
 
@@ -155,19 +199,15 @@ class FetchPipeline:
             emit: Optional callback for emitting events
 
         Returns:
-            PageContext with final state (check error/should_skip for status)
+            Typed pipeline result with status and final context.
         """
         ctx = PageContext(url=url, output_path=output_path)
 
         for step in self.steps:
-            if ctx.should_skip:
-                break
-
             try:
                 ctx = await step.execute(ctx, emit)
             except Exception as e:
-                ctx.error = f"{step.name}: {e}"
-                ctx.should_skip = True
+                ctx.mark_failed(f"{step.name}: {e}")
 
                 # Emit failure event
                 if emit:
@@ -178,6 +218,20 @@ class FetchPipeline:
                             error=ctx.error,
                         )
                     )
-                break
+                return PipelineResult(ctx=ctx, status=PipelineStatus.FAILED, failed_step=step.name)
 
-        return ctx
+            if ctx.error:
+                return PipelineResult(ctx=ctx, status=PipelineStatus.FAILED, failed_step=step.name)
+            if ctx.should_skip:
+                return PipelineResult(ctx=ctx, status=PipelineStatus.SKIPPED)
+
+        return PipelineResult(ctx=ctx, status=PipelineStatus.SUCCEEDED)
+
+    async def execute(
+        self,
+        url: str,
+        output_path: Path,
+        emit: EventEmitter | None = None,
+    ) -> PageContext:
+        """Compatibility wrapper returning only the final context."""
+        return (await self.execute_result(url, output_path, emit)).ctx

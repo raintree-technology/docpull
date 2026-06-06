@@ -1,11 +1,11 @@
 """
-docpull - Fetch and convert documentation from any URL to markdown.
+docpull - Fetch and convert server-rendered web content from any URL to markdown.
 
 Usage:
     from docpull import Fetcher, DocpullConfig, ProfileName
 
     config = DocpullConfig(
-        url="https://docs.example.com",
+        url="https://example.com",
         profile=ProfileName.RAG,
     )
 

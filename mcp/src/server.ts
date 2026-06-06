@@ -42,8 +42,6 @@ const DOCPULL_TIMEOUT_MS = 10 * 60 * 1_000;
 const DOCPULL_KILL_GRACE_MS = 5_000;
 const MAX_DOCPULL_STDERR_BYTES = 10_000;
 
-const openai = getConfiguredOpenAIClient();
-
 // ============================================================================
 // SOURCE CONFIG
 // ============================================================================
@@ -393,7 +391,7 @@ async function runDocpull(
 // MCP SERVER
 // ============================================================================
 
-const server = new McpServer({ name: "docpull-mcp", version: "0.2.0" });
+const server = new McpServer({ name: "docpull-mcp", version: "0.3.0" });
 
 // ---------------------------------------------------------------------------
 // ensure_docs - fetch and optionally index documentation
@@ -437,6 +435,7 @@ server.tool(
 				isError: true,
 			};
 		}
+		const openai = getConfiguredOpenAIClient();
 		if (index && !openai) {
 			return {
 				content: [
@@ -499,6 +498,9 @@ server.tool(
 
 		const fileCount = await countMarkdownFiles(join(DOCS_DIR, name));
 		let indexed = cache.exists ? cache.indexed : false;
+		if (needsFetch) {
+			indexed = false;
+		}
 
 		// Index if requested and configured
 		if (needsIndex && (!cache.exists || !cache.indexed || needsFetch)) {
@@ -580,10 +582,9 @@ server.tool(
 // search_docs - semantic search (requires DB + OpenAI)
 // ---------------------------------------------------------------------------
 
-if (isDbConfigured() && openai) {
-	server.tool(
-		"search_docs",
-		`Semantic search for CONCEPTS - use when you don't know the exact name.
+server.tool(
+	"search_docs",
+	`Semantic search for CONCEPTS - use when you don't know the exact name.
 
 Use grep_docs instead if you're looking for a specific method/function name.
 
@@ -591,161 +592,171 @@ Examples:
   - "how to stream responses"
   - "row level security"
   - "make object properties optional"`,
-		{
-			query: z
-				.string()
-				.min(2)
-				.max(500)
-				.describe("Natural language search query"),
-			library: z.string().optional().describe("Filter to specific library"),
-			limit: z
-				.number()
-				.int()
-				.min(1)
-				.max(50)
-				.default(5)
-				.describe("Max results (default: 5)"),
-		},
-		async ({ query, library, limit }) => {
-			try {
-				const [queryEmbedding] = await createEmbeddings(openai, query);
-				if (!queryEmbedding) {
-					throw new Error("Failed to generate embedding");
-				}
+	{
+		query: z
+			.string()
+			.min(2)
+			.max(500)
+			.describe("Natural language search query"),
+		library: z.string().optional().describe("Filter to specific library"),
+		limit: z
+			.number()
+			.int()
+			.min(1)
+			.max(50)
+			.default(5)
+			.describe("Max results (default: 5)"),
+	},
+	async ({ query, library, limit }) => {
+		try {
+			if (!isDbConfigured()) {
+				throw new Error("DATABASE_URL is not configured");
+			}
+			const openai = getConfiguredOpenAIClient();
+			if (!openai) {
+				throw new Error("OPENAI_API_KEY is not configured");
+			}
+			const [queryEmbedding] = await createEmbeddings(openai, query);
+			if (!queryEmbedding) {
+				throw new Error("Failed to generate embedding");
+			}
 
-				const results = await searchDocs(queryEmbedding, { library, limit });
+			const results = await searchDocs(queryEmbedding, { library, limit });
 
-				if (results.length === 0) {
-					return {
-						content: [
-							{
-								type: "text" as const,
-								text: "No results found for: " + query,
-							},
-						],
-					};
-				}
-
-				const output = results
-					.map(
-						(r) =>
-							`## ${r.library} - ${r.file_path}\n*Similarity: ${(r.similarity * 100).toFixed(1)}%*\n\n${r.content}`,
-					)
-					.join("\n\n---\n\n");
-
-				return { content: [{ type: "text" as const, text: output }] };
-			} catch (error) {
-				const msg = errorMessage(error);
+			if (results.length === 0) {
 				return {
-					content: [{ type: "text" as const, text: "Search failed: " + msg }],
-					isError: true,
+					content: [
+						{
+							type: "text" as const,
+							text: "No results found for: " + query,
+						},
+					],
 				};
 			}
-		},
-	);
 
-	// ---------------------------------------------------------------------------
-	// grep_docs - exact pattern matching (requires DB)
-	// ---------------------------------------------------------------------------
+			const output = results
+				.map(
+					(r) =>
+						`## ${r.library} - ${r.file_path}\n*Similarity: ${(r.similarity * 100).toFixed(1)}%*\n\n${r.content}`,
+				)
+				.join("\n\n---\n\n");
 
-	server.tool(
-		"grep_docs",
-		`FAST exact text search - use for known method/function/component names.
+			return { content: [{ type: "text" as const, text: output }] };
+		} catch (error) {
+			const msg = errorMessage(error);
+			return {
+				content: [{ type: "text" as const, text: "Search failed: " + msg }],
+				isError: true,
+			};
+		}
+	},
+);
+
+// ---------------------------------------------------------------------------
+// grep_docs - exact pattern matching (requires DB)
+// ---------------------------------------------------------------------------
+
+server.tool(
+	"grep_docs",
+	`FAST exact text search - use for known method/function/component names.
 
 Examples:
   - "onConflictDoUpdate"
   - "usePrefetchQuery"
   - "streamText"`,
-		{
-			pattern: z.string().min(2).max(200).describe("Exact text to search for"),
-			library: z.string().optional().describe("Filter to specific library"),
-			limit: z
-				.number()
-				.int()
-				.min(1)
-				.max(20)
-				.default(5)
-				.describe("Max results (default: 5)"),
-		},
-		async ({ pattern, library, limit }) => {
-			try {
-				const results = await grepDocs(pattern, { library, limit });
+	{
+		pattern: z.string().min(2).max(200).describe("Exact text to search for"),
+		library: z.string().optional().describe("Filter to specific library"),
+		limit: z
+			.number()
+			.int()
+			.min(1)
+			.max(20)
+			.default(5)
+			.describe("Max results (default: 5)"),
+	},
+	async ({ pattern, library, limit }) => {
+		try {
+			if (!isDbConfigured()) {
+				throw new Error("DATABASE_URL is not configured");
+			}
+			const results = await grepDocs(pattern, { library, limit });
 
-				if (results.length === 0) {
-					return {
-						content: [
-							{
-								type: "text" as const,
-								text: "No matches for: " + pattern,
-							},
-						],
-					};
-				}
-
-				const output = results
-					.map((r) => {
-						const lines = r.content.split("\n");
-						const patternLower = pattern.toLowerCase();
-						const matchingLines = lines
-							.map((line, idx) => ({ line, idx }))
-							.filter(({ line }) => line.toLowerCase().includes(patternLower))
-							.slice(0, 3)
-							.map(({ line, idx }) => `  ${idx + 1}: ${line.trim()}`)
-							.join("\n");
-						return `## ${r.library} - ${r.file_path}\n${matchingLines}`;
-					})
-					.join("\n\n");
-
-				return { content: [{ type: "text" as const, text: output }] };
-			} catch (error) {
-				const msg = errorMessage(error);
+			if (results.length === 0) {
 				return {
-					content: [{ type: "text" as const, text: "Grep failed: " + msg }],
-					isError: true,
+					content: [
+						{
+							type: "text" as const,
+							text: "No matches for: " + pattern,
+						},
+					],
 				};
 			}
-		},
-	);
 
-	// ---------------------------------------------------------------------------
-	// list_indexed - list indexed libraries in the database
-	// ---------------------------------------------------------------------------
+			const output = results
+				.map((r) => {
+					const lines = r.content.split("\n");
+					const patternLower = pattern.toLowerCase();
+					const matchingLines = lines
+						.map((line, idx) => ({ line, idx }))
+						.filter(({ line }) => line.toLowerCase().includes(patternLower))
+						.slice(0, 3)
+						.map(({ line, idx }) => `  ${idx + 1}: ${line.trim()}`)
+						.join("\n");
+					return `## ${r.library} - ${r.file_path}\n${matchingLines}`;
+				})
+				.join("\n\n");
 
-	server.tool(
-		"list_indexed",
-		"List all indexed documentation libraries with chunk counts",
-		{},
-		async () => {
-			try {
-				const libraries = await listLibraries();
+			return { content: [{ type: "text" as const, text: output }] };
+		} catch (error) {
+			const msg = errorMessage(error);
+			return {
+				content: [{ type: "text" as const, text: "Grep failed: " + msg }],
+				isError: true,
+			};
+		}
+	},
+);
 
-				if (libraries.length === 0) {
-					return {
-						content: [
-							{
-								type: "text" as const,
-								text: "No libraries indexed. Use ensure_docs to fetch and index documentation.",
-							},
-						],
-					};
-				}
+// ---------------------------------------------------------------------------
+// list_indexed - list indexed libraries in the database
+// ---------------------------------------------------------------------------
 
-				const lines = libraries.map(
-					(l) => `- ${l.library}: ${l.chunks} chunks`,
-				);
+server.tool(
+	"list_indexed",
+	"List all indexed documentation libraries with chunk counts",
+	{},
+	async () => {
+		try {
+			if (!isDbConfigured()) {
+				throw new Error("DATABASE_URL is not configured");
+			}
+			const libraries = await listLibraries();
+
+			if (libraries.length === 0) {
 				return {
-					content: [{ type: "text" as const, text: lines.join("\n") }],
-				};
-			} catch (error) {
-				const msg = errorMessage(error);
-				return {
-					content: [{ type: "text" as const, text: "Failed to list: " + msg }],
-					isError: true,
+					content: [
+						{
+							type: "text" as const,
+							text: "No libraries indexed. Use ensure_docs to fetch and index documentation.",
+						},
+					],
 				};
 			}
-		},
-	);
-}
+
+			const lines = libraries.map((l) => `- ${l.library}: ${l.chunks} chunks`);
+			return {
+				content: [{ type: "text" as const, text: lines.join("\n") }],
+			};
+		} catch (error) {
+			const msg = errorMessage(error);
+			return {
+				content: [{ type: "text" as const, text: "Failed to list: " + msg }],
+				isError: true,
+			};
+		}
+	},
+);
 
 // ---------------------------------------------------------------------------
 // START SERVER

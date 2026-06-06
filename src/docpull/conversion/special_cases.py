@@ -380,18 +380,23 @@ class OpenApiExtractor:
             lines.append(op_desc)
             lines.append("")
 
-        self._render_parameters(lines, list(shared_params) + list(op.get("parameters") or []))
+        self._render_parameters(lines, list(shared_params) + list(op.get("parameters") or []), spec)
         self._render_request_body(lines, op.get("requestBody"), spec)
         self._render_responses(lines, op.get("responses"), spec)
 
-    def _render_parameters(self, lines: list[str], params: list[Any]) -> None:
+    def _render_parameters(self, lines: list[str], params: list[Any], spec: dict[str, Any]) -> None:
         buckets: dict[str, list[tuple[str, str, bool, str]]] = {}
         for param in params:
             if not isinstance(param, dict):
                 continue
+            if "$ref" in param:
+                resolved = _resolve_ref(spec, param["$ref"])
+                if not isinstance(resolved, dict):
+                    continue
+                param = resolved
             pin = param.get("in", "query")
             pname = param.get("name", "?")
-            ptype = _describe_type(param.get("schema") or {}, {})
+            ptype = _describe_type(param.get("schema") or {}, spec)
             required = bool(param.get("required")) or pin == "path"
             pdesc = _clean_text(param.get("description") or "")
             buckets.setdefault(pin, []).append((pname, ptype, required, pdesc))

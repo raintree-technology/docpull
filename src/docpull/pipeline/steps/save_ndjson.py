@@ -98,6 +98,7 @@ class NdjsonSaveStep:
                 record["hash"] = hashlib.sha256(ctx.markdown.encode("utf-8")).hexdigest()
                 self._write_record(record)
             self._document_count += 1
+            ctx.persisted_path = self._output_path
 
         if emit:
             emit(

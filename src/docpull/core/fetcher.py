@@ -17,6 +17,7 @@ from ..http import AdaptiveRateLimiter, AsyncHttpClient, PerHostRateLimiter
 from ..models.config import DocpullConfig
 from ..models.events import EventType, FetchEvent, FetchStats, SkipReason
 from ..models.profiles import apply_profile
+from ..models.run import RunIdentity
 from ..pipeline.base import FetchPipeline, PageContext
 from ..pipeline.base import FetchStep as FetchStepProtocol
 from ..pipeline.steps import (
@@ -39,8 +40,8 @@ def _url_to_filename(url: str, base_url: str | None = None) -> str:
     """
     Convert URL to a safe flattened filename (e.g. ``api_auth_oauth2.md``).
 
-    Used by the ``full`` / ``flat`` / ``short`` naming strategies. For the
-    ``hierarchical`` strategy, see :func:`_url_to_path_parts`.
+    Used by the ``full`` naming strategy. For the ``hierarchical`` strategy,
+    see :func:`_url_to_path_parts`.
 
     Args:
         url: The URL to convert
@@ -50,13 +51,7 @@ def _url_to_filename(url: str, base_url: str | None = None) -> str:
         Safe filename string
     """
     parsed = urlparse(url)
-    path = parsed.path.strip("/")
-
-    # Remove base URL prefix if provided
-    if base_url:
-        base_path = urlparse(base_url).path.strip("/")
-        if path.startswith(base_path):
-            path = path[len(base_path) :].strip("/")
+    path = _strip_base_path(parsed.path, base_url).strip("/")
 
     # Convert path to filename
     if not path or path == "/":
@@ -77,6 +72,23 @@ def _url_to_filename(url: str, base_url: str | None = None) -> str:
 
 
 _PATH_SAFE_RE = re.compile(r"[^\w\-.]")
+
+
+def _strip_base_path(raw_path: str, base_url: str | None) -> str:
+    """Strip a base URL path only when it matches a full path segment prefix."""
+    if not base_url:
+        return raw_path
+
+    base_path = urlparse(base_url).path.strip("/")
+    if not base_path:
+        return raw_path
+
+    stripped_path = raw_path.strip("/")
+    if stripped_path == base_path:
+        return "/"
+    if stripped_path.startswith(base_path + "/"):
+        return "/" + stripped_path[len(base_path) + 1 :]
+    return raw_path
 
 
 def _sanitize_path_segment(segment: str) -> str:
@@ -109,14 +121,7 @@ def _url_to_path_parts(url: str, base_url: str | None = None) -> list[str]:
             ``["index.md"]``
     """
     parsed = urlparse(url)
-    raw_path = parsed.path
-
-    if base_url:
-        base_path = urlparse(base_url).path.strip("/")
-        stripped = raw_path.strip("/")
-        if base_path and stripped.startswith(base_path):
-            stripped = stripped[len(base_path) :]
-            raw_path = "/" + stripped + ("/" if raw_path.endswith("/") else "")
+    raw_path = _strip_base_path(parsed.path, base_url)
 
     trailing_slash = raw_path.endswith("/")
     parts = [seg for seg in raw_path.split("/") if seg]
@@ -272,6 +277,7 @@ class Fetcher:
             user_agent=self.config.network.user_agent,
             proxy=self.config.network.proxy,
             default_timeout=float(self.config.network.read_timeout),
+            connect_timeout=float(self.config.network.connect_timeout),
             auth_headers=auth_headers,
             url_validator=self._url_validator,
             allow_insecure_tls=self.config.network.insecure_tls,
@@ -315,6 +321,7 @@ class Fetcher:
             ValidateStep(
                 url_validator=self._url_validator,
                 robots_checker=self._robots_checker,
+                rate_limiter=self._rate_limiter,
                 check_existing=True,
                 cache_enabled=cache_enabled,
             ),
@@ -505,20 +512,22 @@ class Fetcher:
             raise RuntimeError("Fetcher not initialized. Use 'async with' context manager.")
         output_path = self._compute_output_path(url)
 
-        steps = self._pipeline.steps
+        pipeline = self._pipeline
         if not save:
-            steps = [s for s in steps if s.name not in {"save", "save_json", "save_ndjson", "save_sqlite"}]
-        pipeline = type(self._pipeline)(steps=steps)
-        ctx = await pipeline.execute(url, output_path)
-        if ctx.error:
+            save_step_names = {"save", "save_json", "save_ndjson", "save_sqlite"}
+            steps = [s for s in self._pipeline.steps if s.name not in save_step_names]
+            pipeline = FetchPipeline(steps=steps)
+        result = await pipeline.execute_result(url, output_path)
+        ctx = result.ctx
+        if save:
+            self._record_result(url, output_path, ctx)
+        elif ctx.error:
             self._stats.pages_failed += 1
         elif ctx.should_skip:
             self._stats.pages_skipped += 1
         else:
             self._stats.pages_fetched += 1
             self._stats.bytes_downloaded += ctx.bytes_downloaded
-            if save:
-                self._stats.files_saved += 1
         return ctx
 
     def _compute_output_path(self, url: str) -> Path:
@@ -541,6 +550,60 @@ class Fetcher:
 
         filename = _url_to_filename(url, self.config.url)
         return output_dir / filename
+
+    def _resume_fingerprint(self) -> dict[str, object]:
+        """Stable crawl-shaping config snapshot for resume compatibility."""
+        return RunIdentity.from_config(self.config).resume_fingerprint()
+
+    @staticmethod
+    def _progress_event(
+        *,
+        url: str,
+        processed: int,
+        total: int | None,
+        saved: int,
+        skipped: int,
+        failed: int,
+    ) -> FetchEvent:
+        total_for_message = total if total is not None else processed
+        return FetchEvent(
+            type=EventType.FETCH_PROGRESS,
+            url=url,
+            current=processed,
+            total=total,
+            processed_count=processed,
+            saved_count=saved,
+            skipped_count=skipped,
+            failed_count=failed,
+            message=(
+                f"Processed {processed}/{total_for_message} "
+                f"(saved {saved}, skipped {skipped}, failed {failed}): {url}"
+            ),
+        )
+
+    @staticmethod
+    def _update_progress_counts(
+        counts: dict[str, int],
+        *,
+        ctx: PageContext | None = None,
+        dry_run: bool = False,
+        failed: bool = False,
+    ) -> None:
+        counts["processed"] += 1
+        if dry_run:
+            counts["skipped"] += 1
+            return
+        if failed:
+            counts["failed"] += 1
+            return
+        if ctx is None:
+            return
+        if ctx.error:
+            counts["failed"] += 1
+        elif ctx.should_skip:
+            counts["skipped"] += 1
+        else:
+            counts["saved"] += 1
 
     async def run(self) -> AsyncIterator[FetchEvent]:
         """
@@ -613,7 +676,10 @@ class Fetcher:
             or not self.config.url
         ):
             return None
-        pending = self._cache_manager.get_pending_urls(self.config.url)
+        pending = self._cache_manager.get_pending_urls(
+            self.config.url,
+            config_fingerprint=self._resume_fingerprint(),
+        )
         if pending is None:
             return None
         max_pages = self.config.crawl.max_pages
@@ -641,7 +707,11 @@ class Fetcher:
                 return
 
         if self.config.cache.enabled and self._cache_manager:
-            self._cache_manager.save_discovered_urls(discovered, start_url)
+            self._cache_manager.save_discovered_urls(
+                discovered,
+                start_url,
+                config_fingerprint=self._resume_fingerprint(),
+            )
 
         yield FetchEvent(
             type=EventType.DISCOVERY_COMPLETE,
@@ -662,24 +732,17 @@ class Fetcher:
         assert self._pipeline is not None
         assert self._start_time is not None
         self._stats.urls_discovered = len(urls)
+        progress_counts = {"processed": 0, "saved": 0, "skipped": 0, "failed": 0}
 
         collected_events: list[FetchEvent] = []
 
         def collect(event: FetchEvent) -> None:
             collected_events.append(event)
 
-        for i, url in enumerate(urls):
+        for url in urls:
             if self._cancelled:
                 yield FetchEvent(type=EventType.CANCELLED, message="Fetch cancelled by user")
                 return
-
-            yield FetchEvent(
-                type=EventType.FETCH_PROGRESS,
-                url=url,
-                current=i + 1,
-                total=len(urls),
-                message=f"Processing {i + 1}/{len(urls)}: {url}",
-            )
 
             if self.config.dry_run:
                 yield FetchEvent(
@@ -690,14 +753,33 @@ class Fetcher:
                     skip_reason=SkipReason.DRY_RUN,
                 )
                 self._stats.pages_skipped += 1
+                self._update_progress_counts(progress_counts, dry_run=True)
+                yield self._progress_event(
+                    url=url,
+                    processed=progress_counts["processed"],
+                    total=len(urls),
+                    saved=progress_counts["saved"],
+                    skipped=progress_counts["skipped"],
+                    failed=progress_counts["failed"],
+                )
                 continue
 
             output_path = self._compute_output_path(url)
             collected_events.clear()
-            ctx = await self._pipeline.execute(url, output_path, emit=collect)
+            result = await self._pipeline.execute_result(url, output_path, emit=collect)
+            ctx = result.ctx
             for ev in collected_events:
                 yield ev
+            self._update_progress_counts(progress_counts, ctx=ctx)
             self._record_result(url, output_path, ctx)
+            yield self._progress_event(
+                url=url,
+                processed=progress_counts["processed"],
+                total=len(urls),
+                saved=progress_counts["saved"],
+                skipped=progress_counts["skipped"],
+                failed=progress_counts["failed"],
+            )
 
         self._stats.duration_seconds = time.monotonic() - self._start_time
         if self._cache_manager and self._stats.pages_failed == 0:
@@ -736,7 +818,8 @@ class Fetcher:
         url_queue: asyncio.Queue[str | None] = asyncio.Queue(maxsize=worker_count * 4)
         event_queue: asyncio.Queue[FetchEvent | None] = asyncio.Queue()
 
-        progress_counter = {"saved": 0}
+        progress_counter = {"processed": 0, "saved": 0, "skipped": 0, "failed": 0}
+        discovery_state: dict[str, BaseException | None] = {"error": None}
 
         async def discover_into_queue() -> None:
             discovered_for_resume: list[str] = []
@@ -759,10 +842,18 @@ class Fetcher:
                         and self._cache_manager
                         and len(discovered_for_resume) % 200 == 0
                     ):
-                        self._cache_manager.save_discovered_urls(list(discovered_for_resume), start_url)
+                        self._cache_manager.save_discovered_urls(
+                            list(discovered_for_resume),
+                            start_url,
+                            config_fingerprint=self._resume_fingerprint(),
+                        )
             finally:
                 if self.config.cache.enabled and self._cache_manager:
-                    self._cache_manager.save_discovered_urls(discovered_for_resume, start_url)
+                    self._cache_manager.save_discovered_urls(
+                        discovered_for_resume,
+                        start_url,
+                        config_fingerprint=self._resume_fingerprint(),
+                    )
                 self._stats.urls_discovered = len(discovered_for_resume)
                 await event_queue.put(
                     FetchEvent(
@@ -792,6 +883,18 @@ class Fetcher:
                         )
                     )
                     self._stats.pages_skipped += 1
+                    self._update_progress_counts(progress_counter, dry_run=True)
+                    total_so_far = self._stats.urls_discovered or progress_counter["processed"]
+                    await event_queue.put(
+                        self._progress_event(
+                            url=url,
+                            processed=progress_counter["processed"],
+                            total=total_so_far,
+                            saved=progress_counter["saved"],
+                            skipped=progress_counter["skipped"],
+                            failed=progress_counter["failed"],
+                        )
+                    )
                     continue
 
                 local_events: list[FetchEvent] = []
@@ -803,7 +906,8 @@ class Fetcher:
                     _sink.append(ev)
 
                 try:
-                    ctx = await pipeline.execute(url, output_path, emit=emit)
+                    result = await pipeline.execute_result(url, output_path, emit=emit)
+                    ctx = result.ctx
                 except Exception as err:  # noqa: BLE001
                     await event_queue.put(
                         FetchEvent(
@@ -814,34 +918,52 @@ class Fetcher:
                         )
                     )
                     self._stats.pages_failed += 1
+                    self._update_progress_counts(progress_counter, failed=True)
+                    total_so_far = self._stats.urls_discovered or progress_counter["processed"]
+                    await event_queue.put(
+                        self._progress_event(
+                            url=url,
+                            processed=progress_counter["processed"],
+                            total=total_so_far,
+                            saved=progress_counter["saved"],
+                            skipped=progress_counter["skipped"],
+                            failed=progress_counter["failed"],
+                        )
+                    )
                     continue
 
                 for ev in local_events:
                     await event_queue.put(ev)
 
+                self._update_progress_counts(progress_counter, ctx=ctx)
                 self._record_result(url, output_path, ctx)
-                if ctx.markdown and not ctx.error and not ctx.should_skip:
-                    progress_counter["saved"] += 1
-                    # Synthesize a progress event so the CLI bar moves;
-                    # `total` may still be unknown, so report what we know.
-                    total_so_far = self._stats.urls_discovered or progress_counter["saved"]
-                    await event_queue.put(
-                        FetchEvent(
-                            type=EventType.FETCH_PROGRESS,
-                            url=url,
-                            current=progress_counter["saved"],
-                            total=total_so_far,
-                            message=f"Saved {progress_counter['saved']}/{total_so_far}: {url}",
-                        )
+                # Synthesize a progress event so the CLI bar moves; `total`
+                # may still be unknown, so report what discovery has yielded.
+                total_so_far = self._stats.urls_discovered or progress_counter["processed"]
+                await event_queue.put(
+                    self._progress_event(
+                        url=url,
+                        processed=progress_counter["processed"],
+                        total=total_so_far,
+                        saved=progress_counter["saved"],
+                        skipped=progress_counter["skipped"],
+                        failed=progress_counter["failed"],
                     )
+                )
 
         discover_task = asyncio.create_task(discover_into_queue())
         worker_tasks = [asyncio.create_task(worker()) for _ in range(worker_count)]
 
         async def wait_for_drain() -> None:
-            await discover_task
-            await asyncio.gather(*worker_tasks, return_exceptions=True)
-            await event_queue.put(None)
+            try:
+                await discover_task
+            except BaseException as err:  # noqa: BLE001
+                discovery_state["error"] = err
+            finally:
+                for _ in range(worker_count):
+                    await url_queue.put(None)
+                await asyncio.gather(*worker_tasks, return_exceptions=True)
+                await event_queue.put(None)
 
         drain_task = asyncio.create_task(wait_for_drain())
 
@@ -853,6 +975,9 @@ class Fetcher:
                 yield event
         finally:
             await drain_task
+
+        if discovery_state["error"] is not None:
+            raise discovery_state["error"]
 
         self._stats.duration_seconds = time.monotonic() - self._start_time
         if self._cache_manager and self._stats.pages_failed == 0:
@@ -884,19 +1009,22 @@ class Fetcher:
                 self._cache_manager.mark_failed(url)
             return
         if ctx.should_skip:
+            if ctx.skip_code == SkipReason.DUPLICATE_CONTENT:
+                self._stats.pages_deduplicated += 1
             self._stats.pages_skipped += 1
             return
         self._stats.pages_fetched += 1
         self._stats.bytes_downloaded += ctx.bytes_downloaded
         self._stats.files_saved += 1
-        if self._cache_manager and ctx.markdown:
-            self._cache_manager.update_cache(
-                url=url,
-                content=ctx.markdown,
-                file_path=output_path,
-                etag=ctx.etag,
-                last_modified=ctx.last_modified,
-            )
+        if self._cache_manager:
+            if ctx.markdown is not None:
+                self._cache_manager.update_cache(
+                    url=url,
+                    content=ctx.markdown,
+                    file_path=ctx.persisted_path or output_path,
+                    etag=ctx.etag,
+                    last_modified=ctx.last_modified,
+                )
             self._cache_manager.mark_fetched(url)
 
 

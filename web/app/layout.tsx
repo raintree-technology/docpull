@@ -1,15 +1,16 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
-
-const baseUrl = "https://docpull.raintree.technology";
+import { site } from "@/lib/site";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(baseUrl),
-  title: "docpull - Fetch docs. Get AI-ready Markdown.",
-  description:
-    "Fast, type-safe, secure documentation fetcher. Transform any docs site into clean, AI-ready Markdown for LLMs, RAG pipelines, and offline archives.",
+  metadataBase: new URL(site.baseUrl),
+  title: {
+    default: "docpull - Turn the web into Markdown.",
+    template: "%s - docpull",
+  },
+  description: site.description,
   applicationName: "docpull",
   authors: [{ name: "Raintree Technology", url: "https://raintree.technology" }],
   creator: "Raintree Technology",
@@ -32,23 +33,22 @@ export const metadata: Metadata = {
     icon: "/logo.svg",
   },
   keywords: [
-    "documentation",
     "markdown",
-    "AI",
-    "LLM",
-    "RAG",
     "web scraping",
+    "web crawling",
+    "website archiving",
     "python",
     "cli",
-    "docs",
     "fetcher",
+    "knowledge base",
+    "server-rendered sites",
   ],
 
   openGraph: {
-    title: "docpull - Fetch docs. Get clean, AI-ready Markdown.",
+    title: "docpull - Turn the web into Markdown.",
     description:
-      "Turn any documentation site into clean Markdown for LLMs, RAG pipelines, and training datasets. Fast, secure, and built for AI workflows.",
-    url: baseUrl,
+      "Turn server-rendered sites into clean local Markdown with caching, deduplication, and strict network guards.",
+    url: site.baseUrl,
     type: "website",
     siteName: "docpull",
     locale: "en_US",
@@ -57,19 +57,27 @@ export const metadata: Metadata = {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "docpull - Fetch docs. Get clean Markdown.",
+        alt: "docpull - Turn the web into Markdown.",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "docpull - Fetch docs. Get clean, AI-ready Markdown.",
+    title: "docpull - Turn the web into Markdown.",
     description:
-      "Turn any documentation site into clean Markdown for LLMs, RAG pipelines, and training datasets. Fast, secure, and built for AI workflows.",
+      "Turn server-rendered sites into clean local Markdown with caching, deduplication, and strict network guards.",
     site: "@raintree_tech",
     creator: "@raintree_tech",
     images: ["/og-image.png"],
   },
+};
+
+export const viewport: Viewport = {
+  colorScheme: "light dark",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f8fafc" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0c11" },
+  ],
 };
 
 export default function RootLayout({
@@ -80,6 +88,9 @@ export default function RootLayout({
   return (
     <html lang="en" className="scroll-smooth" suppressHydrationWarning>
       <body className="antialiased">
+        <a href="#main-content" className="skip-link">
+          Skip to main content
+        </a>
         <ThemeProvider>{children}</ThemeProvider>
         <Analytics />
       </body>

@@ -50,6 +50,25 @@ def test_chunk_heading_captured():
     assert any(c.heading and "Second" in c.heading for c in chunks)
 
 
+def test_chunk_heading_matches_buffer_start_when_next_section_flushes():
+    md = "# First\n\n" + ("alpha " * 20) + "\n\n## Second\n\n" + ("beta " * 20)
+    chunks = chunk_markdown(md, max_tokens=25)
+
+    assert chunks[0].heading == "First"
+    assert "Second" not in chunks[0].text
+    assert any(chunk.heading == "Second" for chunk in chunks[1:])
+
+
+def test_frontmatter_is_counted_in_first_chunk_budget():
+    md = "---\ntitle: " + ("x" * 400) + "\n---\n\n# H\n\n" + ("word " * 80)
+    chunks = chunk_markdown(md, max_tokens=40)
+
+    assert chunks[0].text.startswith("---")
+    assert chunks[0].token_count == TokenCounter().count(chunks[0].text)
+    assert chunks[0].token_count > 40
+    assert len(chunks) > 1
+
+
 def test_oversize_paragraph_becomes_own_chunk():
     huge = "word " * 10000
     md = f"# H\n\n{huge}\n"

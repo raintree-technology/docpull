@@ -11,7 +11,7 @@
 /src/docpull/   @raintree-technology
 /mcp/           @raintree-technology
 /web/           @raintree-technology
-/security/      @raintree-technology
+/src/docpull/security/ @raintree-technology
 
 # Documentation
 *.md            @raintree-technology

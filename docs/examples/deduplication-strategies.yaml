@@ -1,29 +1,29 @@
-# Deduplication strategies example
-# Remove duplicate files with different keep strategies
+# Deduplication behavior for docpull 4.x
+#
+# Current dedup is streaming content-hash deduplication: the first successfully
+# saved copy of a duplicate page wins, and later duplicate pages are skipped.
+# The old keep_variant strategies were removed with the deprecated 2.x config
+# fields.
+#
+# CLI equivalent:
+#   docpull https://aptos.dev --profile rag --streaming-dedup --output-dir ./docs-aptos --include-paths "*/build/guides/*" "*/build/apis/*"
 
-sources:
-  aptos-mainnet:
-    url: https://aptos.dev
-    deduplicate: true
-    keep_variant: mainnet  # Keep mainnet version, skip testnet/devnet
-    max_file_size: 200kb
-    create_index: true
-
-  # Alternative: keep shortest variant
-  aptos-shortest:
-    url: https://aptos.dev
-    deduplicate: true
-    keep_variant: shortest  # Keep shortest file
-    max_file_size: 200kb
-    output_dir: ./docs-shortest
-
-  # Alternative: keep first encountered
-  aptos-first:
-    url: https://aptos.dev
-    deduplicate: true
-    keep_variant: first  # Keep first file encountered
-    max_file_size: 200kb
-    output_dir: ./docs-first
-
-rate_limit: 0.5
+profile: rag
+url: https://aptos.dev
+crawl:
+  max_pages: 300
+  rate_limit: 0.5
+  include_paths:
+    - "*/build/guides/*"
+    - "*/build/apis/*"
+  exclude_paths:
+    - "*/changelog"
+    - "*/release-notes"
+content_filter:
+  streaming_dedup: true
+  max_file_size: 200kb
+output:
+  directory: ./docs-aptos
+  format: markdown
+  rich_metadata: true
 log_level: INFO

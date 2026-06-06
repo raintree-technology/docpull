@@ -71,7 +71,7 @@ class TokenCounter:
 
 def _strip_frontmatter(markdown: str) -> tuple[str, str]:
     """Split YAML frontmatter from body."""
-    if not markdown.startswith("---"):
+    if not markdown.startswith("---\n"):
         return "", markdown
     end = markdown.find("\n---", 3)
     if end == -1:
@@ -155,41 +155,58 @@ def chunk_markdown(
     chunks: list[Chunk] = []
     buf_parts: list[str] = []
     buf_tokens = 0
+    buf_heading: str | None = None
     current_heading: str | None = None
 
+    def first_chunk_prefix() -> str:
+        if keep_frontmatter_in_first and not chunks:
+            return frontmatter
+        return ""
+
+    def would_fit(extra_tokens: int) -> bool:
+        prefix_tokens = counter.count(frontmatter) if first_chunk_prefix() else 0
+        return buf_tokens + extra_tokens + prefix_tokens <= max_tokens
+
     def flush() -> None:
-        nonlocal buf_parts, buf_tokens
+        nonlocal buf_heading, buf_parts, buf_tokens
         if not buf_parts:
             return
         text = "\n\n".join(part.strip() for part in buf_parts if part.strip())
         if not text:
             buf_parts = []
             buf_tokens = 0
+            buf_heading = None
             return
-        prefix = frontmatter if keep_frontmatter_in_first and not chunks else ""
+        prefix = first_chunk_prefix()
         final = (prefix + text).strip() + "\n"
         chunks.append(
             Chunk(
                 index=len(chunks),
                 text=final,
                 token_count=counter.count(final),
-                heading=current_heading,
+                heading=buf_heading,
             )
         )
         buf_parts = []
         buf_tokens = 0
+        buf_heading = None
 
     for heading, section in sections:
         if heading is not None:
             current_heading = heading
         section_tokens = counter.count(section)
-        if section_tokens <= max_tokens and buf_tokens + section_tokens <= max_tokens:
+        if section_tokens <= max_tokens and would_fit(section_tokens):
+            if not buf_parts:
+                buf_heading = current_heading
             buf_parts.append(section)
             buf_tokens += section_tokens
             continue
         # Section alone fits but buffer is full: flush then add.
-        if section_tokens <= max_tokens:
+        if section_tokens <= max_tokens and (
+            not first_chunk_prefix() or section_tokens + counter.count(first_chunk_prefix()) <= max_tokens
+        ):
             flush()
+            buf_heading = current_heading
             buf_parts.append(section)
             buf_tokens = section_tokens
             continue
@@ -207,13 +224,15 @@ def chunk_markdown(
                     Chunk(
                         index=len(chunks),
                         text=text,
-                        token_count=p_tokens,
+                        token_count=counter.count(text),
                         heading=current_heading,
                     )
                 )
                 continue
-            if buf_tokens + p_tokens > max_tokens:
+            if not would_fit(p_tokens):
                 flush()
+            if not buf_parts:
+                buf_heading = current_heading
             buf_parts.append(para)
             buf_tokens += p_tokens
 

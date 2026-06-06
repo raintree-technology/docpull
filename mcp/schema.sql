@@ -1,8 +1,9 @@
 -- PostgreSQL schema for docpull-mcp
 -- Requires PostgreSQL with pgvector extension
 
--- Enable pgvector extension
+-- Enable extensions used by the schema.
 CREATE EXTENSION IF NOT EXISTS vector;
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- Documentation embeddings table
 CREATE TABLE IF NOT EXISTS doc_embeddings (

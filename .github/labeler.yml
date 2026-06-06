@@ -10,15 +10,25 @@ tests:
 
 dependencies:
   - 'pyproject.toml'
-  - 'requirements.txt'
+  - 'requirements*.txt'
+  - 'web/package.json'
+  - 'web/package-lock.json'
+  - 'mcp/package.json'
+  - 'mcp/bun.lock'
 
 ci-cd:
   - '.github/workflows/**/*'
-  - '.github/**/*'
+  - '.github/actions/**/*'
 
 fetchers:
-  - 'docpull/fetchers/**/*'
+  - 'src/docpull/core/fetcher.py'
+  - 'src/docpull/discovery/_fetch.py'
+  - 'src/docpull/http/**/*'
+  - 'src/docpull/pipeline/steps/fetch.py'
 
 core:
-  - 'docpull/**/*.py'
-  - '!docpull/fetchers/**/*'
+  - 'src/docpull/**/*.py'
+  - '!src/docpull/core/fetcher.py'
+  - '!src/docpull/discovery/_fetch.py'
+  - '!src/docpull/http/**/*'
+  - '!src/docpull/pipeline/steps/fetch.py'

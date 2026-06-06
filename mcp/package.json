@@ -6,7 +6,12 @@
 	"main": "src/server.ts",
 	"scripts": {
 		"dev": "bun run src/server.ts",
+		"db:setup": "bun run src/migrate.ts setup",
+		"db:migrate": "bun run src/migrate.ts migrate",
+		"db:rollback": "bun run src/migrate.ts rollback",
+		"db:status": "bun run src/migrate.ts status",
 		"ingest": "bun run src/ingest.ts",
+		"test": "bun test src/*.test.ts",
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {

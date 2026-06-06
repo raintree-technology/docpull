@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "docpull"
 version = "4.0.0"
 dynamic = []
-description = "Pull documentation from the web and convert to clean markdown"
+description = "Pull server-rendered web content into clean markdown"
 readme = {file = "README.md", content-type = "text/markdown"}
 requires-python = ">=3.10"
 license = "MIT"
@@ -19,7 +19,7 @@ maintainers = [
 ]
 keywords = [
     "python", "markdown", "documentation", "web-scraping", "developer-tools",
-    "claude", "ai-training-data"
+    "web-crawling", "claude", "ai-training-data"
 ]
 classifiers = [
     # Development Status

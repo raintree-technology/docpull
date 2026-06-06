@@ -1,6 +1,18 @@
 # docpull-mcp
 
-MCP server for fetching and searching documentation on-demand. Uses [docpull](https://github.com/raintree-technology/docpull) to pull docs and pgvector for semantic search.
+Optional TypeScript MCP server for fetching and searching documentation
+on-demand with PostgreSQL, pgvector, and OpenAI embeddings.
+
+Most users should use the Python stdio server shipped by the `docpull` package:
+
+```bash
+pip install 'docpull[mcp]'
+docpull mcp
+```
+
+This `mcp/` directory is for advanced users who specifically need DB-backed
+semantic search. It uses [docpull](https://github.com/raintree-technology/docpull)
+as the fetcher and pgvector for search.
 
 ## Features
 
@@ -18,32 +30,37 @@ git clone https://github.com/raintree-technology/docpull-mcp
 cd docpull-mcp
 bun install
 
-# Requires docpull CLI
+# Requires the docpull CLI for fetching
 pip install docpull
 ```
 
-### For semantic search (optional but recommended)
+### Semantic search setup
 
 ```bash
-# PostgreSQL with pgvector
-psql $DATABASE_URL -f schema.sql
-
-# Set environment variables
+# PostgreSQL with pgvector, then set environment variables.
 export DATABASE_URL="postgresql://user:pass@localhost:5432/docs"
 export OPENAI_API_KEY="sk-..."
+
+# Create schema and apply migrations
+bun run db:setup
 ```
 
-Existing databases should apply migrations in order:
+Existing databases can apply only pending migrations:
 
 ```bash
-psql $DATABASE_URL -f migrations/001_harden_embeddings.up.sql
+bun run db:migrate
 ```
 
-Rollback for that migration:
+Useful database commands:
 
 ```bash
-psql $DATABASE_URL -f migrations/001_harden_embeddings.down.sql
+bun run db:status    # show applied and pending migrations
+bun run db:rollback  # roll back the latest applied migration
 ```
+
+The migration runner records applied migrations in
+`docpull_mcp_migrations`. If you need to debug manually, the raw SQL files
+remain in `schema.sql` and `migrations/*.sql`.
 
 ## Usage
 
@@ -89,7 +106,8 @@ Add to `~/.claude/settings.json`:
 
 ### ensure_docs
 
-Fetch documentation for a configured source. Indexing is explicit opt-in.
+Fetch documentation for a configured source. Indexing is explicit opt-in and
+requires both `DATABASE_URL` and `OPENAI_API_KEY`.
 
 ```
 ensure_docs(source: "react")              # Fetch only
@@ -97,7 +115,8 @@ ensure_docs(source: "react", force: true) # Force refresh
 ensure_docs(source: "react", index: true) # Fetch and index
 ```
 
-Direct URLs are intentionally disabled in MCP. Add custom sites to `~/.config/docpull-mcp/sources.yaml` and call `ensure_docs` with the alias name.
+Direct URLs are intentionally disabled for `ensure_docs`. Add custom sites to
+`~/.config/docpull-mcp/sources.yaml` and call `ensure_docs` with the alias name.
 
 ### search_docs
 
@@ -110,7 +129,7 @@ search_docs(query: "row level security", library: "supabase")
 
 ### grep_docs
 
-Fast exact pattern matching (requires DATABASE_URL).
+Fast exact pattern matching against indexed chunks (requires `DATABASE_URL`).
 
 ```
 grep_docs(pattern: "onConflictDoUpdate", library: "drizzle")
@@ -128,7 +147,7 @@ list_sources(category: "frontend") # Filter by category
 
 ### list_indexed
 
-List libraries that have been indexed for search.
+List libraries that have been indexed in Postgres for search.
 
 ```
 list_indexed()
@@ -170,6 +189,9 @@ sources:
 To ingest docs without the MCP server:
 
 ```bash
+# Prepare the database first
+bun run db:setup
+
 # Ingest all fetched docs
 bun run ingest
 

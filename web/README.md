@@ -1,6 +1,6 @@
 # docpull web
 
-Marketing website for [docpull](https://github.com/raintree-technology/docpull) - the documentation fetcher for AI.
+Marketing website for [docpull](https://github.com/raintree-technology/docpull) - the local web puller for turning server-rendered sites into Markdown.
 
 ## Tech Stack
 
@@ -8,7 +8,7 @@ Marketing website for [docpull](https://github.com/raintree-technology/docpull) 
 - React 19
 - TypeScript
 - Tailwind CSS
-- Framer Motion
+- Vercel Analytics
 
 ## Development
 

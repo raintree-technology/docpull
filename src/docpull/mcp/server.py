@@ -1,7 +1,8 @@
-"""stdio MCP server exposing docpull tools to AI agents.
+"""stdio MCP server exposing docpull tools and prompts to AI agents.
 
 Requires the optional ``mcp`` Python package (install with
-``pip install docpull[mcp]``). The server registers eight tools:
+``pip install docpull[mcp]``). The server registers eight tools and five
+workflow prompts.
 
 Read-only:
 - ``fetch_url(url)`` — one-shot fetch, no discovery. Agent-oriented fast path.
@@ -24,6 +25,7 @@ import logging
 import sys
 from typing import Any
 
+from .prompts import PROMPTS, render_prompt
 from .tools import (
     ToolResult,
     add_source,
@@ -199,6 +201,15 @@ def _coerce_int(value: Any, *, name: str, default: int) -> int:
     raise ValueError(f"'{name}' must be an integer, got {type(value).__name__}")
 
 
+def _coerce_bool(value: Any, *, name: str, default: bool) -> bool:
+    """Accept booleans only; reject truthy strings like ``"false"``."""
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    raise ValueError(f"'{name}' must be a boolean, got {type(value).__name__}")
+
+
 def _require_str(arguments: dict[str, Any], key: str) -> str:
     if key not in arguments:
         raise ValueError(f"Missing required argument: '{key}'")
@@ -212,7 +223,16 @@ async def _run_stdio() -> int:
     try:
         from mcp.server import Server
         from mcp.server.stdio import stdio_server
-        from mcp.types import CallToolResult, TextContent, Tool, ToolAnnotations
+        from mcp.types import (
+            CallToolResult,
+            GetPromptResult,
+            Prompt,
+            PromptArgument,
+            PromptMessage,
+            TextContent,
+            Tool,
+            ToolAnnotations,
+        )
     except ImportError:
         print(
             "docpull mcp requires the 'mcp' package. Install with: pip install docpull[mcp]",
@@ -221,6 +241,45 @@ async def _run_stdio() -> int:
         return 1
 
     server: Server = Server("docpull", instructions=SERVER_INSTRUCTIONS)
+
+    @server.list_prompts()  # type: ignore[misc,no-untyped-call]
+    async def _list_prompts() -> list[Prompt]:
+        return [
+            Prompt(
+                name=prompt.name,
+                title=prompt.title,
+                description=prompt.description,
+                arguments=(
+                    [
+                        PromptArgument(
+                            name="input",
+                            description=prompt.argument_description,
+                            required=False,
+                        )
+                    ]
+                    if prompt.argument_description is not None
+                    else None
+                ),
+            )
+            for prompt in PROMPTS
+        ]
+
+    @server.get_prompt()  # type: ignore[misc,no-untyped-call]
+    async def _get_prompt(name: str, arguments: dict[str, str] | None) -> GetPromptResult:
+        try:
+            text = render_prompt(name, arguments)
+        except ValueError as err:
+            text = str(err)
+
+        return GetPromptResult(
+            description=f"docpull workflow: {name}",
+            messages=[
+                PromptMessage(
+                    role="user",
+                    content=TextContent(type="text", text=text),
+                )
+            ],
+        )
 
     @server.list_tools()  # type: ignore[misc,no-untyped-call]
     async def _list_tools() -> list[Tool]:
@@ -405,9 +464,12 @@ async def _run_stdio() -> int:
                 description=(
                     "Add or update a user source alias in the writable "
                     "sources.yaml. Refuses to shadow a builtin alias unless "
-                    "force=true. URL is HTTPS-only and validated against the "
-                    "same SSRF rules as fetch_url. Use list_sources to confirm "
-                    "the change."
+                    "force=true. URL is HTTPS-only and screened against the "
+                    "source-registry hostname policy (localhost/internal "
+                    "suffixes and literal private IPs are rejected). The "
+                    "fetcher re-validates resolved addresses before any "
+                    "network connection. Use list_sources to confirm the "
+                    "change."
                 ),
                 annotations=ToolAnnotations(
                     title="Add or update a user source",
@@ -518,7 +580,7 @@ async def _run_stdio() -> int:
                 on_progress = await _make_progress_callback()
                 result = await ensure_docs(
                     source,
-                    force=bool(arguments.get("force", False)),
+                    force=_coerce_bool(arguments.get("force"), name="force", default=False),
                     profile=arguments.get("profile"),
                     on_progress=on_progress,
                 )
@@ -538,7 +600,11 @@ async def _run_stdio() -> int:
                     pattern,
                     library=library,
                     limit=_coerce_int(arguments.get("limit"), name="limit", default=20),
-                    case_sensitive=bool(arguments.get("case_sensitive", False)),
+                    case_sensitive=_coerce_bool(
+                        arguments.get("case_sensitive"),
+                        name="case_sensitive",
+                        default=False,
+                    ),
                     context=_coerce_int(arguments.get("context"), name="context", default=1),
                 )
             elif name == "read_doc":
@@ -568,13 +634,17 @@ async def _run_stdio() -> int:
                     description=description,
                     category=category,
                     max_pages=_coerce_int(max_pages, name="max_pages", default=0) or None,
-                    force=bool(arguments.get("force", False)),
+                    force=_coerce_bool(arguments.get("force"), name="force", default=False),
                 )
             elif name == "remove_source":
                 rm_name = _require_str(arguments, "name")
                 result = remove_source(
                     rm_name,
-                    delete_cache=bool(arguments.get("delete_cache", False)),
+                    delete_cache=_coerce_bool(
+                        arguments.get("delete_cache"),
+                        name="delete_cache",
+                        default=False,
+                    ),
                 )
             else:
                 result = ToolResult(f"Unknown tool: {name}", is_error=True)

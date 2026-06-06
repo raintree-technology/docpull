@@ -10,6 +10,7 @@ export default function Header() {
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
+    handleScroll();
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
@@ -19,15 +20,14 @@ export default function Header() {
       className={cn(
         "fixed top-0 left-0 right-0 z-50 transition-all duration-200",
         scrolled
-          ? "bg-background/80 backdrop-blur-xs border-b"
+          ? "border-b bg-background/72 backdrop-blur-xl"
           : "bg-transparent",
       )}
     >
-      <div className="flex h-14 items-center justify-between px-6 max-w-5xl mx-auto">
-        {/* Logo */}
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
         <a
-          href="#"
-          className="font-medium text-sm min-h-11 flex items-center gap-2"
+          href="#overview"
+          className="flex min-h-11 items-center gap-2 rounded-full px-1 text-sm font-medium"
         >
           <svg
             width="18"
@@ -35,6 +35,7 @@ export default function Header() {
             viewBox="0 0 32 32"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
+            aria-hidden="true"
           >
             <path
               d="M8 6h12l6 6v14a2 2 0 01-2 2H8a2 2 0 01-2-2V8a2 2 0 012-2z"
@@ -53,35 +54,51 @@ export default function Header() {
           docpull
         </a>
 
-        {/* Nav links - desktop only */}
-        <nav className="hidden md:flex items-center gap-6">
+        <nav
+          aria-label="Primary"
+          className="hidden items-center gap-1 rounded-full border border-foreground/8 bg-background/55 px-2 py-1 backdrop-blur md:flex"
+        >
           <a
-            href="#features"
-            className="text-sm text-muted-foreground hover:text-foreground"
+            href="#overview"
+            className="rounded-full px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
-            Features
+            Overview
           </a>
           <a
-            href="#examples"
-            className="text-sm text-muted-foreground hover:text-foreground"
+            href="#how-it-works"
+            className="rounded-full px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
-            Examples
+            How It Works
+          </a>
+          <a
+            href="#profiles"
+            className="rounded-full px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Profiles
+          </a>
+          <a
+            href="#mcp"
+            className="rounded-full px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Clients
           </a>
           <a
             href="#install"
-            className="text-sm text-muted-foreground hover:text-foreground"
+            className="rounded-full px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
             Install
           </a>
         </nav>
 
-        {/* Icons */}
         <div className="flex items-center gap-1">
+          <a href="#install" className="apple-button hidden md:inline-flex">
+            Get Started
+          </a>
           <a
             href="https://github.com/raintree-technology/docpull"
             target="_blank"
             rel="noopener noreferrer"
-            className="w-11 h-11 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            className="flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             aria-label="GitHub repository"
           >
             <GithubIcon className="h-4 w-4" />

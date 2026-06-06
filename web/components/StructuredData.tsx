@@ -1,17 +1,16 @@
-import { faqs } from "./faq-content";
+import { faqs } from "@/lib/content/faqs";
+import { site } from "@/lib/site";
 
 // Spec: SEO / Structured data (JSON-LD). A single @graph describing the site,
 // the publishing organization, the software itself, and the FAQ. Rendered
 // server-side so crawlers and AI agents see it in the initial HTML.
-
-const baseUrl = "https://docpull.raintree.technology";
 
 const graph = {
   "@context": "https://schema.org",
   "@graph": [
     {
       "@type": "Organization",
-      "@id": `${baseUrl}/#organization`,
+      "@id": `${site.baseUrl}/#organization`,
       name: "Raintree Technology",
       url: "https://raintree.technology",
       sameAs: [
@@ -21,26 +20,25 @@ const graph = {
     },
     {
       "@type": "WebSite",
-      "@id": `${baseUrl}/#website`,
-      url: baseUrl,
+      "@id": `${site.baseUrl}/#website`,
+      url: site.baseUrl,
       name: "docpull",
-      description:
-        "Fast, type-safe, secure documentation fetcher. Transform any docs site into clean, AI-ready Markdown for LLMs, RAG pipelines, and offline archives.",
+      description: site.description,
       inLanguage: "en",
-      publisher: { "@id": `${baseUrl}/#organization` },
+      publisher: { "@id": `${site.baseUrl}/#organization` },
     },
     {
       "@type": "SoftwareApplication",
-      "@id": `${baseUrl}/#software`,
+      "@id": `${site.baseUrl}/#software`,
       name: "docpull",
       applicationCategory: "DeveloperApplication",
       operatingSystem: "macOS, Linux, Windows",
-      url: baseUrl,
+      url: site.baseUrl,
       downloadUrl: "https://pypi.org/project/docpull/",
       softwareHelp: "https://github.com/raintree-technology/docpull#readme",
       description:
-        "Security-hardened, browser-free crawler that turns static documentation sites into clean, AI-ready Markdown for LLMs, RAG pipelines, and offline archives.",
-      author: { "@id": `${baseUrl}/#organization` },
+        "Browser-free web puller for turning server-rendered sites into clean Markdown with caching, deduplication, and strict network guards.",
+      author: { "@id": `${site.baseUrl}/#organization` },
       license: "https://opensource.org/licenses/MIT",
       isAccessibleForFree: true,
       offers: {
@@ -51,7 +49,7 @@ const graph = {
     },
     {
       "@type": "FAQPage",
-      "@id": `${baseUrl}/#faq`,
+      "@id": `${site.baseUrl}/#faq`,
       mainEntity: faqs.map((f) => ({
         "@type": "Question",
         name: f.q,

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import sqlite3
@@ -54,12 +55,13 @@ class SqliteSaveStep:
         self._conn: sqlite3.Connection | None = None
         self._document_count = 0
         self._pending_count = 0  # Track uncommitted documents
+        self._lock = asyncio.Lock()
 
     def _ensure_db(self) -> sqlite3.Connection:
         """Ensure the database and table exist."""
         if self._conn is None:
             self._base_dir.mkdir(parents=True, exist_ok=True)
-            self._conn = sqlite3.connect(self._db_path)
+            self._conn = sqlite3.connect(self._db_path, check_same_thread=False)
 
             # Create table with index on URL
             self._conn.execute("""
@@ -79,6 +81,29 @@ class SqliteSaveStep:
 
         return self._conn
 
+    def _insert_document(self, ctx: PageContext) -> bool:
+        """Insert one document and batch-commit when needed."""
+        conn = self._ensure_db()
+        cursor = conn.execute(
+            """INSERT OR IGNORE INTO documents
+               (url, title, content, metadata, fetched_at)
+               VALUES (?, ?, ?, ?, ?)""",
+            (
+                ctx.url,
+                ctx.title,
+                ctx.markdown,
+                json.dumps(ctx.metadata, ensure_ascii=False),
+                utc_now_iso(),
+            ),
+        )
+        inserted = cursor.rowcount > 0
+        if inserted:
+            self._pending_count += 1
+        if self._pending_count >= self.BATCH_SIZE:
+            conn.commit()
+            self._pending_count = 0
+        return inserted
+
     async def execute(
         self,
         ctx: PageContext,
@@ -94,33 +119,15 @@ class SqliteSaveStep:
         Returns:
             PageContext (unchanged)
         """
-        if ctx.should_skip or not ctx.markdown:
+        if ctx.should_skip or ctx.error or not ctx.markdown:
             return ctx
 
-        conn = self._ensure_db()
-
         try:
-            cursor = conn.execute(
-                """INSERT OR IGNORE INTO documents
-                   (url, title, content, metadata, fetched_at)
-                   VALUES (?, ?, ?, ?, ?)""",
-                (
-                    ctx.url,
-                    ctx.title,
-                    ctx.markdown,
-                    json.dumps(ctx.metadata, ensure_ascii=False),
-                    utc_now_iso(),
-                ),
-            )
-            # Only count if a row was actually inserted (not ignored)
-            if cursor.rowcount > 0:
-                self._document_count += 1
-                self._pending_count += 1
-
-            # Batch commits for performance
-            if self._pending_count >= self.BATCH_SIZE:
-                conn.commit()
-                self._pending_count = 0
+            async with self._lock:
+                inserted = await asyncio.to_thread(self._insert_document, ctx)
+                if inserted:
+                    self._document_count += 1
+                ctx.persisted_path = self._db_path
 
             if emit:
                 emit(

@@ -191,6 +191,43 @@ class TestOpenApiExtractor:
         assert "`id` (string) (required)" in md
         assert "`expand` (array<string>)" in md
 
+    def test_resolves_component_parameter_refs(self):
+        spec = {
+            "openapi": "3.0.0",
+            "info": {"title": "API"},
+            "paths": {
+                "/items/{id}": {
+                    "parameters": [{"$ref": "#/components/parameters/TraceId"}],
+                    "get": {
+                        "parameters": [{"$ref": "#/components/parameters/ItemId"}],
+                        "responses": {"200": {"description": "ok"}},
+                    },
+                }
+            },
+            "components": {
+                "parameters": {
+                    "TraceId": {
+                        "name": "trace_id",
+                        "in": "header",
+                        "schema": {"type": "string"},
+                        "description": "<p>Request trace.</p>",
+                    },
+                    "ItemId": {
+                        "name": "id",
+                        "in": "path",
+                        "schema": {"type": "string"},
+                    },
+                }
+            },
+        }
+        html = json.dumps(spec).encode()
+        result = OpenApiExtractor().try_extract(html, "https://example.com/openapi.json")
+        assert result is not None
+        md = result.markdown
+        assert "**Header parameters:**" in md
+        assert "`trace_id` (string) — Request trace." in md
+        assert "`id` (string) (required)" in md
+
     def test_handles_form_encoded_request_body(self):
         spec = {
             "openapi": "3.0.0",

@@ -9,11 +9,11 @@ import pytest
 
 
 def pytest_ignore_collect(collection_path: object, config: pytest.Config) -> bool:
-    """Keep the long benchmark out of default test collection unless enabled."""
+    """Keep benchmark tests out of default collection unless enabled."""
     path = Path(str(collection_path))
-    if os.environ.get("DOCPULL_BENCHMARK_10K") == "1":
+    if os.environ.get("DOCPULL_BENCHMARKS") == "1" or os.environ.get("DOCPULL_BENCHMARK_10K") == "1":
         return False
-    return path.name == "test_10k_pages.py" and path.parent.name == "benchmarks"
+    return path.parent.name == "benchmarks"
 
 
 @pytest.fixture

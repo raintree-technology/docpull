@@ -77,12 +77,12 @@ class RichMetadataExtractor:
             # Extract JSON-LD data
             jsonld_data = data.get("json-ld", [])
             if jsonld_data and isinstance(jsonld_data, list):
-                metadata.update(self._extract_jsonld(jsonld_data))  # type: ignore[typeddict-item]
+                self._merge_missing(metadata, self._extract_jsonld(jsonld_data))
 
             # Extract microdata
             microdata = data.get("microdata", [])
             if microdata and isinstance(microdata, list):
-                metadata.update(self._extract_microdata(microdata))  # type: ignore[typeddict-item]
+                self._merge_missing(metadata, self._extract_microdata(microdata))
 
         except ImportError:
             logger.warning("extruct not installed, rich metadata extraction disabled")
@@ -91,7 +91,13 @@ class RichMetadataExtractor:
 
         return metadata
 
-    def _extract_opengraph(self, og_properties: list[dict[str, Any]]) -> dict[str, Any]:
+    def _merge_missing(self, target: RichMetadata, source: dict[str, Any]) -> None:
+        """Fill metadata fields without overwriting higher-priority sources."""
+        for key, value in source.items():
+            if value and not target.get(key):  # type: ignore[literal-required]
+                target[key] = value  # type: ignore[literal-required]
+
+    def _extract_opengraph(self, og_properties: list[Any]) -> dict[str, Any]:
         """Extract Open Graph metadata.
 
         Args:
@@ -102,17 +108,29 @@ class RichMetadataExtractor:
         """
         result: dict[str, Any] = {}
 
-        # Build dict from properties list
+        # Build dict from extruct's property list. Current extruct returns
+        # tuples like ("og:title", "Title"), while older/faked tests may use
+        # dicts. Preserve repeated values such as article:tag.
         og_dict: dict[str, Any] = {}
+
+        def add_value(key: str, value: Any) -> None:
+            clean_key = key.replace("og:", "")
+            existing = og_dict.get(clean_key)
+            if existing is None:
+                og_dict[clean_key] = value
+            elif isinstance(existing, list):
+                existing.append(value)
+            else:
+                og_dict[clean_key] = [existing, value]
+
         for prop in og_properties:
             if isinstance(prop, dict):
                 for key, value in prop.items():
-                    # Handle both 'og:title' and 'title' formats
-                    clean_key = key.replace("og:", "")
-                    if isinstance(value, list) and len(value) > 0:
-                        og_dict[clean_key] = value[0]
-                    else:
-                        og_dict[clean_key] = value
+                    add_value(key, value)
+            elif isinstance(prop, (list, tuple)) and len(prop) == 2:
+                key, value = prop
+                if isinstance(key, str):
+                    add_value(key, value)
 
         # Map OG fields to our metadata
         if "title" in og_dict:
@@ -202,10 +220,23 @@ class RichMetadataExtractor:
                 image = item["image"]
                 if isinstance(image, dict):
                     result["image"] = self._safe_string(image.get("url", ""))
+                elif isinstance(image, list):
+                    result["image"] = self._extract_image_from_list(image)
                 elif isinstance(image, str):
                     result["image"] = self._safe_string(image)
 
         return result
+
+    def _extract_image_from_list(self, images: list[Any]) -> str:
+        """Extract the first useful image URL from JSON-LD image arrays."""
+        for image in images:
+            if isinstance(image, dict):
+                value = self._safe_string(image.get("url", ""))
+            else:
+                value = self._safe_string(image)
+            if value:
+                return value
+        return ""
 
     def _extract_microdata(self, microdata_list: list[dict[str, Any]]) -> dict[str, Any]:
         """Extract microdata metadata.

@@ -7,57 +7,42 @@ import asyncio
 import sys
 from pathlib import Path
 
-# Check if --doctor flag is present before checking dependencies
-if "--doctor" in sys.argv:
-    from .doctor import run_doctor
-
-    output_dir = None
-    if "--output-dir" in sys.argv or "-o" in sys.argv:
-        flag = "--output-dir" if "--output-dir" in sys.argv else "-o"
-        flag_idx = sys.argv.index(flag)
-        if flag_idx + 1 < len(sys.argv):
-            output_dir = Path(sys.argv[flag_idx + 1])
-    sys.exit(run_doctor(output_dir=output_dir))
-
-# Verify core dependencies
-try:
-    import aiohttp  # noqa: F401
-    import bs4  # noqa: F401
-    import defusedxml  # noqa: F401
-    import html2text  # noqa: F401
-    import rich  # noqa: F401
-except ImportError as e:
-    print(f"\nERROR: Missing required dependency: {e.name}", file=sys.stderr)
-    print("\nDocpull requires all core dependencies to be installed.", file=sys.stderr)
-    print("\nRecommended fixes:", file=sys.stderr)
-    print("  1. For pipx users: pipx reinstall docpull --force", file=sys.stderr)
-    print("  2. For pip users: pip install --upgrade --force-reinstall docpull", file=sys.stderr)
-    print("  3. For development: pip install -e .[dev]", file=sys.stderr)
-    print("\nTo diagnose issues, run: docpull --doctor", file=sys.stderr)
-    sys.exit(1)
-
-from rich.console import Console
-from rich.progress import Progress, SpinnerColumn, TextColumn
-
 from . import __version__
-from .core.fetcher import Fetcher
-from .models.config import DocpullConfig, ProfileName
-from .models.events import EventType, SkipReason
+
+
+def _verify_core_dependencies() -> bool:
+    """Return False with install guidance when a runtime dependency is missing."""
+    try:
+        import aiohttp  # noqa: F401
+        import bs4  # noqa: F401
+        import defusedxml  # noqa: F401
+        import html2text  # noqa: F401
+        import rich  # noqa: F401
+    except ImportError as e:
+        print(f"\nERROR: Missing required dependency: {e.name}", file=sys.stderr)
+        print("\nDocpull requires all core dependencies to be installed.", file=sys.stderr)
+        print("\nRecommended fixes:", file=sys.stderr)
+        print("  1. For pipx users: pipx reinstall docpull --force", file=sys.stderr)
+        print("  2. For pip users: pip install --upgrade --force-reinstall docpull", file=sys.stderr)
+        print("  3. For development: pip install -e .[dev]", file=sys.stderr)
+        print("\nTo diagnose issues, run: docpull --doctor", file=sys.stderr)
+        return False
+    return True
 
 
 def create_parser() -> argparse.ArgumentParser:
     """Create argument parser for CLI."""
     parser = argparse.ArgumentParser(
         prog="docpull",
-        description="Fetch and convert documentation from any URL to markdown",
+        description="Fetch and convert server-rendered web content from any URL to markdown",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
   # Fetch with default settings (RAG profile)
-  docpull https://docs.example.com
+  docpull https://example.com
 
   # Use a specific profile
-  docpull https://docs.example.com --profile mirror
+  docpull https://example.com/blog --profile mirror
 
   # Control crawl behavior
   docpull https://example.com --max-pages 100 --max-depth 3
@@ -70,7 +55,7 @@ Examples:
     parser.add_argument(
         "url",
         nargs="?",
-        help="URL to fetch documentation from",
+        help="URL to fetch content from",
     )
 
     parser.add_argument(
@@ -134,12 +119,12 @@ Examples:
     )
     parser.add_argument(
         "--naming-strategy",
-        choices=["full", "hierarchical", "flat", "short"],
+        choices=["full", "hierarchical"],
         default=None,
         help=(
             "URL-to-filename strategy. 'full' flattens with underscores; "
             "'hierarchical' preserves the URL path as nested directories. "
-            "Mirror profile defaults to hierarchical."
+            "Mirror keeps 'full' naming by default in 2.x."
         ),
     )
     parser.add_argument(
@@ -371,6 +356,16 @@ Examples:
 
 def run_fetcher(args: argparse.Namespace) -> int:
     """Run the fetcher with given arguments."""
+    if not _verify_core_dependencies():
+        return 1
+
+    from rich.console import Console
+    from rich.progress import Progress, SpinnerColumn, TextColumn
+
+    from .core.fetcher import Fetcher
+    from .models.config import DocpullConfig, ProfileName
+    from .models.events import EventType, SkipReason
+
     console = Console()
 
     if not args.url:
@@ -594,9 +589,21 @@ def run_fetcher(args: argparse.Namespace) -> int:
                             elif event.type == EventType.DISCOVERY_COMPLETE:
                                 progress.update(task, description=f"[green]Found {event.total} URLs")
                             elif event.type == EventType.FETCH_PROGRESS:
+                                processed = (
+                                    event.processed_count
+                                    if event.processed_count is not None
+                                    else event.current
+                                )
+                                total = event.total if event.total is not None else "?"
+                                saved = event.saved_count if event.saved_count is not None else "?"
+                                skipped = event.skipped_count if event.skipped_count is not None else "?"
+                                failed = event.failed_count if event.failed_count is not None else "?"
                                 progress.update(
                                     task,
-                                    description=f"[cyan]Fetching {event.current}/{event.total}: {event.url}",
+                                    description=(
+                                        f"[cyan]Processed {processed}/{total} "
+                                        f"(saved {saved}, skipped {skipped}, failed {failed}): {event.url}"
+                                    ),
                                 )
                             elif event.type == EventType.FETCH_SKIPPED:
                                 if event.skip_reason:

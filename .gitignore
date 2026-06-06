@@ -111,6 +111,8 @@ celerybeat.pid
 .env
 .env.*
 !.env.example
+.env.local
+.env.*.local
 .venv
 
 # Key material / certificates (defense-in-depth)
@@ -156,6 +158,7 @@ cython_debug/
 .vscode/
 .idea/
 .claude/
+.vercel/
 *.swp
 *.swo
 *~
@@ -165,6 +168,14 @@ cython_debug/
 Thumbs.db
 
 # Project-specific
+# Node / web app artifacts
+node_modules/
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+npm-debug.log*
+
 # Downloaded documentation (output from docpull)
 # Note: docs/ is NOT ignored - it contains project documentation
 *-docs/
@@ -194,3 +205,26 @@ screenshots/
 
 # Application cache
 .docpull-cache/
+
+# Generated Claude Code plugin bundle; source of truth lives in plugin/
+.claude-plugin/
+
+# Codex/skills installer artifacts. Keep the installer spillover ignored, but
+# allow the intentionally checked-in repo-scoped Codex host config/skill.
+/.agents/*
+!/.agents/skills/
+!/.agents/skills/docpull-research/
+!/.agents/skills/docpull-research/**
+!/.agents/plugins/
+!/.agents/plugins/marketplace.json
+/.crush/
+/.goose/
+/.pi/
+/skills/
+/skills-lock.json
+/mcp/.agents/
+/mcp/.crush/
+/mcp/.goose/
+/mcp/.pi/
+/mcp/skills/
+/mcp/skills-lock.json

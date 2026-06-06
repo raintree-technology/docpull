@@ -16,7 +16,7 @@ from ...conversion.special_cases import (
     looks_like_spa,
     looks_like_spa_output,
 )
-from ...models.events import EventType, FetchEvent
+from ...models.events import EventType, FetchEvent, SkipReason
 from ..base import EventEmitter, PageContext
 
 if TYPE_CHECKING:
@@ -257,6 +257,7 @@ class ConvertStep:
             return ctx
         ctx.should_skip = True
         ctx.skip_reason = "JS-only SPA: no content without JS render" if is_spa else "No content extracted"
+        ctx.skip_code = SkipReason.JS_ONLY_SPA if is_spa else SkipReason.NO_CONTENT_EXTRACTED
         if is_spa:
             logger.warning("Likely JS-only SPA at %s (no server-rendered content)", ctx.url)
         else:
@@ -267,6 +268,7 @@ class ConvertStep:
                     type=EventType.FETCH_SKIPPED,
                     url=ctx.url,
                     message=ctx.skip_reason,
+                    skip_reason=ctx.skip_code,
                 )
             )
         return ctx

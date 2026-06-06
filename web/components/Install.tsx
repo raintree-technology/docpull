@@ -1,49 +1,46 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { Copy, Check, ChevronDown } from "lucide-react";
+import { altInstallMethods, installCommand } from "@/lib/content/install";
 import { cn } from "@/lib/utils";
-
-const altMethods = [
-  { label: "pipx", command: "pipx install docpull" },
-  { label: "uv", command: "uv pip install docpull" },
-  { label: "+proxy", command: "pip install docpull[proxy]" },
-  { label: "+all", command: "pip install docpull[all]" },
-] as const;
+import { useCopyToClipboard } from "@/lib/hooks/use-copy-to-clipboard";
 
 export default function Install() {
-  const [copied, setCopied] = useState<string | null>(null);
   const [showAlt, setShowAlt] = useState(false);
-
-  const handleCopy = useCallback((text: string, id: string) => {
-    navigator.clipboard.writeText(text);
-    setCopied(id);
-    setTimeout(() => setCopied(null), 2000);
-  }, []);
+  const { copiedId, copy } = useCopyToClipboard();
+  const altPanelId = "install-alternatives";
 
   return (
-    <section id="install" className="py-16 sm:py-24 border-t">
+    <section
+      id="install"
+      className="border-t border-foreground/8 py-16 sm:py-24"
+    >
       <div className="mx-auto max-w-5xl px-6">
-        <div className="max-w-2xl mx-auto text-center">
-          <h2 className="text-xl sm:text-2xl font-medium mb-2 sm:mb-3">
-            <span>Install</span>
+        <div className="mx-auto max-w-3xl text-center">
+          <p className="section-kicker mb-3">Start local</p>
+          <h2 className="section-title mb-4">
+            One install command, then point it at a site.
           </h2>
-          <p className="text-sm sm:text-base text-muted-foreground mb-6">
-            A single command to get docpull on your machine. Requires Python
-            3.10 or newer.
+          <p className="section-copy mb-3">
+            The default path is intentionally boring: install the package, run
+            it against a URL, keep the output on your machine.
+          </p>
+          <p className="text-sm sm:text-base text-foreground/58 mb-6">
+            Requires Python 3.10 or newer.
           </p>
           {/* Main pip command */}
-          <div className="flex flex-wrap items-center justify-center gap-2 mb-6">
-            <code className="px-6 py-3 glass rounded-xl text-sm sm:text-base font-mono">
-              pip install docpull
+          <div className="mb-6 flex flex-wrap items-center justify-center gap-2">
+            <code className="apple-panel rounded-full px-6 py-3 text-sm font-mono sm:text-base">
+              {installCommand}
             </code>
             <button
               type="button"
-              onClick={() => handleCopy("pip install docpull", "main")}
-              className="min-h-11 min-w-11 p-3 rounded-xl glass hover:bg-foreground/5 transition-colors"
-              aria-label={copied === "main" ? "Copied" : "Copy command"}
+              onClick={() => copy(installCommand, "main")}
+              className="apple-panel min-h-11 min-w-11 rounded-full p-3 transition-colors hover:bg-foreground/5"
+              aria-label={copiedId === "main" ? "Copied" : "Copy command"}
             >
-              {copied === "main" ? (
+              {copiedId === "main" ? (
                 <Check className="h-4 w-4" />
               ) : (
                 <Copy className="h-4 w-4" />
@@ -56,8 +53,9 @@ export default function Install() {
             <button
               type="button"
               onClick={() => setShowAlt(!showAlt)}
-              className="min-h-11 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-full px-4 text-sm text-foreground/65 transition-colors hover:bg-background/60 hover:text-foreground"
               aria-expanded={showAlt}
+              aria-controls={altPanelId}
             >
               <ChevronDown
                 className={cn(
@@ -69,11 +67,14 @@ export default function Install() {
             </button>
 
             {showAlt && (
-              <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-lg mx-auto">
-                {altMethods.map((method, i) => (
+              <div
+                id={altPanelId}
+                className="mx-auto mt-4 grid max-w-lg grid-cols-1 gap-2 sm:grid-cols-2"
+              >
+                {altInstallMethods.map((method, i) => (
                   <div
                     key={method.label}
-                    className="flex items-center justify-between px-4 py-2.5 glass rounded-xl text-sm"
+                    className="apple-panel flex items-center justify-between rounded-[1.25rem] px-4 py-2.5 text-sm"
                   >
                     <div className="flex items-center gap-3">
                       <span className="text-muted-foreground text-xs font-medium min-w-[32px]">
@@ -85,13 +86,13 @@ export default function Install() {
                     </div>
                     <button
                       type="button"
-                      onClick={() => handleCopy(method.command, `alt-${i}`)}
+                      onClick={() => copy(method.command, `alt-${i}`)}
                       className="min-h-11 min-w-11 p-2 rounded-lg hover:bg-foreground/5 transition-colors ml-2"
                       aria-label={
-                        copied === `alt-${i}` ? "Copied" : "Copy command"
+                        copiedId === `alt-${i}` ? "Copied" : "Copy command"
                       }
                     >
-                      {copied === `alt-${i}` ? (
+                      {copiedId === `alt-${i}` ? (
                         <Check className="h-3.5 w-3.5" />
                       ) : (
                         <Copy className="h-3.5 w-3.5 text-muted-foreground" />

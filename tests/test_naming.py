@@ -36,6 +36,13 @@ class TestHierarchicalPathParts:
         )
         assert result == ["api", "auth.md"]
 
+    def test_does_not_strip_sibling_base_prefix(self) -> None:
+        result = _url_to_path_parts(
+            "https://docs.foo.com/docs-api/auth",
+            base_url="https://docs.foo.com/docs",
+        )
+        assert result == ["docs-api", "auth.md"]
+
     def test_unsafe_segment_sanitized(self) -> None:
         result = _url_to_path_parts("https://docs.foo.com/foo bar/with$special")
         assert result == ["foo_bar", "with_special.md"]
@@ -99,3 +106,12 @@ class TestFlattenedFilename:
 
     def test_root_becomes_index(self) -> None:
         assert _url_to_filename("https://docs.foo.com/") == "index.md"
+
+    def test_sibling_base_prefix_is_not_stripped(self) -> None:
+        assert (
+            _url_to_filename(
+                "https://docs.foo.com/docs-api/auth",
+                base_url="https://docs.foo.com/docs",
+            )
+            == "docs-api_auth.md"
+        )

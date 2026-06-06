@@ -2,84 +2,9 @@
 
 import { useState, useCallback, memo, type KeyboardEvent } from "react";
 import { Copy, Check } from "lucide-react";
+import { codeExamples } from "@/lib/content/home";
 import { cn } from "@/lib/utils";
-
-const examples = [
-  {
-    id: "default",
-    name: "Default",
-    code: `docpull https://docs.stripe.com`,
-    output: `./docs/authentication.md:
-
----
-title: "Authentication"
-source: https://docs.stripe.com/authentication
----
-
-# Authentication
-
-The Stripe API uses API keys to authenticate requests.
-You can view and manage your API keys in the Stripe
-Dashboard.
-
-Test mode secret keys have the prefix sk_test_ and live
-mode secret keys have the prefix sk_live_...`,
-  },
-  {
-    id: "rag",
-    name: "RAG",
-    code: `docpull https://docs.anthropic.com --profile rag`,
-    output: `./docs/messages.md:
-
----
-title: "Messages"
-source: https://docs.anthropic.com/en/api/messages
-description: "Send a structured list of input messages and get the model's response."
----
-
-# Messages
-
-Send messages to Claude using the Messages API...`,
-  },
-  {
-    id: "skills",
-    name: "Claude Code",
-    code: `docpull https://sdk.vercel.ai -o .claude/skills/vercel-ai`,
-    output: `.claude/skills/vercel-ai/
-├── getting-started.md
-├── streaming.md
-├── tools.md
-└── providers.md
-
-./.claude/skills/vercel-ai/getting-started.md:
-
----
-title: "Getting Started"
-source: https://sdk.vercel.ai/docs/getting-started
----
-
-# Getting Started
-
-Install the Vercel AI SDK to build AI-powered applications...`,
-  },
-  {
-    id: "python",
-    name: "Python",
-    code: `from docpull import Fetcher, DocpullConfig
-
-config = DocpullConfig(url="https://docs.example.com")
-async with Fetcher(config) as fetcher:
-    async for event in fetcher.run():
-        print(f"{event.current}/{event.total}: {event.url}")`,
-    output: `1/124: https://docs.example.com/intro
-2/124: https://docs.example.com/quickstart
-3/124: https://docs.example.com/api/overview
-...
-124/124: https://docs.example.com/changelog
-
-Completed: 124 pages, 4.2 MB`,
-  },
-] as const;
+import { useCopyToClipboard } from "@/lib/hooks/use-copy-to-clipboard";
 
 const CodeBlock = memo(function CodeBlock({
   code,
@@ -88,13 +13,8 @@ const CodeBlock = memo(function CodeBlock({
   code: string;
   output: string;
 }) {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = useCallback(() => {
-    navigator.clipboard.writeText(code);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }, [code]);
+  const { copiedId, copy } = useCopyToClipboard();
+  const copied = copiedId === "code";
 
   return (
     <div className="space-y-4">
@@ -106,7 +26,7 @@ const CodeBlock = memo(function CodeBlock({
         </pre>
         <button
           type="button"
-          onClick={handleCopy}
+          onClick={() => copy(code, "code")}
           className="absolute top-7 right-2 min-h-11 min-w-11 p-2 rounded-lg glass opacity-100 sm:opacity-0 sm:group-hover:opacity-100 hover:bg-foreground/5 transition-all"
           aria-label={copied ? "Copied" : "Copy code"}
         >
@@ -131,8 +51,8 @@ const CodeBlock = memo(function CodeBlock({
 
 export default function CodeExamples() {
   const [active, setActive] = useState<string>("default");
-  const activeExample = examples.find((e) => e.id === active);
-  const activeIndex = examples.findIndex((e) => e.id === active);
+  const activeExample = codeExamples.find((e) => e.id === active);
+  const activeIndex = codeExamples.findIndex((e) => e.id === active);
 
   const handleTabClick = useCallback((id: string) => {
     setActive(id);
@@ -145,7 +65,7 @@ export default function CodeExamples() {
       }
 
       event.preventDefault();
-      const lastIndex = examples.length - 1;
+      const lastIndex = codeExamples.length - 1;
       const nextIndex =
         event.key === "Home"
           ? 0
@@ -158,7 +78,7 @@ export default function CodeExamples() {
               : activeIndex === 0
                 ? lastIndex
                 : activeIndex - 1;
-      const nextId = examples[nextIndex].id;
+      const nextId = codeExamples[nextIndex].id;
       setActive(nextId);
       document.getElementById(`example-tab-${nextId}`)?.focus();
     },
@@ -166,23 +86,29 @@ export default function CodeExamples() {
   );
 
   return (
-    <section id="examples" className="py-16 sm:py-24 border-t">
+    <section
+      id="examples"
+      className="border-t border-foreground/8 py-16 sm:py-24"
+    >
       <div className="mx-auto max-w-5xl px-6">
-        <div className="mb-8 sm:mb-12 text-center sm:text-left">
-          <h2 className="text-xl sm:text-2xl font-medium mb-2 sm:mb-3">
-            <span>Examples</span>
+        <div className="mb-8 text-center sm:text-left">
+          <p className="section-kicker mb-3">Real output</p>
+          <h2 className="section-title mb-4">
+            The quickest way to explain docpull is to show the files.
           </h2>
-          <p className="text-sm sm:text-base text-muted-foreground">
-            Real commands, real output — from one-shot fetches to Claude Code skills.
+          <p className="section-copy max-w-3xl">
+            These examples stay specific on purpose. Commands matter less than
+            the shape of the Markdown and folders you get back from a real web
+            pull.
           </p>
         </div>
 
         <div
-          className="flex flex-wrap justify-center sm:justify-start gap-2 mb-6"
+          className="mb-6 flex flex-wrap justify-center gap-2 rounded-[1.25rem] border border-foreground/8 bg-background/45 p-2 sm:justify-start"
           role="tablist"
           aria-label="Code example categories"
         >
-          {examples.map((example) => (
+          {codeExamples.map((example) => (
             <button
               type="button"
               key={example.id}
@@ -194,10 +120,10 @@ export default function CodeExamples() {
               aria-controls={`example-panel-${example.id}`}
               tabIndex={active === example.id ? 0 : -1}
               className={cn(
-                "min-h-11 px-3 py-2 text-xs sm:text-sm rounded-md transition-all duration-200",
+                "min-h-11 rounded-full px-4 py-2 text-xs transition-all duration-200 sm:text-sm",
                 active === example.id
-                  ? "bg-foreground text-background"
-                  : "glass text-muted-foreground hover:text-foreground",
+                  ? "bg-foreground text-background shadow-[0_8px_24px_rgba(15,23,42,0.16)]"
+                  : "text-muted-foreground hover:bg-background/70 hover:text-foreground",
               )}
             >
               {example.name}

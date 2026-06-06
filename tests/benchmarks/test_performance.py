@@ -7,8 +7,7 @@ These tests measure:
 - Deduplication performance
 - Configuration parsing speed
 
-Run with: pytest tests/benchmarks/ -v --benchmark-only
-Or with: python -m pytest tests/benchmarks/ -v
+Run with: python -m pytest tests/benchmarks/test_performance.py -v -s
 """
 
 import gc
@@ -61,6 +60,13 @@ LARGE_HTML = (
     + "</main></body></html>"
 )
 LARGE_HTML_BYTES = LARGE_HTML.encode()
+
+
+def _deep_size_of_strings_map(mapping: dict[str, str]) -> int:
+    """Approximate the bytes used by a string-to-string dict and its contents."""
+    return sys.getsizeof(mapping) + sum(
+        sys.getsizeof(key) + sys.getsizeof(value) for key, value in mapping.items()
+    )
 
 
 class TestConversionPerformance:
@@ -158,7 +164,7 @@ class TestDeduplicationPerformance:
 
         # Measure memory before
         gc.collect()
-        mem_before = sys.getsizeof(dedup._seen)
+        mem_before = _deep_size_of_strings_map(dedup._seen)
 
         # Add many entries (using sync compute_hash for simplicity)
         for i in range(10000):
@@ -167,13 +173,13 @@ class TestDeduplicationPerformance:
 
         # Measure memory after
         gc.collect()
-        mem_after = sys.getsizeof(dedup._seen)
+        mem_after = _deep_size_of_strings_map(dedup._seen)
 
-        # Memory should grow linearly with entries (hash size is fixed)
-        # Each hash is ~64 bytes, so 10000 entries should be ~640KB
+        # Memory should grow linearly with entries: each entry stores one
+        # fixed-size SHA-256 hex digest plus one representative URL.
         mem_growth = mem_after - mem_before
         print(f"\nStreamingDeduplicator memory: {mem_growth / 1024:.1f}KB for 10000 entries")
-        assert mem_growth < 2 * 1024 * 1024, "Memory should be <2MB for 10000 entries"
+        assert mem_growth < 3 * 1024 * 1024, "Memory should be <3MB for 10000 entries"
 
 
 class TestPipelinePerformance:

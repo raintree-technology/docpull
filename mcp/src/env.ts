@@ -13,7 +13,7 @@ export function readIntegerEnv(
 	if (raw === undefined || raw === "") {
 		return defaultValue;
 	}
-	const parsed = Number.parseInt(raw, 10);
+	const parsed = Number(raw);
 	if (!Number.isInteger(parsed) || parsed < min || parsed > max) {
 		throw new Error(`${name} must be an integer between ${min} and ${max}`);
 	}

@@ -45,7 +45,8 @@ PROFILES: dict[ProfileName, dict[str, Any]] = {
         },
     },
     ProfileName.LLM: {
-        # Token-aware output, streaming NDJSON, fail-loud on JS-only pages.
+        # Token-aware output, streaming NDJSON, and clear JS-only skips.
+        # Fail-loud JS handling remains an explicit --strict-js-required choice.
         # This is what "AI-ready Markdown" should actually mean: predictable
         # chunk sizes, stable hashes, one-record-per-line streaming.
         "crawl": {

@@ -1,8 +1,10 @@
 """ValidateStep - URL validation pipeline step."""
 
 import logging
+from urllib.parse import urlparse
 
-from ...models.events import EventType, FetchEvent
+from ...http.rate_limiter import PerHostRateLimiter
+from ...models.events import EventType, FetchEvent, SkipReason
 from ...security.robots import RobotsChecker
 from ...security.url_validator import UrlValidator
 from ..base import EventEmitter, PageContext
@@ -36,6 +38,7 @@ class ValidateStep:
         self,
         url_validator: UrlValidator,
         robots_checker: RobotsChecker,
+        rate_limiter: PerHostRateLimiter | None = None,
         check_existing: bool = True,
         cache_enabled: bool = False,
     ) -> None:
@@ -45,6 +48,7 @@ class ValidateStep:
         Args:
             url_validator: UrlValidator instance for security checks
             robots_checker: RobotsChecker instance for robots.txt compliance
+            rate_limiter: Optional rate limiter to update from Crawl-delay
             check_existing: If True AND ``cache_enabled`` is False, skip
                 URLs where the output file already exists. When caching is
                 enabled, freshness is owned by FetchStep's conditional GET.
@@ -54,6 +58,7 @@ class ValidateStep:
         """
         self._url_validator = url_validator
         self._robots_checker = robots_checker
+        self._rate_limiter = rate_limiter
         self._check_existing = check_existing and not cache_enabled
 
     async def execute(
@@ -78,6 +83,7 @@ class ValidateStep:
         if not validation_result.is_valid:
             ctx.should_skip = True
             ctx.skip_reason = f"URL validation failed: {validation_result.rejection_reason}"
+            ctx.skip_code = SkipReason.URL_VALIDATION_FAILED
             logger.debug(f"Skipping {url}: {validation_result.rejection_reason}")
 
             if emit:
@@ -86,6 +92,7 @@ class ValidateStep:
                         type=EventType.FETCH_SKIPPED,
                         url=url,
                         message=f"URL validation failed: {validation_result.rejection_reason}",
+                        skip_reason=SkipReason.URL_VALIDATION_FAILED,
                     )
                 )
             return ctx
@@ -94,6 +101,7 @@ class ValidateStep:
         if not self._robots_checker.is_allowed(url):
             ctx.should_skip = True
             ctx.skip_reason = "Blocked by robots.txt"
+            ctx.skip_code = SkipReason.ROBOTS_DISALLOWED
             logger.debug(f"Skipping {url}: blocked by robots.txt")
 
             if emit:
@@ -102,14 +110,22 @@ class ValidateStep:
                         type=EventType.FETCH_SKIPPED,
                         url=url,
                         message="Blocked by robots.txt",
+                        skip_reason=SkipReason.ROBOTS_DISALLOWED,
                     )
                 )
             return ctx
+
+        if self._rate_limiter is not None:
+            crawl_delay = self._robots_checker.get_crawl_delay(url)
+            hostname = urlparse(url).hostname
+            if crawl_delay is not None and hostname:
+                self._rate_limiter.update_host_config(hostname, delay=crawl_delay)
 
         # 3. Check if output file already exists
         if self._check_existing and ctx.output_path.exists():
             ctx.should_skip = True
             ctx.skip_reason = "Output file already exists"
+            ctx.skip_code = SkipReason.FILE_EXISTS
             logger.debug(f"Skipping {url}: output file exists at {ctx.output_path}")
 
             if emit:
@@ -119,6 +135,7 @@ class ValidateStep:
                         url=url,
                         output_path=ctx.output_path,
                         message="Output file already exists",
+                        skip_reason=SkipReason.FILE_EXISTS,
                     )
                 )
             return ctx

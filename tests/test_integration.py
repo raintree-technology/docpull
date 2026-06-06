@@ -1,5 +1,6 @@
 """Integration tests for the docpull API."""
 
+import asyncio
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -14,7 +15,25 @@ from docpull import (
     FetchStats,
     ProfileName,
 )
+from docpull.core import fetch_blocking as core_fetch_blocking
+from docpull.core import fetch_one as core_fetch_one
 from docpull.core.fetcher import _url_to_filename
+from docpull.models.events import SkipReason
+from docpull.pipeline.base import FetchPipeline, PageContext, PipelineResult, PipelineStatus
+
+
+class _PipelineStub:
+    def __init__(self, execute):
+        self.steps = []
+        self._execute = execute
+
+    async def execute(self, url: str, output_path: Path, emit=None):
+        return await self._execute(url, output_path, emit=emit)
+
+    async def execute_result(self, url: str, output_path: Path, emit=None):
+        ctx = await self.execute(url, output_path, emit=emit)
+        status = PipelineStatus.SKIPPED if ctx.should_skip else PipelineStatus.SUCCEEDED
+        return PipelineResult(ctx=ctx, status=status)
 
 
 class TestDocpullConfig:
@@ -81,6 +100,14 @@ class TestDocpullConfig:
                 network={"insecure_tls": True},
             )
 
+    def test_config_rejects_proxy_with_require_pinned_dns(self):
+        """Model validation should reject proxy mode when pinned DNS is required."""
+        with pytest.raises(ValueError, match="require_pinned_dns"):
+            DocpullConfig(
+                url="https://example.com",
+                network={"proxy": "http://proxy:8080", "require_pinned_dns": True},
+            )
+
     def test_config_dry_run(self):
         """Test config with dry run enabled."""
         config = DocpullConfig(url="https://example.com", dry_run=True)
@@ -118,6 +145,52 @@ crawl:
             DocpullConfig(
                 url="https://example.com",
                 performance={"browser_contexts": 2},
+            )
+
+    def test_emit_chunks_requires_chunking(self):
+        """Chunk emission is invalid unless chunking is configured."""
+        with pytest.raises(ValueError, match="emit_chunks requires max_tokens_per_file"):
+            DocpullConfig(
+                url="https://example.com",
+                output={"emit_chunks": True},
+            )
+
+    def test_skill_mode_forces_hierarchical_naming(self):
+        """Skill output should always normalize to hierarchical naming."""
+        config = DocpullConfig(
+            url="https://example.com",
+            output={"skill_name": "example-skill", "naming_strategy": "full"},
+        )
+        assert config.output.naming_strategy == "hierarchical"
+
+    def test_resume_requires_cache_enabled(self):
+        """Resume mode should be rejected unless the cache is enabled."""
+        with pytest.raises(ValueError, match="cache.resume requires cache.enabled=True"):
+            DocpullConfig(
+                url="https://example.com",
+                cache={"resume": True},
+            )
+
+    def test_auth_type_requires_matching_payload(self):
+        """Typed auth modes should reject missing required fields."""
+        with pytest.raises(ValueError, match="requires token"):
+            DocpullConfig(url="https://example.com", auth={"type": "bearer"})
+
+        with pytest.raises(ValueError, match="requires both username and password"):
+            DocpullConfig(url="https://example.com", auth={"type": "basic", "username": "u"})
+
+        with pytest.raises(ValueError, match="requires cookie"):
+            DocpullConfig(url="https://example.com", auth={"type": "cookie"})
+
+        with pytest.raises(ValueError, match="requires both header_name and header_value"):
+            DocpullConfig(url="https://example.com", auth={"type": "header", "header_name": "X-Test"})
+
+    def test_auth_fields_require_non_none_type(self):
+        """Auth payload should not silently no-op under auth.type=none."""
+        with pytest.raises(ValueError, match="auth.type is 'none'"):
+            DocpullConfig(
+                url="https://example.com",
+                auth={"token": "secret-token"},
             )
 
 
@@ -168,12 +241,20 @@ class TestFetchEvent:
             url="https://example.com/page",
             current=5,
             total=10,
+            processed_count=5,
+            saved_count=3,
+            skipped_count=1,
+            failed_count=1,
             message="Fetching 5/10",
         )
         assert event.type == EventType.FETCH_PROGRESS
         assert event.url == "https://example.com/page"
         assert event.current == 5
         assert event.total == 10
+        assert event.processed_count == 5
+        assert event.saved_count == 3
+        assert event.skipped_count == 1
+        assert event.failed_count == 1
 
     def test_create_completed_event(self):
         """Test creating a completed event."""
@@ -267,6 +348,184 @@ class TestFetcherMocked:
             fetcher.cancel()
             assert fetcher._cancelled is True
 
+    @pytest.mark.asyncio
+    async def test_streaming_discovery_failure_does_not_hang(self, mock_config):
+        """Test discovery errors surface instead of deadlocking the stream."""
+        with patch("docpull.core.fetcher.AsyncHttpClient") as mock_client_cls:
+            mock_client = AsyncMock()
+            mock_client_cls.return_value = mock_client
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
+            mock_client.user_agent = "docpull-test"
+
+            fetcher = Fetcher(mock_config)
+            async with fetcher:
+
+                async def broken_discover(_: str, max_urls: int | None = None):
+                    if max_urls:
+                        pass
+                    yield "https://docs.example.com/page-1"
+                    raise RuntimeError("discovery exploded")
+
+                async def execute(url: str, output_path: Path, emit=None):
+                    if emit:
+                        emit(FetchEvent(type=EventType.FETCH_PROGRESS, url=url, message="progress"))
+                    return PageContext(url=url, output_path=output_path, markdown="ok", bytes_downloaded=1)
+
+                fetcher._discoverer = MagicMock()
+                fetcher._discoverer.discover = broken_discover
+                fetcher._pipeline = _PipelineStub(execute)
+
+                with pytest.raises(RuntimeError, match="discovery exploded"):
+                    await asyncio.wait_for(_collect_events(fetcher.run()), timeout=1)
+
+    @pytest.mark.asyncio
+    async def test_record_result_marks_empty_markdown_as_fetched(self, mock_config):
+        """Test resume state is updated even when markdown is empty."""
+        fetcher = Fetcher(mock_config)
+        fetcher._cache_manager = MagicMock()
+        ctx = PageContext(
+            url="https://docs.example.com/empty",
+            output_path=mock_config.output.directory / "empty.md",
+            markdown="",
+        )
+
+        fetcher._record_result(ctx.url, ctx.output_path, ctx)
+
+        fetcher._cache_manager.update_cache.assert_called_once_with(
+            url=ctx.url,
+            content="",
+            file_path=ctx.output_path,
+            etag=None,
+            last_modified=None,
+        )
+        fetcher._cache_manager.mark_fetched.assert_called_once_with(ctx.url)
+
+    @pytest.mark.asyncio
+    async def test_fetch_one_save_updates_cache_state(self, mock_config):
+        """Test single-page saved fetches share normal cache bookkeeping."""
+
+        class StubStep:
+            name = "stub"
+
+            async def execute(self, ctx: PageContext, emit=None) -> PageContext:
+                ctx.markdown = "body"
+                ctx.bytes_downloaded = 12
+                return ctx
+
+        fetcher = Fetcher(mock_config)
+        fetcher._pipeline = FetchPipeline(steps=[StubStep()])
+        fetcher._cache_manager = MagicMock()
+
+        ctx = await fetcher.fetch_one("https://docs.example.com/one", save=True)
+
+        assert ctx.markdown == "body"
+        assert fetcher.stats.pages_fetched == 1
+        assert fetcher.stats.files_saved == 1
+        fetcher._cache_manager.update_cache.assert_called_once()
+        fetcher._cache_manager.mark_fetched.assert_called_once_with("https://docs.example.com/one")
+
+    @pytest.mark.asyncio
+    async def test_streaming_progress_counts_empty_markdown(self, mock_config):
+        """Test streaming mode still emits progress for empty successful pages."""
+        mock_config.crawl.max_concurrent = 1
+        with patch("docpull.core.fetcher.AsyncHttpClient") as mock_client_cls:
+            mock_client = AsyncMock()
+            mock_client_cls.return_value = mock_client
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
+            mock_client.user_agent = "docpull-test"
+
+            fetcher = Fetcher(mock_config)
+            async with fetcher:
+
+                async def single_discover(_: str, max_urls: int | None = None):
+                    if max_urls:
+                        pass
+                    yield "https://docs.example.com/empty"
+
+                async def execute(url: str, output_path: Path, emit=None):
+                    return PageContext(url=url, output_path=output_path, markdown="", bytes_downloaded=0)
+
+                fetcher._discoverer = MagicMock()
+                fetcher._discoverer.discover = single_discover
+                fetcher._pipeline = _PipelineStub(execute)
+
+                events = await _collect_events(fetcher.run())
+
+        progress_events = [event for event in events if event.type == EventType.FETCH_PROGRESS]
+        assert any(
+            event.url == "https://docs.example.com/empty"
+            and event.current == 1
+            and event.processed_count == 1
+            and event.saved_count == 1
+            and event.skipped_count == 0
+            and event.failed_count == 0
+            for event in progress_events
+        )
+
+    @pytest.mark.asyncio
+    async def test_streaming_progress_counts_failures_as_processed(self, mock_config):
+        """Streaming progress should advance for failures, not only saves."""
+        mock_config.crawl.max_concurrent = 1
+        with patch("docpull.core.fetcher.AsyncHttpClient") as mock_client_cls:
+            mock_client = AsyncMock()
+            mock_client_cls.return_value = mock_client
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
+            mock_client.user_agent = "docpull-test"
+
+            fetcher = Fetcher(mock_config)
+            async with fetcher:
+
+                async def two_urls(_: str, max_urls: int | None = None):
+                    if max_urls:
+                        pass
+                    yield "https://docs.example.com/ok"
+                    yield "https://docs.example.com/fail"
+
+                async def execute(url: str, output_path: Path, emit=None):
+                    if url.endswith("/fail"):
+                        raise RuntimeError("boom")
+                    return PageContext(url=url, output_path=output_path, markdown="body", bytes_downloaded=1)
+
+                fetcher._discoverer = MagicMock()
+                fetcher._discoverer.discover = two_urls
+                fetcher._pipeline = _PipelineStub(execute)
+
+                events = await _collect_events(fetcher.run())
+
+        progress_events = [event for event in events if event.type == EventType.FETCH_PROGRESS]
+        assert any(
+            event.url == "https://docs.example.com/fail"
+            and event.current == 2
+            and event.processed_count == 2
+            and event.saved_count == 1
+            and event.skipped_count == 0
+            and event.failed_count == 1
+            for event in progress_events
+        )
+
+    @pytest.mark.asyncio
+    async def test_record_result_counts_deduplicated_skips_separately(self, mock_config):
+        fetcher = Fetcher(mock_config)
+        ctx = PageContext(
+            url="https://docs.example.com/dup",
+            output_path=mock_config.output.directory / "dup.md",
+            should_skip=True,
+            skip_reason="Duplicate of https://docs.example.com/original",
+            skip_code=SkipReason.DUPLICATE_CONTENT,
+        )
+
+        fetcher._record_result(ctx.url, ctx.output_path, ctx)
+
+        assert fetcher.stats.pages_skipped == 1
+        assert fetcher.stats.pages_deduplicated == 1
+
+
+async def _collect_events(stream):
+    return [event async for event in stream]
+
 
 class TestEventTypes:
     """Tests for all event types."""
@@ -318,6 +577,14 @@ class TestProfileDefaults:
         # Quick profile should have low max_pages (50) and max_depth (2)
         assert config.crawl.max_pages == 50
         assert config.crawl.max_depth == 2
+
+
+class TestCoreExports:
+    """Tests for the docpull.core package surface."""
+
+    def test_sync_helpers_are_exported(self):
+        assert callable(core_fetch_one)
+        assert callable(core_fetch_blocking)
 
     def test_explicit_user_value_beats_profile_value(self):
         """User-supplied values must win over profile values on collision.

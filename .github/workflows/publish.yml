@@ -27,12 +27,15 @@ jobs:
       version: ${{ steps.meta.outputs.version }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 0
 
-      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+      - uses: ./.github/actions/setup-python-docpull
         with:
           python-version: "3.11"
+          dependency-groups: all,dev
 
-      - name: Read pyproject.toml version (and verify tag match on tag push)
+      - name: Read pyproject.toml version and verify tag match
         id: meta
         run: |
           set -e
@@ -51,21 +54,22 @@ jobs:
           fi
           echo "version=$PROJECT_VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Install release dependencies
+      - name: Verify tagged commit is on main
+        run: |
+          git fetch --no-tags origin main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" "origin/main"; then
+            echo "::error::Release tags must point to a commit reachable from origin/main"
+            exit 1
+          fi
+
+      - name: Install pinned release tooling
         run: |
           # Pinned (see requirements-release.txt) so a compromised *latest* release
           # of pip/build/twine cannot be auto-pulled into the wheel-building job.
           python -m pip install -r requirements-release.txt
-          pip install -e ".[all,dev]"
 
       - name: Run release gates
-        run: |
-          ruff check .
-          ruff format --check .
-          mypy src
-          pytest -q
-          pip-audit
-          bandit -q -c pyproject.toml -r src
+        run: make release-gates
 
       - name: Build distributions
         run: |

@@ -10,7 +10,9 @@ import pytest
 from docpull.conversion.chunking import Chunk
 from docpull.pipeline.base import PageContext
 from docpull.pipeline.steps.chunk import ChunkStep
+from docpull.pipeline.steps.save_json import JsonSaveStep
 from docpull.pipeline.steps.save_ndjson import NdjsonSaveStep
+from docpull.pipeline.steps.save_sqlite import SqliteSaveStep
 
 
 @pytest.mark.asyncio
@@ -77,3 +79,49 @@ async def test_chunk_step_skips_when_no_markdown():
     ctx = PageContext(url="https://example.com/", output_path=Path("/tmp/x.md"), markdown=None)
     ctx = await step.execute(ctx)
     assert ctx.chunks == []
+
+
+@pytest.mark.asyncio
+async def test_json_save_uses_to_thread(monkeypatch, tmp_path):
+    calls: list[str] = []
+
+    async def fake_to_thread(func, *args, **kwargs):
+        calls.append(func.__name__)
+        return func(*args, **kwargs)
+
+    monkeypatch.setattr("docpull.pipeline.steps.save_json.asyncio.to_thread", fake_to_thread)
+
+    step = JsonSaveStep(base_output_dir=tmp_path)
+    ctx = PageContext(
+        url="https://example.com/",
+        output_path=tmp_path / "page.md",
+        markdown="# Page\n\nBody.",
+    )
+
+    await step.execute(ctx)
+    step.finalize()
+
+    assert calls == ["_write_document"]
+
+
+@pytest.mark.asyncio
+async def test_sqlite_save_uses_to_thread(monkeypatch, tmp_path):
+    calls: list[str] = []
+
+    async def fake_to_thread(func, *args, **kwargs):
+        calls.append(func.__name__)
+        return func(*args, **kwargs)
+
+    monkeypatch.setattr("docpull.pipeline.steps.save_sqlite.asyncio.to_thread", fake_to_thread)
+
+    step = SqliteSaveStep(base_output_dir=tmp_path)
+    ctx = PageContext(
+        url="https://example.com/",
+        output_path=tmp_path / "page.md",
+        markdown="# Page\n\nBody.",
+    )
+
+    await step.execute(ctx)
+    step.close()
+
+    assert calls == ["_insert_document"]

@@ -3,14 +3,14 @@
   "owner": {
     "name": "Raintree Technology",
     "email": "support@raintree.technology",
-    "url": "https://raintree.technology"
+    "url": "https://github.com/raintree-technology/docpull"
   },
   "plugins": [
     {
       "name": "docpull",
       "source": "./plugin",
-      "description": "Pull docs from any URL into Claude Code. Local, fast, no API keys.",
-      "version": "0.2.0",
+      "description": "Pull server-rendered web content from any URL into Claude Code. Local, fast, no API keys.",
+      "version": "4.0.0",
       "author": {
         "name": "Raintree Technology",
         "email": "support@raintree.technology"
@@ -20,11 +20,10 @@
       "license": "MIT",
       "category": "documentation",
       "keywords": [
-        "documentation",
-        "docs",
+        "web",
+        "crawler",
         "fetch",
         "markdown",
-        "rag",
         "indexing",
         "mcp",
         "local-first"

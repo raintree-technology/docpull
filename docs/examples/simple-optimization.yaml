@@ -1,14 +1,17 @@
-# Simple optimization example
-# Fetches documentation with basic optimizations
+# Simple optimization example for docpull 4.x
+# CLI equivalent:
+#   docpull https://docs.anthropic.com --profile rag --output-dir ./docs/anthropic --max-pages 200 --rate-limit 0.5 --streaming-dedup
 
-sources:
-  anthropic:
-    url: https://docs.anthropic.com
-    language: en
-    max_file_size: 200kb
-    create_index: true
-    extract_metadata: true
-
-output_dir: ./docs
-rate_limit: 0.5
+profile: rag
+url: https://docs.anthropic.com
+crawl:
+  max_pages: 200
+  rate_limit: 0.5
+content_filter:
+  streaming_dedup: true
+  max_file_size: 200kb
+output:
+  directory: ./docs/anthropic
+  format: markdown
+  rich_metadata: true
 log_level: INFO

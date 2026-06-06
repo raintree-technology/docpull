@@ -5,6 +5,7 @@ from __future__ import annotations
 import ipaddress
 import logging
 import socket
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from urllib.parse import urlparse
@@ -47,13 +48,24 @@ class UrlValidator:
 
     # Default security settings
     DEFAULT_ALLOWED_SCHEMES = {"https"}
-    INTERNAL_SUFFIXES = {".internal", ".local", ".localhost", ".localdomain"}
+    INTERNAL_SUFFIXES = {
+        ".internal",
+        ".local",
+        ".localhost",
+        ".localdomain",
+        ".lan",
+        # Wildcard rebinding domains that encode arbitrary IPs in the hostname.
+        ".nip.io",
+        ".sslip.io",
+        ".xip.io",
+    }
     LOCALHOST_NAMES = {"localhost", "localhost.localdomain"}
     # RFC 6598 carrier-grade NAT / shared address space. Python's ``ipaddress``
     # does not flag 100.64.0.0/10 as private, but it is non-globally-routable and
     # is used as internal address space by many cloud and Kubernetes networks, so
     # we block it the same way the TypeScript MCP gate does (``isCGNAT()``).
     _CGNAT_NETWORK = ipaddress.ip_network("100.64.0.0/10")
+    _RESOLUTION_CACHE_TTL_SECONDS = 1.0
 
     def __init__(
         self,
@@ -73,10 +85,15 @@ class UrlValidator:
             logger: Optional logger for validation messages
         """
         self.allowed_schemes = allowed_schemes or self.DEFAULT_ALLOWED_SCHEMES
-        self.allowed_domains = allowed_domains
+        self.allowed_domains = (
+            {self._normalize_hostname(domain) for domain in allowed_domains}
+            if allowed_domains is not None
+            else None
+        )
         self.block_private_ips = block_private_ips
         self.logger = logger or logging.getLogger(__name__)
         self._resolver = resolver or self._resolve_hostname
+        self._resolution_cache: dict[str, tuple[float, list[str], UrlValidationResult | None]] = {}
 
     def validate(self, url: str) -> UrlValidationResult:
         """
@@ -191,7 +208,7 @@ class UrlValidator:
                 raise ValueError(f"No addresses found for {normalized}")
             return addresses
 
-        addresses, rejection = self._resolve_and_screen(normalized)
+        addresses, rejection = self._resolve_and_screen_cached(normalized)
         if rejection is not None:
             raise ValueError(rejection.rejection_reason or "Hostname failed validation")
         return addresses
@@ -271,8 +288,21 @@ class UrlValidator:
         else:
             return None  # Literal IPs are screened by _check_ip_address.
 
-        _addresses, rejection = self._resolve_and_screen(hostname)
+        _addresses, rejection = self._resolve_and_screen_cached(hostname)
         return rejection
+
+    def _resolve_and_screen_cached(self, hostname: str) -> tuple[list[str], UrlValidationResult | None]:
+        """Resolve and screen a hostname once per short-lived TTL window."""
+        cached = self._resolution_cache.get(hostname)
+        now = time.monotonic()
+        if cached is not None:
+            cached_at, addresses, rejection = cached
+            if now - cached_at <= self._RESOLUTION_CACHE_TTL_SECONDS:
+                return addresses, rejection
+
+        addresses, rejection = self._resolve_and_screen(hostname)
+        self._resolution_cache[hostname] = (now, addresses, rejection)
+        return addresses, rejection
 
     def _resolve_and_screen(self, hostname: str) -> tuple[list[str], UrlValidationResult | None]:
         """Resolve ``hostname`` once and screen every answer against the policy.

@@ -8,6 +8,8 @@ import logging
 import re
 import secrets
 import socket
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from types import TracebackType
 from urllib.parse import urljoin, urlparse
 
@@ -17,14 +19,6 @@ from aiohttp.abc import AbstractResolver, ResolveResult
 from ..security.url_validator import UrlValidator
 from .protocols import HttpResponse
 from .rate_limiter import AdaptiveRateLimiter, PerHostRateLimiter
-
-# Better encoding detection (charset-normalizer is an aiohttp dependency)
-try:
-    from charset_normalizer import from_bytes as detect_encoding
-
-    CHARSET_NORMALIZER_AVAILABLE = True
-except ImportError:
-    CHARSET_NORMALIZER_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -88,7 +82,6 @@ class AsyncHttpClient:
     - Exponential backoff retry for transient failures
     - Per-host rate limiting via PerHostRateLimiter
     - Content size limits to prevent memory exhaustion
-    - Intelligent encoding detection
     - Timeout controls
 
     Example:
@@ -103,7 +96,6 @@ class AsyncHttpClient:
     _CRLF_RE = re.compile(r"[\r\n\x00]")
 
     MAX_CONTENT_SIZE = 50 * 1024 * 1024  # 50 MB
-    MAX_DOWNLOAD_TIME = 300  # 5 minutes
     MAX_REDIRECTS = 10
 
     # Status codes that warrant a retry
@@ -127,6 +119,7 @@ class AsyncHttpClient:
         user_agent: str | None = None,
         proxy: str | None = None,
         default_timeout: float = 30.0,
+        connect_timeout: float = 10.0,
         auth_headers: dict[str, str] | None = None,
         url_validator: UrlValidator | None = None,
         allow_insecure_tls: bool = False,
@@ -143,7 +136,8 @@ class AsyncHttpClient:
             max_content_size: Maximum response size in bytes
             user_agent: Custom User-Agent string
             proxy: Proxy URL (http:// or socks5://)
-            default_timeout: Default request timeout in seconds
+            default_timeout: Default socket read timeout in seconds
+            connect_timeout: Connection timeout in seconds
             auth_headers: Authentication headers to include in all requests
         """
         self._rate_limiter = rate_limiter
@@ -152,9 +146,12 @@ class AsyncHttpClient:
         self._max_content_size = max_content_size
         self._proxy = proxy
         self._default_timeout = default_timeout
+        self._connect_timeout = connect_timeout
         self._auth_headers = auth_headers or {}
         self._url_validator = url_validator
-        self._auth_scope_hosts = {host.lower() for host in auth_scope_hosts} if auth_scope_hosts else None
+        self._auth_scope_hosts = (
+            {self._normalize_hostname(host) for host in auth_scope_hosts} if auth_scope_hosts else None
+        )
 
         if allow_insecure_tls:
             raise ValueError("Insecure TLS is not supported; certificate verification is always enforced")
@@ -229,10 +226,60 @@ class AsyncHttpClient:
             return headers
 
         hostname = urlparse(target_url).hostname
-        if hostname and hostname.lower() in self._auth_scope_hosts:
+        if hostname and self._normalize_hostname(hostname) in self._auth_scope_hosts:
             return headers
 
         return {key: value for key, value in headers.items() if key.lower() not in self.SENSITIVE_HEADERS}
+
+    @staticmethod
+    def _normalize_hostname(hostname: str) -> str:
+        """Normalize hostnames for scope comparisons."""
+        return hostname.lower().rstrip(".")
+
+    def _build_request_headers(
+        self,
+        headers: dict[str, str] | None,
+        target_url: str,
+    ) -> dict[str, str]:
+        """Merge auth and request headers, validate them, then apply scope rules."""
+        request_headers = dict(self._auth_headers)
+        if headers:
+            request_headers.update(headers)
+
+        for name, value in request_headers.items():
+            self._validate_header_value(name, value)
+
+        return self._headers_for_url(request_headers, target_url)
+
+    @staticmethod
+    def _parse_retry_after(retry_after: str | None) -> int | None:
+        """Parse Retry-After seconds or HTTP-date into a positive delay."""
+        if not retry_after:
+            return None
+
+        value = retry_after.strip()
+        if value.isdigit():
+            seconds = int(value)
+            return seconds if seconds > 0 else None
+
+        try:
+            retry_at = parsedate_to_datetime(value)
+        except (TypeError, ValueError, IndexError, OverflowError):
+            return None
+
+        if retry_at.tzinfo is None:
+            retry_at = retry_at.replace(tzinfo=timezone.utc)
+
+        delay = int((retry_at - datetime.now(timezone.utc)).total_seconds())
+        return delay if delay > 0 else None
+
+    def _client_timeout(self, read_timeout: float) -> aiohttp.ClientTimeout:
+        """Build an aiohttp timeout from separate connect/read settings."""
+        return aiohttp.ClientTimeout(
+            total=self._connect_timeout + read_timeout,
+            connect=self._connect_timeout,
+            sock_read=read_timeout,
+        )
 
     def _next_redirect(
         self,
@@ -279,7 +326,7 @@ class AsyncHttpClient:
 
         connector = aiohttp.TCPConnector(
             limit=100,
-            limit_per_host=10,
+            limit_per_host=max(1, self._rate_limiter.default_concurrent),
             ttl_dns_cache=300,
             resolver=resolver,
         )
@@ -315,52 +362,25 @@ class AsyncHttpClient:
         jitter: float = secrets.randbits(24) / float(1 << 24)
         return delay + jitter
 
-    def _decode_content(self, content: bytes, content_type: str) -> str:
-        """
-        Decode content with intelligent encoding detection.
-
-        Fallback chain:
-        1. Content-Type header charset
-        2. charset-normalizer detection
-        3. UTF-8 with replacement
-
-        Args:
-            content: Raw bytes content
-            content_type: Content-Type header value
-
-        Returns:
-            Decoded string
-        """
-        # First, try to get encoding from Content-Type header
-        encoding = None
-        if content_type:
-            for part in content_type.split(";"):
-                part = part.strip()
-                if part.lower().startswith("charset="):
-                    encoding = part.split("=", 1)[1].strip().strip("\"'")
-                    break
-
-        # Try declared encoding first
-        if encoding:
+    async def _read_response_content(self, response: aiohttp.ClientResponse) -> bytes:
+        """Read a response body while enforcing the configured size cap."""
+        content_length = response.headers.get("Content-Length")
+        if content_length:
             try:
-                return content.decode(encoding)
-            except (UnicodeDecodeError, LookupError):
-                logger.debug(f"Failed to decode with declared encoding: {encoding}")
+                if int(content_length) > self._max_content_size:
+                    raise ValueError(f"Content too large: {content_length} bytes")
+            except ValueError:
+                if content_length.isdigit():
+                    raise
+                logger.debug(f"Ignoring invalid Content-Length header: {content_length}")
 
-        # Use charset-normalizer for better detection
-        if CHARSET_NORMALIZER_AVAILABLE:
-            try:
-                result = detect_encoding(content)
-                if result:
-                    best_match = result.best()
-                    if best_match:
-                        logger.debug(f"Detected encoding: {best_match.encoding}")
-                        return str(best_match)
-            except Exception as e:
-                logger.debug(f"Encoding detection failed: {e}")
+        content = bytearray()
+        async for chunk in response.content.iter_chunked(8192):
+            content.extend(chunk)
+            if len(content) > self._max_content_size:
+                raise ValueError(f"Content size limit exceeded: >{self._max_content_size} bytes")
 
-        # Final fallback: UTF-8 with replacement
-        return content.decode("utf-8", errors="replace")
+        return bytes(content)
 
     async def get(
         self,
@@ -387,18 +407,14 @@ class AsyncHttpClient:
         if self._session is None:
             raise RuntimeError("Client not initialized. Use 'async with' context manager.")
 
-        timeout_val = timeout or self._default_timeout
-        # Merge auth headers with request-specific headers
-        request_headers = dict(self._auth_headers)
-        if headers:
-            request_headers.update(headers)
+        timeout_val = self._default_timeout if timeout is None else timeout
 
         last_error: Exception | None = None
 
         for attempt in range(self._max_retries + 1):
             try:
                 current_url = url
-                current_headers = self._headers_for_url(dict(request_headers), current_url)
+                current_headers = self._build_request_headers(headers, current_url)
                 redirect_count = 0
 
                 while True:
@@ -408,7 +424,7 @@ class AsyncHttpClient:
                         self._rate_limiter.limit(current_url),
                         self._session.get(
                             current_url,
-                            timeout=aiohttp.ClientTimeout(total=timeout_val),
+                            timeout=self._client_timeout(timeout_val),
                             headers=current_headers,
                             proxy=self._proxy,
                             allow_redirects=False,
@@ -423,10 +439,7 @@ class AsyncHttpClient:
 
                         if response.status in self.RETRYABLE_STATUS_CODES:
                             if response.status == 429 and isinstance(self._rate_limiter, AdaptiveRateLimiter):
-                                retry_after = response.headers.get("Retry-After")
-                                retry_seconds = (
-                                    int(retry_after) if retry_after and retry_after.isdigit() else None
-                                )
+                                retry_seconds = self._parse_retry_after(response.headers.get("Retry-After"))
                                 await self._rate_limiter.record_rate_limit(current_url, retry_seconds)
 
                             if attempt < self._max_retries:
@@ -439,17 +452,7 @@ class AsyncHttpClient:
                                 break
                             response.raise_for_status()
 
-                        content_length = response.headers.get("Content-Length")
-                        if content_length and int(content_length) > self._max_content_size:
-                            raise ValueError(f"Content too large: {content_length} bytes")
-
-                        content = b""
-                        async for chunk in response.content.iter_chunked(8192):
-                            content += chunk
-                            if len(content) > self._max_content_size:
-                                raise ValueError(
-                                    f"Content size limit exceeded: >{self._max_content_size} bytes"
-                                )
+                        content = await self._read_response_content(response)
 
                         content_type = response.headers.get("Content-Type", "")
 
@@ -503,37 +506,73 @@ class AsyncHttpClient:
         if self._session is None:
             raise RuntimeError("Client not initialized. Use 'async with' context manager.")
 
-        # Merge auth headers with request-specific headers
-        request_headers = dict(self._auth_headers)
-        if headers:
-            request_headers.update(headers)
+        last_error: Exception | None = None
 
-        current_url = url
-        current_headers = self._headers_for_url(dict(request_headers), current_url)
-        redirect_count = 0
+        for attempt in range(self._max_retries + 1):
+            try:
+                current_url = url
+                current_headers = self._build_request_headers(headers, current_url)
+                redirect_count = 0
 
-        while True:
-            self._validate_url(current_url)
+                while True:
+                    self._validate_url(current_url)
 
-            async with (
-                self._rate_limiter.limit(current_url),
-                self._session.head(
-                    current_url,
-                    timeout=aiohttp.ClientTimeout(total=timeout),
-                    headers=current_headers if current_headers else None,
-                    proxy=self._proxy,
-                    allow_redirects=False,
-                ) as response,
-            ):
-                redirect = self._next_redirect(response, current_url, current_headers, redirect_count, url)
-                if redirect is not None:
-                    current_url, current_headers, redirect_count = redirect
-                    continue
+                    async with (
+                        self._rate_limiter.limit(current_url),
+                        self._session.head(
+                            current_url,
+                            timeout=self._client_timeout(timeout),
+                            headers=current_headers if current_headers else None,
+                            proxy=self._proxy,
+                            allow_redirects=False,
+                        ) as response,
+                    ):
+                        redirect = self._next_redirect(
+                            response, current_url, current_headers, redirect_count, url
+                        )
+                        if redirect is not None:
+                            current_url, current_headers, redirect_count = redirect
+                            continue
 
-                return HttpResponse(
-                    status_code=response.status,
-                    content=b"",
-                    content_type=response.headers.get("Content-Type", ""),
-                    headers=dict(response.headers),
-                    url=str(response.url),
-                )
+                        if response.status in self.RETRYABLE_STATUS_CODES:
+                            if response.status == 429 and isinstance(self._rate_limiter, AdaptiveRateLimiter):
+                                retry_seconds = self._parse_retry_after(response.headers.get("Retry-After"))
+                                await self._rate_limiter.record_rate_limit(current_url, retry_seconds)
+
+                            if attempt < self._max_retries:
+                                delay = self._calculate_retry_delay(attempt)
+                                logger.warning(
+                                    f"Got {response.status} for {current_url}, retrying in {delay:.1f}s "
+                                    f"(attempt {attempt + 1}/{self._max_retries + 1})"
+                                )
+                                await asyncio.sleep(delay)
+                                break
+                            response.raise_for_status()
+
+                        if isinstance(self._rate_limiter, AdaptiveRateLimiter):
+                            await self._rate_limiter.record_success(current_url)
+
+                        return HttpResponse(
+                            status_code=response.status,
+                            content=b"",
+                            content_type=response.headers.get("Content-Type", ""),
+                            headers=dict(response.headers),
+                            url=str(response.url),
+                        )
+
+            except self.RETRYABLE_EXCEPTIONS as e:
+                last_error = e
+                if attempt < self._max_retries:
+                    delay = self._calculate_retry_delay(attempt)
+                    logger.warning(
+                        f"Error fetching {url}: {e}, retrying in {delay:.1f}s "
+                        f"(attempt {attempt + 1}/{self._max_retries + 1})"
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    logger.error(f"HTTP fetch error for {url} after {self._max_retries + 1} attempts: {e}")
+                    raise
+
+        if last_error:
+            raise last_error
+        raise RuntimeError(f"Unexpected error fetching {url}")

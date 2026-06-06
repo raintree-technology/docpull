@@ -92,6 +92,13 @@ class TestStaticLinkExtractor:
         links = await extractor.extract_links("https://example.com/docs/api/", content=html)
         assert "https://example.com/docs/other/page" in links
 
+    @pytest.mark.asyncio
+    async def test_rejects_non_http_urls(self, extractor):
+        """Static extraction should match enhanced extraction's URL contract."""
+        html = b'<a href="ftp://example.com/file.txt">File</a>'
+        links = await extractor.extract_links("https://example.com", content=html)
+        assert links == []
+
 
 class TestEnhancedLinkExtractor:
     """Tests for EnhancedLinkExtractor."""

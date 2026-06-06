@@ -9,6 +9,7 @@ import CodeExamples from "@/components/CodeExamples";
 import Install from "@/components/Install";
 import FAQ from "@/components/FAQ";
 import StructuredData from "@/components/StructuredData";
+import McpSetup from "@/components/McpSetup";
 
 export default function Home() {
   return (
@@ -16,12 +17,13 @@ export default function Home() {
       <StructuredData />
       <AsciiBackgroundLoader />
       <Header />
-      <main className="relative z-10">
+      <main id="main-content" tabIndex={-1} className="relative z-10">
         <Hero />
         <HowItWorks />
         <Features />
         <Profiles />
         <CodeExamples />
+        <McpSetup />
         <Install />
         <FAQ />
       </main>

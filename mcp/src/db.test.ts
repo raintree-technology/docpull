@@ -1,10 +1,13 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
 import {
 	type DbClient,
 	type EmbeddingDocument,
+	isDbConfigured,
 	replaceLibraryEmbeddingsWithClient,
 } from "./db.js";
 import { EMBEDDING_DIMENSIONS } from "./embeddings.js";
+
+const TEST_DATABASE_URL_ENV = "DATABASE_URL";
 
 interface QueryRecord {
 	sql: string;
@@ -43,6 +46,10 @@ function doc(overrides: Partial<EmbeddingDocument> = {}): EmbeddingDocument {
 		...overrides,
 	};
 }
+
+afterEach(() => {
+	delete process.env[TEST_DATABASE_URL_ENV];
+});
 
 describe("replaceLibraryEmbeddingsWithClient", () => {
 	test("deletes and reinserts one library inside a single transaction", async () => {
@@ -107,5 +114,16 @@ describe("replaceLibraryEmbeddingsWithClient", () => {
 		const sqls = client.queries.map((query) => query.sql);
 		expect(sqls.filter((sql) => sql === "BEGIN").length).toBe(1);
 		expect(sqls[sqls.length - 1]).toBe("COMMIT");
+	});
+});
+
+describe("isDbConfigured", () => {
+	test("reads DATABASE_URL at call time", () => {
+		delete process.env[TEST_DATABASE_URL_ENV];
+		expect(isDbConfigured()).toBe(false);
+
+		process.env[TEST_DATABASE_URL_ENV] =
+			"postgresql://user:pass@localhost:5432/docpull";
+		expect(isDbConfigured()).toBe(true);
 	});
 });

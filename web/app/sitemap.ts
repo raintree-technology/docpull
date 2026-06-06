@@ -1,16 +1,34 @@
 import type { MetadataRoute } from "next";
 
-const baseUrl = "https://docpull.raintree.technology";
+import { absoluteUrl, discoveryPaths, site } from "@/lib/site";
 
-// Spec: SEO / XML sitemaps. A single-page site lists one canonical URL.
-// Fragment anchors (#features, #install, …) are not separate URLs and are omitted.
 export default function sitemap(): MetadataRoute.Sitemap {
+  const lastModified = new Date(site.publishedAt);
+
   return [
     {
-      url: baseUrl,
-      lastModified: new Date(),
+      url: absoluteUrl(discoveryPaths.home),
+      lastModified,
       changeFrequency: "monthly",
       priority: 1,
+    },
+    {
+      url: absoluteUrl(discoveryPaths.llms),
+      lastModified,
+      changeFrequency: "monthly",
+      priority: 0.8,
+    },
+    {
+      url: absoluteUrl(discoveryPaths.llmsFull),
+      lastModified,
+      changeFrequency: "monthly",
+      priority: 0.8,
+    },
+    {
+      url: absoluteUrl(discoveryPaths.docpullResearchSkill),
+      lastModified,
+      changeFrequency: "monthly",
+      priority: 0.7,
     },
   ];
 }
