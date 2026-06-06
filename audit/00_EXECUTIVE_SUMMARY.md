@@ -55,4 +55,3 @@ Top confirmed risks/gaps:
 60 days: productize agent workflows. Harden plugin docs, add per-project caches, `/docs-skill`, stable chunk IDs, manifest schema, and a verified cookbook against small fixture docs sites.
 
 90 days: strategic expansion. Add optional JS rendering adapter, authenticated/internal docs model, semantic search path, SQLite FTS, and framework extractors for MkDocs, VitePress, Starlight, GitBook, ReadMe.io, and Redoc/Scalar variants.
-

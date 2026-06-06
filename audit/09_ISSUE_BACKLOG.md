@@ -103,4 +103,3 @@
 - Labels: `feature`, `security`, `performance`
 - Severity: strategic
 - Fix: Playwright/Browserless adapter behind explicit extra and policy.
-

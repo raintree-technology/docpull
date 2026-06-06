@@ -88,4 +88,3 @@ CLI/Python API/MCP
       -> SaveStep / JsonSaveStep / NdjsonSaveStep / SqliteSaveStep
     -> CacheManager / StreamingDeduplicator
 ```
-

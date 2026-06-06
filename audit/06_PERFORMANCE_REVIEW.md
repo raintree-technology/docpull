@@ -39,4 +39,3 @@ Commands attempted:
 3. Add MCP grep benchmark on synthetic large cache; compare regex scan vs SQLite FTS.
 4. Add memory assertions for sitemap/robots/body caps.
 5. Add optional batch flush for NDJSON file output while preserving stdout flush.
-

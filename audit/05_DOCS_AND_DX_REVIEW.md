@@ -42,4 +42,3 @@
 - Publish workflow uses tag-only trusted publishing and verifies tag matches `pyproject.toml`.
 - Actions are pinned to full SHAs in inspected workflows.
 - Issue template contact links still point to `raintree-ai/docpull`, not `raintree-technology/docpull`.
-

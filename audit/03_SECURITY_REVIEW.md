@@ -111,4 +111,3 @@ Primary attacker capabilities:
 - YAML frontmatter injection fix: Verified in `FrontmatterBuilder._inline()` and list item quoting.
 - Conditional request header sanitization: Present by grep in `FetchStep`; runtime unverified due import failure.
 - Release/dependency hardening: Verified workflows and `requirements-release.txt` presence; `pip-audit` could not run due DNS.
-

@@ -111,4 +111,3 @@
 - Provenance attestations for generated corpora.
 - GitHub Actions scheduled refresh workflow generator.
 - IDE integrations beyond Claude/Cursor.
-

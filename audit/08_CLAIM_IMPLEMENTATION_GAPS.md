@@ -14,4 +14,3 @@
 | Production/stable classifier | `pyproject.toml:24-27` | Dirty worktree is not runnable | Gap for current workspace | Do not release until clean gates pass |
 | All tools with data return structuredContent | `README.md:198` | Implemented for most tools; `fetch_url` intentionally has no output schema | Mostly accurate | Wording should say all schema-backed tools |
 | Website/product says production-grade ingestion | `web/components/Features.tsx:37-39` | Strong design, but current worktree broken | Gap for current workspace | Ship patch after gates |
-

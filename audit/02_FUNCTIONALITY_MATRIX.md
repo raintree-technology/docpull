@@ -32,4 +32,3 @@
 | Claude plugin slash commands | Yes | Yes | Partial | Static | `plugin/README.md:7-18`, `plugin/commands/*` | Cache path docs wrong | P0 |
 | Root TypeScript MCP mirror | Yes | Yes in-tree | Some TS tests | Unverified public mirror | `README.md:211-219`, `mcp/package.json:1-19` | Public repo unavailable/unverified | P1 |
 | Performance 10k benchmark | Yes | Yes | Yes | Not run | `.github/workflows/benchmark.yml`, `tests/benchmarks/test_10k_pages.py` | Import failure prevents local run | P0 |
-

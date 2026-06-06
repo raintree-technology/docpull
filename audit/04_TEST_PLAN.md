@@ -57,4 +57,3 @@ P2:
 - `tests/test_mcp_server.py::test_all_tools_have_annotations_and_output_schemas`
 - `tests/test_mcp_server.py::test_progress_token_forwarding`
 - `mcp/src/server.test.ts::ensure_docs_times_out_child_process`
-

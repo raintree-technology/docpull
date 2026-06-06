@@ -204,8 +204,8 @@ Not exhaustively rerun in this pass:
 
 ### P1 - Resolved Locally: public PyPI README still claims a `docpull-mcp` mirror that returns 404
 
-Severity: High  
-Confidence: High  
+Severity: High
+Confidence: High
 Evidence:
 - PyPI project page for `4.0.0` says the root `mcp/` tree is mirrored to `raintree-technology/docpull-mcp`.
 - `curl -I -L https://github.com/raintree-technology/docpull-mcp` returned HTTP 404.
@@ -218,14 +218,14 @@ Reproduction:
 2. Search for `docpull-mcp`.
 3. Open `https://github.com/raintree-technology/docpull-mcp`.
 
-Expected: linked mirror exists, or docs clearly say the mirror is private/unavailable.  
-Actual: public package metadata points users to a 404.  
+Expected: linked mirror exists, or docs clearly say the mirror is private/unavailable.
+Actual: public package metadata points users to a 404.
 Resolution: local `mcp/README.md` and `mcp/package.json` now point to the in-repo `mcp/` directory under the main `docpull` repository. A package release is still needed to replace the older PyPI long description.
 
 ### P1 - Resolved: mirror profile naming claim was false
 
-Severity: Medium  
-Confidence: High  
+Severity: Medium
+Confidence: High
 Evidence:
 - CLI help says mirror profile defaults to hierarchical naming.
 - `src/docpull/models/profiles.py:22-38` intentionally does not set `output.naming_strategy`.
@@ -240,14 +240,14 @@ print(Fetcher(DocpullConfig(url="https://example.com", profile=ProfileName.MIRRO
 PY
 ```
 
-Expected: either `hierarchical` or docs do not claim mirror defaults hierarchical.  
-Actual: `full`.  
+Expected: either `hierarchical` or docs do not claim mirror defaults hierarchical.
+Actual: `full`.
 Resolution: mirror now defaults to hierarchical output paths, with a regression test proving explicit `full` overrides still win.
 
 ### P1 - Resolved: security validation skips returned exit code 0 in `--single`
 
-Severity: Medium  
-Confidence: High  
+Severity: Medium
+Confidence: High
 Evidence:
 - `docpull http://example.com --single` exits 0 with `Skipped: URL validation failed: Scheme 'http' not allowed`.
 - `docpull https://localhost --single` exits 0 with `Skipped: URL validation failed: Localhost URLs not allowed`.
@@ -261,14 +261,14 @@ docpull https://localhost --single
 echo $?
 ```
 
-Expected: security-policy rejections should be machine-visible failures for agent/CI callers, at least in `--single` mode.  
-Actual: exit code 0.  
+Expected: security-policy rejections should be machine-visible failures for agent/CI callers, at least in `--single` mode.
+Actual: exit code 0.
 Resolution: `--single` now returns nonzero for URL-validation and robots-policy skips.
 
 ### P2 - Resolved: `--insecure-tls` help advertised unsupported behavior
 
-Severity: Medium  
-Confidence: High  
+Severity: Medium
+Confidence: High
 Evidence:
 - `docpull --help` says `--insecure-tls Disable TLS certificate verification (unsafe)`.
 - `src/docpull/cli.py:466-471` immediately rejects it.
@@ -279,14 +279,14 @@ Reproduction:
 docpull https://example.com --single --insecure-tls
 ```
 
-Expected: help says the flag is deprecated/rejected or the flag is removed.  
-Actual: help says it disables TLS verification, then command exits 1.  
+Expected: help says the flag is deprecated/rejected or the flag is removed.
+Actual: help says it disables TLS verification, then command exits 1.
 Resolution: help text now states the flag is deprecated and rejected.
 
 ### P2 - Resolved: plugin README cache path was wrong for Python MCP
 
-Severity: Medium  
-Confidence: High  
+Severity: Medium
+Confidence: High
 Evidence:
 - `plugin/README.md:63-65` says fetched docs live under `$XDG_DATA_HOME/docpull/docs` / `~/.local/share/docpull/docs`.
 - Python MCP source defaults use `docpull-mcp/docs` (`src/docpull/mcp/sources.py` via `default_docs_dir()`; observed in code inspection).
@@ -295,14 +295,14 @@ Reproduction:
 1. Read `plugin/README.md`.
 2. Inspect `src/docpull/mcp/sources.py`.
 
-Expected: plugin docs match actual MCP cache path.  
-Actual: docs point users to a different directory.  
+Expected: plugin docs match actual MCP cache path.
+Actual: docs point users to a different directory.
 Resolution: plugin README now documents `docpull-mcp/docs`.
 
 ### P2 - Resolved: product/site "fail-loud" wording conflicted with LLM profile default
 
-Severity: Low to Medium  
-Confidence: High  
+Severity: Low to Medium
+Confidence: High
 Evidence:
 - Live site says LLM is "fail-loud on JS-only pages".
 - `src/docpull/models/profiles.py:54-57` sets `strict_js_required=False`.
@@ -311,14 +311,14 @@ Reproduction:
 1. Inspect product-site rendered HTML or `web` source.
 2. Inspect `ProfileName.LLM` defaults.
 
-Expected: product copy matches default profile behavior.  
-Actual: strict JS failure requires `--strict-js-required`; LLM profile skips by default.  
+Expected: product copy matches default profile behavior.
+Actual: strict JS failure requires `--strict-js-required`; LLM profile skips by default.
 Resolution: web profile copy now says LLM skips JS-only pages unless strict mode is enabled.
 
 ### P2 - Resolved: Crawl-delay was discoverable but not clearly enforced
 
-Severity: Low  
-Confidence: Medium  
+Severity: Low
+Confidence: Medium
 Evidence:
 - `RobotsChecker.get_crawl_delay()` exists in `src/docpull/security/robots.py:337-361`.
 - No inspected path showed it being applied to `PerHostRateLimiter` or crawl scheduling.
@@ -327,8 +327,8 @@ Reproduction:
 1. Add a fixture robots.txt with `Crawl-delay`.
 2. Crawl two pages and measure inter-request timing.
 
-Expected: if crawl-delay is a claimed behavior, requests honor it.  
-Actual: unverified; implementation path not obvious.  
+Expected: if crawl-delay is a claimed behavior, requests honor it.
+Actual: unverified; implementation path not obvious.
 Resolution: `Fetcher._apply_robots_crawl_delay()` now wires robots `Crawl-delay` into the start host's rate limiter and tests cover both robots-slower and user-slower cases.
 
 ## Implementation Plan
