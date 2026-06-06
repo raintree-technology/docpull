@@ -26,6 +26,7 @@ import yaml
 
 from ..core.fetcher import Fetcher
 from ..models.config import CrawlConfig, DocpullConfig, OutputConfig, ProfileName
+from ..models.run import MCP_META_SCHEMA_VERSION
 from ..security.url_validator import UrlValidator
 from ..time_utils import utc_now_iso
 from .sources import (
@@ -74,7 +75,13 @@ def _source_dir(docs_dir: Path, source: str) -> Path:
     return docs_dir / source
 
 
-def _cache_fresh(meta_path: Path) -> bool:
+def _cache_fresh(
+    meta_path: Path,
+    *,
+    expected_url: str | None = None,
+    expected_profile: str | None = None,
+    expected_max_pages: int | None = None,
+) -> bool:
     if not meta_path.exists():
         return False
     try:
@@ -86,10 +93,26 @@ def _cache_fresh(meta_path: Path) -> bool:
         return False
     if data.get("partial") is True:
         return False
+    if data.get("schema_version") != MCP_META_SCHEMA_VERSION:
+        return False
+    if expected_url is not None and data.get("url") != expected_url:
+        return False
+    if expected_profile is not None and data.get("profile") != expected_profile:
+        return False
+    if data.get("max_pages") != expected_max_pages:
+        return False
     return (time.time() - fetched_at) < CACHE_TTL_SECONDS
 
 
-def _write_meta(meta_path: Path, source: str, url: str, pages: int) -> None:
+def _write_meta(
+    meta_path: Path,
+    source: str,
+    url: str,
+    pages: int,
+    *,
+    profile: str,
+    max_pages: int | None,
+) -> None:
     """Atomic-ish meta write: tmp file + rename so a crash mid-write
     never leaves a half-parsed JSON behind."""
     meta_path.parent.mkdir(parents=True, exist_ok=True)
@@ -99,6 +122,9 @@ def _write_meta(meta_path: Path, source: str, url: str, pages: int) -> None:
             {
                 "source": source,
                 "url": url,
+                "schema_version": MCP_META_SCHEMA_VERSION,
+                "profile": profile,
+                "max_pages": max_pages,
                 "fetched_at_epoch": time.time(),
                 "fetched_at": utc_now_iso(),
                 "page_count": pages,
@@ -109,7 +135,15 @@ def _write_meta(meta_path: Path, source: str, url: str, pages: int) -> None:
     os.replace(tmp, meta_path)
 
 
-def _write_partial_meta(meta_path: Path, source: str, url: str, pages: int) -> None:
+def _write_partial_meta(
+    meta_path: Path,
+    source: str,
+    url: str,
+    pages: int,
+    *,
+    profile: str,
+    max_pages: int | None,
+) -> None:
     """Mark a fetch as partial. ``_cache_fresh`` treats partial as stale."""
     meta_path.parent.mkdir(parents=True, exist_ok=True)
     tmp = meta_path.with_suffix(meta_path.suffix + ".tmp")
@@ -118,6 +152,9 @@ def _write_partial_meta(meta_path: Path, source: str, url: str, pages: int) -> N
             {
                 "source": source,
                 "url": url,
+                "schema_version": MCP_META_SCHEMA_VERSION,
+                "profile": profile,
+                "max_pages": max_pages,
                 "fetched_at_epoch": time.time(),
                 "fetched_at": utc_now_iso(),
                 "page_count": pages,
@@ -200,9 +237,19 @@ async def ensure_docs(
 
     target_dir = _source_dir(docs_dir, source)
     meta_path = _meta_path(docs_dir, source)
+    profile_name = profile_enum.value
 
-    if not force and _cache_fresh(meta_path) and target_dir.exists() and any(target_dir.rglob("*.md")):
-        files = list(target_dir.rglob("*.md"))
+    files = list(target_dir.rglob("*.md")) if target_dir.exists() else []
+    if (
+        not force
+        and files
+        and _cache_fresh(
+            meta_path,
+            expected_url=resolved.url,
+            expected_profile=profile_name,
+            expected_max_pages=resolved.max_pages,
+        )
+    ):
         return ToolResult(
             f"Cached: {source} ({len(files)} files at {target_dir}). Call with force=true to refresh.",
             data={
@@ -233,11 +280,25 @@ async def ensure_docs(
         crashed = True
         # Mark whatever made it to disk as a partial fetch so future
         # ensure_docs calls re-fetch instead of trusting half a crawl.
-        _write_partial_meta(meta_path, source, resolved.url, fetched)
+        _write_partial_meta(
+            meta_path,
+            source,
+            resolved.url,
+            fetched,
+            profile=profile_name,
+            max_pages=resolved.max_pages,
+        )
         raise
 
     if not crashed:
-        _write_meta(meta_path, source, resolved.url, stats.pages_fetched)
+        _write_meta(
+            meta_path,
+            source,
+            resolved.url,
+            stats.pages_fetched,
+            profile=profile_name,
+            max_pages=resolved.max_pages,
+        )
     return ToolResult(
         f"Fetched {source}: {stats.pages_fetched} pages saved to {target_dir} "
         f"({stats.pages_skipped} skipped, {stats.pages_failed} failed).",

@@ -8,15 +8,15 @@ also be written to stdout (``path="-"``) for direct piping into other tools.
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import json
 import logging
 import sys
 from pathlib import Path
 from typing import IO
 
+from ...models.document import DocumentRecord
 from ...models.events import EventType, FetchEvent
-from ...time_utils import utc_now_iso
+from ...models.run import RunIdentity
 from ..base import EventEmitter, PageContext
 
 logger = logging.getLogger(__name__)
@@ -36,6 +36,7 @@ class NdjsonSaveStep:
         base_output_dir: Path,
         filename: str = "documents.ndjson",
         emit_chunks: bool = False,
+        run_identity: RunIdentity | None = None,
     ) -> None:
         self._base_dir = base_output_dir.resolve()
         self._filename = filename
@@ -45,6 +46,7 @@ class NdjsonSaveStep:
         self._chunk_count = 0
         self._output_path: Path | None = None
         self._lock = asyncio.Lock()
+        self._run_identity = run_identity
 
     def _ensure_open(self) -> IO[str]:
         if self._fp is not None:
@@ -59,6 +61,8 @@ class NdjsonSaveStep:
         return self._fp
 
     def _write_record(self, record: dict[str, object]) -> None:
+        if "content_hash" in record and "hash" not in record:
+            record["hash"] = record["content_hash"]
         fp = self._ensure_open()
         fp.write(json.dumps(record, ensure_ascii=False))
         fp.write("\n")
@@ -72,32 +76,37 @@ class NdjsonSaveStep:
         if ctx.should_skip or ctx.error or not ctx.markdown:
             return ctx
 
-        base_record: dict[str, object] = {
-            "url": ctx.url,
-            "title": ctx.title,
-            "source_type": ctx.source_type,
-            "metadata": ctx.metadata,
-            "fetched_at": utc_now_iso(),
-        }
-
         async with self._lock:
             if self._emit_chunks and ctx.chunks:
                 for chunk in ctx.chunks:
-                    record = dict(base_record)
-                    record["chunk_index"] = getattr(chunk, "index", 0)
-                    record["chunk_heading"] = getattr(chunk, "heading", None)
-                    record["token_count"] = getattr(chunk, "token_count", None)
                     text = getattr(chunk, "text", "")
-                    record["content"] = text
-                    record["hash"] = hashlib.sha256(text.encode("utf-8")).hexdigest()
-                    self._write_record(record)
+                    record = DocumentRecord.from_page(
+                        url=ctx.url,
+                        title=ctx.title,
+                        content=text,
+                        metadata=ctx.metadata,
+                        extraction=ctx.extraction_info,
+                        source_type=ctx.source_type,
+                        run_identity=self._run_identity,
+                        chunk_index=getattr(chunk, "index", 0),
+                        chunk_heading=getattr(chunk, "heading", None),
+                        token_count=getattr(chunk, "token_count", None),
+                    )
+                    self._write_record(record.model_dump(mode="json", exclude_none=True))
                     self._chunk_count += 1
             else:
-                record = dict(base_record)
-                record["content"] = ctx.markdown
-                record["hash"] = hashlib.sha256(ctx.markdown.encode("utf-8")).hexdigest()
-                self._write_record(record)
+                record = DocumentRecord.from_page(
+                    url=ctx.url,
+                    title=ctx.title,
+                    content=ctx.markdown,
+                    metadata=ctx.metadata,
+                    extraction=ctx.extraction_info,
+                    source_type=ctx.source_type,
+                    run_identity=self._run_identity,
+                )
+                self._write_record(record.model_dump(mode="json", exclude_none=True))
             self._document_count += 1
+            ctx.persisted_path = self._output_path
 
         if emit:
             emit(
