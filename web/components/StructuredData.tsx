@@ -25,7 +25,7 @@ const graph = {
       url: baseUrl,
       name: "docpull",
       description:
-        "Fast, type-safe, secure documentation fetcher. Transform any docs site into clean, AI-ready Markdown for LLMs, RAG pipelines, and offline archives.",
+        "Local Python crawler that turns server-rendered documentation into clean Markdown for agents, RAG pipelines, and offline archives.",
       inLanguage: "en",
       publisher: { "@id": `${baseUrl}/#organization` },
     },
@@ -39,7 +39,7 @@ const graph = {
       downloadUrl: "https://pypi.org/project/docpull/",
       softwareHelp: "https://github.com/raintree-technology/docpull#readme",
       description:
-        "Security-hardened, browser-free crawler that turns static documentation sites into clean, AI-ready Markdown for LLMs, RAG pipelines, and offline archives.",
+        "Security-hardened, browser-free crawler that turns static and server-rendered documentation into Markdown agents can read, cite, and reuse.",
       author: { "@id": `${baseUrl}/#organization` },
       license: "https://opensource.org/licenses/MIT",
       isAccessibleForFree: true,

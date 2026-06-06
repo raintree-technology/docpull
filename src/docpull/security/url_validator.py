@@ -93,13 +93,11 @@ class UrlValidator:
         except Exception:
             return UrlValidationResult.invalid("Invalid URL format")
 
-        # Check scheme
         if parsed.scheme not in self.allowed_schemes:
             return UrlValidationResult.invalid(
                 f"Scheme '{parsed.scheme}' not allowed (allowed: {self.allowed_schemes})"
             )
 
-        # Check for missing domain
         if not parsed.netloc:
             return UrlValidationResult.invalid("URL has no domain")
 
@@ -122,15 +120,12 @@ class UrlValidator:
 
     def _check_static_policy(self, normalized: str) -> UrlValidationResult | None:
         """Run the DNS-free policy checks (allow-list, localhost, suffixes)."""
-        # Check allowed domains
         if self.allowed_domains is not None and normalized not in self.allowed_domains:
             return UrlValidationResult.invalid(f"Domain '{normalized}' not in allowed list")
 
-        # Check for localhost
         if normalized in self.LOCALHOST_NAMES:
             return UrlValidationResult.invalid("Localhost URLs not allowed")
 
-        # Check for internal domain suffixes
         for suffix in self.INTERNAL_SUFFIXES:
             if normalized.endswith(suffix):
                 return UrlValidationResult.invalid(f"Internal domain suffix '{suffix}' not allowed")
@@ -145,7 +140,6 @@ class UrlValidator:
         if static_result is not None:
             return static_result
 
-        # Check for private/internal IPs
         if self.block_private_ips:
             ip_result = self._check_ip_address(normalized)
             if ip_result is not None:

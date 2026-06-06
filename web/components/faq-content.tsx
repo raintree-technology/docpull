@@ -99,9 +99,9 @@ export const faqs: { q: string; a: ReactNode; aText: string }[] = [
     a: (
       <>
         Yes — measured against a synthetic 10,000-page site:{" "}
-        <strong>~27&nbsp;s wall time</strong>,{" "}
-        <strong>~28&nbsp;MB peak RSS</strong>,{" "}
-        <strong>p99 ~5&nbsp;ms</strong> per-page latency. See{" "}
+        <strong>~333&nbsp;s wall time</strong>,{" "}
+        <strong>~94&nbsp;MB peak RSS delta</strong>,{" "}
+        <strong>0 failed pages</strong>. See{" "}
         <Src path="tests/benchmarks/test_10k_pages.py">
           tests/benchmarks/test_10k_pages.py
         </Src>{" "}
@@ -123,7 +123,7 @@ export const faqs: { q: string; a: ReactNode; aText: string }[] = [
       </>
     ),
     aText:
-      "Yes — measured against a synthetic 10,000-page site: about 27 s wall time, about 28 MB peak RSS, and p99 around 5 ms per-page latency. Streaming deduplication keeps memory constant per page; the cache sends If-None-Match / If-Modified-Since on every cached URL so scheduled re-runs only transfer changed pages, and fetched and failed URL sets persist on disk so a crash resumes from the discovered-URL list instead of restarting.",
+      "Yes — measured against a synthetic 10,000-page site: about 333 s wall time, about 94 MB peak RSS delta, and 0 failed pages. Streaming deduplication keeps memory constant per page; the cache sends If-None-Match / If-Modified-Since on every cached URL so scheduled re-runs only transfer changed pages, and fetched and failed URL sets persist on disk so a crash resumes from the discovered-URL list instead of restarting.",
   },
   {
     q: "Does it handle auth-gated documentation?",

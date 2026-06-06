@@ -79,15 +79,15 @@ export default function Hero() {
           {/* Left: Content */}
           <div>
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-medium tracking-tight mb-6">
-              <span>Fetch docs.</span>
+              <span>Fetch the web.</span>
               <br />
               <span className="text-muted-foreground">Get clean Markdown.</span>
             </h1>
 
             <p className="text-muted-foreground text-base sm:text-lg mb-8 max-w-md">
-              Local Python crawler that turns server-rendered docs into
-              clean Markdown. Zero API keys, zero data leaving your
-              machine. Built for RAG pipelines and Claude Code skills.
+              Turn server-rendered docs into clean Markdown your agents can
+              actually use. No browser, no API key, no data leaving your
+              machine.
             </p>
 
             {/* Install command + CTA */}
@@ -121,8 +121,8 @@ export default function Hero() {
             </div>
 
             <p className="mt-4 text-xs text-muted-foreground max-w-md leading-relaxed">
-              Static and server-rendered sites only. JS-rendered SPAs are
-              detected and skipped — pass{" "}
+              Best for static docs, API references, and server-rendered
+              sites. JS-rendered SPAs are detected and skipped — pass{" "}
               <code className="font-mono text-[11px] bg-background/60 px-1 rounded">
                 --strict-js-required
               </code>{" "}

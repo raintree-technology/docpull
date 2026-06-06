@@ -210,19 +210,17 @@ sources:
     maxPages: 200
 ```
 
-### About the `mcp/` directory in this repo
+### Supported MCP path
 
-The `mcp/` directory at the repo root is a separate TypeScript + Bun MCP
-server backed by PostgreSQL with pgvector for semantic search. It is not
-the Python MCP server shipped in the `docpull` package described above
-— that one is the right choice for almost every user and is installed
-with `pip install 'docpull[mcp]'`.
+The supported MCP server is the Python stdio server started by `docpull mcp`.
+That is the only MCP path covered by the `docpull` package release contract and
+the one agents, plugin users, Claude Code, Cursor, and Claude Desktop should
+use.
 
-Treat the root `mcp/` tree as experimental in-tree source for the pgvector
-semantic-search path. It is not part of the Python package release contract,
-and this README does not claim a public mirror is available. Unless you are
-working on that separate semantic-search server, ignore it and use
-`docpull mcp`.
+This repository also contains an `mcp/` directory with an internal TypeScript +
+Bun lab for PostgreSQL/pgvector semantic search. It is not shipped by the Python
+package, is not documented as a user install path, and should be ignored unless
+you are explicitly developing that lab.
 
 ## Output
 
@@ -269,7 +267,7 @@ Run `docpull --help` for the full list. Highlights:
 
 ```
 Core:
-  --profile {rag,mirror,quick,llm,custom}
+  --profile {rag,mirror,quick,llm}
   --single                Fetch one URL (no crawl)
   --format {markdown,json,ndjson,sqlite}
   --stream                Stream NDJSON to stdout
@@ -288,27 +286,33 @@ Cache:
   --cache                 Enable incremental updates
   --cache-dir DIR
   --cache-ttl DAYS
+
+Crawl:
+  --max-concurrent N      Global request concurrency
+  --per-host-concurrent N Per-host request concurrency
 ```
 
 ## Performance
 
 End-to-end numbers from `tests/benchmarks/test_10k_pages.py` against a
 synthetic 10,000-page localhost site (RAG profile, `max_concurrent=50`,
-HTTP keep-alive, 5% injected duplicate content):
+`per_host_concurrent=50`, HTTP keep-alive, 5% injected duplicate content).
+The benchmark emits progress every 1,000 pages plus a final JSON report for
+trend tooling.
 
 | Metric | Value |
 |---|---|
-| Total wall time | ~27 s |
-| Discovery (sitemap parse) | ~80 ms |
-| Fetch + convert + save | ~27 s |
-| Per-page latency p50 / p95 / p99 | ~2.6 / 4.6 / 5.3 ms |
-| Peak RSS delta from baseline | ~28 MB |
-| Cache manifest size on disk | ~3.4 MB |
+| Total wall time | ~333 s |
+| Pages fetched / skipped / failed | 9,501 / 499 / 0 |
+| Time to first saved page | ~130 ms |
+| Per-page latency p50 / p95 / p99 | ~0 / 166 / 232 ms |
+| Peak RSS delta from baseline | ~94 MB |
+| Cache manifest size on disk | ~8.9 MB |
 | Duplicates detected (5% injected) | 499 / 500 |
 
 Reproduce with `make benchmark` (requires `aiohttp`; runs the gated
-benchmark in `tests/benchmarks/` and prints a JSON line you can pipe
-into trend tooling).
+benchmark in `tests/benchmarks/` and prints progress plus a JSON line you can
+pipe into trend tooling).
 
 ## Troubleshooting
 

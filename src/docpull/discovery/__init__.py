@@ -14,18 +14,14 @@ from .protocols import UrlDiscoverer, UrlFilter
 from .sitemap import SitemapDiscoverer
 
 __all__ = [
-    # Protocols
     "UrlDiscoverer",
     "UrlFilter",
     "LinkExtractor",
-    # Discoverers
     "CompositeDiscoverer",
     "LinkCrawler",
     "SitemapDiscoverer",
-    # Link Extractors
     "StaticLinkExtractor",
     "EnhancedLinkExtractor",
-    # Filters
     "CompositeFilter",
     "DomainFilter",
     "PatternFilter",

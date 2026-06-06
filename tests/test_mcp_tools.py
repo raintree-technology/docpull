@@ -178,6 +178,43 @@ def test_list_indexed_reports_fetch_age(tmp_path):
     assert "fetched 1h ago" in result.text
 
 
+def test_list_indexed_keeps_fresh_sources_with_max_pages_fresh(tmp_path):
+    """Freshness display should honor the same meta fields ensure_docs writes."""
+    import json
+    import time
+
+    sub = tmp_path / "src"
+    sub.mkdir()
+    (sub / "index.md").write_text("body")
+
+    meta = tmp_path / ".src.meta.json"
+    meta.write_text(
+        json.dumps(
+            {
+                "source": "src",
+                "url": "https://x.test/",
+                "schema_version": 1,
+                "profile": "quick",
+                "max_pages": 1,
+                "fetched_at_epoch": time.time(),
+                "fetched_at": "2026-04-26T00:00:00",
+                "page_count": 1,
+            }
+        )
+    )
+
+    result = list_indexed(docs_dir=tmp_path)
+
+    assert result.data is not None
+    library = result.data["libraries"][0]
+    assert library["name"] == "src"
+    assert library["file_count"] == 1
+    assert library["fresh"] is True
+    assert library["fetched_at"] == "2026-04-26T00:00:00"
+    assert library["age_seconds"] >= 0
+    assert "(fresh)" in result.text
+
+
 def test_resolve_profile_accepts_known_names():
     from docpull.mcp.tools import _resolve_profile
     from docpull.models.config import ProfileName

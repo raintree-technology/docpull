@@ -79,7 +79,6 @@ class DedupStep:
             # No content to check
             return ctx
 
-        # Check for duplicate using StreamingDeduplicator
         should_save, duplicate_of = await self._deduplicator.check_and_register(ctx.url, content)
 
         if not should_save and duplicate_of:

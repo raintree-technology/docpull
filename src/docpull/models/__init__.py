@@ -26,7 +26,6 @@ from .run import (
 )
 
 __all__ = [
-    # Config
     "AuthConfig",
     "AuthType",
     "ByteSize",
@@ -45,12 +44,10 @@ __all__ = [
     "FRONTIER_SCHEMA_VERSION",
     "MCP_META_SCHEMA_VERSION",
     "PROGRESS_EVENT_SCHEMA_VERSION",
-    # Events
     "EventType",
     "FetchEvent",
     "FetchStats",
     "SkipReason",
-    # Profiles
     "PROFILES",
     "apply_profile",
 ]

@@ -1,7 +1,8 @@
 {
-	"name": "docpull-mcp",
+	"name": "docpull-mcp-lab",
 	"version": "0.3.0",
-	"description": "MCP server for fetching and searching documentation with semantic search",
+	"private": true,
+	"description": "Internal lab for docpull semantic-search MCP experiments",
 	"type": "module",
 	"main": "src/server.ts",
 	"scripts": {

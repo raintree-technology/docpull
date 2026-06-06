@@ -160,7 +160,12 @@ async def test_10k_pages_end_to_end(server, tmp_path: Path) -> None:
         profile=ProfileName.RAG,
         output={"directory": tmp_path / "out", "naming_strategy": "hierarchical"},
         cache={"enabled": True, "directory": tmp_path / "cache", "skip_unchanged": True},
-        crawl={"max_concurrent": 50, "rate_limit": 0.0, "max_pages": PAGE_COUNT},
+        crawl={
+            "max_concurrent": 50,
+            "per_host_concurrent": 50,
+            "rate_limit": 0.0,
+            "max_pages": PAGE_COUNT,
+        },
     )
 
     discovery_started: float | None = None
@@ -183,6 +188,24 @@ async def test_10k_pages_end_to_end(server, tmp_path: Path) -> None:
                     first_save_time = now - t0
             elif event.type == EventType.PAGE_DEDUPLICATED:
                 duplicates_seen += 1
+            elif (
+                event.type == EventType.FETCH_PROGRESS
+                and event.processed_count is not None
+                and event.processed_count % 1000 == 0
+            ):
+                print(
+                    "DOCPULL_10K_BENCHMARK_PROGRESS="
+                    + json.dumps(
+                        {
+                            "processed": event.processed_count,
+                            "saved": event.saved_count,
+                            "skipped": event.skipped_count,
+                            "failed": event.failed_count,
+                            "elapsed_seconds": round(now - t0, 2),
+                        }
+                    ),
+                    flush=True,
+                )
 
     wall = time.monotonic() - t0
     rss_peak = _peak_rss_bytes()

@@ -214,14 +214,11 @@ class SitemapDiscoverer:
 
         logger.debug(f"Sitemap {sitemap_url}: {len(page_urls)} URLs, {len(nested_sitemaps)} nested sitemaps")
 
-        # Yield page URLs
         count = 0
         for url in page_urls:
-            # Check max URLs limit
             if max_urls is not None and count >= max_urls:
                 return
 
-            # Validate URL
             if not self._validator.is_valid(url):
                 continue
 
@@ -229,7 +226,6 @@ class SitemapDiscoverer:
                 logger.debug(f"Ignoring off-origin sitemap URL: {url}")
                 continue
 
-            # Apply pattern filter
             if self._filter and not self._filter.should_include(url):
                 continue
 
