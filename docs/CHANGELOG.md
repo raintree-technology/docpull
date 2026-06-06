@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.1] - 2026-06-06
+
+A release-readiness patch that tightens the public product boundary. No runtime
+API changes and no migration needed.
+
+### Changed
+- Make the Python `docpull mcp` server the only documented supported MCP path
+  for agents, plugins, Claude Code, Cursor, and Claude Desktop.
+- Mark the root TypeScript/Bun `mcp/` tree as an internal lab, make its package
+  metadata private, and remove end-user install instructions for that path.
+- Replace stale YAML example files with current CLI recipes so docs no longer
+  advertise removed options such as `--sources-file`, TOON output,
+  `keep_variant`, `language`, or `create_index`.
+- Update website examples and performance copy to match the current CLI and
+  benchmark results.
+
 ## [4.0.0] - 2026-06-04
 
 A security + cleanup release. A multi-agent security audit closed a high-severity

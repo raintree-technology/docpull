@@ -29,10 +29,9 @@ export default function Install() {
             <span>Install</span>
           </h2>
           <p className="text-sm sm:text-base text-muted-foreground mb-6">
-            A single command to get docpull on your machine. Requires Python
-            3.10 or newer.
+            Install once, then crawl from your terminal, scripts, or agent
+            workflow. Requires Python 3.10 or newer.
           </p>
-          {/* Main pip command */}
           <div className="flex flex-wrap items-center justify-center gap-2 mb-6">
             <code className="px-6 py-3 glass rounded-xl text-sm sm:text-base font-mono">
               pip install docpull
@@ -51,7 +50,6 @@ export default function Install() {
             </button>
           </div>
 
-          {/* Collapsible alternatives */}
           <div>
             <button
               type="button"

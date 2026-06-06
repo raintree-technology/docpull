@@ -53,7 +53,6 @@ def check_network() -> tuple[bool, str]:
     try:
         import socket
 
-        # Try to resolve a common DNS name
         socket.gethostbyname("www.google.com")
         return True, "[OK] Network connectivity"
     except socket.gaierror:
@@ -75,10 +74,8 @@ def check_output_dir(output_dir: Path | None = None) -> tuple[bool, str]:
     test_dir = output_dir or Path("./docs")
 
     try:
-        # Create directory if it doesn't exist
         test_dir.mkdir(parents=True, exist_ok=True)
 
-        # Try to write a test file
         test_file = test_dir / ".docpull_test"
         test_file.write_text("test")
         test_file.unlink()
@@ -101,12 +98,10 @@ def run_doctor(output_dir: Path | None = None, use_rich: bool = True) -> int:
     Returns:
         Exit code (0 if all core dependencies OK, 1 if any core dependency missing)
     """
-    # Determine if we can use rich formatting
     use_rich = use_rich and RICH_AVAILABLE
 
     print("Running docpull diagnostics...\n")
 
-    # Core dependencies
     core_checks = [
         ("bs4", "beautifulsoup4"),
         ("html2text", "html2text"),
@@ -116,7 +111,6 @@ def run_doctor(output_dir: Path | None = None, use_rich: bool = True) -> int:
         ("pydantic", "pydantic"),
     ]
 
-    # Optional dependencies
     optional_checks = [
         ("aiohttp_socks", "aiohttp-socks", True),
         ("url_normalize", "url-normalize", True),
@@ -125,13 +119,11 @@ def run_doctor(output_dir: Path | None = None, use_rich: bool = True) -> int:
         ("mcp", "mcp", True),
     ]
 
-    # Other checks
     system_checks = [
         check_network(),
         check_output_dir(output_dir),
     ]
 
-    # Run core dependency checks
     core_results = [check_dependency(mod, pkg) for mod, pkg in core_checks]
     optional_results = [check_dependency(mod, pkg, opt) for mod, pkg, opt in optional_checks]
 
@@ -141,7 +133,6 @@ def run_doctor(output_dir: Path | None = None, use_rich: bool = True) -> int:
         "System": system_checks,
     }
 
-    # Display results
     if use_rich:
         console = Console()
 
@@ -156,17 +147,14 @@ def run_doctor(output_dir: Path | None = None, use_rich: bool = True) -> int:
             console.print(table)
             console.print()
     else:
-        # Fallback to plain text
         for category, results in all_checks.items():
             print(f"{category}:")
             for _success, message in results:
                 print(f"  {message}")
             print()
 
-    # Check if any core dependencies failed
     core_failed = any(not success for success, _ in core_results)
 
-    # Print summary
     if core_failed:
         print("\nWARNING: Some core dependencies are missing!")
         print("\nRecommended fixes:")
@@ -177,7 +165,6 @@ def run_doctor(output_dir: Path | None = None, use_rich: bool = True) -> int:
     else:
         print("\nAll core dependencies installed correctly!")
 
-        # Check if optional dependencies are missing
         optional_missing = [msg for success, msg in optional_results if not success]
         if optional_missing:
             print("\nOptional features available:")

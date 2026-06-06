@@ -1,44 +1,64 @@
-# Configuration Examples
+# CLI Recipes
 
-Example YAML configurations for docpull.
+These examples use the current `docpull` CLI. The old multi-source YAML runner
+and options such as `--sources-file`, `language`, `keep_variant`, TOON output,
+and `create_index` are not part of the current CLI surface.
 
-## Files
-
-| File | Description |
-|------|-------------|
-| `simple-optimization.yaml` | Single source with language filter + index |
-| `multi-source-optimized.yaml` | Multiple sources with full optimization |
-| `incremental-updates.yaml` | Resume downloads, update only changed files |
-| `format-conversion.yaml` | TOON, JSON, SQLite output formats |
-| `deduplication-strategies.yaml` | Different dedup strategies (mainnet, shortest, etc.) |
-| `selective-crawling.yaml` | Include/exclude path patterns |
-
-## Usage
+## Single Page
 
 ```bash
-docpull --sources-file docs/examples/simple-optimization.yaml
+docpull https://docs.example.com/guide --single -o ./docs/example
 ```
 
-## Configuration Reference
+## Small Crawl
 
-```yaml
-# Global settings
-output_dir: ./docs
-rate_limit: 0.5
-
-# Per-source settings
-sources:
-  my-docs:
-    url: https://example.com
-    language: en
-    deduplicate: true
-    keep_variant: mainnet
-    max_file_size: 200kb
-    include_paths: ["guides/*"]
-    exclude_paths: ["*/changelog"]
-    exclude_sections: ["Examples"]
-    format: markdown
-    create_index: true
+```bash
+docpull https://docs.example.com --max-pages 50 --max-depth 2 -o ./docs/example
 ```
 
-See `docpull --help` for all options.
+## LLM Chunks
+
+```bash
+docpull https://docs.example.com \
+  --profile llm \
+  --stream \
+  | jq .
+```
+
+## Selective Crawl
+
+```bash
+docpull https://docs.example.com \
+  --include-paths "/api/*" "/reference/*" \
+  --exclude-paths "/changelog/*" "/release-notes/*" \
+  -o ./docs/example-api
+```
+
+## Incremental Mirror
+
+```bash
+docpull https://docs.example.com \
+  --profile mirror \
+  --cache \
+  --cache-dir .docpull-cache \
+  -o ./docs/example-mirror
+```
+
+## Output Formats
+
+```bash
+docpull https://docs.example.com --format markdown -o ./out/markdown
+docpull https://docs.example.com --format json -o ./out/json
+docpull https://docs.example.com --format ndjson -o ./out/ndjson
+docpull https://docs.example.com --format sqlite -o ./out/sqlite
+```
+
+## Claude Code Skill
+
+```bash
+docpull https://docs.example.com \
+  --skill example-docs \
+  --skill-description "Example documentation reference"
+```
+
+Run `docpull --help` for the full option list.

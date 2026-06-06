@@ -217,7 +217,6 @@ class FetchStep:
                     )
                 return ctx
 
-            # Check for client errors (skip, don't fail)
             if 400 <= response.status_code < 500:
                 ctx.mark_skipped(f"HTTP {response.status_code}", SkipReason.HTTP_ERROR)
                 logger.debug(f"Skipping {url}: HTTP {response.status_code}")

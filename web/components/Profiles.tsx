@@ -1,23 +1,23 @@
 const profiles = [
   {
     name: "RAG",
-    description: "Deduped, metadata-rich output for LLMs and vector stores.",
+    description: "Clean Markdown with metadata and deduping for retrieval.",
     example: "docpull URL --profile rag",
   },
   {
     name: "Mirror",
-    description: "Full archive with caching, resume support, and hierarchical paths.",
+    description: "A fuller local archive with cache, resume, and stable paths.",
     example: "docpull URL --profile mirror",
   },
   {
     name: "Quick",
-    description: "50 pages, depth 2. For testing and sampling.",
+    description: "A 50-page sample when you need to inspect output first.",
     example: "docpull URL --profile quick",
   },
   {
     name: "LLM",
     description:
-      "Token-aware NDJSON for LLM ingestion: chunked, deduped, skips JS-only pages unless strict mode is enabled.",
+      "Token-aware NDJSON chunks that skip JS-only pages unless strict mode is enabled.",
     example: "docpull URL --profile llm --stream | jq .",
   },
 ];
@@ -31,7 +31,7 @@ export default function Profiles() {
             <span>Profiles</span>
           </h2>
           <p className="text-sm sm:text-base text-muted-foreground">
-            Pick a profile for your use case.
+            Choose the output shape before you crawl.
           </p>
         </div>
 

@@ -84,7 +84,6 @@ class JsonSaveStep:
                 dir=self._base_dir,
             )
             self._temp_file = os.fdopen(fd, "w", encoding="utf-8")
-            # Write opening structure - we'll complete it in finalize()
             self._temp_file.write('{\n  "documents": [\n')
             self._first_doc = True
         return self._temp_file
@@ -121,14 +120,11 @@ class JsonSaveStep:
 
         f = self._ensure_temp_file()
 
-        # Write comma separator between documents
         if not self._first_doc:
             f.write(",\n")
         self._first_doc = False
 
-        # Write document with indentation
         doc_json = json.dumps(doc, indent=2, ensure_ascii=False)
-        # Indent each line by 4 spaces (2 for documents array + 2 for item)
         indented = "\n".join("    " + line for line in doc_json.split("\n"))
         f.write(indented)
 

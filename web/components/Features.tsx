@@ -1,28 +1,28 @@
 const features = [
   {
-    title: "AI-Ready Output",
+    title: "Markdown Agents Can Use",
     description:
-      "Markdown with YAML frontmatter — title, source URL, heading outline, OpenGraph description. Drops into a vector store or a `.claude/skills/` directory.",
+      "Every page includes clean Markdown plus frontmatter for title, source URL, headings, and description. Drop it into RAG, search, or a skill directory.",
   },
   {
-    title: "Streaming Dedup",
+    title: "No Duplicate Slop",
     description:
-      "SHA-256-hashed at fetch time. Constant memory per page — duplicate pages are detected before they're written to disk, not after.",
+      "Pages are SHA-256 hashed while they stream in, so duplicates are caught before they hit disk instead of cleaned up later.",
   },
   {
-    title: "Zero-Trust Networking",
+    title: "Safe for Agent-Chosen URLs",
     description:
-      "HTTPS-only, robots.txt compliant, SSRF-protected with DNS pinning at connect time. Built for crawls where an agent picks the URLs — pass --require-pinned-dns to refuse weakened proxy configurations.",
+      "HTTPS-only, robots.txt compliant, SSRF-protected, and DNS-pinned at connect time. Use --require-pinned-dns when proxy settings weaken that guarantee.",
   },
   {
-    title: "Conditional Re-fetch",
+    title: "Cheap to Re-run",
     description:
-      "If-None-Match / If-Modified-Since on every cached page. Re-runs only transfer what changed; the discovered URL list is persisted so a crash resumes instead of restarts.",
+      "Cached pages use If-None-Match and If-Modified-Since. Re-runs fetch what changed, and saved frontier state lets interrupted crawls resume.",
   },
   {
-    title: "Path & Pattern Filters",
+    title: "Crawl the Parts That Matter",
     description:
-      "--include-paths and --exclude-paths glob filters at discovery time. Ship only the routes your model needs, not the entire site.",
+      "Include and exclude path globs during discovery, so your model gets the relevant docs instead of every route the site exposes.",
   },
 ];
 
@@ -35,7 +35,7 @@ export default function Features() {
             <span>Features</span>
           </h2>
           <p className="text-muted-foreground">
-            Everything you need for production-grade doc ingestion.
+            The boring pieces that make documentation ingestion dependable.
           </p>
         </div>
 

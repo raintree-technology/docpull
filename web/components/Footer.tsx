@@ -47,7 +47,6 @@ export default function Footer() {
   return (
     <footer className="border-t py-10 sm:py-12 relative z-10 bg-background">
       <div className="mx-auto max-w-5xl px-6">
-        {/* Brand blurb */}
         <div className="mb-8 max-w-md mx-auto text-center sm:mx-0 sm:text-left">
           <div className="flex items-center gap-2 justify-center sm:justify-start mb-2 text-sm font-medium">
             <svg
@@ -75,13 +74,11 @@ export default function Footer() {
             docpull
           </div>
           <p className="text-xs text-muted-foreground leading-relaxed">
-            An open-source documentation fetcher that turns any docs site into
-            clean Markdown for RAG pipelines, Claude Code skills, and LLM
-            training.
+            A local documentation fetcher for turning server-rendered docs into
+            Markdown your agents can read, cite, and reuse.
           </p>
         </div>
 
-        {/* Mobile: simple centered layout */}
         <div className="flex flex-col items-center gap-4 text-sm text-muted-foreground sm:hidden">
           <div className="flex items-center gap-4">
             <a
@@ -140,7 +137,6 @@ export default function Footer() {
           </span>
         </div>
 
-        {/* Desktop: full layout */}
         <div className="hidden sm:flex sm:items-center sm:justify-between">
           <div className="flex items-center gap-6 text-sm text-muted-foreground">
             <a

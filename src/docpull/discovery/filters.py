@@ -49,7 +49,7 @@ def normalize_url(url: str) -> str:
             parsed.path.rstrip("/") or "/",
             parsed.params,
             parsed.query,
-            "",  # Remove fragment
+            "",
         )
     )
 
@@ -97,11 +97,9 @@ class PatternFilter:
         parsed = urlparse(url)
         path = parsed.path
 
-        # If include patterns specified, URL must match at least one
         if self.include_patterns and not any(fnmatch.fnmatch(path, p) for p in self.include_patterns):
             return False
 
-        # If exclude patterns specified, URL must NOT match any
         return not (self.exclude_patterns and any(fnmatch.fnmatch(path, p) for p in self.exclude_patterns))
 
 
@@ -150,15 +148,12 @@ class DomainFilter:
         parsed = urlparse(url)
         domain = parsed.netloc.lower()
 
-        # Exact match
         if domain == self.base_domain:
             return True
 
-        # Additional domains
         if domain in self.additional_domains:
             return True
 
-        # Subdomain check
         return bool(self.allow_subdomains and domain.endswith("." + self.base_domain))
 
 

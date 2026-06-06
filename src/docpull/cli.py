@@ -7,7 +7,6 @@ import asyncio
 import sys
 from pathlib import Path
 
-# Check if --doctor flag is present before checking dependencies
 if "--doctor" in sys.argv:
     from .doctor import run_doctor
 
@@ -19,7 +18,6 @@ if "--doctor" in sys.argv:
             output_dir = Path(sys.argv[flag_idx + 1])
     sys.exit(run_doctor(output_dir=output_dir))
 
-# Verify core dependencies
 try:
     import aiohttp  # noqa: F401
     import bs4  # noqa: F401
@@ -37,6 +35,7 @@ except ImportError as e:
     sys.exit(1)
 
 from rich.console import Console
+from rich.markup import escape
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from . import __version__
@@ -85,7 +84,6 @@ Examples:
         help="Run diagnostic checks",
     )
 
-    # Profile
     parser.add_argument(
         "--profile",
         "-p",
@@ -117,7 +115,6 @@ Examples:
         help="Override the auto-derived `description` in SKILL.md.",
     )
 
-    # Output
     parser.add_argument(
         "--output-dir",
         "-o",
@@ -167,6 +164,12 @@ Examples:
         type=int,
         default=None,
         help="Maximum concurrent requests",
+    )
+    crawl_group.add_argument(
+        "--per-host-concurrent",
+        type=int,
+        default=None,
+        help="Maximum concurrent requests per host",
     )
     crawl_group.add_argument(
         "--rate-limit",
@@ -309,7 +312,6 @@ Examples:
         help="Custom auth header (name value)",
     )
 
-    # Cache settings
     cache_group = parser.add_argument_group("cache settings")
     cache_group.add_argument(
         "--cache",
@@ -341,7 +343,6 @@ Examples:
         help="Resume from previous interrupted run (requires --cache)",
     )
 
-    # Output control
     output_group = parser.add_argument_group("output control")
     output_group.add_argument(
         "--dry-run",
@@ -377,7 +378,6 @@ def run_fetcher(args: argparse.Namespace) -> int:
         console.print("[red]Error:[/red] Please provide a URL to fetch")
         return 1
 
-    # Map profile
     profile_map = {
         "rag": ProfileName.RAG,
         "mirror": ProfileName.MIRROR,
@@ -386,14 +386,12 @@ def run_fetcher(args: argparse.Namespace) -> int:
     }
     profile = profile_map.get(args.profile, ProfileName.RAG)
 
-    # Build config
     config_kwargs: dict = {
         "profile": profile,
         "url": args.url,
         "dry_run": args.dry_run,
     }
 
-    # Output settings
     output_kwargs: dict = {}
     if args.skill:
         # Skill mode: nest under <output-dir>/<skill>/, force hierarchical
@@ -431,6 +429,8 @@ def run_fetcher(args: argparse.Namespace) -> int:
         crawl_kwargs["max_depth"] = args.max_depth
     if args.max_concurrent is not None:
         crawl_kwargs["max_concurrent"] = args.max_concurrent
+    if args.per_host_concurrent is not None:
+        crawl_kwargs["per_host_concurrent"] = args.per_host_concurrent
     if args.rate_limit is not None:
         crawl_kwargs["rate_limit"] = args.rate_limit
     if args.adaptive_rate_limit:
@@ -500,7 +500,6 @@ def run_fetcher(args: argparse.Namespace) -> int:
     if auth_kwargs:
         config_kwargs["auth"] = auth_kwargs
 
-    # Cache settings
     cache_kwargs: dict = {}
     if args.cache or args.resume:
         cache_kwargs["enabled"] = True
@@ -524,7 +523,7 @@ def run_fetcher(args: argparse.Namespace) -> int:
     try:
         config = DocpullConfig(**config_kwargs)
     except Exception as e:
-        console.print(f"[red]Configuration error:[/red] {e}")
+        console.print("[red]Configuration error:[/red] " + escape(str(e)))
         return 1
 
     async def run() -> int:
@@ -646,7 +645,7 @@ def run_fetcher(args: argparse.Namespace) -> int:
                 return 0 if stats.pages_failed == 0 else 1
 
         except Exception as e:
-            console.print(f"[red]Error:[/red] {e}")
+            console.print("[red]Error:[/red] " + escape(str(e)))
             if args.verbose:
                 import traceback
 

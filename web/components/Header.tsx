@@ -24,7 +24,6 @@ export default function Header() {
       )}
     >
       <div className="flex h-14 items-center justify-between px-6 max-w-5xl mx-auto">
-        {/* Logo */}
         <a
           href="#"
           className="font-medium text-sm min-h-11 flex items-center gap-2"
@@ -53,7 +52,6 @@ export default function Header() {
           docpull
         </a>
 
-        {/* Nav links - desktop only */}
         <nav className="hidden md:flex items-center gap-6">
           <a
             href="#features"
@@ -75,7 +73,6 @@ export default function Header() {
           </a>
         </nav>
 
-        {/* Icons */}
         <div className="flex items-center gap-1">
           <a
             href="https://github.com/raintree-technology/docpull"

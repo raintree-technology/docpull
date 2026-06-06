@@ -14,7 +14,7 @@ Usage:
             print(event)
 """
 
-__version__ = "4.0.0"
+__version__ = "4.0.1"
 
 from .cache import CacheManager, StreamingDeduplicator
 from .conversion.chunking import Chunk, TokenCounter, chunk_markdown
@@ -34,12 +34,10 @@ from .pipeline.base import PageContext
 
 __all__ = [
     "__version__",
-    # Core
     "Fetcher",
     "fetch_blocking",
     "fetch_one",
     "PageContext",
-    # Config
     "DocpullConfig",
     "ProfileName",
     "CrawlConfig",
@@ -48,14 +46,11 @@ __all__ = [
     "NetworkConfig",
     "PerformanceConfig",
     "CacheConfig",
-    # Events
     "EventType",
     "FetchEvent",
     "FetchStats",
-    # Cache
     "CacheManager",
     "StreamingDeduplicator",
-    # Chunking
     "Chunk",
     "TokenCounter",
     "chunk_markdown",

@@ -95,17 +95,14 @@ class LinkCrawler:
         for anchor in soup.find_all("a", href=True):
             href = anchor["href"]
 
-            # Skip empty, anchor-only, or javascript links
             if not href or href.startswith("#") or href.startswith("javascript:"):
                 continue
 
-            # Resolve relative URLs
             try:
                 absolute_url = urljoin(base_url, href)
             except ValueError:
                 continue
 
-            # Remove fragment
             parsed = urlparse(absolute_url)
             clean_url = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
             if parsed.query:
@@ -125,19 +122,15 @@ class LinkCrawler:
         Returns:
             True if URL should be crawled
         """
-        # Security validation
         if not self._validator.is_valid(url):
             return False
 
-        # robots.txt check
         if not self._robots.is_allowed(url):
             return False
 
-        # Domain filter
         if self._domain_filter and not self._domain_filter.should_include(url):
             return False
 
-        # Pattern filter
         return not (self._pattern_filter and not self._pattern_filter.should_include(url))
 
     async def discover(
@@ -162,23 +155,19 @@ class LinkCrawler:
         """
         self._seen.clear()
 
-        # Set up domain filter
         if self._stay_on_domain:
             self._domain_filter = DomainFilter(start_url, allow_subdomains=False)
         else:
             self._domain_filter = None
 
-        # Use provided max_depth or instance default
         effective_max_depth = max_depth if max_depth is not None else self._max_depth
 
-        # BFS queue: (url, depth)
         queue: deque[tuple[str, int]] = deque()
         queue.append((start_url, 0))
         self._seen.add(start_url)
 
         count = 0
 
-        # Yield the starting URL first
         if self._should_crawl(start_url):
             yield start_url
             count += 1
@@ -189,16 +178,12 @@ class LinkCrawler:
         while queue:
             current_url, depth = queue.popleft()
 
-            # Stop if max depth reached
             if depth >= effective_max_depth:
                 continue
 
-            # Extract links using custom extractor or built-in method
             if self._link_extractor is not None:
-                # Custom extractor handles fetching internally
                 links = await self._link_extractor.extract_links(current_url)
             else:
-                # Built-in extraction with separate fetch
                 html = await fetch_html(self._client, current_url)
                 if html is None:
                     continue
@@ -207,22 +192,18 @@ class LinkCrawler:
             logger.debug(f"Found {len(links)} links on {current_url}")
 
             for link in links:
-                # Check if already seen
                 if not self._seen.add(link):
                     continue
 
-                # Check if should crawl
                 if not self._should_crawl(link):
                     continue
 
-                # Yield the URL
                 yield link
                 count += 1
 
                 if max_urls is not None and count >= max_urls:
                     return
 
-                # Add to queue for further crawling
                 if depth + 1 < effective_max_depth:
                     queue.append((link, depth + 1))
 

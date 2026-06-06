@@ -19,12 +19,12 @@ discover repo skills from `.agents/skills`.
   - Read: `fetch_url`, `list_sources`, `list_indexed`, `grep_docs`, `read_doc`
   - Write: `ensure_docs`, `add_source`, `remove_source`
   - All read tools advertise `readOnlyHint` so hosts that auto-approve safe tools won't prompt for them.
-- **MCP prompts**:
-  - `/mcp__docpull__docs_add <alias-or-url>` — fetch a built-in alias, or register an HTTPS docs URL and then fetch it into the local index.
-  - `/mcp__docpull__docs_search <pattern> [library]` — regex-search cached docs and pull surrounding context for the top hits.
-  - `/mcp__docpull__docs_list` — show what's cached, with last-fetched age.
-  - `/mcp__docpull__docs_refresh <library>` — bypass the 7-day cache and re-fetch.
-  - `/mcp__docpull__docs_remove <library> [--keep-cache]` — drop a user alias and its cached docs.
+- **Slash commands**:
+  - `/docs-add <alias-or-url>` — fetch a built-in alias, or register an HTTPS docs URL and then fetch it into the local index.
+  - `/docs-search <pattern> [library]` — regex-search cached docs and pull surrounding context for the top hits.
+  - `/docs-list` — show what's cached, with last-fetched age.
+  - `/docs-refresh <library>` — bypass the 7-day cache and re-fetch.
+  - `/docs-remove <library> [--keep-cache]` — drop a user alias and its cached docs.
 - **Meta-skill** (`docpull-research`): teaches Claude *when* to reach for docpull — so you don't have to remember the tool exists every time you ask about a library or web source.
 
 ## Prerequisite
@@ -89,7 +89,7 @@ Then point Claude Code at `.claude-plugin/`. The bundle is generated from
 ## 60-second demo
 
 ```
-> /mcp__docpull__docs_add fastapi
+> /docs-add fastapi
 [fetches the FastAPI docs in ~15s; ~400 pages, full-text indexed locally]
 
 > How does FastAPI handle dependency injection scoping?
@@ -97,18 +97,14 @@ Then point Claude Code at `.claude-plugin/`. The bundle is generated from
  relevant section, and answers with attribution to the actual docs file]
 ```
 
-Older `/docs-add` plugin command wrappers are intentionally not shipped; the
-workflows now live with the MCP server so they work through any host that
-supports MCP prompts.
-
 ## Built-in library aliases
 
 These are fetchable by name without any URL setup: `react`, `nextjs`, `tailwindcss`, `vite`, `hono`, `fastapi`, `express`, `anthropic`, `openai`, `langchain`, `supabase`, `drizzle`, `prisma`.
 
-For anything else, pass an HTTPS URL to the prompt. It derives an alias, writes
+For anything else, pass an HTTPS URL to the command. It derives an alias, writes
 that alias to `~/.config/docpull-mcp/sources.yaml`, then calls `ensure_docs`:
 
-`/mcp__docpull__docs_add https://docs.your-library.com`.
+`/docs-add https://docs.your-library.com`.
 
 ## Where docs are cached
 
@@ -128,14 +124,13 @@ project).
 | Symptom                                     | Fix |
 |---------------------------------------------|-----|
 | MCP tools missing after install             | Run `docpull mcp --help`. If it errors with "requires the 'mcp' package", reinstall with `pip install 'docpull[mcp]'`. |
-| `/mcp__docpull__docs_add fastapi` says "unknown source" | Run `mcp__docpull__list_sources()` to see current aliases. If the source is not listed, use `/mcp__docpull__docs_add <name> <https-url>` to register it. |
+| `/docs-add fastapi` says "unknown source" | Run `mcp__docpull__list_sources()` to see current aliases. If the source is not listed, use `/docs-add <name> <https-url>` to register it. |
 | Slow first fetch                            | Normal — first crawl populates the cache. Subsequent runs hit the conditional-GET cache (~70 ms time-to-first-result). |
 | Want to refresh stale docs                  | `mcp__docpull__ensure_docs(source="<alias>", force=true)`. |
 
 ## Notes
 
-Direct MCP tools and MCP prompts are the supported workflow. Legacy plugin
-command wrappers such as `/docs-add` are intentionally not shipped.
+Direct MCP tools and plugin slash commands are the supported workflow.
 
 ## License
 

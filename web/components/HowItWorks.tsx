@@ -102,7 +102,7 @@ export default function HowItWorks() {
             <span>How it works</span>
           </h2>
           <p className="text-sm sm:text-base text-muted-foreground">
-            Three steps from URL to AI-ready output.
+            Three steps from URL to usable Markdown.
           </p>
         </div>
 
@@ -124,17 +124,17 @@ export default function HowItWorks() {
           <div className="mt-6 sm:mt-8 pt-5 sm:pt-6 border-t border-foreground/10 grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
             <StepText
               title="Point"
-              desc="Give docpull a URL — any documentation site, public or gated."
+              desc="Give docpull a docs URL, public or gated."
               active={activeIdx === 0}
             />
             <StepText
               title="Fetch"
-              desc="It discovers pages, fetches them politely, and converts HTML to clean Markdown."
+              desc="It discovers pages, respects robots.txt, and converts server HTML."
               active={activeIdx === 1}
             />
             <StepText
               title="Use"
-              desc="Drop the output into your vector store, RAG pipeline, or Claude Code skill."
+              desc="Use the Markdown in search, RAG, offline archives, or skills."
               active={activeIdx === 2}
             />
           </div>

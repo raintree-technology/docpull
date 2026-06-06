@@ -48,7 +48,7 @@ If you want more context around a hit, use `read_doc(library, path, line_start, 
 ### 3. If the source is NOT cached → decide whether to fetch
 
 - **Built-in alias** (the library appears in `list_sources()`): call `ensure_docs(source="<alias>")`. This crawls and indexes the whole library. ~10–30s for typical sites.
-- **Arbitrary URL**: call `fetch_url(url=...)` if you only need one page. For a whole site you don't have an alias for, tell the user to run `/mcp__docpull__docs_add <URL>`; the MCP `fetch_url` is single-page only.
+- **Arbitrary URL**: call `fetch_url(url=...)` if you only need one page. For a whole site you don't have an alias for, tell the user to run `/docs-add <URL>`; the MCP `fetch_url` is single-page only.
 - **No alias, user didn't paste a URL**: ask the user once whether they'd like to add the library, and what the docs URL is. Don't fetch speculatively.
 
 ### 4. Special case: skills.sh and Vercel skills CLI
@@ -80,7 +80,7 @@ These are pre-configured and resolvable by `ensure_docs(source=...)` without set
 
 ## Failure modes
 
-- **`ensure_docs` returns "unknown source"**: the alias isn't built-in. Either suggest `/mcp__docpull__docs_add <URL>` or call `list_sources()` and propose a near match.
+- **`ensure_docs` returns "unknown source"**: the alias isn't built-in. Either suggest `/docs-add <URL>` or call `list_sources()` and propose a near match.
 - **`grep_docs` returns empty**: the pattern is too narrow, or the library doesn't cover the topic. Broaden once, then surface the gap to the user.
 - **`fetch_url` cannot read a docs page**: state that docpull could not fetch the page, then use a browser/search fallback only if the host permits it and the question needs current docs.
 - **MCP server not responding**: tell the user to run `pip install 'docpull[mcp]'` and verify the plugin's MCP server is healthy. Fall back to answering from training data with an explicit caveat that docs weren't available.

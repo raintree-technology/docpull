@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "docpull-mcp",
+      "name": "docpull-mcp-lab",
       "dependencies": {
         "@modelcontextprotocol/sdk": "^1.29.0",
         "ip-address": "^10.2.0",

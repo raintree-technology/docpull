@@ -378,17 +378,15 @@ def list_sources(category: str | None = None) -> ToolResult:
     return ToolResult(header + "\n".join(rows), data={"sources": payload})
 
 
-def _read_meta_fetched_at(meta_path: Path) -> tuple[float | None, str | None]:
-    """Return (epoch, iso) for a meta file, or (None, None) on error."""
+def _read_cache_metadata(meta_path: Path) -> dict[str, Any]:
+    """Return parsed cache metadata, or an empty dict on error."""
     if not meta_path.exists():
-        return (None, None)
+        return {}
     try:
         data = json.loads(meta_path.read_text())
     except (OSError, json.JSONDecodeError):
-        return (None, None)
-    epoch = data.get("fetched_at_epoch")
-    iso = data.get("fetched_at")
-    return (epoch if isinstance(epoch, (int, float)) else None, iso if isinstance(iso, str) else None)
+        return {}
+    return data if isinstance(data, dict) else {}
 
 
 def _humanize_age(seconds: float) -> str:
@@ -415,13 +413,29 @@ def list_indexed(docs_dir: Path | None = None) -> ToolResult:
             continue
         files = list(sub.rglob("*.md"))
         meta = _meta_path(docs_dir, sub.name)
-        epoch, iso = _read_meta_fetched_at(meta)
+        meta_data = _read_cache_metadata(meta)
+        epoch = meta_data.get("fetched_at_epoch")
+        iso = meta_data.get("fetched_at")
+        epoch = epoch if isinstance(epoch, (int, float)) else None
+        iso = iso if isinstance(iso, str) else None
         if epoch is None:
             age_str = "unknown age"
             fresh = "stale"
         else:
             age_str = _humanize_age(now - epoch)
-            fresh = "fresh" if _cache_fresh(meta) else "stale"
+            expected_url = meta_data.get("url")
+            expected_profile = meta_data.get("profile")
+            expected_max_pages = meta_data.get("max_pages")
+            fresh = (
+                "fresh"
+                if _cache_fresh(
+                    meta,
+                    expected_url=expected_url if isinstance(expected_url, str) else None,
+                    expected_profile=expected_profile if isinstance(expected_profile, str) else None,
+                    expected_max_pages=expected_max_pages if isinstance(expected_max_pages, int) else None,
+                )
+                else "stale"
+            )
         when = f" — fetched {age_str}" if iso else ""
         rows.append(f"- **{sub.name}**: {len(files)} files ({fresh}){when}")
         entry: dict[str, Any] = {

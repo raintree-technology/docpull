@@ -70,7 +70,6 @@ class SqliteSaveStep:
             self._base_dir.mkdir(parents=True, exist_ok=True)
             self._conn = sqlite3.connect(self._db_path)
 
-            # Create table with index on URL
             self._conn.execute("""
                 CREATE TABLE IF NOT EXISTS documents (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,

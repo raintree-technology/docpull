@@ -39,6 +39,15 @@ def test_parser_accepts_supported_naming_strategies():
     assert hierarchical.naming_strategy == "hierarchical"
 
 
+def test_parser_accepts_per_host_concurrency():
+    parser = create_parser()
+
+    args = parser.parse_args(["https://example.com", "--max-concurrent", "50", "--per-host-concurrent", "10"])
+
+    assert args.max_concurrent == 50
+    assert args.per_host_concurrent == 10
+
+
 def test_help_describes_insecure_tls_as_rejected():
     parser = create_parser()
 
@@ -57,3 +66,21 @@ def test_single_invalid_url_returns_nonzero(tmp_path):
     args = parser.parse_args(["http://example.com", "--single", "--output-dir", str(tmp_path)])
 
     assert run_fetcher(args) == 1
+
+
+def test_configuration_errors_escape_rich_markup(tmp_path, capsys):
+    parser = create_parser()
+    args = parser.parse_args(
+        [
+            "https://example.com",
+            "--single",
+            "--skill",
+            "BadName",
+            "--output-dir",
+            str(tmp_path),
+        ]
+    )
+
+    assert run_fetcher(args) == 1
+    captured = capsys.readouterr()
+    assert r"^[a-z0-9][a-z0-9-]*$" in captured.out

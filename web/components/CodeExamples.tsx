@@ -44,12 +44,20 @@ Send messages to Claude using the Messages API...`,
   {
     id: "skills",
     name: "Claude Code",
-    code: `docpull https://sdk.vercel.ai -o .claude/skills/vercel-ai`,
+    code: `docpull https://sdk.vercel.ai --skill vercel-ai`,
     output: `.claude/skills/vercel-ai/
+├── SKILL.md
 ├── getting-started.md
 ├── streaming.md
 ├── tools.md
 └── providers.md
+
+./.claude/skills/vercel-ai/SKILL.md:
+
+---
+name: vercel-ai
+description: "Vercel AI SDK documentation"
+---
 
 ./.claude/skills/vercel-ai/getting-started.md:
 
@@ -98,7 +106,6 @@ const CodeBlock = memo(function CodeBlock({
 
   return (
     <div className="space-y-4">
-      {/* Input */}
       <div className="relative group">
         <div className="text-xs text-muted-foreground mb-2">Input</div>
         <pre className="p-4 glass rounded-xl overflow-x-auto text-xs sm:text-sm">
@@ -118,7 +125,6 @@ const CodeBlock = memo(function CodeBlock({
         </button>
       </div>
 
-      {/* Output */}
       <div>
         <div className="text-xs text-muted-foreground mb-2">Output</div>
         <pre className="p-4 glass rounded-xl overflow-auto max-h-80 text-xs sm:text-sm text-muted-foreground">
@@ -130,12 +136,12 @@ const CodeBlock = memo(function CodeBlock({
 });
 
 export default function CodeExamples() {
-  const [active, setActive] = useState<string>("default");
-  const activeExample = examples.find((e) => e.id === active);
-  const activeIndex = examples.findIndex((e) => e.id === active);
+  const [activeExampleId, setActiveExampleId] = useState<string>("default");
+  const activeExample = examples.find((e) => e.id === activeExampleId);
+  const activeIndex = examples.findIndex((e) => e.id === activeExampleId);
 
   const handleTabClick = useCallback((id: string) => {
-    setActive(id);
+    setActiveExampleId(id);
   }, []);
 
   const handleTabKeyDown = useCallback(
@@ -159,7 +165,7 @@ export default function CodeExamples() {
                 ? lastIndex
                 : activeIndex - 1;
       const nextId = examples[nextIndex].id;
-      setActive(nextId);
+      setActiveExampleId(nextId);
       document.getElementById(`example-tab-${nextId}`)?.focus();
     },
     [activeIndex],
@@ -173,7 +179,7 @@ export default function CodeExamples() {
             <span>Examples</span>
           </h2>
           <p className="text-sm sm:text-base text-muted-foreground">
-            Real commands, real output — from one-shot fetches to Claude Code skills.
+            See the command, then see the artifact it leaves behind.
           </p>
         </div>
 
@@ -190,12 +196,12 @@ export default function CodeExamples() {
               onClick={() => handleTabClick(example.id)}
               onKeyDown={handleTabKeyDown}
               role="tab"
-              aria-selected={active === example.id}
+              aria-selected={activeExampleId === example.id}
               aria-controls={`example-panel-${example.id}`}
-              tabIndex={active === example.id ? 0 : -1}
+              tabIndex={activeExampleId === example.id ? 0 : -1}
               className={cn(
                 "min-h-11 px-3 py-2 text-xs sm:text-sm rounded-md transition-all duration-200",
-                active === example.id
+                activeExampleId === example.id
                   ? "bg-foreground text-background"
                   : "glass text-muted-foreground hover:text-foreground",
               )}

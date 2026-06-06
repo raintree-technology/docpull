@@ -178,7 +178,6 @@ class Fetcher:
         self._stats = FetchStats()
         self._start_time: float | None = None
 
-        # Components (initialized in __aenter__)
         self._rate_limiter: PerHostRateLimiter | None = None
         self._http_client: AsyncHttpClient | None = None
         self._url_validator: UrlValidator | None = None
@@ -263,7 +262,6 @@ class Fetcher:
 
     async def __aenter__(self) -> Fetcher:
         """Enter async context and initialize components."""
-        # Create rate limiter (adaptive if configured)
         if self.config.crawl.adaptive_rate_limit:
             self._rate_limiter = AdaptiveRateLimiter(
                 default_delay=self.config.crawl.rate_limit,
@@ -278,7 +276,6 @@ class Fetcher:
         # Create security components first so every transport can reuse them
         self._url_validator = UrlValidator(allowed_schemes={"https"})
 
-        # Build authentication headers from config
         auth_headers = self._build_auth_headers()
         auth_scope_hosts: set[str] | None = None
         if auth_headers and self.config.url:
@@ -317,11 +314,9 @@ class Fetcher:
         )
         self._apply_robots_crawl_delay()
 
-        # Build pipeline
         output_dir = self.config.output.directory.resolve()
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        # Initialize cache manager if caching is enabled
         if self.config.cache.enabled:
             cache_dir = self.config.cache.directory.resolve()
             self._cache_manager = CacheManager(
@@ -332,11 +327,9 @@ class Fetcher:
             self._cache_manager.evict_expired()
             self._cache_manager.start_session()
 
-        # Create streaming deduplicator if enabled
         if self.config.content_filter.streaming_dedup:
             self._streaming_dedup = StreamingDeduplicator()
 
-        # Build pipeline steps
         cache_enabled = self._cache_manager is not None
         steps: list[FetchStepProtocol] = [
             ValidateStep(
@@ -357,8 +350,6 @@ class Fetcher:
 
         steps.append(MetadataStep(extract_rich=self.config.output.rich_metadata))
 
-        # Add conversion step - all formats need markdown content
-        # Only add frontmatter for markdown file output
         add_frontmatter = self.config.output.format == "markdown"
         steps.append(
             ConvertStep(
@@ -369,7 +360,6 @@ class Fetcher:
             )
         )
 
-        # Add dedup step if streaming dedup is enabled
         if self._streaming_dedup:
             steps.append(DedupStep(deduplicator=self._streaming_dedup))
 
@@ -383,7 +373,6 @@ class Fetcher:
                 )
             )
 
-        # Add appropriate save step based on output format
         if self.config.output.format == "json":
             self._json_saver = JsonSaveStep(base_output_dir=output_dir, run_identity=self.run_identity)
             steps.append(self._json_saver)
@@ -412,7 +401,6 @@ class Fetcher:
 
         self._pipeline = FetchPipeline(steps=steps)
 
-        # Build pattern filter from config
         pattern_filter = None
         if self.config.crawl.include_paths or self.config.crawl.exclude_paths:
             pattern_filter = PatternFilter(
@@ -420,8 +408,6 @@ class Fetcher:
                 exclude_patterns=self.config.crawl.exclude_paths or None,
             )
 
-        # Build discoverers
-        # Pass robots_checker for sitemap discovery from robots.txt
         sitemap_discoverer = SitemapDiscoverer(
             http_client=self._http_client,
             url_validator=self._url_validator,
