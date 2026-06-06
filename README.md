@@ -214,10 +214,13 @@ The `mcp/` directory at the repo root is a separate TypeScript + Bun MCP
 server backed by PostgreSQL with pgvector for semantic search. It is not
 the Python MCP server shipped in the `docpull` package described above
 — that one is the right choice for almost every user and is installed
-with `pip install 'docpull[mcp]'`. The `mcp/` tree is mirrored to its
-own repo at [`raintree-technology/docpull-mcp`](https://github.com/raintree-technology/docpull-mcp);
-unless you specifically need pgvector-backed semantic search, ignore it
-and use `docpull mcp`.
+with `pip install 'docpull[mcp]'`.
+
+Treat the root `mcp/` tree as experimental in-tree source for the pgvector
+semantic-search path. It is not part of the Python package release contract,
+and this README does not claim a public mirror is available. Unless you are
+working on that separate semantic-search server, ignore it and use
+`docpull mcp`.
 
 ## Output
 
@@ -237,8 +240,13 @@ source_type: "nextjs"
 NDJSON (one record per page or chunk):
 
 ```json
-{"url": "...", "title": "...", "content": "...", "hash": "...", "token_count": 842, "chunk_index": 0}
+{"document_id": "doc_...", "chunk_id": "chunk_...", "url": "...", "title": "...", "content": "...", "hash": "...", "token_count": 842, "chunk_index": 0}
 ```
+
+Every output format also writes `corpus.manifest.json` next to the generated
+documents. The manifest records the run identity, output format, stable
+`document_id` / `chunk_id` values, content hashes, relative output paths, and
+chunk counts so regenerated corpora can be diffed and cited by agents.
 
 ## Security
 

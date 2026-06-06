@@ -393,7 +393,7 @@ async function runDocpull(
 // MCP SERVER
 // ============================================================================
 
-const server = new McpServer({ name: "docpull-mcp", version: "0.2.0" });
+const server = new McpServer({ name: "docpull-mcp", version: "0.3.0" });
 
 // ---------------------------------------------------------------------------
 // ensure_docs - fetch and optionally index documentation

@@ -11,6 +11,7 @@ from ...models.document import DocumentRecord
 from ...models.events import EventType, FetchEvent
 from ...models.run import RunIdentity
 from ..base import EventEmitter, PageContext
+from ..manifest import CorpusManifest
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +58,11 @@ class SqliteSaveStep:
         self._document_count = 0
         self._pending_count = 0  # Track uncommitted documents
         self._run_identity = run_identity
+        self._manifest = CorpusManifest(
+            self._base_dir,
+            output_format="sqlite",
+            run_identity=run_identity,
+        )
 
     def _ensure_db(self) -> sqlite3.Connection:
         """Ensure the database and table exist."""
@@ -166,6 +172,7 @@ class SqliteSaveStep:
             if cursor.rowcount > 0:
                 self._document_count += 1
                 self._pending_count += 1
+                self._manifest.add_record(record, self._db_path)
 
             # Batch commits for performance
             if self._pending_count >= self.BATCH_SIZE:
@@ -205,6 +212,7 @@ class SqliteSaveStep:
             if self._pending_count > 0:
                 self._conn.commit()
                 self._pending_count = 0
+            self._manifest.finalize()
             self._conn.close()
             self._conn = None
             logger.info(f"Closed SQLite database with {self._document_count} documents")

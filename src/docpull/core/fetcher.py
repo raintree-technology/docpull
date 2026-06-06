@@ -40,8 +40,8 @@ def _url_to_filename(url: str, base_url: str | None = None) -> str:
     """
     Convert URL to a safe flattened filename (e.g. ``api_auth_oauth2.md``).
 
-    Used by the ``full`` / ``flat`` / ``short`` naming strategies. For the
-    ``hierarchical`` strategy, see :func:`_url_to_path_parts`.
+    Used by the ``full`` naming strategy. For the ``hierarchical`` strategy,
+    see :func:`_url_to_path_parts`.
 
     Args:
         url: The URL to convert
@@ -405,6 +405,7 @@ class Fetcher:
                 emit_chunks=self.config.output.emit_chunks,
                 skill_name=self.config.output.skill_name,
                 skill_description=self.config.output.skill_description,
+                run_identity=self.run_identity,
             )
             steps.append(self._save_step)
 

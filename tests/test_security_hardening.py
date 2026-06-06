@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import socket
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -10,6 +11,8 @@ import pytest
 from pydantic import ValidationError
 
 from docpull.http.client import AsyncHttpClient, _ValidatedResolver
+from docpull.pipeline.base import PageContext
+from docpull.pipeline.steps.save import SaveStep
 from docpull.security.robots import RobotsChecker, _RobotsResponse
 from docpull.security.url_validator import UrlValidationResult, UrlValidator
 
@@ -224,6 +227,25 @@ class TestRedirectValidation:
         assert validator.validate.call_count == 2
 
     @pytest.mark.asyncio
+    async def test_redirect_to_ipv4_mapped_private_ipv6_blocked(self) -> None:
+        client = AsyncHttpClient(
+            rate_limiter=_DummyRateLimiter(),
+            url_validator=UrlValidator(),
+        )
+        client._session = _FakeSession(
+            [
+                _FakeResponse(
+                    302,
+                    headers={"Location": "https://[::ffff:127.0.0.1]/admin"},
+                    url="https://public.example/start",
+                )
+            ]
+        )
+
+        with pytest.raises(ValueError, match="URL validation failed"):
+            await client.get("https://public.example/start")
+
+    @pytest.mark.asyncio
     async def test_http_client_strips_auth_headers_for_off_scope_requests(self) -> None:
         client = AsyncHttpClient(
             rate_limiter=_DummyRateLimiter(),
@@ -357,6 +379,46 @@ class TestRedirectValidation:
 
         with pytest.raises(ValueError, match="exceeds maximum size"):
             checker._fetch_url("https://evil.example.com/robots.txt")
+
+    @pytest.mark.asyncio
+    async def test_http_client_caps_streamed_body_size(self) -> None:
+        client = AsyncHttpClient(
+            rate_limiter=_DummyRateLimiter(),
+            max_content_size=4,
+            max_retries=0,
+        )
+        client._session = _FakeSession(
+            [
+                _FakeResponse(
+                    200,
+                    headers={"Content-Type": "text/html"},
+                    chunks=[b"abc", b"def"],
+                    url="https://public.example/page",
+                )
+            ]
+        )
+
+        with pytest.raises(ValueError, match="Content size limit exceeded"):
+            await client.get("https://public.example/page")
+
+    @pytest.mark.asyncio
+    async def test_save_step_rejects_symlink_escape(self, tmp_path: Path) -> None:
+        outside = tmp_path / "outside"
+        outside.mkdir()
+        output = tmp_path / "out"
+        output.mkdir()
+        link = output / "linked"
+        link.symlink_to(outside, target_is_directory=True)
+
+        step = SaveStep(base_output_dir=output)
+        ctx = PageContext(
+            url="https://example.com/page",
+            output_path=link / "page.md",
+            markdown="# Page\n\nBody",
+        )
+
+        with pytest.raises(ValueError, match="outside base directory"):
+            await step.execute(ctx)
 
 
 # ---------------------------------------------------------------------------

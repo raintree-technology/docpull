@@ -134,7 +134,7 @@ Examples:
     )
     parser.add_argument(
         "--naming-strategy",
-        choices=["full", "hierarchical", "flat", "short"],
+        choices=["full", "hierarchical"],
         default=None,
         help=(
             "URL-to-filename strategy. 'full' flattens with underscores; "
