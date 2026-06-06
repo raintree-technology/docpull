@@ -1,0 +1,6 @@
+{
+  "name": "docpull",
+  "version": "4.0.0",
+  "description": "Pull server-rendered web content from any URL into Codex through docpull's local MCP server.",
+  "skills": "./skills/"
+}

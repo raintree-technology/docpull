@@ -24,7 +24,7 @@ MCP server is available:
 ```bash
 pip install 'docpull[mcp]'          # or: pipx install 'docpull[mcp]'
                                     #     uv tool install 'docpull[mcp]'
-docpull --version                   # should print 2.5.0 or newer
+docpull --version                   # should print 4.0.0 or newer
 docpull mcp --help                  # confirm the MCP subcommand is wired
 ```
 
@@ -62,7 +62,7 @@ For anything else, pass an HTTPS URL: `/docs-add https://docs.your-library.com`.
 
 ## Where docs are cached
 
-By default, fetched docs live under `$XDG_DATA_HOME/docpull/docs/` (or `~/.local/share/docpull/docs/` on macOS/Linux). Override with `DOCPULL_DOCS_DIR` if you want them somewhere else (e.g. one cache per project).
+By default, fetched docs live under `$XDG_DATA_HOME/docpull-mcp/docs/` (or `~/.local/share/docpull-mcp/docs/` on macOS/Linux). Override with `DOCPULL_DOCS_DIR` if you want them somewhere else (e.g. one cache per project).
 
 ## Privacy
 

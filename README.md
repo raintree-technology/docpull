@@ -62,7 +62,7 @@ content directly from framework data feeds:
 | Mintlify  | `__NEXT_DATA__` with Mintlify tagging |
 | OpenAPI   | Renders `openapi.json` / `swagger.json` into Markdown |
 | Docusaurus| Detected and tagged; generic extractor produces Markdown |
-| Sphinx    | Detected and tagged; generic extractor produces Markdown |
+| Sphinx    | Detected from generator metadata / Read the Docs hosts and tagged; generic extractor produces Markdown |
 
 JS-only SPAs with no server-rendered content are detected and skipped with a
 clear reason (or, with `--strict-js-required`, reported as an error so agents
@@ -125,8 +125,8 @@ async def tool_call(url: str) -> str:
 
 ```bash
 docpull https://site.com --profile rag      # Default. Dedup, rich metadata.
-docpull https://site.com --profile llm      # NDJSON + chunks + metadata.
-docpull https://site.com --profile mirror   # Full archive, polite, cached.
+docpull https://site.com --profile llm      # NDJSON + chunks + metadata; JS-only pages skip unless --strict-js-required is passed.
+docpull https://site.com --profile mirror   # Full archive, polite, cached, hierarchical paths.
 docpull https://site.com --profile quick    # Sampling: 50 pages, depth 2.
 ```
 
@@ -195,7 +195,9 @@ Write:
 - `add_source(name, url, description?, category?, max_pages?, force?)` — register a user alias (HTTPS-only, atomic write to `sources.yaml`).
 - `remove_source(name, delete_cache?)` — drop a user alias and (optionally) its cached docs.
 
-All tools that carry data also return `structuredContent` validated against an `outputSchema` for clients that prefer typed output.
+All schema-backed tools return `structuredContent` validated against an
+`outputSchema` for clients that prefer typed output. `fetch_url` intentionally
+returns Markdown text directly.
 
 User-defined sources live in `~/.config/docpull-mcp/sources.yaml`:
 

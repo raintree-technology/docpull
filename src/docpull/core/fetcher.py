@@ -315,6 +315,7 @@ class Fetcher:
             url_validator=self._url_validator,
             allow_insecure_tls=self.config.network.insecure_tls,
         )
+        self._apply_robots_crawl_delay()
 
         # Build pipeline
         output_dir = self.config.output.directory.resolve()
@@ -447,6 +448,21 @@ class Fetcher:
         )
 
         return self
+
+    def _apply_robots_crawl_delay(self) -> None:
+        """Apply robots.txt Crawl-delay for the configured start host, if present."""
+        if self._robots_checker is None or self._rate_limiter is None or not self.config.url:
+            return
+        delay = self._robots_checker.get_crawl_delay(self.config.url)
+        if delay is None:
+            return
+        host = urlparse(self.config.url).netloc
+        if not host:
+            return
+        self._rate_limiter.update_host_config(
+            host,
+            delay=max(self.config.crawl.rate_limit, delay),
+        )
 
     async def __aexit__(
         self,

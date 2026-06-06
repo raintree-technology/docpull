@@ -139,7 +139,7 @@ Examples:
         help=(
             "URL-to-filename strategy. 'full' flattens with underscores; "
             "'hierarchical' preserves the URL path as nested directories. "
-            "Mirror profile defaults to hierarchical."
+            "Mirror profile defaults to hierarchical unless explicitly overridden."
         ),
     )
     parser.add_argument(
@@ -264,7 +264,7 @@ Examples:
     network_group.add_argument(
         "--insecure-tls",
         action="store_true",
-        help="Disable TLS certificate verification (unsafe)",
+        help="Deprecated and rejected; docpull always verifies TLS certificates",
     )
     network_group.add_argument(
         "--max-retries",
@@ -555,7 +555,11 @@ def run_fetcher(args: argparse.Namespace) -> int:
                         return 1
                     if ctx.should_skip:
                         console.print(f"[yellow]Skipped:[/yellow] {ctx.skip_reason}")
-                        return 0
+                        failure_skips = {
+                            SkipReason.URL_VALIDATION_FAILED,
+                            SkipReason.ROBOTS_DISALLOWED,
+                        }
+                        return 1 if ctx.skip_code in failure_skips else 0
                     if not args.quiet:
                         n_chunks = len(ctx.chunks) if ctx.chunks else 0
                         extra = f" ({n_chunks} chunks)" if n_chunks else ""
