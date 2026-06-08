@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.2.0] - 2026-06-08
+
 ### Added
 - Add `docpull benchmark quick` for repeatable real-site benchmark reports that
   compare core docpull crawls, cached reruns, and optional live Parallel Search
@@ -16,11 +18,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   artifact links.
 - Add optional `docpull[observability]` Raindrop support so benchmark cases can
   be emitted as metadata-only traces when `RAINDROP_WRITE_KEY` is configured.
+- Add Raindrop event ids and per-case signals for benchmark failures, low
+  scores, high-score cells, high-cost cells, and score-dimension warnings.
 - Add Tavily and Exa live benchmark cases that normalize provider results into
   the same scored context-pack artifacts as core docpull and Parallel.
-- Add `docpull benchmark quick --target-set tool-docs/v2` for provider-by-target
-  matrix evals across Parallel, Exa, Tavily, Raindrop, DocPull, and low-cap
-  adversarial public targets.
+- Add `docpull benchmark quick --target-set tool-docs/provider-matrix` for
+  provider-by-target matrix evals across Parallel, Exa, Tavily, Raindrop,
+  DocPull, and low-cap adversarial public targets. The old `v2` target-set name
+  remains a compatibility alias.
 - Add weighted benchmark sub-scores for coverage, cleanliness, source fidelity,
   freshness, and density so clean and noisy targets no longer collapse to the
   same headline score.

@@ -8,6 +8,7 @@ import json
 import resource
 import sys
 import time
+import uuid
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
@@ -66,7 +67,7 @@ BENCHMARK_SCORE_WEIGHTS = {
     "freshness": 0.15,
     "density": 0.15,
 }
-TARGET_SET_CHOICES = ("single", "tool-docs", "v2")
+TARGET_SET_CHOICES = ("single", "tool-docs", "provider-matrix", "v2")
 
 
 class BenchmarkError(RuntimeError):
@@ -201,6 +202,7 @@ ADVERSARIAL_TARGETS: tuple[_BenchmarkTarget, ...] = (
 
 TARGET_SETS: dict[str, tuple[_BenchmarkTarget, ...]] = {
     "tool-docs": TOOL_DOC_TARGETS,
+    "provider-matrix": (*TOOL_DOC_TARGETS, *ADVERSARIAL_TARGETS),
     "v2": (*TOOL_DOC_TARGETS, *ADVERSARIAL_TARGETS),
 }
 
@@ -224,16 +226,17 @@ def create_benchmark_parser() -> argparse.ArgumentParser:
         default=DEFAULT_TARGET_SET,
         help=(
             "Target matrix to run. 'single' preserves --target-url behavior; "
-            "'tool-docs' runs the five provider/docpull docs sites; 'v2' adds "
-            "low-cap adversarial targets."
+            "'tool-docs' runs the five provider/docpull docs sites; "
+            "'provider-matrix' adds low-cap hard targets. 'v2' remains as a "
+            "compatibility alias."
         ),
     )
     quick.add_argument(
         "--matrix",
         action="store_const",
-        const="v2",
+        const="provider-matrix",
         dest="target_set",
-        help="Compatibility alias for --target-set v2",
+        help="Compatibility alias for --target-set provider-matrix",
     )
     quick.add_argument(
         "--output-dir",
@@ -438,6 +441,7 @@ def run_quick_benchmark(
     _validate_positive_int(extract_limit, "extract_limit")
     if max_estimated_cost < 0:
         raise BenchmarkError("max_estimated_cost cannot be negative.")
+    target_set = _canonical_target_set(target_set)
     tavily_credit_usd = _resolve_tavily_credit_usd(tavily_credit_usd)
     targets = _resolve_benchmark_targets(
         target_url=target_url,
@@ -779,6 +783,7 @@ def _resolve_benchmark_targets(
     objective: str | None,
     queries: list[str],
 ) -> list[_BenchmarkTarget]:
+    target_set = _canonical_target_set(target_set)
     if target_set == "single":
         return [
             _single_benchmark_target(
@@ -807,6 +812,10 @@ def _resolve_benchmark_targets(
             )
         )
     return targets
+
+
+def _canonical_target_set(target_set: str) -> str:
+    return "provider-matrix" if target_set == "v2" else target_set
 
 
 def _single_benchmark_target(
@@ -1038,9 +1047,19 @@ class _RaindropTraceRecorder(_TraceRecorder):
             raindrop.init(api_key, tracing_enabled=True, bypass_otel_for_tools=True)
         except TypeError:
             raindrop.init(api_key, tracing_enabled=True)
+        self._event_id = str(uuid.uuid4())
         self._interaction = raindrop.begin(
             user_id="docpull-benchmark",
             event="docpull_benchmark",
+            event_id=self._event_id,
+            properties={
+                "target_set": target_set,
+                "target_count": len(targets),
+                "output_dir": str(output_dir),
+                "parallel_enabled": parallel_enabled,
+                "max_estimated_cost_usd": max_estimated_cost,
+                "content_policy": "metadata_only",
+            },
             input=_json_trace_text(
                 {
                     "target_url": target_url,
@@ -1052,8 +1071,11 @@ class _RaindropTraceRecorder(_TraceRecorder):
                 }
             ),
         )
-        self._event_id = str(getattr(self._interaction, "event_id", "") or "")
         self._case_count = 0
+        self._signal_count = 0
+        self._positive_signal_count = 0
+        self._negative_signal_count = 0
+        self._signal_names: Counter[str] = Counter()
         self._status = "recording"
 
     def record_case(self, case: dict[str, Any]) -> None:
@@ -1079,13 +1101,42 @@ class _RaindropTraceRecorder(_TraceRecorder):
                 "estimated_cost_usd": case.get("estimated_cost_usd", 0.0),
             },
         )
+        for signal in _raindrop_case_signals(case):
+            self._raindrop.track_signal(
+                event_id=self._event_id,
+                name=signal["name"],
+                properties=signal["properties"],
+                sentiment=signal["sentiment"],
+            )
+            self._signal_count += 1
+            self._signal_names[str(signal["name"])] += 1
+            if signal["sentiment"] == "POSITIVE":
+                self._positive_signal_count += 1
+            else:
+                self._negative_signal_count += 1
 
     def finish(self, report: dict[str, Any]) -> None:
+        self._interaction.set_properties(
+            {
+                "summary": report.get("summary"),
+                "artifacts": report.get("artifacts"),
+                "signal_count": self._signal_count,
+                "positive_signal_count": self._positive_signal_count,
+                "negative_signal_count": self._negative_signal_count,
+                "signal_names": dict(self._signal_names),
+            }
+        )
         self._interaction.finish(
             output=_json_trace_text(
                 {
                     "summary": report.get("summary"),
                     "artifacts": report.get("artifacts"),
+                    "trace_signals": {
+                        "total": self._signal_count,
+                        "positive": self._positive_signal_count,
+                        "negative": self._negative_signal_count,
+                        "names": dict(self._signal_names),
+                    },
                 }
             )
         )
@@ -1100,6 +1151,10 @@ class _RaindropTraceRecorder(_TraceRecorder):
             "status": self._status,
             "event_id": self._event_id or None,
             "case_count": self._case_count,
+            "signal_count": self._signal_count,
+            "positive_signal_count": self._positive_signal_count,
+            "negative_signal_count": self._negative_signal_count,
+            "signal_names": dict(self._signal_names),
             "content_policy": "metadata_only",
         }
 
@@ -1160,6 +1215,137 @@ def _trace_case_output(case: dict[str, Any]) -> dict[str, Any]:
         "source_score_count": case.get("source_score_count"),
         "selected_urls": selected_urls,
     }
+
+
+def _raindrop_case_signals(case: dict[str, Any]) -> list[dict[str, Any]]:
+    signals: list[dict[str, Any]] = []
+    base = _raindrop_signal_properties(case)
+    if case.get("status") == "failed":
+        signals.append(
+            _raindrop_signal(
+                "benchmark_case_failed",
+                base,
+                sentiment="NEGATIVE",
+                reason=case.get("error"),
+            )
+        )
+        return signals
+
+    benchmark_score = _score_value(case.get("benchmark_score"))
+    if benchmark_score is not None:
+        if benchmark_score >= 95:
+            signals.append(
+                _raindrop_signal(
+                    "benchmark_high_score",
+                    base,
+                    sentiment="POSITIVE",
+                    benchmark_score=benchmark_score,
+                )
+            )
+        elif benchmark_score < 90:
+            signals.append(
+                _raindrop_signal(
+                    "benchmark_low_score",
+                    base,
+                    sentiment="NEGATIVE",
+                    benchmark_score=benchmark_score,
+                )
+            )
+
+    wall_seconds = _optional_number(case.get("wall_seconds"))
+    if wall_seconds is not None and wall_seconds >= 10:
+        signals.append(
+            _raindrop_signal(
+                "benchmark_slow_case",
+                base,
+                sentiment="NEGATIVE",
+                wall_seconds=round(wall_seconds, 3),
+            )
+        )
+
+    estimated_cost = _optional_number(case.get("estimated_cost_usd"))
+    if estimated_cost is not None and estimated_cost >= 0.01:
+        signals.append(
+            _raindrop_signal(
+                "benchmark_high_cost_case",
+                base,
+                sentiment="NEGATIVE",
+                estimated_cost_usd=round(estimated_cost, 6),
+            )
+        )
+
+    raw_score = case.get("benchmark_score")
+    dimensions = raw_score.get("dimensions") if isinstance(raw_score, dict) else None
+    if isinstance(dimensions, dict):
+        for dimension_name, dimension in dimensions.items():
+            if not isinstance(dimension, dict):
+                continue
+            dimension_signals = dimension.get("signals")
+            if not dimension_signals:
+                continue
+            signals.append(
+                _raindrop_signal(
+                    "benchmark_dimension_signal",
+                    base,
+                    sentiment="NEGATIVE",
+                    dimension=dimension_name,
+                    dimension_score=dimension.get("score"),
+                    dimension_signals=dimension_signals,
+                )
+            )
+    return signals
+
+
+def _raindrop_signal(
+    name: str,
+    base: dict[str, Any],
+    *,
+    sentiment: str,
+    **extra: Any,
+) -> dict[str, Any]:
+    properties = dict(base)
+    properties.update({key: value for key, value in extra.items() if value is not None})
+    return {
+        "name": name,
+        "sentiment": sentiment,
+        "properties": properties,
+    }
+
+
+def _raindrop_signal_properties(case: dict[str, Any]) -> dict[str, Any]:
+    metadata = case.get("pack_metadata")
+    metadata = metadata if isinstance(metadata, dict) else {}
+    score = case.get("pack_score")
+    score_summary = score.get("summary") if isinstance(score, dict) else {}
+    score_summary = score_summary if isinstance(score_summary, dict) else {}
+    benchmark_score = case.get("benchmark_score")
+    return {
+        "case": case.get("name"),
+        "provider": case.get("provider"),
+        "workflow": case.get("workflow"),
+        "target_id": case.get("target_id"),
+        "target_url": case.get("target_url"),
+        "target_kind": case.get("target_kind"),
+        "status": case.get("status", "ok"),
+        "pack_score": _score_value(score),
+        "benchmark_score": _score_value(benchmark_score),
+        "wall_seconds": case.get("wall_seconds"),
+        "estimated_cost_usd": case.get("estimated_cost_usd", 0.0),
+        "record_count": score_summary.get("record_count"),
+        "total_tokens": score_summary.get("total_tokens"),
+        "selected_url_count": len(metadata.get("selected_urls") or []),
+        "extract_error_count": metadata.get("extract_error_count"),
+        "content_policy": "metadata_only",
+    }
+
+
+def _score_value(value: Any) -> int | None:
+    if not isinstance(value, dict):
+        return None
+    score = value.get("score")
+    if isinstance(score, int):
+        return score
+    return None
 
 
 def _json_trace_text(payload: dict[str, Any]) -> str:
@@ -2185,6 +2371,26 @@ def _format_skipped_providers(skipped: list[Any]) -> str:
     return ", ".join(values) if values else "none"
 
 
+def _raindrop_trace_lines(trace: dict[str, Any]) -> list[str]:
+    lines = [
+        f"- Raindrop trace: `{trace.get('provider', 'none')}` / `{trace.get('status', 'disabled')}`",
+    ]
+    if trace.get("event_id"):
+        lines.append(f"- Raindrop event id: `{trace['event_id']}`")
+    if trace.get("enabled"):
+        lines.append(
+            "- Raindrop signals: "
+            f"`{int(trace.get('signal_count') or 0)}` total, "
+            f"`{int(trace.get('positive_signal_count') or 0)}` positive, "
+            f"`{int(trace.get('negative_signal_count') or 0)}` negative."
+        )
+        signal_names = trace.get("signal_names")
+        if isinstance(signal_names, dict) and signal_names:
+            rendered = ", ".join(f"{name}={count}" for name, count in sorted(signal_names.items()))
+            lines.append(f"- Raindrop signal names: `{rendered}`")
+    return lines
+
+
 def _markdown_report(report: dict[str, Any]) -> str:
     raw_targets = report.get("targets")
     targets: list[Any] = raw_targets if isinstance(raw_targets, list) else []
@@ -2244,6 +2450,8 @@ def _markdown_report(report: dict[str, Any]) -> str:
         lines.extend(["", "## Provider x Target Heatmap", "", *heatmap])
     skipped = report.get("skipped_providers")
     skipped = skipped if isinstance(skipped, list) else []
+    raw_trace = report.get("trace")
+    trace: dict[str, Any] = raw_trace if isinstance(raw_trace, dict) else {}
     lines.extend(
         [
             "",
@@ -2260,6 +2468,7 @@ def _markdown_report(report: dict[str, Any]) -> str:
                 "- Total estimated live provider cost: "
                 f"${report['summary'].get('total_estimated_live_cost_usd', 0):.6f}"
             ),
+            *_raindrop_trace_lines(trace),
             "",
         ]
     )
@@ -2360,9 +2569,8 @@ def _article_markdown(report: dict[str, Any], *, title: str) -> str:
         "",
         (
             "We benchmarked DocPull's local LLM-profile crawler against Parallel Search, "
-            "Parallel Context, Tavily Search + Extract, and Exa Search Contents. The v2 "
-            "shape is a provider-by-target matrix instead of a single clean docs site, "
-            "with Raindrop available as the metadata-only observability layer for traced runs."
+            "Parallel Context, Tavily Search + Extract, and Exa Search Contents across a "
+            "provider-target matrix, with Raindrop as the metadata-only observability layer."
         ),
         "",
         "## Methodology",
@@ -2375,7 +2583,7 @@ def _article_markdown(report: dict[str, Any], *, title: str) -> str:
         f"- Matrix providers: `{', '.join(str(value) for value in report.get('matrix_providers', []))}`",
         f"- Skipped providers: `{_format_skipped_providers(skipped)}`",
         f"- Parallel enabled: `{bool(report.get('parallel_enabled'))}`",
-        f"- Raindrop trace: `{trace.get('provider', 'none')}` / `{trace.get('status', 'disabled')}`",
+        *_raindrop_trace_lines(trace),
         (
             "- Trace content policy: metadata only. The benchmark records timings, "
             "counts, scores, costs, selected URLs, and artifact paths; it does not "
@@ -2478,8 +2686,8 @@ def _article_markdown(report: dict[str, Any], *, title: str) -> str:
         )
     if trace.get("enabled"):
         lines.append(
-            "- Raindrop tracing was enabled, so each case was emitted with provider, workflow, "
-            "target, prompt, settings, score, latency, cost, and selected-URL metadata."
+            "- Raindrop tracing was enabled, so each case was emitted as a tool trace and "
+            "attention-worthy cells were promoted into Raindrop signals."
         )
     else:
         lines.append(
@@ -2489,13 +2697,12 @@ def _article_markdown(report: dict[str, Any], *, title: str) -> str:
     lines.extend(
         [
             "",
-            "## Why This Is More Useful Than The First Run",
+            "## Why This Is Useful",
             "",
             (
-                "The first benchmark could not separate providers because every case ran against "
-                "`docs.parallel.ai`, a clean documentation site, and the pack score saturated at 100/100. "
                 "The target matrix creates provider-by-target variance in one run, and the weighted "
-                "sub-scores make that variance visible before it reaches the headline score."
+                "sub-scores make that variance visible before it reaches the headline score. "
+                "Raindrop turns those cells into traces and signals that can be compared over time."
             ),
             "",
             "Raindrop is still not the judge or retriever. It is the trace layer around the eval: "
@@ -2513,7 +2720,7 @@ def _article_markdown(report: dict[str, Any], *, title: str) -> str:
             "export EXA_API_KEY='<exa-key>'",
             "export RAINDROP_WRITE_KEY='<raindrop-write-key>'",
             (
-                "docpull benchmark quick --target-set v2 --provider all --trace raindrop "
+                "docpull benchmark quick --target-set provider-matrix --provider all --trace raindrop "
                 "--max-pages 8 --max-depth 1 --max-search-results 5 --extract-limit 2 "
                 "--max-estimated-cost 0.10"
             ),
@@ -2523,7 +2730,7 @@ def _article_markdown(report: dict[str, Any], *, title: str) -> str:
             "## Crawl Policy",
             "",
             (
-                "The v2 run keeps page caps low and runs on a spaced schedule. Public docs and "
+                "The provider matrix keeps page caps low and runs on a spaced schedule. Public docs and "
                 "pricing pages should still be treated as someone else's infrastructure: respect "
                 "robots.txt, keep concurrency conservative, and avoid tight repeated runs."
             ),
@@ -2578,7 +2785,7 @@ def _legacy_article_markdown(report: dict[str, Any], *, title: str) -> str:
         f"- Providers: `{providers}`",
         f"- Skipped providers: `{_format_skipped_providers(skipped)}`",
         f"- Parallel enabled: `{bool(report.get('parallel_enabled'))}`",
-        f"- Raindrop trace: `{trace.get('provider', 'none')}` / `{trace.get('status', 'disabled')}`",
+        *_raindrop_trace_lines(trace),
         (
             "- Trace content policy: metadata only. The benchmark records timings, "
             "counts, scores, costs, selected URLs, and artifact paths; it does not "
@@ -2634,8 +2841,8 @@ def _legacy_article_markdown(report: dict[str, Any], *, title: str) -> str:
         )
     if trace.get("enabled"):
         lines.append(
-            "- Raindrop tracing was enabled, so each benchmark case was emitted as a tool trace for "
-            "follow-up investigation and experiment tracking."
+            "- Raindrop tracing was enabled, so each benchmark case was emitted as a tool trace and "
+            "attention-worthy cells were promoted into Raindrop signals."
         )
     else:
         lines.append(

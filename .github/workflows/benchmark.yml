@@ -92,7 +92,7 @@ jobs:
             TRACE_ARGS=(--trace raindrop)
           fi
           PYTHONPATH=src python -m docpull benchmark quick \
-            --target-set v2 \
+            --target-set provider-matrix \
             --provider all \
             --max-pages 8 \
             --max-depth 1 \

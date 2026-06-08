@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import sys
+import types
 from pathlib import Path
 from typing import Any
 
@@ -188,6 +190,37 @@ def test_benchmark_matrix_runs_core_once_per_target(
     ]
     assert report["cases"][0]["name"] == "parallel_docs/core-llm"
     assert "Provider x Target Heatmap" in (output_dir / "benchmark.summary.md").read_text(encoding="utf-8")
+
+
+def test_provider_matrix_target_set_has_legacy_v2_alias(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(benchmark, "_run_core_case", _fake_core_case)
+
+    report = run_quick_benchmark(
+        target_url="https://docs.parallel.ai",
+        target_set="v2",
+        output_dir=tmp_path / "bench",
+        max_pages=1,
+        max_depth=1,
+        max_concurrent=1,
+        per_host_concurrent=1,
+        cache_enabled=True,
+        cached_pass=None,
+        parallel=False,
+        parallel_objective=None,
+        parallel_queries=[],
+        include_domains=[],
+        mode="advanced",
+        max_search_results=8,
+        extract_limit=3,
+        max_estimated_cost=0.05,
+    )
+
+    assert report["target_set"] == "provider-matrix"
+    assert report["summary"]["target_count"] == 8
+    assert report["summary"]["case_count"] == 8
 
 
 def test_benchmark_records_provider_failure_and_continues(
@@ -453,6 +486,123 @@ def test_raindrop_trace_requires_write_key_before_core(
         )
 
     assert called is False
+
+
+def test_raindrop_trace_records_event_id_and_signals(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    events: list[dict[str, Any]] = []
+    signals: list[dict[str, Any]] = []
+
+    class FakeInteraction:
+        def __init__(self, event_id: str) -> None:
+            self._event_id = event_id
+
+        def track_tool(self, **kwargs: Any) -> None:
+            events.append({"type": "tool", **kwargs})
+
+        def set_properties(self, props: dict[str, Any]) -> None:
+            events.append({"type": "properties", "props": props})
+
+        def finish(self, **kwargs: Any) -> None:
+            events.append({"type": "finish", **kwargs})
+
+    fake_raindrop = types.ModuleType("raindrop.analytics")
+
+    def fake_init(*_args: Any, **_kwargs: Any) -> None:
+        events.append({"type": "init"})
+
+    def fake_begin(**kwargs: Any) -> FakeInteraction:
+        events.append({"type": "begin", **kwargs})
+        return FakeInteraction(str(kwargs["event_id"]))
+
+    def fake_track_signal(**kwargs: Any) -> None:
+        signals.append(kwargs)
+
+    fake_raindrop.init = fake_init  # type: ignore[attr-defined]
+    fake_raindrop.begin = fake_begin  # type: ignore[attr-defined]
+    fake_raindrop.track_signal = fake_track_signal  # type: ignore[attr-defined]
+    fake_raindrop.flush = lambda: events.append({"type": "flush"})  # type: ignore[attr-defined]
+    fake_raindrop.shutdown = lambda: events.append({"type": "shutdown"})  # type: ignore[attr-defined]
+    fake_package = types.ModuleType("raindrop")
+    fake_package.analytics = fake_raindrop  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "raindrop", fake_package)
+    monkeypatch.setitem(sys.modules, "raindrop.analytics", fake_raindrop)
+    monkeypatch.setattr(benchmark, "_lookup_benchmark_secret", lambda _env_var: "test-key")
+
+    recorder = benchmark._RaindropTraceRecorder(
+        target_url="https://docs.parallel.ai",
+        targets=[
+            benchmark._BenchmarkTarget(
+                id="parallel_docs",
+                label="Parallel docs",
+                url="https://docs.parallel.ai",
+                include_domains=("docs.parallel.ai",),
+                objective="Build a pack",
+                queries=("Parallel API docs",),
+            )
+        ],
+        target_set="tool-docs",
+        output_dir=tmp_path,
+        parallel_enabled=True,
+        max_estimated_cost=0.05,
+    )
+    recorder.record_case(
+        {
+            "name": "parallel_docs/tavily-search-extract",
+            "provider": "tavily",
+            "workflow": "tavily-search-extract-pack",
+            "target_id": "parallel_docs",
+            "target_url": "https://docs.parallel.ai",
+            "target_kind": "docs",
+            "status": "failed",
+            "error": {"type": "BenchmarkError", "message": "No extractable URLs"},
+            "wall_seconds": 0.2,
+            "estimated_cost_usd": 0.0,
+        }
+    )
+    recorder.record_case(
+        {
+            "name": "parallel_docs/exa-search-contents",
+            "provider": "exa",
+            "workflow": "exa-search-contents-pack",
+            "target_id": "parallel_docs",
+            "target_url": "https://docs.parallel.ai",
+            "target_kind": "docs",
+            "status": "ok",
+            "wall_seconds": 11.2,
+            "estimated_cost_usd": 0.012,
+            "pack_score": {"score": 88, "summary": {"record_count": 2, "total_tokens": 1200}},
+            "benchmark_score": {
+                "score": 86,
+                "dimensions": {
+                    "coverage": {"score": 70, "signals": ["2/3 expected unique URLs"]},
+                },
+            },
+            "pack_metadata": {
+                "selected_urls": ["https://docs.parallel.ai/a"],
+                "extract_error_count": 1,
+            },
+        }
+    )
+    recorder.finish({"summary": {"case_count": 2}, "artifacts": {"json": "benchmark.report.json"}})
+
+    metadata = recorder.metadata()
+    assert metadata["event_id"]
+    assert metadata["case_count"] == 2
+    assert metadata["signal_count"] == 5
+    assert metadata["negative_signal_count"] == 5
+    assert {signal["name"] for signal in signals} == {
+        "benchmark_case_failed",
+        "benchmark_low_score",
+        "benchmark_slow_case",
+        "benchmark_high_cost_case",
+        "benchmark_dimension_signal",
+    }
+    assert all(signal["event_id"] == metadata["event_id"] for signal in signals)
+    assert signals[0]["properties"]["content_policy"] == "metadata_only"
+    assert any(event["type"] == "properties" and event["props"]["signal_count"] == 5 for event in events)
 
 
 def test_benchmark_article_cli_writes_publishable_markdown(tmp_path: Path) -> None:

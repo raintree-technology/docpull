@@ -12,7 +12,7 @@ help:
 	@echo "benchmark-quick - run small real-site benchmark without live providers"
 	@echo "benchmark-parallel - run real-site benchmark with Parallel under cost guard"
 	@echo "benchmark-compare - run real-site benchmark with all configured providers"
-	@echo "benchmark-matrix - run v2 target-matrix benchmark with all configured providers"
+	@echo "benchmark-matrix - run provider target-matrix benchmark with all configured providers"
 	@echo "benchmark-raindrop - run real-site benchmark with all configured providers and Raindrop tracing"
 	@echo "lint - check style with ruff"
 	@echo "format - format code with ruff"
@@ -62,12 +62,12 @@ benchmark-compare:
 	$(PYTHON) -m docpull benchmark quick --provider all --max-estimated-cost 0.10
 
 benchmark-matrix:
-	$(PYTHON) -m docpull benchmark quick --target-set v2 --provider all \
+	$(PYTHON) -m docpull benchmark quick --target-set provider-matrix --provider all \
 		--max-pages 8 --max-depth 1 --max-search-results 5 --extract-limit 2 \
 		--max-estimated-cost 0.10
 
 benchmark-raindrop:
-	$(PYTHON) -m docpull benchmark quick --target-set v2 --provider all --trace raindrop \
+	$(PYTHON) -m docpull benchmark quick --target-set provider-matrix --provider all --trace raindrop \
 		--max-pages 8 --max-depth 1 --max-search-results 5 --extract-limit 2 \
 		--max-estimated-cost 0.10
 
