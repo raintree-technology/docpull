@@ -489,7 +489,7 @@ benchmark harness:
 docpull benchmark quick
 docpull benchmark quick --provider auto --max-estimated-cost 0.05
 docpull benchmark quick --provider all --max-estimated-cost 0.10
-docpull benchmark quick --target-set v2 --provider all \
+docpull benchmark quick --target-set provider-matrix --provider all \
   --max-pages 8 --max-depth 1 --max-search-results 5 --extract-limit 2 \
   --max-estimated-cost 0.10
 docpull benchmark article .bench/runs/<run>/benchmark.report.json
@@ -504,7 +504,7 @@ Tavily, and Exa, then records missing keys or optional SDKs in
 the local `--max-estimated-cost` guard before any work starts.
 
 Use `--target-set tool-docs` to run a cross-pull matrix across the Parallel,
-Exa, Tavily, Raindrop, and DocPull documentation sites. Use `--target-set v2`
+Exa, Tavily, Raindrop, and DocPull documentation sites. Use `--target-set provider-matrix`
 to add three low-cap adversarial public targets for JS-heavy docs, noisy
 archived navigation, and freshness-sensitive pricing. Matrix runs skip the
 cached core pass by default so the headline grid stays provider x target; pass
@@ -536,7 +536,7 @@ export TAVILY_API_KEY="<your-tavily-api-key>"
 export TAVILY_CREDIT_USD="<account-credit-value>"
 export EXA_API_KEY="<your-exa-api-key>"
 export RAINDROP_WRITE_KEY="<your-raindrop-write-key>"
-docpull benchmark quick --target-set v2 --provider all --trace raindrop \
+docpull benchmark quick --target-set provider-matrix --provider all --trace raindrop \
   --max-pages 8 --max-depth 1 --max-search-results 5 --extract-limit 2 \
   --max-estimated-cost 0.10
 docpull benchmark article .bench/runs/<run>/benchmark.report.json
@@ -547,6 +547,11 @@ scores, costs, selected URLs, provider, workflow, target, prompt, settings, and
 artifact paths, but does not send scraped page content unless a future caller
 explicitly adds that behavior. `RAINDROP_WRITE_KEY` can be exported or stored in
 the same `~/.config/docpull/secrets.env` file as the provider keys.
+
+When Raindrop tracing is enabled, DocPull also emits Raindrop signals for
+attention-worthy benchmark cells: failed cases, low scores, slow cases,
+high-cost cells, and score-dimension warnings. The benchmark report stores the
+Raindrop event id and signal counts so traced runs can be audited later.
 
 ## Troubleshooting
 
