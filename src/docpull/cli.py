@@ -674,6 +674,14 @@ def main(argv: list[str] | None = None) -> int:
         from .pack_tools import run_pack_cli
 
         return run_pack_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "benchmark":
+        from .benchmark import run_benchmark_cli
+
+        return run_benchmark_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] in {"provider", "providers"}:
+        from .provider_cli import run_provider_cli
+
+        return run_provider_cli(raw_argv[1:])
 
     parser = create_parser()
     args = parser.parse_args(raw_argv)

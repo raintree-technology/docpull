@@ -7,6 +7,7 @@ import importlib.resources
 import io
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -966,6 +967,46 @@ def test_parallel_fallback_pack_uses_core_then_parallel(
         "docpull_core",
         "parallel_extract",
     }
+
+
+def test_parallel_fallback_core_extract_uses_temp_output_dir(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_fetch_one(url: str, **kwargs: object) -> SimpleNamespace:
+        captured["url"] = url
+        captured["kwargs"] = kwargs
+        output = kwargs["output"]
+        assert isinstance(output, dict)
+        output_dir = output["directory"]
+        assert isinstance(output_dir, Path)
+        assert output_dir.is_absolute()
+        assert not str(output_dir).startswith(str(tmp_path / "docs"))
+        return SimpleNamespace(
+            error=None,
+            should_skip=False,
+            markdown="# Search\n\nCore content.",
+            title="Search",
+            metadata={},
+            status_code=200,
+            content_type="text/html",
+            extraction_info={},
+        )
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("docpull.core.fetcher.fetch_one", fake_fetch_one)
+
+    result = parallel_workflows._core_docpull_extract_result(
+        "https://docs.parallel.ai/api-reference/search/search",
+        profile="rag",
+        max_core_chars=50000,
+    )
+
+    assert result["provider"] == "docpull_core"
+    assert captured["url"] == "https://docs.parallel.ai/api-reference/search/search"
+    assert not (tmp_path / "docs").exists()
 
 
 def test_parallel_task_pack_passes_lifecycle_options(

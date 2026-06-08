@@ -181,6 +181,7 @@ downloads/
 TEST_REPORT.md
 CODE_QUALITY_REPORT.md
 QUALITY_IMPROVEMENTS.md
+.bench/
 
 # Test artifacts
 test_fetch.py

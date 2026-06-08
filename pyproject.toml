@@ -97,6 +97,9 @@ mcp = [
 parallel = [
     "parallel-web>=1.0.1",
 ]
+observability = [
+    "raindrop-ai>=0.0.50",
+]
 llm = [
     "tiktoken>=0.7.0",
 ]
@@ -110,6 +113,7 @@ all = [
     "python-multipart>=0.0.27",
     "starlette>=1.0.1",
     "parallel-web>=1.0.1",
+    "raindrop-ai>=0.0.50",
 ]
 dev = [
     "pytest>=7.0.0",

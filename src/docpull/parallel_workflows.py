@@ -9,10 +9,10 @@ import getpass
 import importlib.resources
 import importlib.util
 import json
-import os
 import re
 import shlex
 import sys
+import tempfile
 import time
 import uuid
 from contextlib import suppress
@@ -28,6 +28,20 @@ from .conversion.chunking import TokenCounter, chunk_markdown
 from .http import AsyncHttpClient, PerHostRateLimiter
 from .models.document import DocumentRecord
 from .pipeline.manifest import CorpusManifest
+from .provider_keys import (
+    PROJECT_ENV_FILENAME,
+    SECRETS_FILENAME,
+    ProviderApiKeyLookup,
+    clean_api_key,
+    find_project_env_path,
+    key_assignment,
+    lookup_provider_api_key,
+    parse_env_assignment,
+    quote_env_value,
+    read_key_file,
+    user_secrets_path,
+    write_provider_secret,
+)
 from .security.robots import RobotsChecker
 from .security.url_validator import UrlValidator
 from .source_scoring import score_source_entries
@@ -38,9 +52,8 @@ DEFAULT_OUTPUT_DIR = Path("packs/parallel-context-pack")
 PARALLEL_API_KEY_ENV = "PARALLEL_API_KEY"
 PARALLEL_INSTALL_COMMAND = "pip install 'docpull[parallel]'"
 PARALLEL_API_KEY_COMMAND = f'export {PARALLEL_API_KEY_ENV}="<your-parallel-api-key>"'
-DOCPULL_CONFIG_DIR_NAME = "docpull"
-PARALLEL_SECRETS_FILENAME = "secrets.env"
-PARALLEL_PROJECT_ENV_FILENAME = ".env.local"
+PARALLEL_SECRETS_FILENAME = SECRETS_FILENAME
+PARALLEL_PROJECT_ENV_FILENAME = PROJECT_ENV_FILENAME
 PARALLEL_ACCOUNT_URL = "https://platform.parallel.ai"
 PARALLEL_DOCS_URL = "https://docs.parallel.ai"
 PARALLEL_LLMS_TXT_URL = "https://docs.parallel.ai/llms.txt"
@@ -100,13 +113,7 @@ class ParallelWorkflowError(RuntimeError):
     """User-facing workflow error."""
 
 
-@dataclass(frozen=True)
-class ParallelApiKeyLookup:
-    """Non-secret Parallel API-key lookup result."""
-
-    value: str | None
-    source: str
-    path: Path | None = None
+ParallelApiKeyLookup = ProviderApiKeyLookup
 
 
 def _positive_int(value: str) -> int:
@@ -4357,125 +4364,48 @@ def _read_parallel_api_key_for_init(*, from_stdin: bool) -> str:
 
 
 def _lookup_parallel_api_key() -> ParallelApiKeyLookup:
-    env_key = _clean_parallel_api_key(os.environ.get(PARALLEL_API_KEY_ENV))
-    if env_key:
-        return ParallelApiKeyLookup(value=env_key, source="env")
-
-    project_path = _find_project_env_path(Path.cwd())
-    if project_path:
-        project_key = _read_parallel_key_file(project_path)
-        if project_key:
-            return ParallelApiKeyLookup(value=project_key, source="project_env", path=project_path)
-
-    user_path = _parallel_user_secrets_path()
-    user_key = _read_parallel_key_file(user_path)
-    if user_key:
-        return ParallelApiKeyLookup(value=user_key, source="user_config", path=user_path)
-
-    return ParallelApiKeyLookup(value=None, source="missing")
+    return lookup_provider_api_key("parallel")
 
 
 def _clean_parallel_api_key(value: str | None) -> str | None:
-    cleaned = (value or "").strip()
-    return cleaned or None
+    return clean_api_key(value)
 
 
 def _parallel_user_secrets_path() -> Path:
-    xdg_home = _clean_parallel_api_key(os.environ.get("XDG_CONFIG_HOME"))
-    if xdg_home:
-        return Path(xdg_home) / DOCPULL_CONFIG_DIR_NAME / PARALLEL_SECRETS_FILENAME
-    return Path.home() / ".config" / DOCPULL_CONFIG_DIR_NAME / PARALLEL_SECRETS_FILENAME
+    return user_secrets_path()
 
 
 def _find_project_env_path(start: Path) -> Path | None:
-    current = start.resolve()
-    for directory in (current, *current.parents):
-        candidate = directory / PARALLEL_PROJECT_ENV_FILENAME
-        if candidate.exists():
-            return candidate
-        if (directory / ".git").exists():
-            break
-    return None
+    return find_project_env_path(start)
 
 
 def _read_parallel_key_file(path: Path) -> str | None:
-    if not path.exists():
-        return None
-    try:
-        text = path.read_text(encoding="utf-8")
-    except OSError:
-        return None
-    for line in text.splitlines():
-        parsed = _parse_env_assignment(line)
-        if parsed and parsed[0] == PARALLEL_API_KEY_ENV:
-            return _clean_parallel_api_key(parsed[1])
-    return None
+    return read_key_file(path, PARALLEL_API_KEY_ENV)
 
 
 def _parse_env_assignment(line: str) -> tuple[str, str] | None:
-    stripped = line.strip()
-    if not stripped or stripped.startswith("#"):
-        return None
-    if stripped.startswith("export "):
-        stripped = stripped[len("export ") :].strip()
-    if "=" not in stripped:
-        return None
-    name, value = stripped.split("=", 1)
-    name = name.strip()
-    if not name:
-        return None
-    return name, _unquote_env_value(value.strip())
+    return parse_env_assignment(line)
 
 
 def _unquote_env_value(value: str) -> str:
-    if value.startswith('"'):
-        try:
-            parsed = json.loads(value)
-        except json.JSONDecodeError:
-            pass
-        else:
-            return parsed if isinstance(parsed, str) else str(parsed)
-    if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
-        value = value[1:-1]
-        if value:
-            value = value.replace("\\'", "'").replace('\\"', '"')
-    return value
+    from .provider_keys import unquote_env_value
+
+    return unquote_env_value(value)
 
 
 def _write_parallel_secret_file(path: Path, api_key: str, *, force: bool) -> None:
-    existing = path.read_text(encoding="utf-8").splitlines() if path.exists() else []
-    output_lines: list[str] = []
-    replaced = False
-    for line in existing:
-        parsed = _parse_env_assignment(line)
-        if parsed and parsed[0] == PARALLEL_API_KEY_ENV:
-            if not force:
-                raise ParallelWorkflowError(
-                    f"{path} already contains {PARALLEL_API_KEY_ENV}; pass --force to overwrite it."
-                )
-            if not replaced:
-                output_lines.append(_parallel_key_assignment(api_key))
-                replaced = True
-            continue
-        output_lines.append(line)
-    if not replaced:
-        output_lines.append(_parallel_key_assignment(api_key))
-
-    path.parent.mkdir(parents=True, exist_ok=True)
-    if path.name == PARALLEL_SECRETS_FILENAME:
-        _chmod_best_effort(path.parent, 0o700)
-    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, "w", encoding="utf-8") as handle:
-        handle.write("\n".join(output_lines).rstrip() + "\n")
-    _chmod_best_effort(path, 0o600)
+    try:
+        write_provider_secret("parallel", path, api_key, force=force)
+    except FileExistsError as err:
+        raise ParallelWorkflowError(str(err)) from err
 
 
 def _parallel_key_assignment(api_key: str) -> str:
-    return f"{PARALLEL_API_KEY_ENV}={_quote_env_value(api_key)}"
+    return key_assignment(PARALLEL_API_KEY_ENV, api_key)
 
 
 def _quote_env_value(value: str) -> str:
-    return json.dumps(value)
+    return quote_env_value(value)
 
 
 def _chmod_best_effort(path: Path, mode: int) -> None:
@@ -4912,7 +4842,8 @@ def _discovery_next_steps_md(
 def _core_docpull_extract_result(url: str, *, profile: str, max_core_chars: int) -> dict[str, Any]:
     from .core.fetcher import fetch_one
 
-    ctx = fetch_one(url, profile=profile)
+    with tempfile.TemporaryDirectory(prefix="docpull-fallback-core-") as temp_dir:
+        ctx = fetch_one(url, profile=profile, output={"directory": Path(temp_dir)})
     if ctx.error:
         raise RuntimeError(ctx.error)
     if ctx.should_skip:

@@ -11,6 +11,7 @@ import asyncio
 import json
 import logging
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 from typing import IO
 
@@ -21,6 +22,15 @@ from ..base import EventEmitter, PageContext
 from ..manifest import CorpusManifest
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class _SourceIndexEntry:
+    url: str
+    title: str | None = None
+    source_type: str | None = None
+    record_count: int = 0
+    token_count: int = 0
 
 
 class NdjsonSaveStep:
@@ -48,6 +58,7 @@ class NdjsonSaveStep:
         self._output_path: Path | None = None
         self._lock = asyncio.Lock()
         self._run_identity = run_identity
+        self._source_index: dict[str, _SourceIndexEntry] = {}
         self._manifest = CorpusManifest(
             self._base_dir,
             output_format="ndjson",
@@ -99,6 +110,7 @@ class NdjsonSaveStep:
                         token_count=getattr(chunk, "token_count", None),
                     )
                     self._manifest.add_record(record, self._output_path)
+                    self._add_source_index_record(record)
                     self._write_record(record.model_dump(mode="json", exclude_none=True))
                     self._chunk_count += 1
             else:
@@ -112,6 +124,7 @@ class NdjsonSaveStep:
                     run_identity=self._run_identity,
                 )
                 self._manifest.add_record(record, self._output_path)
+                self._add_source_index_record(record)
                 self._write_record(record.model_dump(mode="json", exclude_none=True))
             self._document_count += 1
             ctx.persisted_path = self._output_path
@@ -136,6 +149,8 @@ class NdjsonSaveStep:
         self._fp = None
         self._manifest.finalize()
         if self._output_path:
+            self._write_sources_index()
+        if self._output_path:
             logger.info(
                 "Wrote %d records (%d chunks) to %s",
                 self._document_count,
@@ -151,3 +166,44 @@ class NdjsonSaveStep:
     @property
     def chunk_count(self) -> int:
         return self._chunk_count
+
+    def _add_source_index_record(self, record: DocumentRecord) -> None:
+        entry = self._source_index.setdefault(
+            record.url,
+            _SourceIndexEntry(
+                url=record.url,
+                title=record.title,
+                source_type=record.source_type,
+            ),
+        )
+        if not entry.title and record.title:
+            entry.title = record.title
+        if not entry.source_type and record.source_type:
+            entry.source_type = record.source_type
+        entry.record_count += 1
+        entry.token_count += record.token_count or 0
+
+    def _write_sources_index(self) -> Path:
+        assert self._output_path is not None
+        lines = [
+            "# Context Pack Sources",
+            "",
+            f"Generated from `{self._filename}`.",
+            "",
+            "## Sources",
+            "",
+        ]
+        if not self._source_index:
+            lines.append("_No records were emitted._")
+        for index, entry in enumerate(self._source_index.values(), start=1):
+            title = entry.title or entry.url
+            lines.append(f"{index}. [{title}]({entry.url})")
+            lines.append(f"   - Records: {entry.record_count}")
+            if entry.token_count:
+                lines.append(f"   - Tokens: {entry.token_count}")
+            if entry.source_type:
+                lines.append(f"   - Source type: `{entry.source_type}`")
+            lines.append(f"   - Records file: `{self._filename}`")
+        path = self._base_dir / "sources.md"
+        path.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
+        return path

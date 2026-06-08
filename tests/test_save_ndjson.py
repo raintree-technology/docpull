@@ -34,6 +34,10 @@ async def test_ndjson_writes_one_line_per_page(tmp_path):
     assert all("hash" in r for r in records)
     assert all(r["schema_version"] == 1 for r in records)
     assert all("content_hash" in r for r in records)
+    sources = (tmp_path / "sources.md").read_text(encoding="utf-8")
+    assert "# Context Pack Sources" in sources
+    assert "1. [Page 0](https://example.com/p0)" in sources
+    assert "Records file: `out.ndjson`" in sources
 
 
 @pytest.mark.asyncio
@@ -58,6 +62,10 @@ async def test_ndjson_emits_chunks_when_enabled(tmp_path):
     assert r0["chunk_index"] == 0
     assert r0["content"] == "chunk 0 body"
     assert r0["token_count"] == 4
+    sources = (tmp_path / "sources.md").read_text(encoding="utf-8")
+    assert "1. [Page](https://example.com/)" in sources
+    assert "Records: 2" in sources
+    assert "Tokens: 8" in sources
 
 
 @pytest.mark.asyncio

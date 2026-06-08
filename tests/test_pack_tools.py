@@ -111,6 +111,48 @@ def test_pack_score_cli_writes_score_file(tmp_path: Path) -> None:
     assert payload["score"] >= 80
 
 
+def test_pack_score_understands_search_pack_metadata(tmp_path: Path) -> None:
+    pack = tmp_path / "search-pack"
+    records = [_record("https://docs.parallel.ai/api-reference/search/search", "aaa")]
+    _write_pack(pack, records, include_domains=["docs.parallel.ai"])
+    (pack / "parallel.pack.json").unlink()
+    (pack / "search.pack.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "provider": "parallel",
+                "workflow": "search-pack",
+                "metadata": {
+                    "request_options": {
+                        "source_policy": {"include_domains": ["docs.parallel.ai"]},
+                    },
+                },
+                "record_count": len(records),
+                "sources": [
+                    {
+                        "index": 1,
+                        "url": records[0]["url"],
+                        "title": records[0]["title"],
+                        "path": "sources/01.md",
+                    }
+                ],
+                "artifacts": {
+                    "documents_ndjson": "documents.ndjson",
+                    "corpus_manifest": "corpus.manifest.json",
+                    "sources": "sources.md",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = score_pack(pack)
+
+    assert result["score"] == 100
+    assert result["expected_domains"] == ["docs.parallel.ai"]
+    assert result["warnings"] == []
+
+
 def test_pack_sources_ranks_expected_docs_sources(tmp_path: Path) -> None:
     pack = tmp_path / "pack"
     _write_pack(
