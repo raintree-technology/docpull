@@ -455,11 +455,7 @@ def run_quick_benchmark(
         live_providers=live_providers,
     )
     provider_status = _live_provider_statuses(requested_providers)
-    providers = [
-        provider
-        for provider in requested_providers
-        if provider_status[provider]["ready"]
-    ]
+    providers = [provider for provider in requested_providers if provider_status[provider]["ready"]]
     skipped_providers = [
         {
             "provider": provider,
@@ -1717,7 +1713,8 @@ def _coverage_dimension(
         missing = min_expected - len(unique_urls)
         score -= min(45, missing * 15)
         signals.append(f"{len(unique_urls)}/{min_expected} expected unique URLs")
-    metadata = payload.get("pack_metadata") if isinstance(payload.get("pack_metadata"), dict) else {}
+    raw_metadata = payload.get("pack_metadata")
+    metadata: dict[str, Any] = raw_metadata if isinstance(raw_metadata, dict) else {}
     extract_errors = _optional_number(metadata.get("extract_error_count"))
     if extract_errors:
         score -= min(30, int(extract_errors) * 8)
@@ -1762,7 +1759,8 @@ def _source_fidelity_dimension(
     if off_domain:
         score -= min(40, len(set(off_domain)) * 12)
         signals.append(f"{len(set(off_domain))} off-domain URLs")
-    metadata = payload.get("pack_metadata") if isinstance(payload.get("pack_metadata"), dict) else {}
+    raw_metadata = payload.get("pack_metadata")
+    metadata: dict[str, Any] = raw_metadata if isinstance(raw_metadata, dict) else {}
     selected_urls = metadata.get("selected_urls")
     selected = [str(url) for url in selected_urls if url] if isinstance(selected_urls, list) else []
     noisy_selected = [url for url in selected if "?" in url or "#" in url]
@@ -1873,8 +1871,7 @@ def _boilerplate_hit_count(records: list[dict[str, Any]]) -> int:
 def _url_matches_domains(url: str, expected_domains: list[str]) -> bool:
     domain = _domain_for_url(url)
     return bool(
-        domain
-        and any(domain == expected or domain.endswith(f".{expected}") for expected in expected_domains)
+        domain and any(domain == expected or domain.endswith(f".{expected}") for expected in expected_domains)
     )
 
 
@@ -2020,6 +2017,9 @@ def _http_json_post(
     body: dict[str, Any],
     timeout: float,
 ) -> dict[str, Any]:
+    parsed_url = urlparse(url)
+    if parsed_url.scheme != "https":
+        raise BenchmarkError(f"{label} URL must use HTTPS.")
     request = Request(
         url,
         data=json.dumps(body).encode("utf-8"),
@@ -2030,7 +2030,7 @@ def _http_json_post(
         method="POST",
     )
     try:
-        with urlopen(request, timeout=timeout) as response:  # noqa: S310
+        with urlopen(request, timeout=timeout) as response:  # nosec B310
             raw = response.read().decode("utf-8")
     except HTTPError as err:
         detail = err.read().decode("utf-8", errors="replace")
@@ -2172,7 +2172,8 @@ def _format_skipped_providers(skipped: list[Any]) -> str:
 
 
 def _markdown_report(report: dict[str, Any]) -> str:
-    targets = report.get("targets") if isinstance(report.get("targets"), list) else []
+    raw_targets = report.get("targets")
+    targets: list[Any] = raw_targets if isinstance(raw_targets, list) else []
     target_label = (
         f"{len(targets)} targets (`{report.get('target_set', 'single')}`)"
         if len(targets) > 1

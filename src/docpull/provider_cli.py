@@ -129,8 +129,7 @@ def run_provider_cli(argv: list[str] | None = None) -> int:
                 update_gitignore=not args.no_gitignore_update,
             )
             console.print(
-                f"[green]Stored {result['label']} API key:[/green] "
-                f"{result['key_source']} -> {result['path']}"
+                f"[green]Stored {result['label']} API key:[/green] {result['key_source']} -> {result['path']}"
             )
             if result.get("gitignore_updated"):
                 console.print(f"[green]Updated .gitignore:[/green] {result['gitignore_path']}")
@@ -246,11 +245,7 @@ def run_provider_context_packs(
         live_providers=providers,
     )
     provider_status = _live_provider_statuses(requested_providers)
-    selected_providers = [
-        provider
-        for provider in requested_providers
-        if provider_status[provider]["ready"]
-    ]
+    selected_providers = [provider for provider in requested_providers if provider_status[provider]["ready"]]
     skipped_providers = [
         {
             "provider": provider,
@@ -367,8 +362,7 @@ def _print_provider_auth_status(console: Console, payload: dict[str, Any]) -> No
         )
     console.print("Secret handling: keys are never printed or written to pack artifacts.")
     console.print(
-        "Validation: local key and optional SDK presence only; "
-        "no live key validation call is made."
+        "Validation: local key and optional SDK presence only; no live key validation call is made."
     )
 
 
