@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- Add `docpull benchmark quick` for repeatable real-site benchmark reports that
+  compare core docpull crawls, cached reruns, and optional live Parallel Search
+  / Search + Extract context-pack cases behind a local cost guard.
+- Add `docpull benchmark article` to turn benchmark JSON reports into a
+  publishable Markdown draft with methodology, results, reproduce commands, and
+  artifact links.
+- Add optional `docpull[observability]` Raindrop support so benchmark cases can
+  be emitted as metadata-only traces when `RAINDROP_WRITE_KEY` is configured.
+- Add Tavily and Exa live benchmark cases that normalize provider results into
+  the same scored context-pack artifacts as core docpull and Parallel.
+- Add `docpull benchmark quick --target-set tool-docs/v2` for provider-by-target
+  matrix evals across Parallel, Exa, Tavily, Raindrop, DocPull, and low-cap
+  adversarial public targets.
+- Add weighted benchmark sub-scores for coverage, cleanliness, source fidelity,
+  freshness, and density so clean and noisy targets no longer collapse to the
+  same headline score.
+- Add Tavily credit-to-dollar normalization with `--tavily-credit-usd` or
+  `TAVILY_CREDIT_USD`, plus a weekly GitHub Actions provider-matrix benchmark.
+- Add `docpull providers` for equal optional Parallel, Tavily, and Exa key
+  status, durable key setup, and provider context-pack runs that can use any
+  configured subset.
+- Add Make targets for quick, Parallel, and Raindrop benchmark runs.
+
+### Changed
+- Let `docpull benchmark quick --provider auto/all` run all locally configured
+  providers and skip missing API keys or optional SDKs without failing the core
+  benchmark.
+- Write `sources.md` for LLM-profile NDJSON output so core docpull packs score
+  consistently with Parallel-generated context packs.
+- Score Parallel Search packs from their search metadata and keep fallback-pack
+  core extraction artifacts scoped to their intended output directory.
+
 ## [4.1.0] - 2026-06-07
 
 ### Added

@@ -1,4 +1,6 @@
-.PHONY: clean clean-pyc clean-build clean-test help
+.PHONY: clean clean-pyc clean-build clean-test help test benchmark benchmark-quick benchmark-parallel benchmark-compare benchmark-matrix benchmark-raindrop lint format
+
+PYTHON ?= .venv/bin/python
 
 help:
 	@echo "clean - remove all build, test, coverage and Python artifacts"
@@ -6,6 +8,12 @@ help:
 	@echo "clean-pyc - remove Python file artifacts"
 	@echo "clean-test - remove test and coverage artifacts"
 	@echo "test - run tests with pytest"
+	@echo "benchmark - run gated synthetic 10k localhost benchmark"
+	@echo "benchmark-quick - run small real-site benchmark without live providers"
+	@echo "benchmark-parallel - run real-site benchmark with Parallel under cost guard"
+	@echo "benchmark-compare - run real-site benchmark with all configured providers"
+	@echo "benchmark-matrix - run v2 target-matrix benchmark with all configured providers"
+	@echo "benchmark-raindrop - run real-site benchmark with all configured providers and Raindrop tracing"
 	@echo "lint - check style with ruff"
 	@echo "format - format code with ruff"
 
@@ -43,6 +51,25 @@ test:
 
 benchmark:
 	DOCPULL_BENCHMARK_10K=1 pytest tests/benchmarks/test_10k_pages.py -v -s
+
+benchmark-quick:
+	$(PYTHON) -m docpull benchmark quick
+
+benchmark-parallel:
+	$(PYTHON) -m docpull benchmark quick --provider parallel --max-estimated-cost 0.05
+
+benchmark-compare:
+	$(PYTHON) -m docpull benchmark quick --provider all --max-estimated-cost 0.10
+
+benchmark-matrix:
+	$(PYTHON) -m docpull benchmark quick --target-set v2 --provider all \
+		--max-pages 8 --max-depth 1 --max-search-results 5 --extract-limit 2 \
+		--max-estimated-cost 0.10
+
+benchmark-raindrop:
+	$(PYTHON) -m docpull benchmark quick --target-set v2 --provider all --trace raindrop \
+		--max-pages 8 --max-depth 1 --max-search-results 5 --extract-limit 2 \
+		--max-estimated-cost 0.10
 
 lint:
 	ruff check .

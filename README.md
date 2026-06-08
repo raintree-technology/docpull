@@ -1,6 +1,6 @@
 # docpull
 
-**Security-hardened, browser-free crawler that turns static documentation sites into clean, AI-ready Markdown — fast.**
+**Security-hardened, browser-free web scraper and crawler that turns server-rendered pages into clean, AI-ready Markdown — fast.**
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![PyPI version](https://badge.fury.io/py/docpull.svg)](https://badge.fury.io/py/docpull)
@@ -13,15 +13,16 @@
   </a>
 </p>
 
-docpull uses async HTTP (not Playwright) to fetch server-rendered pages,
-extracts main content, and writes clean Markdown with source-URL frontmatter —
-in seconds, with a small install footprint. It won't render JavaScript, but for
-the large class of docs that don't need it (API references, Python/Go stdlib,
-most dev-tool docs, OpenAPI specs, Next.js and Docusaurus builds), it is a
-fast, auditable, sandbox-friendly way to pipe documentation into an LLM context,
-a RAG index, or an offline archive. SSRF, XXE, DNS-rebinding, and
-CRLF-injection protections are on by default — a necessity when an AI agent
-is choosing the URLs.
+docpull is a web scraper for static and server-rendered sites, with
+documentation crawling as its sharpest default workflow. It uses async HTTP (not
+Playwright) to fetch pages, discover links, extract main content, and write clean
+Markdown with source-URL frontmatter — in seconds, with a small install
+footprint. It won't render JavaScript, but for the large class of sites that
+don't need it (API references, vendor docs, Python/Go stdlib, blogs, OpenAPI
+specs, Next.js and Docusaurus builds), it is a fast, auditable,
+sandbox-friendly way to pipe web content into an LLM context, a RAG index, or an
+offline archive. SSRF, XXE, DNS-rebinding, and CRLF-injection protections are on
+by default — a necessity when an AI agent is choosing the URLs.
 
 ## Install
 
@@ -32,22 +33,24 @@ pip install docpull
 pip install 'docpull[llm]'           # tiktoken for token-accurate chunking
 pip install 'docpull[trafilatura]'   # alternative extractor for noisy pages
 pip install 'docpull[mcp]'           # run as an MCP server for AI agents
+pip install 'docpull[parallel]'      # Parallel API context packs
+pip install 'docpull[observability]' # Raindrop benchmark tracing
 pip install 'docpull[all]'           # everything above
 ```
 
 ## Quick start
 
 ```bash
-# Crawl and save Markdown
+# Scrape a page graph and save Markdown
 docpull https://docs.example.com
 
-# One page, no crawl — the fast path for agents
+# Scrape one page, no crawl — the fast path for agents
 docpull https://docs.example.com/guide --single
 
 # LLM-ready NDJSON with 4k-token chunks streamed to stdout
 docpull https://docs.example.com --profile llm --stream | jq .
 
-# Mirror a site for offline use
+# Mirror scraped content for offline use
 docpull https://docs.example.com --profile mirror --cache
 ```
 
@@ -181,7 +184,32 @@ value and reports the key source (`env`, `project_env`, `user_config`, or
 `missing`). It does not make a live Parallel call or prove the key is valid. Use
 `--json` when an agent or CI job needs machine-readable configuration status.
 
-The pack contains:
+## Optional live providers
+
+Parallel, Tavily, and Exa are equal optional live providers for benchmark and
+provider context-pack workflows. You can configure zero, one, two, or all three
+API keys. docpull looks for keys in this order: environment variables, project
+`.env.local`, then `~/.config/docpull/secrets.env`. Missing providers are skipped
+instead of failing provider-neutral runs.
+
+```bash
+docpull providers auth --json
+docpull providers init parallel
+docpull providers init tavily
+docpull providers init exa
+
+docpull providers context-pack "Compare AI web-search APIs for agents" \
+  --provider auto \
+  --query "AI web search API" \
+  --include-domain docs.parallel.ai \
+  --output-dir ./packs/provider-comparison
+```
+
+Use `--provider all` to request all three and record skipped-provider metadata
+for keys or optional SDKs that are not configured. Use repeated `--provider`
+values to run a specific subset.
+
+A Parallel pack contains:
 
 - `AGENT_CONTEXT.md` — agent load plan with source order, pack signals, warnings, errors, and artifact map.
 - `documents.ndjson` — chunked records for agents and RAG pipelines.
@@ -453,6 +481,72 @@ local audit run.
 Reproduce with `make benchmark` (requires `aiohttp`; runs the gated
 benchmark in `tests/benchmarks/` and prints progress plus a JSON line you can
 pipe into trend tooling).
+
+For real-site and live-provider context-pack benchmarks, use the first-class
+benchmark harness:
+
+```bash
+docpull benchmark quick
+docpull benchmark quick --provider auto --max-estimated-cost 0.05
+docpull benchmark quick --provider all --max-estimated-cost 0.10
+docpull benchmark quick --target-set v2 --provider all \
+  --max-pages 8 --max-depth 1 --max-search-results 5 --extract-limit 2 \
+  --max-estimated-cost 0.10
+docpull benchmark article .bench/runs/<run>/benchmark.report.json
+```
+
+`docpull benchmark quick` writes `benchmark.report.json` and
+`benchmark.summary.md` under `.bench/runs/<timestamp>/` by default. The core
+cases measure an LLM-profile crawl plus a cached rerun. Passing `--provider auto`
+runs every locally ready provider. Passing `--provider all` requests Parallel,
+Tavily, and Exa, then records missing keys or optional SDKs in
+`skipped_providers` without failing the benchmark. Live Parallel calls still use
+the local `--max-estimated-cost` guard before any work starts.
+
+Use `--target-set tool-docs` to run a cross-pull matrix across the Parallel,
+Exa, Tavily, Raindrop, and DocPull documentation sites. Use `--target-set v2`
+to add three low-cap adversarial public targets for JS-heavy docs, noisy
+archived navigation, and freshness-sensitive pricing. Matrix runs skip the
+cached core pass by default so the headline grid stays provider x target; pass
+`--cached-pass` to force cache measurement across the matrix.
+
+The compatibility flags `--parallel`, `--tavily`, and `--exa` still work as
+provider aliases. Tavily Search + Extract and Exa Search-with-contents are
+normalized into the same local
+`documents.ndjson`, `corpus.manifest.json`, `sources.md`, provider `*.pack.json`,
+`pack.score.json`, and `source.scores.json` artifacts as the core and Parallel
+cases. The report keeps the legacy pack score and adds weighted benchmark
+sub-scores for coverage, cleanliness, source fidelity, freshness, and density.
+Keys can be exported as `PARALLEL_API_KEY`, `TAVILY_API_KEY`, and `EXA_API_KEY`
+or stored together in `~/.config/docpull/secrets.env`; docpull does not write
+keys into benchmark artifacts.
+
+Tavily usage is credit-based, so set `TAVILY_CREDIT_USD` or pass
+`--tavily-credit-usd` to convert credits into estimated dollars for cost
+comparisons. Without that value, Tavily credits are still recorded in
+`cost_units` but excluded from normalized USD totals.
+
+To trace the benchmark in Raindrop for a publishable observability/eval loop,
+install the optional SDK and pass `--trace raindrop`:
+
+```bash
+pip install 'docpull[parallel,observability]'
+export PARALLEL_API_KEY="<your-parallel-api-key>"
+export TAVILY_API_KEY="<your-tavily-api-key>"
+export TAVILY_CREDIT_USD="<account-credit-value>"
+export EXA_API_KEY="<your-exa-api-key>"
+export RAINDROP_WRITE_KEY="<your-raindrop-write-key>"
+docpull benchmark quick --target-set v2 --provider all --trace raindrop \
+  --max-pages 8 --max-depth 1 --max-search-results 5 --extract-limit 2 \
+  --max-estimated-cost 0.10
+docpull benchmark article .bench/runs/<run>/benchmark.report.json
+```
+
+Raindrop traces are metadata-only by default: docpull records timings, counts,
+scores, costs, selected URLs, provider, workflow, target, prompt, settings, and
+artifact paths, but does not send scraped page content unless a future caller
+explicitly adds that behavior. `RAINDROP_WRITE_KEY` can be exported or stored in
+the same `~/.config/docpull/secrets.env` file as the provider keys.
 
 ## Troubleshooting
 

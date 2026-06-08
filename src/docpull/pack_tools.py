@@ -111,7 +111,8 @@ def run_pack_cli(argv: list[str] | None = None) -> int:
 def score_pack(pack_dir: Path, *, required_domains: list[str] | None = None) -> dict[str, Any]:
     pack_dir = pack_dir.resolve()
     manifest = _read_json(pack_dir / "corpus.manifest.json", required=False) or {}
-    parallel_pack = _read_pack_metadata(pack_dir)
+    parallel_pack, metadata_path = _read_pack_metadata_entry(pack_dir)
+    metadata_label = metadata_path.name if metadata_path else "pack metadata"
     records = _read_ndjson(pack_dir / "documents.ndjson")
 
     issues: list[dict[str, Any]] = []
@@ -178,7 +179,7 @@ def score_pack(pack_dir: Path, *, required_domains: list[str] | None = None) -> 
                 _issue(
                     "pack_record_count_mismatch",
                     (
-                        "parallel pack record_count "
+                        f"{metadata_label} record_count "
                         f"({pack_record_count}) does not match documents.ndjson ({record_count})."
                     ),
                     severity="error",
@@ -208,14 +209,14 @@ def score_pack(pack_dir: Path, *, required_domains: list[str] | None = None) -> 
             )
         if "artifacts" not in parallel_pack:
             score -= 5
-            warnings.append(_issue("missing_artifact_index", "parallel pack has no artifacts index."))
+            warnings.append(_issue("missing_artifact_index", f"{metadata_label} has no artifacts index."))
         if parallel_pack.get("extract_error_count", 0):
             count = int(parallel_pack.get("extract_error_count", 0))
             score -= min(15, count * 5)
             warnings.append(_issue("extract_errors", f"Pack preserved {count} extract errors."))
-        if not parallel_pack.get("request_options"):
+        if not _pack_request_options(parallel_pack):
             score -= 5
-            warnings.append(_issue("missing_request_options", "parallel.pack.json has no request_options."))
+            warnings.append(_issue("missing_request_options", f"{metadata_label} has no request_options."))
         if parallel_pack.get("task_run_id") and not parallel_pack.get("task_basis"):
             score -= 5
             warnings.append(_issue("missing_task_basis", "Task output has no basis metadata."))
@@ -305,15 +306,20 @@ def _read_json(path: Path, *, required: bool = True) -> Any:
 
 
 def _read_pack_metadata(pack_dir: Path) -> dict[str, Any]:
+    metadata, _path = _read_pack_metadata_entry(pack_dir)
+    return metadata
+
+
+def _read_pack_metadata_entry(pack_dir: Path) -> tuple[dict[str, Any], Path | None]:
     direct = _read_json(pack_dir / "parallel.pack.json", required=False)
     if isinstance(direct, dict):
-        return direct
+        return direct, pack_dir / "parallel.pack.json"
     candidates = sorted(pack_dir.glob("*.pack.json"))
     for candidate in candidates:
         parsed = _read_json(candidate, required=False)
         if isinstance(parsed, dict):
-            return parsed
-    return {}
+            return parsed, candidate
+    return {}, None
 
 
 def _read_ndjson(path: Path) -> list[dict[str, Any]]:
@@ -427,13 +433,24 @@ def _domain(url: str) -> str:
 
 
 def _expected_domains(parallel_pack: dict[str, Any]) -> list[str]:
-    request_options = parallel_pack.get("request_options") if isinstance(parallel_pack, dict) else {}
-    if not isinstance(request_options, dict):
-        metadata = parallel_pack.get("metadata") if isinstance(parallel_pack, dict) else {}
-        request_options = metadata.get("request_options") if isinstance(metadata, dict) else {}
+    request_options = _pack_request_options(parallel_pack)
     source_policy = request_options.get("source_policy") if isinstance(request_options, dict) else {}
     include_domains = source_policy.get("include_domains") if isinstance(source_policy, dict) else []
     return [str(domain).lower().removeprefix("www.") for domain in include_domains or []]
+
+
+def _pack_request_options(pack: dict[str, Any]) -> dict[str, Any]:
+    if not isinstance(pack, dict):
+        return {}
+    request_options = pack.get("request_options")
+    if isinstance(request_options, dict) and request_options:
+        return request_options
+    metadata = pack.get("metadata")
+    if isinstance(metadata, dict):
+        metadata_request_options = metadata.get("request_options")
+        if isinstance(metadata_request_options, dict):
+            return metadata_request_options
+    return request_options if isinstance(request_options, dict) else {}
 
 
 def _off_domain_urls(urls: list[str], expected_domains: list[str]) -> list[str]:

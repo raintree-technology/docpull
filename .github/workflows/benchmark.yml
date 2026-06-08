@@ -9,6 +9,8 @@ on:
   schedule:
     # 04:17 UTC daily — slightly off the hour to avoid runner contention.
     - cron: "17 4 * * *"
+    # 05:31 UTC weekly Monday — spaced target-matrix provider eval.
+    - cron: "31 5 * * 1"
   workflow_dispatch:
 
 permissions:
@@ -16,6 +18,7 @@ permissions:
 
 jobs:
   benchmark:
+    if: github.event_name != 'schedule' || github.event.schedule == '17 4 * * *'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -56,4 +59,71 @@ jobs:
         with:
           name: benchmark-log
           path: benchmark.log
+          retention-days: 30
+
+  provider-matrix:
+    if: github.event_name != 'schedule' || github.event.schedule == '31 5 * * 1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,parallel,observability]"
+
+      - name: Run provider target matrix
+        env:
+          PARALLEL_API_KEY: ${{ secrets.PARALLEL_API_KEY }}
+          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+          TAVILY_CREDIT_USD: ${{ vars.TAVILY_CREDIT_USD }}
+          EXA_API_KEY: ${{ secrets.EXA_API_KEY }}
+          RAINDROP_WRITE_KEY: ${{ secrets.RAINDROP_WRITE_KEY }}
+        run: |
+          TRACE_ARGS=()
+          if [ -n "${RAINDROP_WRITE_KEY:-}" ]; then
+            TRACE_ARGS=(--trace raindrop)
+          fi
+          PYTHONPATH=src python -m docpull benchmark quick \
+            --target-set v2 \
+            --provider all \
+            --max-pages 8 \
+            --max-depth 1 \
+            --max-search-results 5 \
+            --extract-limit 2 \
+            --max-estimated-cost 0.10 \
+            "${TRACE_ARGS[@]}"
+
+      - name: Surface provider matrix summary
+        if: always()
+        run: |
+          echo "## docpull provider target matrix" >> "$GITHUB_STEP_SUMMARY"
+          REPORT="$(find .bench/runs -name benchmark.report.json -print | sort | tail -n 1)"
+          if [ -n "$REPORT" ]; then
+            echo "- Report: \`$REPORT\`" >> "$GITHUB_STEP_SUMMARY"
+            echo '```json' >> "$GITHUB_STEP_SUMMARY"
+            python - "$REPORT" >> "$GITHUB_STEP_SUMMARY" <<'PY'
+          import json
+          import sys
+          report = json.load(open(sys.argv[1], encoding="utf-8"))
+          print(json.dumps(report.get("summary", {}), indent=2))
+          PY
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "(no report found)" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload provider matrix artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: provider-matrix-benchmark
+          path: .bench/runs
           retention-days: 30
