@@ -460,7 +460,6 @@ def run_quick_benchmark(
         {
             "provider": provider,
             "reason": provider_status[provider]["reason"],
-            "api_key_env_var": provider_status[provider]["api_key_env_var"],
         }
         for provider in requested_providers
         if provider not in providers
@@ -735,7 +734,7 @@ def run_quick_benchmark(
         "matrix_providers": _matrix_provider_keys(providers),
         "requested_providers": requested_providers,
         "skipped_providers": skipped_providers,
-        "provider_status": provider_status,
+        "provider_status": _benchmark_provider_statuses(provider_status),
         "cost_normalization": _cost_normalization_metadata(tavily_credit_usd),
         "trace": trace.metadata(),
         "cases": cases,
@@ -974,6 +973,21 @@ def _live_provider_statuses(providers: list[ProviderName]) -> dict[str, dict[str
             "sdk_installed": sdk_installed,
         }
     return statuses
+
+
+def _benchmark_provider_statuses(
+    statuses: dict[str, dict[str, Any]],
+) -> dict[str, dict[str, Any]]:
+    safe_statuses: dict[str, dict[str, Any]] = {}
+    for provider, status in statuses.items():
+        safe_statuses[provider] = {
+            "provider": status.get("provider", provider),
+            "label": status.get("label", provider),
+            "ready": bool(status.get("ready")),
+            "reason": status.get("reason", "unknown"),
+            "sdk_installed": bool(status.get("sdk_installed", True)),
+        }
+    return safe_statuses
 
 
 class _TraceRecorder:
