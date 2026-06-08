@@ -18,6 +18,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   be emitted as metadata-only traces when `RAINDROP_WRITE_KEY` is configured.
 - Add Tavily and Exa live benchmark cases that normalize provider results into
   the same scored context-pack artifacts as core docpull and Parallel.
+- Add `docpull benchmark quick --target-set tool-docs/v2` for provider-by-target
+  matrix evals across Parallel, Exa, Tavily, Raindrop, DocPull, and low-cap
+  adversarial public targets.
+- Add weighted benchmark sub-scores for coverage, cleanliness, source fidelity,
+  freshness, and density so clean and noisy targets no longer collapse to the
+  same headline score.
+- Add Tavily credit-to-dollar normalization with `--tavily-credit-usd` or
+  `TAVILY_CREDIT_USD`, plus a weekly GitHub Actions provider-matrix benchmark.
 - Add `docpull providers` for equal optional Parallel, Tavily, and Exa key
   status, durable key setup, and provider context-pack runs that can use any
   configured subset.

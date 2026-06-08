@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
+from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
 from rich.console import Console
@@ -45,17 +46,27 @@ from .provider_keys import (
 )
 from .time_utils import utc_now_iso
 
-BENCHMARK_SCHEMA_VERSION = 1
+BENCHMARK_SCHEMA_VERSION = 2
 DEFAULT_TARGET_URL = "https://docs.parallel.ai"
 DEFAULT_INCLUDE_DOMAIN = "docs.parallel.ai"
 DEFAULT_OBJECTIVE = "Build an agent context pack for Parallel API docs"
 DEFAULT_QUERY = "Parallel API reference Search Extract docs"
+DEFAULT_TARGET_SET = "single"
 EXA_API_KEY_ENV = "EXA_API_KEY"
 TAVILY_API_KEY_ENV = "TAVILY_API_KEY"
+TAVILY_CREDIT_USD_ENV = "TAVILY_CREDIT_USD"
 RAINDROP_WRITE_KEY_ENV = "RAINDROP_WRITE_KEY"
 EXA_SEARCH_URL = "https://api.exa.ai/search"
 TAVILY_SEARCH_URL = "https://api.tavily.com/search"
 TAVILY_EXTRACT_URL = "https://api.tavily.com/extract"
+BENCHMARK_SCORE_WEIGHTS = {
+    "coverage": 0.30,
+    "cleanliness": 0.20,
+    "source_fidelity": 0.20,
+    "freshness": 0.15,
+    "density": 0.15,
+}
+TARGET_SET_CHOICES = ("single", "tool-docs", "v2")
 
 
 class BenchmarkError(RuntimeError):
@@ -69,6 +80,129 @@ class _ProviderDocument:
     content: str
     metadata: dict[str, Any]
     source_type: str
+
+
+@dataclass(frozen=True)
+class _BenchmarkTarget:
+    id: str
+    label: str
+    url: str
+    include_domains: tuple[str, ...]
+    objective: str
+    queries: tuple[str, ...]
+    kind: str = "docs"
+    min_expected_records: int = 3
+    freshness_terms: tuple[str, ...] = ()
+    notes: str = ""
+
+    def report_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "label": self.label,
+            "url": self.url,
+            "include_domains": list(self.include_domains),
+            "objective": self.objective,
+            "queries": list(self.queries),
+            "kind": self.kind,
+            "min_expected_records": self.min_expected_records,
+            "freshness_terms": list(self.freshness_terms),
+            "notes": self.notes,
+        }
+
+
+TOOL_DOC_TARGETS: tuple[_BenchmarkTarget, ...] = (
+    _BenchmarkTarget(
+        id="parallel_docs",
+        label="Parallel docs",
+        url="https://docs.parallel.ai",
+        include_domains=("docs.parallel.ai",),
+        objective="Build an agent context pack for Parallel API docs",
+        queries=("Parallel API reference Search Extract docs",),
+        freshness_terms=("changelog", "release", "latest"),
+    ),
+    _BenchmarkTarget(
+        id="exa_docs",
+        label="Exa docs",
+        url="https://docs.exa.ai",
+        include_domains=("docs.exa.ai",),
+        objective="Build an agent context pack for Exa API docs",
+        queries=("Exa API documentation search contents docs",),
+        freshness_terms=("changelog", "release", "latest"),
+    ),
+    _BenchmarkTarget(
+        id="tavily_docs",
+        label="Tavily docs",
+        url="https://docs.tavily.com",
+        include_domains=("docs.tavily.com",),
+        objective="Build an agent context pack for Tavily API docs",
+        queries=("Tavily API documentation search extract docs",),
+        freshness_terms=("changelog", "release", "latest"),
+    ),
+    _BenchmarkTarget(
+        id="raindrop_docs",
+        label="Raindrop docs",
+        url="https://www.raindrop.ai/docs",
+        include_domains=("www.raindrop.ai", "raindrop.ai"),
+        objective="Build an agent context pack for Raindrop observability docs",
+        queries=("Raindrop AI SDK Python tracing documentation",),
+        freshness_terms=("sdk", "python", "tracing", "latest"),
+    ),
+    _BenchmarkTarget(
+        id="docpull_docs",
+        label="DocPull docs",
+        url="https://docpull.raintree.technology",
+        include_domains=("docpull.raintree.technology",),
+        objective="Build an agent context pack for DocPull documentation",
+        queries=("DocPull documentation CLI provider benchmark docs",),
+        freshness_terms=("changelog", "release", "benchmark"),
+    ),
+)
+
+
+ADVERSARIAL_TARGETS: tuple[_BenchmarkTarget, ...] = (
+    _BenchmarkTarget(
+        id="nextjs_docs_spa",
+        label="Next.js docs SPA",
+        url="https://nextjs.org/docs",
+        include_domains=("nextjs.org",),
+        objective="Build an agent context pack for Next.js App Router docs",
+        queries=("Next.js App Router documentation rendering data fetching docs",),
+        kind="js_heavy_docs",
+        min_expected_records=4,
+        freshness_terms=("version", "latest", "app router"),
+        notes="JS-heavy documentation target with a large rendered navigation surface.",
+    ),
+    _BenchmarkTarget(
+        id="python27_archived_stdlib",
+        label="Python 2.7 archived stdlib index",
+        url="https://docs.python.org/2.7/library/index.html",
+        include_domains=("docs.python.org",),
+        objective="Build an agent context pack for archived Python 2.7 standard library docs",
+        queries=("Python 2.7 archived standard library documentation index reference",),
+        kind="noisy_archived_docs",
+        min_expected_records=4,
+        freshness_terms=("2.7", "deprecated", "end-of-life", "legacy"),
+        notes="Archived dense navigation/index page that can expose stale-source and boilerplate extraction.",
+    ),
+    _BenchmarkTarget(
+        id="tavily_pricing",
+        label="Tavily pricing",
+        url="https://www.tavily.com/pricing",
+        include_domains=("www.tavily.com", "tavily.com"),
+        objective="Build a freshness-sensitive context pack for Tavily pricing",
+        queries=("Tavily pricing plans credits API pricing",),
+        kind="pricing_freshness",
+        min_expected_records=1,
+        freshness_terms=("pricing", "credits", "plan", "current"),
+        notes="Freshness-sensitive public pricing page; keep crawl caps low.",
+    ),
+)
+
+
+TARGET_SETS: dict[str, tuple[_BenchmarkTarget, ...]] = {
+    "tool-docs": TOOL_DOC_TARGETS,
+    "v2": (*TOOL_DOC_TARGETS, *ADVERSARIAL_TARGETS),
+}
 
 
 def create_benchmark_parser() -> argparse.ArgumentParser:
@@ -85,6 +219,23 @@ def create_benchmark_parser() -> argparse.ArgumentParser:
     )
     quick.add_argument("--target-url", default=DEFAULT_TARGET_URL, help="Docs URL to crawl")
     quick.add_argument(
+        "--target-set",
+        choices=TARGET_SET_CHOICES,
+        default=DEFAULT_TARGET_SET,
+        help=(
+            "Target matrix to run. 'single' preserves --target-url behavior; "
+            "'tool-docs' runs the five provider/docpull docs sites; 'v2' adds "
+            "low-cap adversarial targets."
+        ),
+    )
+    quick.add_argument(
+        "--matrix",
+        action="store_const",
+        const="v2",
+        dest="target_set",
+        help="Compatibility alias for --target-set v2",
+    )
+    quick.add_argument(
         "--output-dir",
         "-o",
         type=Path,
@@ -95,9 +246,17 @@ def create_benchmark_parser() -> argparse.ArgumentParser:
     quick.add_argument("--max-concurrent", type=int, default=8, help="Core crawl concurrency")
     quick.add_argument("--per-host-concurrent", type=int, default=4, help="Core per-host concurrency")
     quick.add_argument("--no-cache", action="store_true", help="Disable cache for the core crawl")
+    quick.set_defaults(cached_pass=None)
+    quick.add_argument(
+        "--cached-pass",
+        dest="cached_pass",
+        action="store_true",
+        help="Force the second core cache-measurement pass, including matrix target sets",
+    )
     quick.add_argument(
         "--no-cached-pass",
-        action="store_true",
+        dest="cached_pass",
+        action="store_false",
         help="Skip the second core run that measures cache skips",
     )
     quick.add_argument(
@@ -121,7 +280,7 @@ def create_benchmark_parser() -> argparse.ArgumentParser:
         "--objective",
         "--parallel-objective",
         dest="parallel_objective",
-        default=DEFAULT_OBJECTIVE,
+        default=None,
         help="Live-provider research objective",
     )
     quick.add_argument(
@@ -142,6 +301,15 @@ def create_benchmark_parser() -> argparse.ArgumentParser:
     quick.add_argument("--mode", choices=["turbo", "basic", "advanced"], default=DEFAULT_MODE)
     quick.add_argument("--max-search-results", type=int, default=8)
     quick.add_argument("--extract-limit", type=int, default=3)
+    quick.add_argument(
+        "--tavily-credit-usd",
+        type=float,
+        default=None,
+        help=(
+            f"Optional Tavily credit-to-dollar value. If omitted, {TAVILY_CREDIT_USD_ENV} "
+            "is used when present and Tavily credit costs remain unnormalized otherwise."
+        ),
+    )
     quick.add_argument(
         "--max-estimated-cost",
         type=float,
@@ -184,23 +352,25 @@ def run_benchmark_cli(argv: list[str] | None = None) -> int:
         if args.command == "quick":
             report = run_quick_benchmark(
                 target_url=args.target_url,
+                target_set=args.target_set,
                 output_dir=args.output_dir,
                 max_pages=args.max_pages,
                 max_depth=args.max_depth,
                 max_concurrent=args.max_concurrent,
                 per_host_concurrent=args.per_host_concurrent,
                 cache_enabled=not args.no_cache,
-                cached_pass=not args.no_cached_pass,
+                cached_pass=args.cached_pass,
                 parallel=args.parallel,
                 tavily=args.tavily,
                 exa=args.exa,
                 live_providers=args.provider,
                 parallel_objective=args.parallel_objective,
-                parallel_queries=args.parallel_queries or [DEFAULT_QUERY],
-                include_domains=args.include_domains or [DEFAULT_INCLUDE_DOMAIN],
+                parallel_queries=args.parallel_queries,
+                include_domains=args.include_domains,
                 mode=args.mode,
                 max_search_results=args.max_search_results,
                 extract_limit=args.extract_limit,
+                tavily_credit_usd=args.tavily_credit_usd,
                 max_estimated_cost=args.max_estimated_cost,
                 trace_backend=args.trace,
             )
@@ -243,15 +413,17 @@ def run_quick_benchmark(
     max_concurrent: int,
     per_host_concurrent: int,
     cache_enabled: bool,
-    cached_pass: bool,
+    cached_pass: bool | None,
     parallel: bool,
-    parallel_objective: str,
+    parallel_objective: str | None,
     parallel_queries: list[str],
     include_domains: list[str],
     mode: str,
     max_search_results: int,
     extract_limit: int,
     max_estimated_cost: float,
+    target_set: str = DEFAULT_TARGET_SET,
+    tavily_credit_usd: float | None = None,
     trace_backend: str = "none",
     tavily: bool = False,
     exa: bool = False,
@@ -266,6 +438,16 @@ def run_quick_benchmark(
     _validate_positive_int(extract_limit, "extract_limit")
     if max_estimated_cost < 0:
         raise BenchmarkError("max_estimated_cost cannot be negative.")
+    tavily_credit_usd = _resolve_tavily_credit_usd(tavily_credit_usd)
+    targets = _resolve_benchmark_targets(
+        target_url=target_url,
+        target_set=target_set,
+        include_domains=include_domains,
+        objective=parallel_objective,
+        queries=parallel_queries,
+    )
+    if cached_pass is None:
+        cached_pass = len(targets) == 1
     requested_providers = _normalize_live_providers(
         parallel=parallel,
         tavily=tavily,
@@ -291,15 +473,7 @@ def run_quick_benchmark(
 
     run_dir = (output_dir or _default_run_dir()).resolve()
     run_dir.mkdir(parents=True, exist_ok=True)
-    trace = _make_trace_recorder(
-        trace_backend,
-        target_url=target_url,
-        output_dir=run_dir,
-        parallel_enabled=parallel,
-        max_estimated_cost=max_estimated_cost,
-    )
 
-    source_policy: dict[str, Any] | None = None
     estimated_search_cost = 0.0
     estimated_context_cost = 0.0
     if parallel:
@@ -308,102 +482,248 @@ def run_quick_benchmark(
             extract_limit=extract_limit,
             max_search_results=max_search_results,
         )
-        estimated_total_cost = round(estimated_search_cost + estimated_context_cost, 6)
+        estimated_total_cost = round(
+            (estimated_search_cost + estimated_context_cost) * len(targets),
+            6,
+        )
         if estimated_total_cost > max_estimated_cost:
             raise BenchmarkError(
                 "Estimated Parallel benchmark cost "
                 f"${estimated_total_cost:.6f} exceeds guard ${max_estimated_cost:.6f}."
             )
-        source_policy = _build_source_policy(include_domains=include_domains)
+
+    trace = _make_trace_recorder(
+        trace_backend,
+        target_url=targets[0].url,
+        targets=targets,
+        target_set=target_set,
+        output_dir=run_dir,
+        parallel_enabled=parallel,
+        max_estimated_cost=max_estimated_cost,
+    )
 
     cases: list[dict[str, Any]] = []
-    cache_dir = run_dir / "cache-core"
-    core_output = run_dir / "core-llm"
-    case = asyncio.run(
-        _run_core_case(
-            name="core-llm",
-            target_url=target_url,
-            output_dir=core_output,
-            cache_dir=cache_dir,
-            cache_enabled=cache_enabled,
-            max_pages=max_pages,
-            max_depth=max_depth,
-            max_concurrent=max_concurrent,
-            per_host_concurrent=per_host_concurrent,
-            include_domains=include_domains,
-        )
-    )
-    trace.record_case(case)
-    cases.append(case)
+    matrix_run = len(targets) > 1
 
-    if cache_enabled and cached_pass:
-        case = asyncio.run(
-            _run_core_case(
-                name="core-llm-cached",
-                target_url=target_url,
-                output_dir=run_dir / "core-llm-cached",
-                cache_dir=cache_dir,
-                cache_enabled=True,
-                max_pages=max_pages,
-                max_depth=max_depth,
-                max_concurrent=max_concurrent,
-                per_host_concurrent=per_host_concurrent,
-                include_domains=include_domains,
+    def run_and_record(
+        *,
+        name: str,
+        workflow: str,
+        provider: str,
+        target: _BenchmarkTarget,
+        output_dir: Path,
+        prompt: str,
+        settings: dict[str, Any],
+        runner: Any,
+    ) -> None:
+        rss_before = _peak_rss_bytes()
+        t0 = time.perf_counter()
+        try:
+            case = runner()
+        except Exception as err:  # noqa: BLE001
+            case = _failed_case(
+                name=name,
+                workflow=workflow,
+                output_dir=output_dir,
+                wall_seconds=time.perf_counter() - t0,
+                rss_before=rss_before,
+                error=err,
             )
+        _annotate_case(
+            case,
+            provider=provider,
+            target=target,
+            prompt=prompt,
+            settings=settings,
+            matrix_run=matrix_run,
         )
         trace.record_case(case)
         cases.append(case)
 
-    if parallel:
-        assert source_policy is not None
-        case = _run_parallel_search_case(
-            objective=parallel_objective,
-            queries=parallel_queries,
-            output_dir=run_dir / "parallel-search",
-            include_domains=include_domains,
-            source_policy=source_policy,
-            mode=mode,
-            max_search_results=max_search_results,
-            estimated_cost=estimated_search_cost,
+    for target in targets:
+        target_root = run_dir / _safe_slug(target.id) if matrix_run else run_dir
+        cache_dir = target_root / "cache-core"
+        core_output = target_root / "core-llm"
+        run_and_record(
+            name="core-llm",
+            workflow="core-llm",
+            provider="docpull",
+            target=target,
+            output_dir=core_output,
+            prompt=target.objective,
+            settings={
+                "profile": "llm",
+                "max_pages": max_pages,
+                "max_depth": max_depth,
+                "max_concurrent": max_concurrent,
+                "per_host_concurrent": per_host_concurrent,
+                "cache_enabled": cache_enabled,
+            },
+            runner=lambda target=target, core_output=core_output, cache_dir=cache_dir: asyncio.run(
+                _run_core_case(
+                    name="core-llm",
+                    target_url=target.url,
+                    output_dir=core_output,
+                    cache_dir=cache_dir,
+                    cache_enabled=cache_enabled,
+                    max_pages=max_pages,
+                    max_depth=max_depth,
+                    max_concurrent=max_concurrent,
+                    per_host_concurrent=per_host_concurrent,
+                    include_domains=list(target.include_domains),
+                    target=target,
+                )
+            ),
         )
-        trace.record_case(case)
-        cases.append(case)
-        case = _run_parallel_context_case(
-            objective=parallel_objective,
-            queries=parallel_queries,
-            output_dir=run_dir / "parallel-context",
-            include_domains=include_domains,
-            source_policy=source_policy,
-            mode=mode,
-            max_search_results=max_search_results,
-            extract_limit=extract_limit,
-            estimated_cost=estimated_context_cost,
-        )
-        trace.record_case(case)
-        cases.append(case)
 
-    if "tavily" in providers:
-        case = _run_tavily_case(
-            objective=parallel_objective,
-            queries=parallel_queries,
-            output_dir=run_dir / "tavily-search-extract",
-            include_domains=include_domains,
-            max_search_results=max_search_results,
-            extract_limit=extract_limit,
-        )
-        trace.record_case(case)
-        cases.append(case)
+        if cache_enabled and cached_pass:
+            cached_output = target_root / "core-llm-cached"
+            run_and_record(
+                name="core-llm-cached",
+                workflow="core-llm",
+                provider="docpull",
+                target=target,
+                output_dir=cached_output,
+                prompt=target.objective,
+                settings={
+                    "profile": "llm",
+                    "max_pages": max_pages,
+                    "max_depth": max_depth,
+                    "max_concurrent": max_concurrent,
+                    "per_host_concurrent": per_host_concurrent,
+                    "cache_enabled": True,
+                    "cache_measurement": True,
+                },
+                runner=lambda target=target, cached_output=cached_output, cache_dir=cache_dir: asyncio.run(
+                    _run_core_case(
+                        name="core-llm-cached",
+                        target_url=target.url,
+                        output_dir=cached_output,
+                        cache_dir=cache_dir,
+                        cache_enabled=True,
+                        max_pages=max_pages,
+                        max_depth=max_depth,
+                        max_concurrent=max_concurrent,
+                        per_host_concurrent=per_host_concurrent,
+                        include_domains=list(target.include_domains),
+                        target=target,
+                    )
+                ),
+            )
 
-    if "exa" in providers:
-        case = _run_exa_case(
-            objective=parallel_objective,
-            queries=parallel_queries,
-            output_dir=run_dir / "exa-search-contents",
-            include_domains=include_domains,
-            max_search_results=max_search_results,
-        )
-        trace.record_case(case)
-        cases.append(case)
+        if parallel:
+            source_policy = _build_source_policy(include_domains=list(target.include_domains))
+            search_output = target_root / "parallel-search"
+
+            def parallel_search_runner(
+                *,
+                target: _BenchmarkTarget = target,
+                source_policy: dict[str, Any] = source_policy,
+                search_output: Path = search_output,
+            ) -> dict[str, Any]:
+                return _run_parallel_search_case(
+                    objective=target.objective,
+                    queries=list(target.queries),
+                    output_dir=search_output,
+                    include_domains=list(target.include_domains),
+                    source_policy=source_policy,
+                    mode=mode,
+                    max_search_results=max_search_results,
+                    estimated_cost=estimated_search_cost,
+                    target=target,
+                )
+
+            run_and_record(
+                name="parallel-search",
+                workflow="parallel-search-pack",
+                provider="parallel",
+                target=target,
+                output_dir=search_output,
+                prompt=target.objective,
+                settings={"mode": mode, "max_search_results": max_search_results},
+                runner=parallel_search_runner,
+            )
+            context_output = target_root / "parallel-context"
+
+            def parallel_context_runner(
+                *,
+                target: _BenchmarkTarget = target,
+                source_policy: dict[str, Any] = source_policy,
+                context_output: Path = context_output,
+            ) -> dict[str, Any]:
+                return _run_parallel_context_case(
+                    objective=target.objective,
+                    queries=list(target.queries),
+                    output_dir=context_output,
+                    include_domains=list(target.include_domains),
+                    source_policy=source_policy,
+                    mode=mode,
+                    max_search_results=max_search_results,
+                    extract_limit=extract_limit,
+                    estimated_cost=estimated_context_cost,
+                    target=target,
+                )
+
+            run_and_record(
+                name="parallel-context",
+                workflow="parallel-context-pack",
+                provider="parallel",
+                target=target,
+                output_dir=context_output,
+                prompt=target.objective,
+                settings={
+                    "mode": mode,
+                    "max_search_results": max_search_results,
+                    "extract_limit": extract_limit,
+                },
+                runner=parallel_context_runner,
+            )
+
+        if "tavily" in providers:
+            tavily_output = target_root / "tavily-search-extract"
+            run_and_record(
+                name="tavily-search-extract",
+                workflow="tavily-search-extract-pack",
+                provider="tavily",
+                target=target,
+                output_dir=tavily_output,
+                prompt=target.objective,
+                settings={
+                    "max_search_results": max_search_results,
+                    "extract_limit": extract_limit,
+                    "tavily_credit_usd": tavily_credit_usd,
+                },
+                runner=lambda target=target, tavily_output=tavily_output: _run_tavily_case(
+                    objective=target.objective,
+                    queries=list(target.queries),
+                    output_dir=tavily_output,
+                    include_domains=list(target.include_domains),
+                    max_search_results=max_search_results,
+                    extract_limit=extract_limit,
+                    tavily_credit_usd=tavily_credit_usd,
+                    target=target,
+                ),
+            )
+
+        if "exa" in providers:
+            exa_output = target_root / "exa-search-contents"
+            run_and_record(
+                name="exa-search-contents",
+                workflow="exa-search-contents-pack",
+                provider="exa",
+                target=target,
+                output_dir=exa_output,
+                prompt=target.objective,
+                settings={"max_search_results": max_search_results},
+                runner=lambda target=target, exa_output=exa_output: _run_exa_case(
+                    objective=target.objective,
+                    queries=list(target.queries),
+                    output_dir=exa_output,
+                    include_domains=list(target.include_domains),
+                    max_search_results=max_search_results,
+                    target=target,
+                ),
+            )
 
     report_path = run_dir / "benchmark.report.json"
     markdown_path = run_dir / "benchmark.summary.md"
@@ -411,12 +731,16 @@ def run_quick_benchmark(
         "schema_version": BENCHMARK_SCHEMA_VERSION,
         "generated_at": utc_now_iso(),
         "run_dir": str(run_dir),
-        "target_url": target_url,
+        "target_url": targets[0].url,
+        "target_set": target_set,
+        "targets": [target.report_dict() for target in targets],
         "parallel_enabled": parallel,
         "providers": ["core", *providers],
+        "matrix_providers": _matrix_provider_keys(providers),
         "requested_providers": requested_providers,
         "skipped_providers": skipped_providers,
         "provider_status": provider_status,
+        "cost_normalization": _cost_normalization_metadata(tavily_credit_usd),
         "trace": trace.metadata(),
         "cases": cases,
         "summary": _summary(cases),
@@ -450,6 +774,149 @@ def write_article_from_report(
     article_path = output or (report_path.parent / "benchmark.article.md")
     article_path.write_text(_article_markdown(report, title=title), encoding="utf-8")
     return article_path
+
+
+def _resolve_benchmark_targets(
+    *,
+    target_url: str,
+    target_set: str,
+    include_domains: list[str],
+    objective: str | None,
+    queries: list[str],
+) -> list[_BenchmarkTarget]:
+    if target_set == "single":
+        return [
+            _single_benchmark_target(
+                target_url=target_url,
+                include_domains=include_domains,
+                objective=objective,
+                queries=queries,
+            )
+        ]
+    if target_set not in TARGET_SETS:
+        raise BenchmarkError(f"Unsupported target set: {target_set}")
+    targets: list[_BenchmarkTarget] = []
+    for target in TARGET_SETS[target_set]:
+        targets.append(
+            _BenchmarkTarget(
+                id=target.id,
+                label=target.label,
+                url=target.url,
+                include_domains=target.include_domains,
+                objective=objective or target.objective,
+                queries=tuple(queries) if queries else target.queries,
+                kind=target.kind,
+                min_expected_records=target.min_expected_records,
+                freshness_terms=target.freshness_terms,
+                notes=target.notes,
+            )
+        )
+    return targets
+
+
+def _single_benchmark_target(
+    *,
+    target_url: str,
+    include_domains: list[str],
+    objective: str | None,
+    queries: list[str],
+) -> _BenchmarkTarget:
+    domain = _domain_for_url(target_url) or DEFAULT_INCLUDE_DOMAIN
+    normalized_domains = tuple(_normalize_domain(domain) for domain in (include_domains or [domain]))
+    target_objective = objective or (
+        DEFAULT_OBJECTIVE if target_url == DEFAULT_TARGET_URL else f"Build an agent context pack for {domain}"
+    )
+    default_queries = [DEFAULT_QUERY] if target_url == DEFAULT_TARGET_URL else [f"{domain} docs"]
+    target_queries = tuple(queries or default_queries)
+    return _BenchmarkTarget(
+        id=_safe_slug(domain),
+        label=domain,
+        url=target_url,
+        include_domains=normalized_domains,
+        objective=target_objective,
+        queries=target_queries,
+        freshness_terms=("changelog", "release", "latest") if "docs" in domain else (),
+    )
+
+
+def _resolve_tavily_credit_usd(value: float | None) -> float | None:
+    if value is not None:
+        if value < 0:
+            raise BenchmarkError("tavily_credit_usd cannot be negative.")
+        return value
+    raw = _lookup_benchmark_secret(TAVILY_CREDIT_USD_ENV)
+    if not raw:
+        return None
+    try:
+        parsed = float(raw)
+    except ValueError as err:
+        raise BenchmarkError(f"{TAVILY_CREDIT_USD_ENV} must be a number.") from err
+    if parsed < 0:
+        raise BenchmarkError(f"{TAVILY_CREDIT_USD_ENV} cannot be negative.")
+    return parsed
+
+
+def _cost_normalization_metadata(tavily_credit_usd: float | None) -> dict[str, Any]:
+    return {
+        "currency": "USD",
+        "tavily": {
+            "credit_usd": tavily_credit_usd,
+            "source": "cli_or_env" if tavily_credit_usd is not None else "not_configured",
+            "env_var": TAVILY_CREDIT_USD_ENV,
+        },
+        "policy": (
+            "Tavily credits are converted to estimated USD when a per-credit value is configured; "
+            "Parallel and Exa report dollar estimates directly."
+        ),
+    }
+
+
+def _matrix_provider_keys(providers: list[ProviderName]) -> list[str]:
+    values = ["docpull-core"]
+    if "parallel" in providers:
+        values.extend(["parallel-search", "parallel-context"])
+    if "tavily" in providers:
+        values.append("tavily-search-extract")
+    if "exa" in providers:
+        values.append("exa-search-contents")
+    return values
+
+
+def _annotate_case(
+    case: dict[str, Any],
+    *,
+    provider: str,
+    target: _BenchmarkTarget,
+    prompt: str,
+    settings: dict[str, Any],
+    matrix_run: bool,
+) -> None:
+    original_name = str(case.get("name") or provider)
+    if matrix_run:
+        case["name"] = f"{target.id}/{original_name}"
+    case["provider"] = provider
+    case["target"] = target.report_dict()
+    case["target_id"] = target.id
+    case["target_url"] = target.url
+    case["target_kind"] = target.kind
+    case["prompt"] = prompt
+    case["settings"] = settings
+
+
+def _domain_for_url(url: str) -> str | None:
+    parsed = urlparse(url)
+    return _normalize_domain(parsed.netloc) if parsed.netloc else None
+
+
+def _normalize_domain(value: str) -> str:
+    return value.lower().removeprefix("www.")
+
+
+def _safe_slug(value: str) -> str:
+    slug = "".join(char if char.isalnum() else "-" for char in value.lower()).strip("-")
+    while "--" in slug:
+        slug = slug.replace("--", "-")
+    return slug or "target"
 
 
 def _normalize_live_providers(
@@ -537,6 +1004,8 @@ class _RaindropTraceRecorder(_TraceRecorder):
         self,
         *,
         target_url: str,
+        targets: list[_BenchmarkTarget],
+        target_set: str,
         output_dir: Path,
         parallel_enabled: bool,
         max_estimated_cost: float,
@@ -565,6 +1034,8 @@ class _RaindropTraceRecorder(_TraceRecorder):
             input=_json_trace_text(
                 {
                     "target_url": target_url,
+                    "target_set": target_set,
+                    "targets": [target.report_dict() for target in targets],
                     "output_dir": str(output_dir),
                     "parallel_enabled": parallel_enabled,
                     "max_estimated_cost_usd": max_estimated_cost,
@@ -581,13 +1052,20 @@ class _RaindropTraceRecorder(_TraceRecorder):
             name=str(case.get("name") or "benchmark_case"),
             input={
                 "workflow": case.get("workflow"),
+                "target": case.get("target"),
+                "prompt": case.get("prompt"),
+                "settings": case.get("settings"),
                 "output_dir": case.get("output_dir"),
             },
             output=_trace_case_output(case),
             duration_ms=int(float(case.get("wall_seconds") or 0.0) * 1000),
             properties={
-                "provider": "docpull",
+                "provider": case.get("provider", "docpull"),
                 "workflow": case.get("workflow"),
+                "target_id": case.get("target_id"),
+                "target_url": case.get("target_url"),
+                "target_kind": case.get("target_kind"),
+                "prompt": case.get("prompt"),
                 "estimated_cost_usd": case.get("estimated_cost_usd", 0.0),
             },
         )
@@ -620,6 +1098,8 @@ def _make_trace_recorder(
     backend: str,
     *,
     target_url: str,
+    targets: list[_BenchmarkTarget],
+    target_set: str,
     output_dir: Path,
     parallel_enabled: bool,
     max_estimated_cost: float,
@@ -629,6 +1109,8 @@ def _make_trace_recorder(
     if backend == "raindrop":
         return _RaindropTraceRecorder(
             target_url=target_url,
+            targets=targets,
+            target_set=target_set,
             output_dir=output_dir,
             parallel_enabled=parallel_enabled,
             max_estimated_cost=max_estimated_cost,
@@ -642,11 +1124,17 @@ def _trace_case_output(case: dict[str, Any]) -> dict[str, Any]:
     metadata = case.get("pack_metadata")
     selected_urls = metadata.get("selected_urls") if isinstance(metadata, dict) else None
     return {
+        "status": case.get("status", "ok"),
+        "error": case.get("error"),
+        "provider": case.get("provider"),
+        "target_id": case.get("target_id"),
+        "target_url": case.get("target_url"),
         "wall_seconds": case.get("wall_seconds"),
         "rss_delta_mb": case.get("rss_delta_mb"),
         "artifact_size_bytes": case.get("artifact_size_bytes"),
         "cache_size_bytes": case.get("cache_size_bytes"),
         "estimated_cost_usd": case.get("estimated_cost_usd", 0.0),
+        "cost_units": case.get("cost_units"),
         "stats": case.get("stats"),
         "skip_counts": case.get("skip_counts"),
         "pack_score": {
@@ -658,6 +1146,7 @@ def _trace_case_output(case: dict[str, Any]) -> dict[str, Any]:
         }
         if isinstance(score, dict)
         else None,
+        "benchmark_score": case.get("benchmark_score"),
         "source_score_count": case.get("source_score_count"),
         "selected_urls": selected_urls,
     }
@@ -679,6 +1168,7 @@ async def _run_core_case(
     max_concurrent: int,
     per_host_concurrent: int,
     include_domains: list[str],
+    target: _BenchmarkTarget | None = None,
 ) -> dict[str, Any]:
     rss_before = _peak_rss_bytes()
     t0 = time.perf_counter()
@@ -717,6 +1207,7 @@ async def _run_core_case(
         }
     )
     _attach_pack_scores(payload, output_dir, include_domains)
+    _attach_benchmark_score(payload, output_dir, include_domains, target=target)
     return payload
 
 
@@ -730,6 +1221,7 @@ def _run_parallel_search_case(
     mode: str,
     max_search_results: int,
     estimated_cost: float,
+    target: _BenchmarkTarget | None = None,
 ) -> dict[str, Any]:
     rss_before = _peak_rss_bytes()
     t0 = time.perf_counter()
@@ -758,6 +1250,7 @@ def _run_parallel_search_case(
     payload["artifact_size_bytes"] = _dir_size(output_dir)
     _attach_pack_scores(payload, output_dir, include_domains)
     _attach_pack_metadata(payload, output_dir / "search.pack.json")
+    _attach_benchmark_score(payload, output_dir, include_domains, target=target)
     return payload
 
 
@@ -772,6 +1265,7 @@ def _run_parallel_context_case(
     max_search_results: int,
     extract_limit: int,
     estimated_cost: float,
+    target: _BenchmarkTarget | None = None,
 ) -> dict[str, Any]:
     rss_before = _peak_rss_bytes()
     t0 = time.perf_counter()
@@ -796,6 +1290,7 @@ def _run_parallel_context_case(
     payload["artifact_size_bytes"] = _dir_size(output_dir)
     _attach_pack_scores(payload, output_dir, include_domains)
     _attach_pack_metadata(payload, output_dir / "parallel.pack.json")
+    _attach_benchmark_score(payload, output_dir, include_domains, target=target)
     return payload
 
 
@@ -807,6 +1302,8 @@ def _run_tavily_case(
     include_domains: list[str],
     max_search_results: int,
     extract_limit: int,
+    tavily_credit_usd: float | None = None,
+    target: _BenchmarkTarget | None = None,
 ) -> dict[str, Any]:
     api_key = _require_benchmark_api_key(TAVILY_API_KEY_ENV, "Tavily")
     rss_before = _peak_rss_bytes()
@@ -911,9 +1408,11 @@ def _run_tavily_case(
         wall_seconds=time.perf_counter() - t0,
         rss_before=rss_before,
     )
+    _attach_tavily_cost(payload, search_payload.get("usage"), extract_payload.get("usage"), tavily_credit_usd)
     payload["artifact_size_bytes"] = _dir_size(output_dir)
     _attach_pack_scores(payload, output_dir, include_domains)
     _attach_pack_metadata(payload, pack_path)
+    _attach_benchmark_score(payload, output_dir, include_domains, target=target)
     return payload
 
 
@@ -924,6 +1423,7 @@ def _run_exa_case(
     output_dir: Path,
     include_domains: list[str],
     max_search_results: int,
+    target: _BenchmarkTarget | None = None,
 ) -> dict[str, Any]:
     api_key = _require_benchmark_api_key(EXA_API_KEY_ENV, "Exa")
     rss_before = _peak_rss_bytes()
@@ -1014,6 +1514,7 @@ def _run_exa_case(
     payload["artifact_size_bytes"] = _dir_size(output_dir)
     _attach_pack_scores(payload, output_dir, include_domains)
     _attach_pack_metadata(payload, pack_path)
+    _attach_benchmark_score(payload, output_dir, include_domains, target=target)
     return payload
 
 
@@ -1035,6 +1536,38 @@ def _base_case(
         "rss_peak_mb": round(rss_after / (1024 * 1024), 1),
         "rss_delta_mb": round(max(0, rss_after - rss_before) / (1024 * 1024), 1),
     }
+
+
+def _failed_case(
+    *,
+    name: str,
+    workflow: str,
+    output_dir: Path,
+    wall_seconds: float,
+    rss_before: int,
+    error: BaseException,
+) -> dict[str, Any]:
+    payload = _base_case(
+        name=name,
+        workflow=workflow,
+        output_dir=output_dir,
+        wall_seconds=wall_seconds,
+        rss_before=rss_before,
+    )
+    payload.update(
+        {
+            "status": "failed",
+            "error": {
+                "type": type(error).__name__,
+                "message": _short_error_detail(str(error)),
+            },
+            "artifact_size_bytes": _dir_size(output_dir),
+            "pack_score": None,
+            "benchmark_score": None,
+            "source_score_count": 0,
+        }
+    )
+    return payload
 
 
 def _attach_pack_scores(payload: dict[str, Any], output_dir: Path, include_domains: list[str]) -> None:
@@ -1085,6 +1618,284 @@ def _attach_pack_metadata(payload: dict[str, Any], path: Path) -> None:
         "provider": raw.get("provider"),
         "cost_dollars": raw.get("cost_dollars"),
     }
+
+
+def _attach_tavily_cost(
+    payload: dict[str, Any],
+    search_usage: Any,
+    extract_usage: Any,
+    tavily_credit_usd: float | None,
+) -> None:
+    search_credits = _usage_credits(search_usage)
+    extract_credits = _usage_credits(extract_usage)
+    total_credits = round(search_credits + extract_credits, 6)
+    payload["cost_units"] = {
+        "provider": "tavily",
+        "unit": "credit",
+        "search_credits": search_credits,
+        "extract_credits": extract_credits,
+        "total_credits": total_credits,
+        "credit_usd": tavily_credit_usd,
+    }
+    if tavily_credit_usd is not None:
+        payload["estimated_cost_usd"] = round(total_credits * tavily_credit_usd, 6)
+
+
+def _usage_credits(value: Any) -> float:
+    if isinstance(value, int | float) and not isinstance(value, bool):
+        return float(value)
+    if isinstance(value, dict):
+        for key in ("credits", "credit", "total_credits", "totalCredits"):
+            raw = value.get(key)
+            if isinstance(raw, int | float) and not isinstance(raw, bool):
+                return float(raw)
+    return 0.0
+
+
+def _attach_benchmark_score(
+    payload: dict[str, Any],
+    output_dir: Path,
+    include_domains: list[str],
+    *,
+    target: _BenchmarkTarget | None = None,
+) -> None:
+    score = payload.get("pack_score")
+    if not isinstance(score, dict):
+        payload["benchmark_score"] = None
+        return
+    records = _read_benchmark_records(output_dir)
+    payload["benchmark_score"] = _benchmark_score(
+        payload=payload,
+        records=records,
+        include_domains=include_domains,
+        target=target,
+    )
+
+
+def _benchmark_score(
+    *,
+    payload: dict[str, Any],
+    records: list[dict[str, Any]],
+    include_domains: list[str],
+    target: _BenchmarkTarget | None,
+) -> dict[str, Any]:
+    dimensions = {
+        "coverage": _coverage_dimension(payload, records, target),
+        "cleanliness": _cleanliness_dimension(payload, records),
+        "source_fidelity": _source_fidelity_dimension(payload, records, include_domains),
+        "freshness": _freshness_dimension(records, target),
+        "density": _density_dimension(payload, records),
+    }
+    weighted_score = 0.0
+    for name, dimension in dimensions.items():
+        weight = BENCHMARK_SCORE_WEIGHTS[name]
+        dimension["weight"] = weight
+        weighted_score += dimension["score"] * weight
+    score = _clamp_score(round(weighted_score))
+    return {
+        "schema_version": BENCHMARK_SCHEMA_VERSION,
+        "score": score,
+        "grade": _benchmark_grade(score),
+        "weights": BENCHMARK_SCORE_WEIGHTS,
+        "dimensions": dimensions,
+    }
+
+
+def _coverage_dimension(
+    payload: dict[str, Any],
+    records: list[dict[str, Any]],
+    target: _BenchmarkTarget | None,
+) -> dict[str, Any]:
+    signals: list[str] = []
+    record_count = len(records)
+    unique_urls = {str(record.get("url") or "") for record in records if record.get("url")}
+    min_expected = target.min_expected_records if target else min(3, max(1, record_count))
+    score = 100
+    if record_count == 0:
+        return _dimension(0, ["no records"])
+    if len(unique_urls) < min_expected:
+        missing = min_expected - len(unique_urls)
+        score -= min(45, missing * 15)
+        signals.append(f"{len(unique_urls)}/{min_expected} expected unique URLs")
+    metadata = payload.get("pack_metadata") if isinstance(payload.get("pack_metadata"), dict) else {}
+    extract_errors = _optional_number(metadata.get("extract_error_count"))
+    if extract_errors:
+        score -= min(30, int(extract_errors) * 8)
+        signals.append(f"{int(extract_errors)} extraction errors")
+    search_count = _optional_number(metadata.get("search_result_count"))
+    extract_count = _optional_number(metadata.get("extract_result_count"))
+    if search_count and extract_count is not None and extract_count < min(search_count, min_expected):
+        score -= min(20, int(min(search_count, min_expected) - extract_count) * 5)
+        signals.append("fewer extracted docs than available search results")
+    return _dimension(score, signals)
+
+
+def _cleanliness_dimension(payload: dict[str, Any], records: list[dict[str, Any]]) -> dict[str, Any]:
+    signals: list[str] = []
+    score = 100
+    summary = _pack_summary(payload)
+    duplicate_chunks = int(summary.get("duplicate_chunk_count") or 0)
+    if duplicate_chunks:
+        score -= min(25, duplicate_chunks * 5)
+        signals.append(f"{duplicate_chunks} duplicate chunks")
+    empty_records = sum(1 for record in records if not str(record.get("content") or "").strip())
+    if empty_records:
+        score -= min(40, empty_records * 10)
+        signals.append(f"{empty_records} empty records")
+    nav_hits = _boilerplate_hit_count(records)
+    if nav_hits >= 8:
+        score -= min(30, nav_hits)
+        signals.append(f"{nav_hits} boilerplate/navigation hits")
+    return _dimension(score, signals)
+
+
+def _source_fidelity_dimension(
+    payload: dict[str, Any],
+    records: list[dict[str, Any]],
+    include_domains: list[str],
+) -> dict[str, Any]:
+    signals: list[str] = []
+    score = 100
+    expected = [_normalize_domain(domain) for domain in include_domains]
+    urls = [str(record.get("url") or "") for record in records if record.get("url")]
+    off_domain = [url for url in urls if expected and not _url_matches_domains(url, expected)]
+    if off_domain:
+        score -= min(40, len(set(off_domain)) * 12)
+        signals.append(f"{len(set(off_domain))} off-domain URLs")
+    metadata = payload.get("pack_metadata") if isinstance(payload.get("pack_metadata"), dict) else {}
+    selected_urls = metadata.get("selected_urls")
+    selected = [str(url) for url in selected_urls if url] if isinstance(selected_urls, list) else []
+    noisy_selected = [url for url in selected if "?" in url or "#" in url]
+    if noisy_selected:
+        score -= min(15, len(noisy_selected) * 4)
+        signals.append(f"{len(noisy_selected)} selected URLs include query/fragment noise")
+    if selected and len(set(selected)) < len(selected):
+        score -= 10
+        signals.append("duplicate selected URLs")
+    return _dimension(score, signals)
+
+
+def _freshness_dimension(records: list[dict[str, Any]], target: _BenchmarkTarget | None) -> dict[str, Any]:
+    if not target or not target.freshness_terms:
+        return _dimension(100, [])
+    haystack = "\n".join(
+        " ".join(
+            [
+                str(record.get("url") or ""),
+                str(record.get("title") or ""),
+                str(record.get("content") or "")[:5000],
+            ]
+        ).lower()
+        for record in records
+    )
+    matched = sorted({term for term in target.freshness_terms if term.lower() in haystack})
+    if matched:
+        return _dimension(100, [f"matched freshness terms: {', '.join(matched[:4])}"])
+    return _dimension(65, ["freshness-sensitive target without freshness terms"])
+
+
+def _density_dimension(payload: dict[str, Any], records: list[dict[str, Any]]) -> dict[str, Any]:
+    signals: list[str] = []
+    summary = _pack_summary(payload)
+    total_tokens = int(summary.get("total_tokens") or 0)
+    record_count = len(records)
+    if total_tokens <= 0 or record_count <= 0:
+        return _dimension(0, ["no tokenized content"])
+    score = 100
+    tokens_per_record = total_tokens / record_count
+    if tokens_per_record < 150:
+        score -= 25
+        signals.append(f"low average density: {tokens_per_record:.0f} tokens/record")
+    if total_tokens > 250_000:
+        score -= 35
+        signals.append(f"very large pack: {total_tokens} tokens")
+    elif total_tokens > 100_000:
+        score -= 20
+        signals.append(f"large pack: {total_tokens} tokens")
+    nav_hits = _boilerplate_hit_count(records)
+    if nav_hits >= 12:
+        score -= min(20, nav_hits // 2)
+        signals.append("navigation text may be inflating token load")
+    return _dimension(score, signals)
+
+
+def _dimension(score: int | float, signals: list[str]) -> dict[str, Any]:
+    return {
+        "score": _clamp_score(round(score)),
+        "weight": None,
+        "signals": signals,
+    }
+
+
+def _read_benchmark_records(output_dir: Path) -> list[dict[str, Any]]:
+    path = output_dir / "documents.ndjson"
+    if not path.exists():
+        return []
+    records: list[dict[str, Any]] = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        try:
+            parsed = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(parsed, dict):
+            records.append(parsed)
+    return records
+
+
+def _pack_summary(payload: dict[str, Any]) -> dict[str, Any]:
+    score = payload.get("pack_score")
+    summary = score.get("summary") if isinstance(score, dict) else {}
+    return summary if isinstance(summary, dict) else {}
+
+
+def _boilerplate_hit_count(records: list[dict[str, Any]]) -> int:
+    needles = (
+        "skip to main content",
+        "table of contents",
+        "edit this page",
+        "previous",
+        "next",
+        "on this page",
+        "cookie",
+        "subscribe",
+        "sign in",
+        "all rights reserved",
+    )
+    count = 0
+    for record in records:
+        content = str(record.get("content") or "").lower()
+        count += sum(content.count(needle) for needle in needles)
+    return count
+
+
+def _url_matches_domains(url: str, expected_domains: list[str]) -> bool:
+    domain = _domain_for_url(url)
+    return bool(
+        domain
+        and any(domain == expected or domain.endswith(f".{expected}") for expected in expected_domains)
+    )
+
+
+def _optional_number(value: Any) -> float | None:
+    if isinstance(value, int | float) and not isinstance(value, bool):
+        return float(value)
+    return None
+
+
+def _clamp_score(value: int) -> int:
+    return max(0, min(100, value))
+
+
+def _benchmark_grade(score: int) -> str:
+    if score >= 90:
+        return "excellent"
+    if score >= 75:
+        return "good"
+    if score >= 60:
+        return "needs_review"
+    return "poor"
 
 
 def _write_provider_pack(
@@ -1293,6 +2104,11 @@ def _summary(cases: list[dict[str, Any]]) -> dict[str, Any]:
         for case in cases
         if isinstance((score := case.get("pack_score")), dict) and isinstance(score.get("score"), int)
     ]
+    benchmark_scores = [
+        int(score["score"])
+        for case in cases
+        if isinstance((score := case.get("benchmark_score")), dict) and isinstance(score.get("score"), int)
+    ]
     total_estimated_cost = sum(float(case.get("estimated_cost_usd") or 0.0) for case in cases)
     total_parallel_cost = sum(
         float(case.get("estimated_cost_usd") or 0.0)
@@ -1300,9 +2116,15 @@ def _summary(cases: list[dict[str, Any]]) -> dict[str, Any]:
         if str(case.get("workflow") or "").startswith("parallel-")
     )
     cache_only_cases = [_is_cache_only_case(case) for case in cases]
+    targets = sorted({str(case.get("target_id")) for case in cases if case.get("target_id")})
     return {
         "case_count": len(cases),
+        "target_count": len(targets),
+        "targets": targets,
+        "failed_case_count": sum(1 for case in cases if case.get("status") == "failed"),
         "best_pack_score": max(scores) if scores else None,
+        "best_benchmark_score": max(benchmark_scores) if benchmark_scores else None,
+        "matrix_case_count": sum(1 for case in cases if not _is_cache_only_case(case)),
         "total_estimated_live_cost_usd": round(total_estimated_cost, 6),
         "total_estimated_parallel_cost_usd": round(total_parallel_cost, 6),
         "cache_only_case_count": sum(cache_only_cases),
@@ -1311,7 +2133,28 @@ def _summary(cases: list[dict[str, Any]]) -> dict[str, Any]:
             for case, cache_only in zip(cases, cache_only_cases, strict=True)
             if case.get("pack_score") is None and not cache_only
         ),
+        "best_by_target": _best_by_target(cases),
     }
+
+
+def _best_by_target(cases: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    best: dict[str, dict[str, Any]] = {}
+    for case in cases:
+        if _is_cache_only_case(case):
+            continue
+        target_id = str(case.get("target_id") or "")
+        score = case.get("benchmark_score")
+        if not target_id or not isinstance(score, dict) or not isinstance(score.get("score"), int):
+            continue
+        current = best.get(target_id)
+        if not current or int(score["score"]) > int(current["score"]):
+            best[target_id] = {
+                "case": case.get("name"),
+                "provider": case.get("provider"),
+                "workflow": case.get("workflow"),
+                "score": score["score"],
+            }
+    return best
 
 
 def _format_skipped_providers(skipped: list[Any]) -> str:
@@ -1329,17 +2172,26 @@ def _format_skipped_providers(skipped: list[Any]) -> str:
 
 
 def _markdown_report(report: dict[str, Any]) -> str:
+    targets = report.get("targets") if isinstance(report.get("targets"), list) else []
+    target_label = (
+        f"{len(targets)} targets (`{report.get('target_set', 'single')}`)"
+        if len(targets) > 1
+        else f"`{report['target_url']}`"
+    )
     lines = [
         "# docpull Benchmark Summary",
         "",
         f"Generated: `{report['generated_at']}`",
-        f"Target: `{report['target_url']}`",
+        f"Target: {target_label}",
         f"Run directory: `{report['run_dir']}`",
         "",
         "## Cases",
         "",
-        "| Case | Wall seconds | Pack score | Records | Estimated cost |",
-        "| --- | ---: | ---: | ---: | ---: |",
+        (
+            "| Target | Case | Workflow | Wall seconds | Benchmark score | "
+            "Pack score | Records | Estimated cost |"
+        ),
+        "| --- | --- | --- | ---: | ---: | ---: | ---: | ---: |",
     ]
     for case in report["cases"]:
         score = case.get("pack_score")
@@ -1360,9 +2212,21 @@ def _markdown_report(report: dict[str, Any]) -> str:
             record_count = ""
         estimated_cost = case.get("estimated_cost_usd", "")
         cost_text = f"${estimated_cost:.6f}" if isinstance(estimated_cost, float) else ""
+        benchmark_score = _case_benchmark_score_text(case)
         lines.append(
-            f"| `{case['name']}` | {case['wall_seconds']} | {score_value} | {record_count} | {cost_text} |"
+            "| "
+            f"`{case.get('target_id', '')}` | "
+            f"`{case['name']}` | "
+            f"`{case.get('workflow', '')}` | "
+            f"{case['wall_seconds']} | "
+            f"{benchmark_score} | "
+            f"{score_value} | "
+            f"{record_count} | "
+            f"{cost_text} |"
         )
+    heatmap = _matrix_heatmap_markdown(report)
+    if heatmap:
+        lines.extend(["", "## Provider x Target Heatmap", "", *heatmap])
     skipped = report.get("skipped_providers")
     skipped = skipped if isinstance(skipped, list) else []
     lines.extend(
@@ -1371,6 +2235,9 @@ def _markdown_report(report: dict[str, Any]) -> str:
             "## Summary",
             "",
             f"- Cases: {report['summary']['case_count']}",
+            f"- Targets: {report['summary'].get('target_count', 1)}",
+            f"- Failed cases: {report['summary'].get('failed_case_count', 0)}",
+            f"- Best benchmark score: {report['summary'].get('best_benchmark_score')}",
             f"- Best pack score: {report['summary']['best_pack_score']}",
             f"- Cache-only cases: {report['summary']['cache_only_case_count']}",
             f"- Skipped providers: {_format_skipped_providers(skipped)}",
@@ -1384,7 +2251,286 @@ def _markdown_report(report: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def _case_benchmark_score_text(case: dict[str, Any]) -> str:
+    if case.get("status") == "failed":
+        return "failed"
+    score = case.get("benchmark_score")
+    if isinstance(score, dict) and isinstance(score.get("score"), int):
+        return str(score["score"])
+    if _is_cache_only_case(case):
+        return "cache skip"
+    return ""
+
+
+def _case_provider_key(case: dict[str, Any]) -> str:
+    workflow = str(case.get("workflow") or "")
+    if workflow == "core-llm":
+        return "docpull-core"
+    if workflow == "parallel-search-pack":
+        return "parallel-search"
+    if workflow == "parallel-context-pack":
+        return "parallel-context"
+    if workflow == "tavily-search-extract-pack":
+        return "tavily-search-extract"
+    if workflow == "exa-search-contents-pack":
+        return "exa-search-contents"
+    return workflow or str(case.get("provider") or "unknown")
+
+
+def _matrix_heatmap_markdown(report: dict[str, Any]) -> list[str]:
+    cases = [case for case in report.get("cases", []) if isinstance(case, dict)]
+    if len({case.get("target_id") for case in cases if case.get("target_id")}) <= 1:
+        return []
+    targets = [target for target in report.get("targets", []) if isinstance(target, dict)]
+    target_ids = [str(target.get("id")) for target in targets if target.get("id")]
+    if not target_ids:
+        target_ids = sorted({str(case.get("target_id")) for case in cases if case.get("target_id")})
+    provider_keys = _matrix_columns(cases)
+    if not provider_keys:
+        return []
+    by_cell: dict[tuple[str, str], str] = {}
+    for case in cases:
+        if _is_cache_only_case(case):
+            continue
+        target_id = str(case.get("target_id") or "")
+        provider_key = _case_provider_key(case)
+        score = _case_benchmark_score_text(case)
+        if target_id and provider_key and score:
+            by_cell[(target_id, provider_key)] = score
+    lines = [
+        "| Target | " + " | ".join(f"`{provider}`" for provider in provider_keys) + " |",
+        "| --- | " + " | ".join("---:" for _provider in provider_keys) + " |",
+    ]
+    for target_id in target_ids:
+        cells = [by_cell.get((target_id, provider), "") for provider in provider_keys]
+        lines.append(f"| `{target_id}` | " + " | ".join(cells) + " |")
+    return lines
+
+
+def _matrix_columns(cases: list[dict[str, Any]]) -> list[str]:
+    preferred = [
+        "docpull-core",
+        "parallel-search",
+        "parallel-context",
+        "tavily-search-extract",
+        "exa-search-contents",
+    ]
+    present = {_case_provider_key(case) for case in cases if not _is_cache_only_case(case)}
+    ordered = [provider for provider in preferred if provider in present]
+    ordered.extend(sorted(present - set(ordered)))
+    return ordered
+
+
 def _article_markdown(report: dict[str, Any], *, title: str) -> str:
+    cases = [case for case in report.get("cases", []) if isinstance(case, dict)]
+    best_case = _best_scored_case(cases, score_key="benchmark_score")
+    fastest_case = min(cases, key=lambda item: float(item.get("wall_seconds") or 0.0)) if cases else None
+    raw_trace = report.get("trace")
+    trace: dict[str, Any] = raw_trace if isinstance(raw_trace, dict) else {}
+    raw_summary = report.get("summary")
+    summary: dict[str, Any] = raw_summary if isinstance(raw_summary, dict) else {}
+    raw_artifacts = report.get("artifacts")
+    artifacts: dict[str, Any] = raw_artifacts if isinstance(raw_artifacts, dict) else {}
+    raw_providers = report.get("providers")
+    providers = (
+        ", ".join(str(provider) for provider in raw_providers) if isinstance(raw_providers, list) else "core"
+    )
+    targets = report.get("targets")
+    targets = targets if isinstance(targets, list) else []
+    skipped = report.get("skipped_providers")
+    skipped = skipped if isinstance(skipped, list) else []
+    heatmap = _matrix_heatmap_markdown(report)
+    lines = [
+        f"# {title}",
+        "",
+        (
+            "We benchmarked DocPull's local LLM-profile crawler against Parallel Search, "
+            "Parallel Context, Tavily Search + Extract, and Exa Search Contents. The v2 "
+            "shape is a provider-by-target matrix instead of a single clean docs site, "
+            "with Raindrop available as the metadata-only observability layer for traced runs."
+        ),
+        "",
+        "## Methodology",
+        "",
+        f"- Target set: `{report.get('target_set', 'single')}`",
+        f"- Targets: `{len(targets) or 1}`",
+        f"- Generated: `{report.get('generated_at')}`",
+        f"- Run directory: `{report.get('run_dir')}`",
+        f"- Providers: `{providers}`",
+        f"- Matrix providers: `{', '.join(str(value) for value in report.get('matrix_providers', []))}`",
+        f"- Skipped providers: `{_format_skipped_providers(skipped)}`",
+        f"- Parallel enabled: `{bool(report.get('parallel_enabled'))}`",
+        f"- Raindrop trace: `{trace.get('provider', 'none')}` / `{trace.get('status', 'disabled')}`",
+        (
+            "- Trace content policy: metadata only. The benchmark records timings, "
+            "counts, scores, costs, selected URLs, and artifact paths; it does not "
+            "ship scraped document text by default."
+        ),
+        (
+            "- Weighted score: coverage 30%, cleanliness 20%, source fidelity 20%, "
+            "freshness 15%, and density 15%."
+        ),
+        "",
+        "## Targets",
+        "",
+    ]
+    for target in targets:
+        if not isinstance(target, dict):
+            continue
+        notes = f" — {target.get('notes')}" if target.get("notes") else ""
+        lines.append(
+            f"- `{target.get('id')}`: {target.get('label')} (`{target.get('url')}`), "
+            f"{target.get('kind')}{notes}"
+        )
+    if not targets:
+        lines.append(f"- `single`: `{report.get('target_url')}`")
+    lines.extend(
+        [
+            "",
+            "## Results",
+            "",
+            (
+                "| Target | Case | Workflow | Wall seconds | Benchmark score | "
+                "Pack score | Records | Estimated cost |"
+            ),
+            "| --- | --- | --- | ---: | ---: | ---: | ---: | ---: |",
+        ]
+    )
+    for case in cases:
+        score = case.get("pack_score")
+        if isinstance(score, dict):
+            score_value = score.get("score")
+            score_summary = score.get("summary")
+            record_count = score_summary.get("record_count", "") if isinstance(score_summary, dict) else ""
+        elif _is_cache_only_case(case):
+            score_value = "cache skip"
+            stats = case.get("stats")
+            stats = stats if isinstance(stats, dict) else {}
+            record_count = f"0 fetched / {stats.get('pages_skipped', 0)} skipped"
+        else:
+            score_value = ""
+            record_count = ""
+        estimated_cost = case.get("estimated_cost_usd")
+        cost_text = (
+            f"${estimated_cost:.6f}" if isinstance(estimated_cost, float) else _case_cost_unit_text(case)
+        )
+        lines.append(
+            "| "
+            f"`{case.get('target_id', '')}` | "
+            f"`{case.get('name')}` | "
+            f"`{case.get('workflow')}` | "
+            f"{case.get('wall_seconds')} | "
+            f"{_case_benchmark_score_text(case)} | "
+            f"{score_value} | "
+            f"{record_count} | "
+            f"{cost_text} |"
+        )
+    if heatmap:
+        lines.extend(["", "## Provider x Target Heatmap", "", *heatmap])
+    lines.extend(
+        [
+            "",
+            "## What Stood Out",
+            "",
+        ]
+    )
+    if best_case:
+        best_score = best_case["benchmark_score"]["score"]
+        lines.append(f"- Best weighted benchmark score: `{best_case['name']}` at `{best_score}/100`.")
+    if fastest_case:
+        lines.append(
+            f"- Fastest case: `{fastest_case.get('name')}` at `{fastest_case.get('wall_seconds')}` seconds."
+        )
+    total_cost = summary.get(
+        "total_estimated_live_cost_usd", summary.get("total_estimated_parallel_cost_usd", 0)
+    )
+    lines.append(f"- Estimated normalized live provider cost for this run: `${float(total_cost):.6f}`.")
+    failed_count = int(summary.get("failed_case_count") or 0)
+    if failed_count:
+        lines.append(f"- Failed provider-target cells were preserved in the matrix: `{failed_count}`.")
+    cost_normalization = report.get("cost_normalization")
+    if isinstance(cost_normalization, dict):
+        tavily_norm = cost_normalization.get("tavily")
+        if isinstance(tavily_norm, dict) and tavily_norm.get("credit_usd") is None:
+            lines.append(
+                f"- Tavily credits were captured but not converted to dollars. Set `{TAVILY_CREDIT_USD_ENV}` "
+                "or pass `--tavily-credit-usd` for dollar-for-dollar comparisons."
+            )
+    if skipped:
+        lines.append(
+            "- Missing or unavailable providers were skipped without failing the run: "
+            f"{_format_skipped_providers(skipped)}."
+        )
+    if trace.get("enabled"):
+        lines.append(
+            "- Raindrop tracing was enabled, so each case was emitted with provider, workflow, "
+            "target, prompt, settings, score, latency, cost, and selected-URL metadata."
+        )
+    else:
+        lines.append(
+            "- Raindrop tracing was not enabled in this run. Re-run with `--trace raindrop` and "
+            "`RAINDROP_WRITE_KEY` to publish observed spans alongside the report."
+        )
+    lines.extend(
+        [
+            "",
+            "## Why This Is More Useful Than The First Run",
+            "",
+            (
+                "The first benchmark could not separate providers because every case ran against "
+                "`docs.parallel.ai`, a clean documentation site, and the pack score saturated at 100/100. "
+                "The target matrix creates provider-by-target variance in one run, and the weighted "
+                "sub-scores make that variance visible before it reaches the headline score."
+            ),
+            "",
+            "Raindrop is still not the judge or retriever. It is the trace layer around the eval: "
+            "each case can be filtered by provider, workflow, target, prompt, settings, latency, "
+            "cost, selected URLs, and score dimensions. Repeated scheduled runs turn those fields "
+            "into drift and regression signals.",
+            "",
+            "## Reproduce",
+            "",
+            "```bash",
+            "pip install 'docpull[parallel,observability]'",
+            "export PARALLEL_API_KEY='<parallel-key>'",
+            "export TAVILY_API_KEY='<tavily-key>'",
+            "export TAVILY_CREDIT_USD='<account-credit-value>'",
+            "export EXA_API_KEY='<exa-key>'",
+            "export RAINDROP_WRITE_KEY='<raindrop-write-key>'",
+            (
+                "docpull benchmark quick --target-set v2 --provider all --trace raindrop "
+                "--max-pages 8 --max-depth 1 --max-search-results 5 --extract-limit 2 "
+                "--max-estimated-cost 0.10"
+            ),
+            "docpull benchmark article .bench/runs/<run>/benchmark.report.json",
+            "```",
+            "",
+            "## Crawl Policy",
+            "",
+            (
+                "The v2 run keeps page caps low and runs on a spaced schedule. Public docs and "
+                "pricing pages should still be treated as someone else's infrastructure: respect "
+                "robots.txt, keep concurrency conservative, and avoid tight repeated runs."
+            ),
+            "",
+            "## Artifacts",
+            "",
+            f"- JSON report: `{artifacts.get('json')}`",
+            f"- Summary: `{artifacts.get('markdown')}`",
+            "",
+        ]
+    )
+    return "\n".join(lines)
+
+
+def _case_cost_unit_text(case: dict[str, Any]) -> str:
+    units = case.get("cost_units")
+    if isinstance(units, dict) and units.get("unit") == "credit":
+        return f"{float(units.get('total_credits') or 0):.3f} credits"
+    return "n/a"
+
+
+def _legacy_article_markdown(report: dict[str, Any], *, title: str) -> str:
     cases = [case for case in report.get("cases", []) if isinstance(case, dict)]
     best_case = _best_scored_case(cases)
     fastest_case = min(cases, key=lambda item: float(item.get("wall_seconds") or 0.0)) if cases else None
@@ -1506,13 +2652,17 @@ def _article_markdown(report: dict[str, Any], *, title: str) -> str:
     return "\n".join(lines)
 
 
-def _best_scored_case(cases: list[dict[str, Any]]) -> dict[str, Any] | None:
+def _best_scored_case(
+    cases: list[dict[str, Any]],
+    *,
+    score_key: str = "pack_score",
+) -> dict[str, Any] | None:
     scored = [
         case
         for case in cases
-        if isinstance(case.get("pack_score"), dict) and isinstance(case["pack_score"].get("score"), int)
+        if isinstance(case.get(score_key), dict) and isinstance(case[score_key].get("score"), int)
     ]
-    return max(scored, key=lambda item: int(item["pack_score"]["score"])) if scored else None
+    return max(scored, key=lambda item: int(item[score_key]["score"])) if scored else None
 
 
 def _is_cache_only_case(case: dict[str, Any]) -> bool:

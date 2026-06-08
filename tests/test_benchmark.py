@@ -73,8 +73,11 @@ def test_benchmark_quick_cli_writes_reports(
 
     report = json.loads((output_dir / "benchmark.report.json").read_text(encoding="utf-8"))
     assert report["summary"]["case_count"] == 1
+    assert report["summary"]["target_count"] == 1
     assert report["summary"]["best_pack_score"] == 92
     assert report["trace"]["provider"] == "none"
+    assert report["targets"][0]["id"] == "docs-parallel-ai"
+    assert report["cases"][0]["target_id"] == "docs-parallel-ai"
     assert (output_dir / "benchmark.summary.md").exists()
 
 
@@ -143,6 +146,89 @@ def test_benchmark_quick_cli_runs_selected_provider_cases(
         "exa-search-contents",
     ]
     assert report["summary"]["total_estimated_live_cost_usd"] == 0.002
+
+
+def test_benchmark_matrix_runs_core_once_per_target(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(benchmark, "_run_core_case", _fake_core_case)
+    output_dir = tmp_path / "bench"
+
+    report = run_quick_benchmark(
+        target_url="https://docs.parallel.ai",
+        target_set="tool-docs",
+        output_dir=output_dir,
+        max_pages=1,
+        max_depth=1,
+        max_concurrent=1,
+        per_host_concurrent=1,
+        cache_enabled=True,
+        cached_pass=None,
+        parallel=False,
+        parallel_objective=None,
+        parallel_queries=[],
+        include_domains=[],
+        mode="advanced",
+        max_search_results=8,
+        extract_limit=3,
+        max_estimated_cost=0.05,
+    )
+
+    assert report["target_set"] == "tool-docs"
+    assert report["summary"]["target_count"] == 5
+    assert report["summary"]["case_count"] == 5
+    assert report["summary"]["cache_only_case_count"] == 0
+    assert [case["target_id"] for case in report["cases"]] == [
+        "parallel_docs",
+        "exa_docs",
+        "tavily_docs",
+        "raindrop_docs",
+        "docpull_docs",
+    ]
+    assert report["cases"][0]["name"] == "parallel_docs/core-llm"
+    assert "Provider x Target Heatmap" in (output_dir / "benchmark.summary.md").read_text(encoding="utf-8")
+
+
+def test_benchmark_records_provider_failure_and_continues(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(benchmark, "_run_core_case", _fake_core_case)
+    monkeypatch.setenv("TAVILY_API_KEY", "test-tavily-key")
+
+    def fake_tavily_case(**_kwargs: Any) -> dict[str, Any]:
+        raise BenchmarkError("Tavily Search returned no extractable URLs.")
+
+    monkeypatch.setattr(benchmark, "_run_tavily_case", fake_tavily_case)
+
+    report = run_quick_benchmark(
+        target_url="https://docs.parallel.ai",
+        output_dir=tmp_path / "bench",
+        max_pages=1,
+        max_depth=1,
+        max_concurrent=1,
+        per_host_concurrent=1,
+        cache_enabled=True,
+        cached_pass=False,
+        parallel=False,
+        parallel_objective="Build a pack",
+        parallel_queries=["Parallel API docs"],
+        include_domains=["docs.parallel.ai"],
+        mode="advanced",
+        max_search_results=8,
+        extract_limit=3,
+        max_estimated_cost=0.05,
+        live_providers=["tavily"],
+    )
+
+    assert report["summary"]["case_count"] == 2
+    assert report["summary"]["failed_case_count"] == 1
+    failed = report["cases"][1]
+    assert failed["name"] == "tavily-search-extract"
+    assert failed["status"] == "failed"
+    assert failed["error"]["type"] == "BenchmarkError"
+    assert failed["benchmark_score"] is None
 
 
 def test_parallel_cost_guard_runs_before_core(
@@ -279,10 +365,14 @@ def test_tavily_case_writes_scored_provider_pack(
         include_domains=["docs.parallel.ai"],
         max_search_results=5,
         extract_limit=1,
+        tavily_credit_usd=0.002,
     )
 
     assert payload["name"] == "tavily-search-extract"
+    assert payload["estimated_cost_usd"] == 0.004
+    assert payload["cost_units"]["total_credits"] == 2
     assert payload["pack_score"]["score"] == 100
+    assert payload["benchmark_score"]["dimensions"]["coverage"]["score"] == 100
     assert payload["pack_metadata"]["provider"] == "tavily"
     assert (tmp_path / "tavily" / "documents.ndjson").exists()
     assert (tmp_path / "tavily" / "tavily.pack.json").exists()

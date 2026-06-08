@@ -489,6 +489,9 @@ benchmark harness:
 docpull benchmark quick
 docpull benchmark quick --provider auto --max-estimated-cost 0.05
 docpull benchmark quick --provider all --max-estimated-cost 0.10
+docpull benchmark quick --target-set v2 --provider all \
+  --max-pages 8 --max-depth 1 --max-search-results 5 --extract-limit 2 \
+  --max-estimated-cost 0.10
 docpull benchmark article .bench/runs/<run>/benchmark.report.json
 ```
 
@@ -500,15 +503,28 @@ Tavily, and Exa, then records missing keys or optional SDKs in
 `skipped_providers` without failing the benchmark. Live Parallel calls still use
 the local `--max-estimated-cost` guard before any work starts.
 
+Use `--target-set tool-docs` to run a cross-pull matrix across the Parallel,
+Exa, Tavily, Raindrop, and DocPull documentation sites. Use `--target-set v2`
+to add three low-cap adversarial public targets for JS-heavy docs, noisy
+archived navigation, and freshness-sensitive pricing. Matrix runs skip the
+cached core pass by default so the headline grid stays provider x target; pass
+`--cached-pass` to force cache measurement across the matrix.
+
 The compatibility flags `--parallel`, `--tavily`, and `--exa` still work as
 provider aliases. Tavily Search + Extract and Exa Search-with-contents are
 normalized into the same local
 `documents.ndjson`, `corpus.manifest.json`, `sources.md`, provider `*.pack.json`,
 `pack.score.json`, and `source.scores.json` artifacts as the core and Parallel
-cases, so the article compares outputs through the same pack-scoring rules.
+cases. The report keeps the legacy pack score and adds weighted benchmark
+sub-scores for coverage, cleanliness, source fidelity, freshness, and density.
 Keys can be exported as `PARALLEL_API_KEY`, `TAVILY_API_KEY`, and `EXA_API_KEY`
 or stored together in `~/.config/docpull/secrets.env`; docpull does not write
 keys into benchmark artifacts.
+
+Tavily usage is credit-based, so set `TAVILY_CREDIT_USD` or pass
+`--tavily-credit-usd` to convert credits into estimated dollars for cost
+comparisons. Without that value, Tavily credits are still recorded in
+`cost_units` but excluded from normalized USD totals.
 
 To trace the benchmark in Raindrop for a publishable observability/eval loop,
 install the optional SDK and pass `--trace raindrop`:
@@ -517,17 +533,20 @@ install the optional SDK and pass `--trace raindrop`:
 pip install 'docpull[parallel,observability]'
 export PARALLEL_API_KEY="<your-parallel-api-key>"
 export TAVILY_API_KEY="<your-tavily-api-key>"
+export TAVILY_CREDIT_USD="<account-credit-value>"
 export EXA_API_KEY="<your-exa-api-key>"
 export RAINDROP_WRITE_KEY="<your-raindrop-write-key>"
-docpull benchmark quick --provider all --trace raindrop --max-estimated-cost 0.10
+docpull benchmark quick --target-set v2 --provider all --trace raindrop \
+  --max-pages 8 --max-depth 1 --max-search-results 5 --extract-limit 2 \
+  --max-estimated-cost 0.10
 docpull benchmark article .bench/runs/<run>/benchmark.report.json
 ```
 
 Raindrop traces are metadata-only by default: docpull records timings, counts,
-scores, costs, selected URLs, and artifact paths, but does not send scraped page
-content unless a future caller explicitly adds that behavior. `RAINDROP_WRITE_KEY`
-can be exported or stored in the same `~/.config/docpull/secrets.env` file as
-the provider keys.
+scores, costs, selected URLs, provider, workflow, target, prompt, settings, and
+artifact paths, but does not send scraped page content unless a future caller
+explicitly adds that behavior. `RAINDROP_WRITE_KEY` can be exported or stored in
+the same `~/.config/docpull/secrets.env` file as the provider keys.
 
 ## Troubleshooting
 
