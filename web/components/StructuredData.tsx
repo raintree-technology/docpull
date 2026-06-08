@@ -25,7 +25,7 @@ const graph = {
       url: baseUrl,
       name: "docpull",
       description:
-        "Local Python crawler that turns server-rendered documentation into clean Markdown for agents, RAG pipelines, and offline archives.",
+        "Local Python crawler that turns server-rendered documentation and Parallel-backed web intelligence into clean Markdown context packs with agent load plans.",
       inLanguage: "en",
       publisher: { "@id": `${baseUrl}/#organization` },
     },
@@ -43,6 +43,14 @@ const graph = {
       author: { "@id": `${baseUrl}/#organization` },
       license: "https://opensource.org/licenses/MIT",
       isAccessibleForFree: true,
+      featureList: [
+        "Documentation crawling to Markdown, JSON, NDJSON, and SQLite",
+        "Token-aware chunks with stable document and chunk IDs",
+        "MCP server for agent access to cached docs",
+        "Parallel-backed context packs with AGENT_CONTEXT.md load plans",
+        "Entity packs, batch packs, monitor packs, and API packs",
+        "Pack scoring and diffing for local agent-readiness checks",
+      ],
       offers: {
         "@type": "Offer",
         price: "0",

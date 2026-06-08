@@ -557,6 +557,10 @@ def run_fetcher(args: argparse.Namespace) -> int:
                         failure_skips = {
                             SkipReason.URL_VALIDATION_FAILED,
                             SkipReason.ROBOTS_DISALLOWED,
+                            SkipReason.HTTP_ERROR,
+                            SkipReason.INVALID_CONTENT_TYPE,
+                            SkipReason.NO_CONTENT_EXTRACTED,
+                            SkipReason.NO_CONTENT_TO_SAVE,
                         }
                         return 1 if ctx.skip_code in failure_skips else 0
                     if not args.quiet:
@@ -662,6 +666,14 @@ def main(argv: list[str] | None = None) -> int:
         from .mcp.server import run_mcp_server
 
         return run_mcp_server(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "parallel":
+        from .parallel_workflows import run_parallel_cli
+
+        return run_parallel_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "pack":
+        from .pack_tools import run_pack_cli
+
+        return run_pack_cli(raw_argv[1:])
 
     parser = create_parser()
     args = parser.parse_args(raw_argv)

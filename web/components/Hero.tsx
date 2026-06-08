@@ -86,8 +86,8 @@ export default function Hero() {
 
             <p className="text-muted-foreground text-base sm:text-lg mb-8 max-w-md">
               Turn server-rendered docs into clean Markdown your agents can
-              actually use. No browser, no API key, no data leaving your
-              machine.
+              actually use. Base crawls need no browser or API key; optional
+              Parallel packs use your own key.
             </p>
 
             {/* Install command + CTA */}

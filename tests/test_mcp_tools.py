@@ -29,6 +29,7 @@ def test_builtin_sources_include_common_libraries():
     assert "react" in BUILTIN_SOURCES
     assert "nextjs" in BUILTIN_SOURCES
     assert "anthropic" in BUILTIN_SOURCES
+    assert "parallel" in BUILTIN_SOURCES
 
 
 def test_resolve_rejects_raw_urls():

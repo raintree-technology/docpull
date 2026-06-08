@@ -14,6 +14,7 @@ from urllib.parse import urljoin, urlparse
 import aiohttp
 from aiohttp.abc import AbstractResolver, ResolveResult
 
+from ..security.download_policy import SafeDownloadPolicy
 from ..security.url_validator import UrlValidator
 from .protocols import HttpResponse
 from .rate_limiter import AdaptiveRateLimiter, PerHostRateLimiter
@@ -132,6 +133,7 @@ class AsyncHttpClient:
         allow_insecure_tls: bool = False,
         auth_scope_hosts: set[str] | None = None,
         require_pinned_dns: bool = False,
+        download_policy: SafeDownloadPolicy | None = None,
     ) -> None:
         """
         Initialize the HTTP client.
@@ -145,6 +147,8 @@ class AsyncHttpClient:
             proxy: Proxy URL (http:// or socks5://)
             default_timeout: Default request timeout in seconds
             auth_headers: Authentication headers to include in all requests
+            download_policy: Policy that rejects file-like responses before
+                they can be buffered, converted, or saved
         """
         self._rate_limiter = rate_limiter
         self._max_retries = max_retries
@@ -155,6 +159,7 @@ class AsyncHttpClient:
         self._auth_headers = auth_headers or {}
         self._url_validator = url_validator
         self._auth_scope_hosts = {host.lower() for host in auth_scope_hosts} if auth_scope_hosts else None
+        self._download_policy = download_policy or SafeDownloadPolicy()
 
         if allow_insecure_tls:
             raise ValueError("Insecure TLS is not supported; certificate verification is always enforced")
@@ -199,6 +204,15 @@ class AsyncHttpClient:
         """Reject HTTP headers containing CR, LF, or null bytes."""
         if AsyncHttpClient._CRLF_RE.search(name) or AsyncHttpClient._CRLF_RE.search(value):
             raise ValueError(f"HTTP header injection blocked: header '{name}' contains CR, LF, or null")
+
+    def _validate_request_headers(self, headers: dict[str, str]) -> None:
+        """Validate caller-supplied headers before sending a request."""
+        for name, value in headers.items():
+            self._validate_header_value(name, value)
+            if name.lower() == "accept-encoding" and value.lower().strip() != "identity":
+                raise ValueError(
+                    "Compressed response encodings are not requested; use Accept-Encoding: identity"
+                )
 
     def _resolve_redirect_url(self, current_url: str, location: str) -> str:
         """Resolve a redirect target relative to the current URL."""
@@ -285,7 +299,11 @@ class AsyncHttpClient:
         )
         self._session = aiohttp.ClientSession(
             connector=connector,
-            headers={"User-Agent": self._user_agent},
+            cookie_jar=aiohttp.DummyCookieJar(),
+            headers={
+                "User-Agent": self._user_agent,
+                "Accept-Encoding": "identity",
+            },
         )
         return self
 
@@ -392,6 +410,7 @@ class AsyncHttpClient:
         request_headers = dict(self._auth_headers)
         if headers:
             request_headers.update(headers)
+        self._validate_request_headers(request_headers)
 
         last_error: Exception | None = None
 
@@ -402,6 +421,7 @@ class AsyncHttpClient:
                 redirect_count = 0
 
                 while True:
+                    self._download_policy.validate_request_url(current_url)
                     self._validate_url(current_url)
 
                     async with (
@@ -421,6 +441,9 @@ class AsyncHttpClient:
                             current_url, current_headers, redirect_count = redirect
                             continue
 
+                        content_type = response.headers.get("Content-Type", "")
+                        response_headers = dict(response.headers)
+
                         if response.status in self.RETRYABLE_STATUS_CODES:
                             if response.status == 429 and isinstance(self._rate_limiter, AdaptiveRateLimiter):
                                 retry_after = response.headers.get("Retry-After")
@@ -439,19 +462,54 @@ class AsyncHttpClient:
                                 break
                             response.raise_for_status()
 
-                        content_length = response.headers.get("Content-Length")
-                        if content_length and int(content_length) > self._max_content_size:
-                            raise ValueError(f"Content too large: {content_length} bytes")
+                        if response.status == 304 or 400 <= response.status < 500:
+                            return HttpResponse(
+                                status_code=response.status,
+                                content=b"",
+                                content_type=content_type,
+                                headers=response_headers,
+                                url=str(response.url),
+                            )
 
-                        content = b""
+                        self._download_policy.validate_response_headers(
+                            current_url,
+                            status_code=response.status,
+                            headers=response_headers,
+                            content_type=content_type,
+                        )
+
+                        content_length = response.headers.get("Content-Length")
+                        if content_length:
+                            try:
+                                parsed_content_length = int(content_length)
+                            except ValueError as err:
+                                raise ValueError(f"Invalid Content-Length header: {content_length}") from err
+                            if parsed_content_length > self._max_content_size:
+                                raise ValueError(f"Content too large: {content_length} bytes")
+
+                        content_parts: list[bytes] = []
+                        bytes_downloaded = 0
+                        body_prefix = bytearray()
                         async for chunk in response.content.iter_chunked(8192):
-                            content += chunk
-                            if len(content) > self._max_content_size:
+                            if not chunk:
+                                continue
+
+                            if len(body_prefix) < self._download_policy.max_sniff_bytes:
+                                remaining = self._download_policy.max_sniff_bytes - len(body_prefix)
+                                body_prefix.extend(chunk[:remaining])
+                                self._download_policy.validate_body_prefix(
+                                    current_url,
+                                    bytes(body_prefix),
+                                )
+
+                            bytes_downloaded += len(chunk)
+                            if bytes_downloaded > self._max_content_size:
                                 raise ValueError(
                                     f"Content size limit exceeded: >{self._max_content_size} bytes"
                                 )
+                            content_parts.append(chunk)
 
-                        content_type = response.headers.get("Content-Type", "")
+                        content = b"".join(content_parts)
 
                         if isinstance(self._rate_limiter, AdaptiveRateLimiter):
                             await self._rate_limiter.record_success(current_url)
@@ -460,7 +518,7 @@ class AsyncHttpClient:
                             status_code=response.status,
                             content=content,
                             content_type=content_type,
-                            headers=dict(response.headers),
+                            headers=response_headers,
                             url=str(response.url),
                         )
 
@@ -507,12 +565,14 @@ class AsyncHttpClient:
         request_headers = dict(self._auth_headers)
         if headers:
             request_headers.update(headers)
+        self._validate_request_headers(request_headers)
 
         current_url = url
         current_headers = self._headers_for_url(dict(request_headers), current_url)
         redirect_count = 0
 
         while True:
+            self._download_policy.validate_request_url(current_url)
             self._validate_url(current_url)
 
             async with (
@@ -530,10 +590,19 @@ class AsyncHttpClient:
                     current_url, current_headers, redirect_count = redirect
                     continue
 
+                response_headers = dict(response.headers)
+                content_type = response.headers.get("Content-Type", "")
+                self._download_policy.validate_response_headers(
+                    current_url,
+                    status_code=response.status,
+                    headers=response_headers,
+                    content_type=content_type,
+                )
+
                 return HttpResponse(
                     status_code=response.status,
                     content=b"",
-                    content_type=response.headers.get("Content-Type", ""),
-                    headers=dict(response.headers),
+                    content_type=content_type,
+                    headers=response_headers,
                     url=str(response.url),
                 )

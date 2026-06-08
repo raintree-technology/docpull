@@ -7,8 +7,9 @@ import { cn } from "@/lib/utils";
 const altMethods = [
   { label: "pipx", command: "pipx install docpull" },
   { label: "uv", command: "uv pip install docpull" },
-  { label: "+proxy", command: "pip install docpull[proxy]" },
-  { label: "+all", command: "pip install docpull[all]" },
+  { label: "+parallel", command: "pip install 'docpull[parallel]'" },
+  { label: "+proxy", command: "pip install 'docpull[proxy]'" },
+  { label: "+all", command: "pip install 'docpull[all]'" },
 ] as const;
 
 export default function Install() {

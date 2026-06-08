@@ -286,12 +286,15 @@ class Fetcher:
         # Create HTTP client. Per-page download cap: prefer the user-supplied
         # `content_filter.max_file_size`; fall back to AsyncHttpClient's
         # built-in 50 MB ceiling.
-        max_content_size_kw: dict[str, int] = {}
-        if self.config.content_filter.max_file_size is not None:
-            max_content_size_kw["max_content_size"] = int(self.config.content_filter.max_file_size)
+        max_content_size = (
+            int(self.config.content_filter.max_file_size)
+            if self.config.content_filter.max_file_size is not None
+            else AsyncHttpClient.MAX_CONTENT_SIZE
+        )
         self._http_client = AsyncHttpClient(
             rate_limiter=self._rate_limiter,
             max_retries=self.config.network.max_retries,
+            max_content_size=max_content_size,
             user_agent=self.config.network.user_agent,
             proxy=self.config.network.proxy,
             default_timeout=float(self.config.network.read_timeout),
@@ -300,7 +303,6 @@ class Fetcher:
             allow_insecure_tls=self.config.network.insecure_tls,
             auth_scope_hosts=auth_scope_hosts,
             require_pinned_dns=self.config.network.require_pinned_dns,
-            **max_content_size_kw,
         )
         await self._http_client.__aenter__()
 

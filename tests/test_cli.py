@@ -1,11 +1,13 @@
 """CLI regression tests."""
 
 from importlib.metadata import version
+from types import SimpleNamespace
 
 import pytest
 
 import docpull
 from docpull.cli import create_parser, run_fetcher
+from docpull.models.events import SkipReason
 
 
 def test_runtime_version_matches_package_metadata():
@@ -84,3 +86,31 @@ def test_configuration_errors_escape_rich_markup(tmp_path, capsys):
     assert run_fetcher(args) == 1
     captured = capsys.readouterr()
     assert r"^[a-z0-9][a-z0-9-]*$" in captured.out
+
+
+def test_single_no_content_skip_returns_nonzero(tmp_path, monkeypatch):
+    class FakeFetcher:
+        stats = SimpleNamespace()
+
+        def __init__(self, config):
+            self.config = config
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            return None
+
+        async def fetch_one(self, url):
+            return SimpleNamespace(
+                error=None,
+                should_skip=True,
+                skip_reason="No content extracted",
+                skip_code=SkipReason.NO_CONTENT_EXTRACTED,
+            )
+
+    monkeypatch.setattr("docpull.cli.Fetcher", FakeFetcher)
+    parser = create_parser()
+    args = parser.parse_args(["https://example.com/empty", "--single", "--output-dir", str(tmp_path)])
+
+    assert run_fetcher(args) == 1

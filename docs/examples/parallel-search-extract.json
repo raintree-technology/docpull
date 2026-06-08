@@ -1,0 +1,103 @@
+{
+  "objective": "Compare AI web-search APIs for agent context workflows",
+  "queries": [
+    "AI web search API",
+    "agent web extraction API",
+    "LLM web research API"
+  ],
+  "mode": "advanced",
+  "session_id": "session_example_parallel_context_pack",
+  "estimated_cost_usd": 0.013,
+  "request_options": {
+    "source_policy": {
+      "include_domains": [
+        "parallel.ai",
+        "docs.parallel.ai"
+      ],
+      "exclude_domains": [
+        "onparallel.com"
+      ]
+    },
+    "max_search_results": 10,
+    "max_full_content_chars": 50000,
+    "full_content": true
+  },
+  "search": {
+    "search_id": "search_example_parallel_context_pack",
+    "results": [
+      {
+        "url": "https://parallel.ai/",
+        "title": "Parallel",
+        "excerpts": [
+          "Parallel builds web infrastructure for AI agents."
+        ]
+      },
+      {
+        "url": "https://docs.parallel.ai/getting-started/overview",
+        "title": "Parallel Documentation",
+        "excerpts": [
+          "Parallel APIs include Search, Extract, Task, FindAll, and Monitor for web intelligence workflows."
+        ]
+      }
+    ]
+  },
+  "extract": {
+    "extract_id": "extract_example_parallel_context_pack",
+    "results": [
+      {
+        "url": "https://parallel.ai/",
+        "title": "Parallel",
+        "full_content": "# Parallel\n\nParallel builds web infrastructure for AI agents, including APIs for search, extraction, research, entity discovery, and monitoring.",
+        "excerpts": [
+          "Parallel builds web infrastructure for AI agents."
+        ]
+      },
+      {
+        "url": "https://docs.parallel.ai/getting-started/overview",
+        "title": "Parallel Documentation",
+        "full_content": "# Parallel Documentation\n\nParallel exposes Search for ranked web excerpts, Extract for URL-to-markdown retrieval, Task for cited research and enrichment, FindAll for entity discovery, and Monitor for scheduled web updates.",
+        "excerpts": [
+          "Parallel APIs include Search, Extract, Task, FindAll, and Monitor for web intelligence workflows."
+        ]
+      }
+    ],
+    "errors": [
+      {
+        "url": "https://example.invalid/private",
+        "error_type": "fetch_error",
+        "content": "Example failed extraction preserved for pack error reporting."
+      }
+    ]
+  },
+  "task": {
+    "run_id": "task_example_parallel_context_pack",
+    "content": "# Brief\n\nParallel's API surface can be chained into an agent context workflow: Search discovers sources, Extract converts known URLs into markdown, and Task can produce a cited synthesis. docpull turns those results into durable local artifacts for coding agents.",
+    "basis": [
+      {
+        "field": "content",
+        "citations": [
+          {
+            "url": "https://parallel.ai/"
+          },
+          {
+            "url": "https://docs.parallel.ai/getting-started/overview"
+          }
+        ]
+      }
+    ]
+  },
+  "usage": {
+    "search": [
+      {
+        "type": "request",
+        "quantity": 1
+      }
+    ],
+    "extract": [
+      {
+        "type": "request",
+        "quantity": 1
+      }
+    ]
+  }
+}

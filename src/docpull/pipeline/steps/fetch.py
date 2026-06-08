@@ -6,6 +6,10 @@ from typing import TYPE_CHECKING
 
 from ...http.protocols import HttpClient
 from ...models.events import EventType, FetchEvent, SkipReason
+from ...security.download_policy import (
+    ALLOWED_DOCUMENT_CONTENT_TYPES,
+    is_allowed_document_content_type,
+)
 from ..base import EventEmitter, PageContext
 
 if TYPE_CHECKING:
@@ -23,24 +27,9 @@ def _header_get(headers: dict[str, str], name: str) -> str | None:
     return None
 
 
-# Allowed content types for HTML documents and structured feeds.
-# JSON and plain text are allowed so downstream special-case extractors can
-# handle OpenAPI specs, raw Markdown, and similar sources.
-ALLOWED_CONTENT_TYPES = frozenset(
-    {
-        "text/html",
-        "application/xhtml+xml",
-        "text/xml",
-        "application/xml",
-        "application/atom+xml",
-        "application/rss+xml",
-        "application/json",
-        "application/ld+json",
-        "text/plain",
-        "text/markdown",
-        "text/x-markdown",
-    }
-)
+# Allowed content types for HTML documents and structured feeds. Kept as an
+# alias for tests and users that import it directly from this module.
+ALLOWED_CONTENT_TYPES = ALLOWED_DOCUMENT_CONTENT_TYPES
 
 
 class FetchStep:
@@ -110,12 +99,7 @@ class FetchStep:
         Returns:
             True if content type is allowed, False otherwise
         """
-        if not content_type:
-            return True  # Allow if not specified
-
-        # Extract base content type (ignore charset, etc.)
-        base_type = content_type.lower().split(";")[0].strip()
-        return base_type in ALLOWED_CONTENT_TYPES
+        return is_allowed_document_content_type(content_type)
 
     def _conditional_headers(self, url: str, output_path_exists: bool) -> dict[str, str]:
         """Build ``If-None-Match`` / ``If-Modified-Since`` from the cache.

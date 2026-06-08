@@ -38,6 +38,10 @@ async def test_stdio_server_lists_and_calls_tools(tmp_path):
             "list_indexed",
             "grep_docs",
             "read_doc",
+            "parallel_context_pack",
+            "parallel_api_pack",
+            "pack_score",
+            "pack_diff",
             "add_source",
             "remove_source",
         }
@@ -46,6 +50,15 @@ async def test_stdio_server_lists_and_calls_tools(tmp_path):
         assert result.isError is False
         assert result.structuredContent is not None
         assert any(source["name"] == "react" for source in result.structuredContent["sources"])
+        assert any(source["name"] == "parallel" for source in result.structuredContent["sources"])
+
+        dry_run = await session.call_tool(
+            "parallel_context_pack",
+            {"objective": "Parallel docs", "queries": ["Parallel API"], "dry_run": True},
+        )
+        assert dry_run.isError is False
+        assert dry_run.structuredContent is not None
+        assert dry_run.structuredContent["dry_run"] is True
 
         rejected = await session.call_tool("fetch_url", {"url": "https://localhost/admin"})
         assert rejected.isError is True

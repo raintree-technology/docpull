@@ -5,8 +5,9 @@ from __future__ import annotations
 import logging
 import re
 import textwrap
+from collections.abc import Callable
 from typing import Any
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit
 
 import html2text
 
@@ -35,6 +36,9 @@ _FENCE_SENTINEL_RE = re.compile(
     rf"([\w+#-]+){re.escape(DOCPULL_FENCE_SENTINEL_SUFFIX)}[ \t]*\n",
     re.MULTILINE,
 )
+_LATEX_ESCAPED_DELIMITER_RE = re.compile(r"\\{2,}([()\[\]])")
+_INLINE_CODE_RE = re.compile(r"(`+)(.*?)(\1)")
+_PROTECTED_URL_RE = re.compile(r"<([^>]+)>")
 
 
 def _rewrite_html2text_code_blocks(markdown: str) -> str:
@@ -58,6 +62,257 @@ def _rewrite_html2text_code_blocks(markdown: str) -> str:
         return f"```{lang}\n{body}\n```"
 
     return _HTML2TEXT_CODE_BLOCK_RE.sub(replace, markdown)
+
+
+def _restore_latex_math_delimiters(markdown: str) -> str:
+    """Undo html2text escaping for LaTeX ``\\(...\\)`` / ``\\[...\\]`` delimiters."""
+
+    def restore_segment(segment: str) -> str:
+        return _LATEX_ESCAPED_DELIMITER_RE.sub(r"\\\1", segment)
+
+    restored_lines: list[str] = []
+    in_fence = False
+    fence_marker = ""
+    for line in markdown.splitlines(keepends=True):
+        stripped = line.strip()
+        if stripped.startswith(("```", "~~~")):
+            marker = stripped[:3]
+            if not in_fence:
+                in_fence = True
+                fence_marker = marker
+            elif stripped.startswith(fence_marker):
+                in_fence = False
+                fence_marker = ""
+            restored_lines.append(line)
+            continue
+        if in_fence:
+            restored_lines.append(line)
+            continue
+
+        pieces: list[str] = []
+        cursor = 0
+        for match in _INLINE_CODE_RE.finditer(line):
+            pieces.append(restore_segment(line[cursor : match.start()]))
+            pieces.append(match.group(0))
+            cursor = match.end()
+        pieces.append(restore_segment(line[cursor:]))
+        restored_lines.append("".join(pieces))
+    return "".join(restored_lines)
+
+
+def _unescape_markdown_url(url: str) -> str:
+    """Remove Markdown escaping that html2text applies inside URL destinations."""
+    return re.sub(r"\\([()<>\\])", r"\1", url)
+
+
+def _escape_markdown_url(url: str) -> str:
+    """Escape characters that would terminate a bare Markdown URL destination."""
+    return url.replace("\\", "\\\\").replace(" ", "%20").replace("(", r"\(").replace(")", r"\)")
+
+
+def _split_link_target(raw_target: str) -> tuple[str, str]:
+    """Split ``url "optional title"`` into destination and suffix."""
+    stripped = raw_target.strip()
+    leading = raw_target[: len(raw_target) - len(raw_target.lstrip())]
+    if not stripped:
+        return raw_target, ""
+
+    if stripped.startswith("<"):
+        end = stripped.find(">")
+        if end != -1:
+            destination = stripped[: end + 1]
+            suffix = stripped[end + 1 :]
+            return leading + destination, suffix
+
+    in_angle = False
+    escaped = False
+    for index, char in enumerate(stripped):
+        if escaped:
+            escaped = False
+            continue
+        if char == "\\":
+            escaped = True
+            continue
+        if char == "<":
+            in_angle = True
+            continue
+        if char == ">":
+            in_angle = False
+            continue
+        if char.isspace() and not in_angle:
+            return leading + stripped[:index], stripped[index:]
+    return leading + stripped, ""
+
+
+def _normalize_link_destination(destination: str, base_url: str) -> str | None:
+    """Return an absolute Markdown URL destination, or None when it should stay unchanged."""
+    leading = destination[: len(destination) - len(destination.lstrip())]
+    stripped = destination.strip()
+    if not stripped:
+        return None
+
+    protected = _PROTECTED_URL_RE.search(stripped)
+    if protected:
+        raw_url = protected.group(1)
+    elif stripped.startswith("<") and stripped.endswith(">"):
+        raw_url = stripped[1:-1]
+    else:
+        raw_url = stripped
+
+    raw_url = _normalize_scheme(_unescape_markdown_url(raw_url))
+    if raw_url.startswith("#"):
+        return None
+    if raw_url.startswith(("mailto:", "tel:", "data:")):
+        return None
+
+    parsed = urlsplit(raw_url)
+    if parsed.scheme and parsed.scheme not in {"http", "https"}:
+        return None
+
+    absolute_url = raw_url if parsed.scheme in {"http", "https"} else urljoin(base_url, raw_url)
+    return leading + _escape_markdown_url(absolute_url)
+
+
+def _normalize_protected_absolute_destination(destination: str) -> str | None:
+    leading = destination[: len(destination) - len(destination.lstrip())]
+    protected = _PROTECTED_URL_RE.search(destination.strip())
+    if not protected:
+        return None
+    raw_url = _normalize_scheme(_unescape_markdown_url(protected.group(1)))
+    if urlsplit(raw_url).scheme not in {"http", "https"}:
+        return None
+    return leading + _escape_markdown_url(raw_url)
+
+
+def _find_matching_bracket(markdown: str, start: int) -> int:
+    depth = 1
+    escaped = False
+    index = start + 1
+    while index < len(markdown):
+        char = markdown[index]
+        if escaped:
+            escaped = False
+        elif char == "\\":
+            escaped = True
+        elif char == "[":
+            depth += 1
+        elif char == "]":
+            depth -= 1
+            if depth == 0:
+                return index
+        index += 1
+    return -1
+
+
+def _find_matching_paren(markdown: str, start: int) -> int:
+    depth = 0
+    escaped = False
+    in_angle = False
+    quote: str | None = None
+    index = start + 1
+    while index < len(markdown):
+        char = markdown[index]
+        if escaped:
+            escaped = False
+        elif char == "\\":
+            escaped = True
+        elif quote:
+            if char == quote:
+                quote = None
+        elif char in {"'", '"'}:
+            quote = char
+        elif char == "<":
+            in_angle = True
+        elif char == ">":
+            in_angle = False
+        elif char == "(" and not in_angle:
+            depth += 1
+        elif char == ")" and not in_angle:
+            if depth == 0:
+                return index
+            depth -= 1
+        index += 1
+    return -1
+
+
+def _rewrite_markdown_links(
+    markdown: str,
+    rewrite_destination: Callable[[str], str | None],
+) -> str:
+    def rewrite_line(line: str) -> str:
+        out: list[str] = []
+        index = 0
+        while index < len(line):
+            char = line[index]
+            if char == "`":
+                tick_count = 1
+                while index + tick_count < len(line) and line[index + tick_count] == "`":
+                    tick_count += 1
+                marker = "`" * tick_count
+                end = line.find(marker, index + tick_count)
+                if end == -1:
+                    out.append(line[index:])
+                    break
+                out.append(line[index : end + tick_count])
+                index = end + tick_count
+                continue
+
+            link_start = index
+            if char == "!" and index + 1 < len(line) and line[index + 1] == "[":
+                bracket_start = index + 1
+            elif char == "[":
+                bracket_start = index
+            else:
+                out.append(char)
+                index += 1
+                continue
+
+            bracket_end = _find_matching_bracket(line, bracket_start)
+            if bracket_end == -1 or bracket_end + 1 >= len(line) or line[bracket_end + 1] != "(":
+                out.append(char)
+                index += 1
+                continue
+
+            paren_start = bracket_end + 1
+            paren_end = _find_matching_paren(line, paren_start)
+            if paren_end == -1:
+                out.append(char)
+                index += 1
+                continue
+
+            raw_target = line[paren_start + 1 : paren_end]
+            destination, suffix = _split_link_target(raw_target)
+            normalized = rewrite_destination(destination)
+            if normalized is None:
+                out.append(line[link_start : paren_end + 1])
+            else:
+                out.append(line[link_start : paren_start + 1])
+                out.append(normalized)
+                out.append(suffix)
+                out.append(")")
+            index = paren_end + 1
+        return "".join(out)
+
+    lines: list[str] = []
+    in_fence = False
+    fence_marker = ""
+    for line in markdown.splitlines(keepends=True):
+        stripped = line.strip()
+        if stripped.startswith(("```", "~~~")):
+            marker = stripped[:3]
+            if not in_fence:
+                in_fence = True
+                fence_marker = marker
+            elif stripped.startswith(fence_marker):
+                in_fence = False
+                fence_marker = ""
+            lines.append(line)
+            continue
+        if in_fence:
+            lines.append(line)
+            continue
+        lines.append(rewrite_line(line))
+    return "".join(lines)
 
 
 class HtmlToMarkdown:
@@ -126,20 +381,11 @@ class HtmlToMarkdown:
         # highlight.js / Shiki language class. Must run BEFORE blank-line
         # collapsing so the rewritten fences sit on their own lines.
         markdown = _rewrite_html2text_code_blocks(markdown)
+        markdown = _restore_latex_math_delimiters(markdown)
+        markdown = _rewrite_markdown_links(markdown, _normalize_protected_absolute_destination)
 
         # Remove excessive blank lines
         markdown = re.sub(r"\n{3,}", "\n\n", markdown)
-
-        # Unmangle html2text's protect_links output:
-        #   [text](prefix/<https:/real.url>)  ->  [text](https://real.url)
-        # The angle-bracketed inner URL is the true absolute URL (the prefix is
-        # the page base that html2text erroneously prepended). Allow empty link
-        # text too (image-only links, icon wrappers).
-        markdown = re.sub(
-            r"\[([^\]]*)\]\([^)]*<(https?:/[^>]+)>\)",
-            lambda m: f"[{m.group(1)}]({_normalize_scheme(m.group(2))})",
-            markdown,
-        )
 
         # Remove trailing whitespace on each line
         markdown = "\n".join(line.rstrip() for line in markdown.split("\n"))
@@ -149,22 +395,10 @@ class HtmlToMarkdown:
 
     def _fix_relative_links(self, markdown: str, base_url: str) -> str:
         """Ensure all links are absolute."""
-
-        def replace_link(match: re.Match[str]) -> str:
-            text = match.group(1)
-            url = match.group(2)
-
-            # Skip anchors and already absolute URLs
-            if url.startswith(("#", "http://", "https://", "mailto:", "tel:")):
-                result: str = match.group(0)
-                return result
-
-            # Convert relative to absolute
-            absolute_url = urljoin(base_url, url)
-            return f"[{text}]({absolute_url})"
-
-        # Match markdown links [text](url)
-        return re.sub(r"\[([^\]]+)\]\(([^)]+)\)", replace_link, markdown)
+        return _rewrite_markdown_links(
+            markdown,
+            lambda destination: _normalize_link_destination(destination, base_url),
+        )
 
     def convert(self, html: str, url: str) -> str:
         """
@@ -226,6 +460,12 @@ class FrontmatterBuilder:
         """
         return str(value).replace("\r", " ").replace("\n", " ").replace("\x00", " ")
 
+    @classmethod
+    def _quoted(cls, value: Any) -> str:
+        """Return a YAML double-quoted scalar for one inline value."""
+        safe_value = cls._inline(value).replace("\\", "\\\\").replace('"', '\\"')
+        return f'"{safe_value}"'
+
     def build(
         self,
         title: str | None = None,
@@ -249,30 +489,26 @@ class FrontmatterBuilder:
 
         if title:
             # Escape quotes in title
-            safe_title = self._inline(title).replace('"', '\\"')
-            lines.append(f'title: "{safe_title}"')
+            lines.append(f"title: {self._quoted(title)}")
 
         if url:
             lines.append(f"source: {self._inline(url)}")
 
         if description:
             # Escape quotes and truncate long descriptions
-            safe_desc = self._inline(description[:500]).replace('"', '\\"')
-            lines.append(f'description: "{safe_desc}"')
+            lines.append(f"description: {self._quoted(description[:500])}")
 
         for key, value in extra_fields.items():
             if value is not None:
                 if isinstance(value, str):
-                    safe_value = self._inline(value).replace('"', '\\"')
-                    lines.append(f'{key}: "{safe_value}"')
+                    lines.append(f"{key}: {self._quoted(value)}")
                 elif isinstance(value, (list, tuple)):
                     lines.append(f"{key}:")
                     for item in value:
                         # Quote + escape each item so a hostile tag/keyword (from
                         # page JSON-LD / OpenGraph) stays a single YAML string and
                         # cannot inject new keys or produce malformed frontmatter.
-                        safe_item = self._inline(item).replace('"', '\\"')
-                        lines.append(f'  - "{safe_item}"')
+                        lines.append(f"  - {self._quoted(item)}")
                 else:
                     lines.append(f"{key}: {self._inline(value)}")
 

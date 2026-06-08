@@ -71,6 +71,63 @@ source: https://sdk.vercel.ai/docs/getting-started
 Install the Vercel AI SDK to build AI-powered applications...`,
   },
   {
+    id: "parallel",
+    name: "Parallel",
+    code: `docpull parallel context-pack "Track Parallel Web Systems API docs" \\
+  --query "Parallel Search API docs" \\
+  --query "Parallel Extract API docs" \\
+  --include-domain parallel.ai \\
+  --include-domain docs.parallel.ai \\
+  --exclude-domain onparallel.com \\
+  --extract-limit 3 \\
+  --max-estimated-cost 0.05 \\
+  --task-brief \\
+  --output-dir ./packs/parallel-docs
+
+docpull pack score ./packs/parallel-docs --require-domain parallel.ai
+docpull pack sources ./packs/parallel-docs --require-domain docs.parallel.ai`,
+    output: `./packs/parallel-docs/
+├── AGENT_CONTEXT.md
+├── documents.ndjson
+├── corpus.manifest.json
+├── parallel.pack.json
+├── sources.md
+├── brief.md
+└── sources/
+    ├── 01-parallel.md
+    └── 02-parallel-documentation.md
+
+AGENT_CONTEXT.md:
+- Load documents.ndjson for chunked records
+- Use sources.md for source order
+- Review Source Scores before loading low-signal URLs
+- Inspect parallel.pack.json for IDs, usage, warnings, and errors
+
+parallel.pack.json:
+{
+  "provider": "parallel",
+  "workflow": "context-pack",
+  "session_id": "session_example_parallel_context_pack",
+  "estimated_cost_usd": 0.013,
+  "request_options": {
+    "source_policy": {
+      "include_domains": ["parallel.ai", "docs.parallel.ai"],
+      "exclude_domains": ["onparallel.com"]
+    }
+  },
+  "extract_result_count": 2,
+  "extract_error_count": 1,
+  "artifacts": {
+    "agent_context": "AGENT_CONTEXT.md",
+    "documents_ndjson": "documents.ndjson",
+    "sources": "sources.md"
+  }
+}
+
+Pack score: 95/100 (excellent; one extract error preserved)
+Source scores: 2 sources -> source.scores.json`,
+  },
+  {
     id: "python",
     name: "Python",
     code: `from docpull import Fetcher, DocpullConfig

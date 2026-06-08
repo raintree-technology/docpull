@@ -4,9 +4,9 @@ Pull docs from any URL into Claude Code. Local, fast, no API keys.
 
 ## What you get
 
-- **MCP server** (8 tools):
-  - Read: `fetch_url`, `list_sources`, `list_indexed`, `grep_docs`, `read_doc`
-  - Write: `ensure_docs`, `add_source`, `remove_source`
+- **MCP server** (12 tools):
+  - Read: `fetch_url`, `list_sources`, `list_indexed`, `grep_docs`, `read_doc`, `pack_score`, `pack_diff`
+  - Write: `ensure_docs`, `parallel_context_pack`, `parallel_api_pack`, `add_source`, `remove_source`
   - All read tools advertise `readOnlyHint` so hosts that auto-approve safe tools won't prompt for them.
 - **Slash commands**:
   - `/docs-add <alias-or-url>` — fetch a library into the local index.
@@ -56,7 +56,7 @@ The MCP server starts automatically. The skill activates when you ask Claude abo
 
 ## Built-in library aliases
 
-These are fetchable by name without any URL setup: `react`, `nextjs`, `tailwindcss`, `vite`, `hono`, `fastapi`, `express`, `anthropic`, `openai`, `langchain`, `supabase`, `drizzle`, `prisma`.
+These are fetchable by name without any URL setup: `react`, `nextjs`, `tailwindcss`, `vite`, `hono`, `fastapi`, `express`, `anthropic`, `openai`, `parallel`, `langchain`, `supabase`, `drizzle`, `prisma`.
 
 For anything else, pass an HTTPS URL: `/docs-add https://docs.your-library.com`.
 

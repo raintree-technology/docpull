@@ -5,6 +5,11 @@ from __future__ import annotations
 from docpull.conversion.chunking import TokenCounter, chunk_markdown
 
 
+class WordCounter:
+    def count(self, text: str) -> int:
+        return len(text.split())
+
+
 def test_empty_input_produces_no_chunks():
     assert chunk_markdown("") == []
     assert chunk_markdown("---\ntitle: x\n---\n") == []
@@ -48,6 +53,25 @@ def test_chunk_heading_captured():
     chunks = chunk_markdown(md, max_tokens=50)
     # At least one chunk should carry the "Second" heading context
     assert any(c.heading and "Second" in c.heading for c in chunks)
+
+
+def test_chunk_heading_does_not_roll_forward_to_next_section():
+    md = "# First\n\n" + ("alpha " * 10) + "\n\n## Second\n\n" + ("beta " * 10)
+    chunks = chunk_markdown(md, max_tokens=15, counter=WordCounter())
+
+    assert chunks[0].text.startswith("# First")
+    assert chunks[0].heading == "First"
+    assert chunks[1].text.startswith("## Second")
+    assert chunks[1].heading == "Second"
+
+
+def test_headings_inside_fenced_code_are_not_chunk_headings():
+    md = '# Real\n\n```python\n# Not a heading\nprint("x")\n```\n\nAfter.'
+    chunks = chunk_markdown(md, max_tokens=100, counter=WordCounter())
+
+    assert chunks == [chunks[0]]
+    assert chunks[0].heading == "Real"
+    assert "# Not a heading" in chunks[0].text
 
 
 def test_oversize_paragraph_becomes_own_chunk():

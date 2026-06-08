@@ -11,8 +11,8 @@ falsifiable scaling claim:
 - Dedup rate (we inject 5% duplicate content)
 - Discovery time vs fetch time split
 
-This is collected only when `DOCPULL_BENCHMARK_10K=1` because it takes
-30-60s and stands up a localhost aiohttp server. CI nightly and
+This is collected only when `DOCPULL_BENCHMARK_10K=1` because it can take
+several minutes and stands up a localhost aiohttp server. CI nightly and
 `make benchmark` set that env var; local `pytest tests/` ignores the file.
 """
 

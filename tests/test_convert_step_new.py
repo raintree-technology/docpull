@@ -72,3 +72,28 @@ async def test_frontmatter_includes_source_type():
     assert ctx.markdown is not None
     assert ctx.markdown.startswith("---")
     assert "source_type" in ctx.markdown
+
+
+@pytest.mark.asyncio
+async def test_llms_txt_converts_without_html_wrapper():
+    body = b"# Docs\n\n- [Search](https://docs.example.com/search.md): Search API docs.\n"
+    step = ConvertStep(add_frontmatter=False)
+    ctx = await step.execute(_page_context("https://docs.example.com/llms.txt", body))
+
+    assert ctx.source_type == "llms_txt"
+    assert ctx.markdown is not None
+    assert ctx.markdown.startswith("# Docs")
+
+
+@pytest.mark.asyncio
+async def test_raw_markdown_frontmatter_is_not_duplicated():
+    body = b"---\ntitle: Original\n---\n\n# Body\n\n- item\n"
+    step = ConvertStep(add_frontmatter=True)
+    ctx = await step.execute(_page_context("https://docs.example.com/page.md", body))
+
+    assert ctx.markdown is not None
+    generated_frontmatter, body_markdown = ctx.markdown.split("---", 2)[1:]
+    assert 'title: "Original"' in generated_frontmatter
+    assert 'title: "---"' not in generated_frontmatter
+    assert body_markdown.lstrip().startswith("# Body")
+    assert "\ntitle: Original\n" not in body_markdown
