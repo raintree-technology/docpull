@@ -24,6 +24,11 @@ const features = [
     description:
       "Include and exclude path globs during discovery, so your model gets the relevant docs instead of every route the site exposes.",
   },
+  {
+    title: "Parallel Pack Workflows",
+    description:
+      "Optional Parallel Search, Extract, Task, entity, batch, monitor, and API-spec workflows become local packs with AGENT_CONTEXT.md, source files, manifests, IDs, and usage metadata.",
+  },
 ];
 
 export default function Features() {

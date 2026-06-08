@@ -14,7 +14,7 @@ from dataclasses import dataclass
 logger = logging.getLogger(__name__)
 
 
-_HEADING_RE = re.compile(r"^(#{1,6})\s+", re.MULTILINE)
+_HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*#*\s*$")
 
 
 @dataclass
@@ -88,19 +88,38 @@ def _split_on_headings(body: str) -> list[tuple[str | None, str]]:
     The first tuple may have ``heading=None`` for any preamble before the
     first heading.
     """
-    matches = list(_HEADING_RE.finditer(body))
+    matches: list[tuple[int, str]] = []
+    in_fence = False
+    fence_marker = ""
+    offset = 0
+    for line in body.splitlines(keepends=True):
+        stripped = line.strip()
+        if stripped.startswith(("```", "~~~")):
+            marker = stripped[:3]
+            if not in_fence:
+                in_fence = True
+                fence_marker = marker
+            elif stripped.startswith(fence_marker):
+                in_fence = False
+                fence_marker = ""
+            offset += len(line)
+            continue
+        if not in_fence:
+            match = _HEADING_RE.match(line.rstrip("\n"))
+            if match:
+                matches.append((offset, match.group(2).strip()))
+        offset += len(line)
+
     if not matches:
         return [(None, body)]
 
     sections: list[tuple[str | None, str]] = []
-    if matches[0].start() > 0:
-        sections.append((None, body[: matches[0].start()]))
+    if matches[0][0] > 0:
+        sections.append((None, body[: matches[0][0]]))
 
-    for i, m in enumerate(matches):
-        start = m.start()
-        end = matches[i + 1].start() if i + 1 < len(matches) else len(body)
+    for i, (start, heading_line) in enumerate(matches):
+        end = matches[i + 1][0] if i + 1 < len(matches) else len(body)
         chunk = body[start:end]
-        heading_line = chunk.split("\n", 1)[0].lstrip("#").strip()
         sections.append((heading_line, chunk))
     return sections
 
@@ -109,10 +128,18 @@ def _split_paragraphs(section: str) -> list[str]:
     # Split on blank lines while preserving code blocks intact.
     parts: list[str] = []
     in_code = False
+    fence_marker = ""
     buf: list[str] = []
     for line in section.split("\n"):
-        if line.strip().startswith("```"):
-            in_code = not in_code
+        stripped = line.strip()
+        if stripped.startswith(("```", "~~~")):
+            marker = stripped[:3]
+            if not in_code:
+                in_code = True
+                fence_marker = marker
+            elif stripped.startswith(fence_marker):
+                in_code = False
+                fence_marker = ""
         if line.strip() == "" and not in_code and buf:
             parts.append("\n".join(buf))
             buf = []
@@ -155,16 +182,17 @@ def chunk_markdown(
     chunks: list[Chunk] = []
     buf_parts: list[str] = []
     buf_tokens = 0
-    current_heading: str | None = None
+    buf_heading: str | None = None
 
     def flush() -> None:
-        nonlocal buf_parts, buf_tokens
+        nonlocal buf_parts, buf_tokens, buf_heading
         if not buf_parts:
             return
         text = "\n\n".join(part.strip() for part in buf_parts if part.strip())
         if not text:
             buf_parts = []
             buf_tokens = 0
+            buf_heading = None
             return
         prefix = frontmatter if keep_frontmatter_in_first and not chunks else ""
         final = (prefix + text).strip() + "\n"
@@ -173,25 +201,31 @@ def chunk_markdown(
                 index=len(chunks),
                 text=final,
                 token_count=counter.count(final),
-                heading=current_heading,
+                heading=buf_heading,
             )
         )
         buf_parts = []
         buf_tokens = 0
+        buf_heading = None
+
+    def append_part(part: str, token_count: int, heading: str | None) -> None:
+        nonlocal buf_tokens, buf_heading
+        if not part.strip():
+            return
+        if buf_heading is None and heading is not None:
+            buf_heading = heading
+        buf_parts.append(part)
+        buf_tokens += token_count
 
     for heading, section in sections:
-        if heading is not None:
-            current_heading = heading
         section_tokens = counter.count(section)
         if section_tokens <= max_tokens and buf_tokens + section_tokens <= max_tokens:
-            buf_parts.append(section)
-            buf_tokens += section_tokens
+            append_part(section, section_tokens, heading)
             continue
         # Section alone fits but buffer is full: flush then add.
         if section_tokens <= max_tokens:
             flush()
-            buf_parts.append(section)
-            buf_tokens = section_tokens
+            append_part(section, section_tokens, heading)
             continue
         # Section too large: flush current buffer, then split paragraphs.
         flush()
@@ -207,15 +241,14 @@ def chunk_markdown(
                     Chunk(
                         index=len(chunks),
                         text=text,
-                        token_count=p_tokens,
-                        heading=current_heading,
+                        token_count=counter.count(text),
+                        heading=heading,
                     )
                 )
                 continue
             if buf_tokens + p_tokens > max_tokens:
                 flush()
-            buf_parts.append(para)
-            buf_tokens += p_tokens
+            append_part(para, p_tokens, heading)
 
     flush()
     return chunks

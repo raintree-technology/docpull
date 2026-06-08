@@ -99,8 +99,8 @@ export const faqs: { q: string; a: ReactNode; aText: string }[] = [
     a: (
       <>
         Yes — measured against a synthetic 10,000-page site:{" "}
-        <strong>~333&nbsp;s wall time</strong>,{" "}
-        <strong>~94&nbsp;MB peak RSS delta</strong>,{" "}
+        <strong>~309&nbsp;s wall time</strong>,{" "}
+        <strong>~93&nbsp;MB peak RSS delta</strong>,{" "}
         <strong>0 failed pages</strong>. See{" "}
         <Src path="tests/benchmarks/test_10k_pages.py">
           tests/benchmarks/test_10k_pages.py
@@ -123,7 +123,7 @@ export const faqs: { q: string; a: ReactNode; aText: string }[] = [
       </>
     ),
     aText:
-      "Yes — measured against a synthetic 10,000-page site: about 333 s wall time, about 94 MB peak RSS delta, and 0 failed pages. Streaming deduplication keeps memory constant per page; the cache sends If-None-Match / If-Modified-Since on every cached URL so scheduled re-runs only transfer changed pages, and fetched and failed URL sets persist on disk so a crash resumes from the discovered-URL list instead of restarting.",
+      "Yes — measured against a synthetic 10,000-page site: about 309 s wall time, about 93 MB peak RSS delta, and 0 failed pages. Streaming deduplication keeps memory constant per page; the cache sends If-None-Match / If-Modified-Since on every cached URL so scheduled re-runs only transfer changed pages, and fetched and failed URL sets persist on disk so a crash resumes from the discovered-URL list instead of restarting.",
   },
   {
     q: "Does it handle auth-gated documentation?",
@@ -139,6 +139,40 @@ export const faqs: { q: string; a: ReactNode; aText: string }[] = [
     ),
     aText:
       "Yes. Pass credentials with --auth-bearer, --auth-basic, --auth-cookie, or --auth-header. They ride with every request, so internal docs, subscriber-only content, and corporate wikis all work.",
+  },
+  {
+    q: "Do Parallel workflows require an API key?",
+    a: (
+      <>
+        Base crawling, offline demo/import packs, and pack scoring do not. Live
+        Parallel API workflows read the key from{" "}
+        <code className="px-1 py-0.5 rounded bg-foreground/5 font-mono text-xs">
+          PARALLEL_API_KEY
+        </code>
+        , user config, or project{" "}
+        <code className="px-1 py-0.5 rounded bg-foreground/5 font-mono text-xs">
+          .env.local
+        </code>{" "}
+        after{" "}
+        <code className="px-1 py-0.5 rounded bg-foreground/5 font-mono text-xs">
+          docpull parallel init
+        </code>{" "}
+        or{" "}
+        <code className="px-1 py-0.5 rounded bg-foreground/5 font-mono text-xs">
+          docpull parallel auth
+        </code>{" "}
+        checks local SDK/key presence. It does not make a live key-validation
+        call. docpull never writes the key into pack artifacts, but the
+        artifacts can include source content, workflow inputs/outputs, selected
+        URLs, and metadata. Every generated pack also includes{" "}
+        <code className="px-1 py-0.5 rounded bg-foreground/5 font-mono text-xs">
+          AGENT_CONTEXT.md
+        </code>{" "}
+        so agents have a local load plan before inspecting deeper metadata.
+      </>
+    ),
+    aText:
+      "Base crawling, offline demo/import packs, and pack scoring do not require a Parallel API key. Live Parallel API workflows read the key from PARALLEL_API_KEY, user config, or project .env.local after docpull parallel init or docpull parallel auth checks local SDK and key presence. The auth check does not make a live key-validation call. docpull never writes the key into pack artifacts, but the artifacts can include source content, workflow inputs and outputs, selected URLs, and metadata. Every generated pack also includes AGENT_CONTEXT.md so agents have a local load plan before inspecting deeper metadata.",
   },
   {
     q: "Does the output drop straight into a Claude Code skill?",

@@ -6,7 +6,7 @@ import logging
 import re
 from urllib.parse import urljoin, urlparse
 
-from bs4 import BeautifulSoup, Tag
+from bs4 import BeautifulSoup, NavigableString, Tag
 
 logger = logging.getLogger(__name__)
 
@@ -262,6 +262,10 @@ class MainContentExtractor:
         content = BeautifulSoup(str(main_content), "html.parser")
 
         # Clean up
+        # Math-rendering libraries often hide the source TeX in script,
+        # MathML annotation, or aria-hidden wrappers that the generic cleanup
+        # removes. Normalize those to Markdown text before deleting chrome.
+        _normalize_math_content(content)
         self._remove_unwanted(content)
         # Normalize fence languages BEFORE we strip attributes — many
         # syntax-highlight conventions encode language in `class` (Prism:
@@ -354,3 +358,127 @@ def _normalize_code_fence_language(content: BeautifulSoup) -> None:
         sentinel = f"{DOCPULL_FENCE_SENTINEL_PREFIX}{lang}{DOCPULL_FENCE_SENTINEL_SUFFIX}\n"
         target = code if isinstance(code, Tag) else pre
         target.insert(0, sentinel)
+
+
+def _has_class(tag: Tag, class_name: str) -> bool:
+    return class_name in _classes_of(tag)
+
+
+def _math_markdown(tex: str, *, display: bool = False) -> str:
+    tex = re.sub(r"\s+", " ", tex).strip()
+    if not tex:
+        return ""
+    if display:
+        return f"\n\n$$\n{tex}\n$$\n\n"
+    return f"${tex}$"
+
+
+def _annotation_tex(tag: Tag) -> str | None:
+    for annotation in tag.find_all("annotation"):
+        if not isinstance(annotation, Tag):
+            continue
+        encoding = str(annotation.get("encoding") or "").lower()
+        if "tex" not in encoding and "latex" not in encoding:
+            continue
+        text = annotation.get_text("", strip=True)
+        if text:
+            return text
+    return None
+
+
+def _tex_group(value: str) -> str:
+    value = value.strip()
+    if not value:
+        return "{}"
+    if len(value) == 1 or re.fullmatch(r"[A-Za-z0-9]+", value):
+        return value
+    return "{" + value + "}"
+
+
+def _mathml_to_tex(node: object) -> str:
+    if isinstance(node, NavigableString):
+        return str(node)
+    if not isinstance(node, Tag):
+        return ""
+
+    name = node.name.lower()
+    if name == "semantics":
+        for child in node.children:
+            if isinstance(child, Tag) and child.name.lower() == "annotation":
+                continue
+            rendered = _mathml_to_tex(child)
+            if rendered:
+                return rendered
+        return ""
+    if name in {"math", "mrow", "mstyle", "mpadded", "mphantom"}:
+        return "".join(_mathml_to_tex(child) for child in node.children)
+    if name in {"mi", "mn", "mo", "mtext"}:
+        return node.get_text("", strip=True)
+    if name == "msup":
+        children = list(node.children)
+        if len(children) >= 2:
+            return f"{_mathml_to_tex(children[0])}^{_tex_group(_mathml_to_tex(children[1]))}"
+    if name == "msub":
+        children = list(node.children)
+        if len(children) >= 2:
+            return f"{_mathml_to_tex(children[0])}_{_tex_group(_mathml_to_tex(children[1]))}"
+    if name == "msubsup":
+        children = list(node.children)
+        if len(children) >= 3:
+            return (
+                f"{_mathml_to_tex(children[0])}_{_tex_group(_mathml_to_tex(children[1]))}"
+                f"^{_tex_group(_mathml_to_tex(children[2]))}"
+            )
+    if name == "mfrac":
+        children = list(node.children)
+        if len(children) >= 2:
+            return f"\\frac{{{_mathml_to_tex(children[0])}}}{{{_mathml_to_tex(children[1])}}}"
+    if name == "msqrt":
+        return f"\\sqrt{{{''.join(_mathml_to_tex(child) for child in node.children)}}}"
+    if name == "mroot":
+        children = list(node.children)
+        if len(children) >= 2:
+            return f"\\sqrt[{_mathml_to_tex(children[1])}]{{{_mathml_to_tex(children[0])}}}"
+
+    return "".join(_mathml_to_tex(child) for child in node.children)
+
+
+def _math_display_context(tag: Tag) -> bool:
+    if str(tag.get("display") or "").lower() == "block":
+        return True
+    current: Tag | None = tag
+    while isinstance(current, Tag):
+        if _has_class(current, "katex-display"):
+            return True
+        parent = current.parent
+        current = parent if isinstance(parent, Tag) else None
+    return False
+
+
+def _normalize_math_content(content: BeautifulSoup) -> None:
+    """Replace common rendered math markup with Markdown math delimiters."""
+    for script in list(content.find_all("script")):
+        if not isinstance(script, Tag):
+            continue
+        script_type = str(script.get("type") or "").lower()
+        if not script_type.startswith("math/tex"):
+            continue
+        tex = (script.string or script.get_text("", strip=True) or "").strip()
+        if tex:
+            script.replace_with(NavigableString(_math_markdown(tex, display="mode=display" in script_type)))
+
+    for katex in list(content.select(".katex")):
+        if not isinstance(katex, Tag) or katex.parent is None:
+            continue
+        annotation_tex = _annotation_tex(katex)
+        if annotation_tex:
+            katex.replace_with(
+                NavigableString(_math_markdown(annotation_tex, display=_math_display_context(katex)))
+            )
+
+    for math in list(content.find_all("math")):
+        if not isinstance(math, Tag) or math.parent is None:
+            continue
+        tex = _annotation_tex(math) or _mathml_to_tex(math)
+        if tex.strip():
+            math.replace_with(NavigableString(_math_markdown(tex, display=_math_display_context(math))))

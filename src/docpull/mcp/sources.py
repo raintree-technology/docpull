@@ -47,6 +47,7 @@ BUILTIN_SOURCES: dict[str, SourceConfig] = {
     # AI
     "anthropic": SourceConfig("https://docs.anthropic.com", "Anthropic Claude API", "ai", 200),
     "openai": SourceConfig("https://platform.openai.com/docs", "OpenAI API", "ai", 400),
+    "parallel": SourceConfig("https://docs.parallel.ai", "Parallel API and web intelligence docs", "ai", 300),
     "langchain": SourceConfig("https://python.langchain.com/docs", "LangChain framework", "ai", 1000),
     # Database
     "supabase": SourceConfig("https://supabase.com/docs", "Supabase documentation", "database", 600),

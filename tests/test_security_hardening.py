@@ -7,6 +7,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+import aiohttp
 import pytest
 from pydantic import ValidationError
 
@@ -33,8 +34,10 @@ class _DummyRateLimiter:
 class _FakeContent:
     def __init__(self, chunks: list[bytes]) -> None:
         self._chunks = chunks
+        self.iterated = False
 
     async def iter_chunked(self, size: int):
+        self.iterated = True
         for chunk in self._chunks:
             yield chunk
 
@@ -400,6 +403,240 @@ class TestRedirectValidation:
 
         with pytest.raises(ValueError, match="Content size limit exceeded"):
             await client.get("https://public.example/page")
+
+    @pytest.mark.asyncio
+    async def test_http_client_rejects_dangerous_extension_before_request(self) -> None:
+        client = AsyncHttpClient(
+            rate_limiter=_DummyRateLimiter(),
+            max_retries=0,
+        )
+        session = _FakeSession([])
+        client._session = session
+
+        with pytest.raises(ValueError, match="Disallowed download URL extension '.exe'"):
+            await client.get("https://public.example/downloads/update.exe")
+
+        assert session.calls == []
+
+    @pytest.mark.asyncio
+    async def test_http_client_rejects_nested_encoded_dangerous_extension(self) -> None:
+        client = AsyncHttpClient(
+            rate_limiter=_DummyRateLimiter(),
+            max_retries=0,
+        )
+        session = _FakeSession([])
+        client._session = session
+
+        with pytest.raises(ValueError, match="Disallowed download URL extension '.exe'"):
+            await client.get("https://public.example/downloads/update%252eexe")
+
+        assert session.calls == []
+
+    @pytest.mark.asyncio
+    async def test_http_client_rejects_dangerous_filename_star_before_body(self) -> None:
+        response = _FakeResponse(
+            200,
+            headers={
+                "Content-Type": "text/plain",
+                "Content-Disposition": "inline; filename*=UTF-8''safe%252eexe",
+            },
+            chunks=[b"plain text"],
+            url="https://public.example/notes",
+        )
+        client = AsyncHttpClient(
+            rate_limiter=_DummyRateLimiter(),
+            max_retries=0,
+        )
+        client._session = _FakeSession([response])
+
+        with pytest.raises(ValueError, match="disallowed extension '.exe'"):
+            await client.get("https://public.example/notes")
+
+        assert response.content.iterated is False
+
+    @pytest.mark.asyncio
+    async def test_http_client_rejects_disallowed_content_type_before_body(self) -> None:
+        response = _FakeResponse(
+            200,
+            headers={"Content-Type": "application/x-msdownload"},
+            chunks=[b"MZevil"],
+            url="https://public.example/download",
+        )
+        client = AsyncHttpClient(
+            rate_limiter=_DummyRateLimiter(),
+            max_retries=0,
+        )
+        client._session = _FakeSession([response])
+
+        with pytest.raises(ValueError, match="Disallowed content type 'application/x-msdownload'"):
+            await client.get("https://public.example/download")
+
+        assert response.content.iterated is False
+
+    @pytest.mark.asyncio
+    async def test_http_client_rejects_attachment_before_body(self) -> None:
+        response = _FakeResponse(
+            200,
+            headers={
+                "Content-Type": "text/plain",
+                "Content-Disposition": "attachment; filename=notes.txt",
+            },
+            chunks=[b"plain text"],
+            url="https://public.example/notes",
+        )
+        client = AsyncHttpClient(
+            rate_limiter=_DummyRateLimiter(),
+            max_retries=0,
+        )
+        client._session = _FakeSession([response])
+
+        with pytest.raises(ValueError, match="Refusing attachment response"):
+            await client.get("https://public.example/notes")
+
+        assert response.content.iterated is False
+
+    @pytest.mark.asyncio
+    async def test_http_client_rejects_spoofed_executable_magic(self) -> None:
+        response = _FakeResponse(
+            200,
+            headers={"Content-Type": "text/plain"},
+            chunks=[b"M", b"Znot actually text"],
+            url="https://public.example/readme",
+        )
+        client = AsyncHttpClient(
+            rate_limiter=_DummyRateLimiter(),
+            max_retries=0,
+        )
+        client._session = _FakeSession([response])
+
+        with pytest.raises(ValueError, match="Disallowed Windows executable body"):
+            await client.get("https://public.example/readme")
+
+        assert response.content.iterated is True
+
+    @pytest.mark.asyncio
+    async def test_http_client_rejects_spoofed_image_magic(self) -> None:
+        response = _FakeResponse(
+            200,
+            headers={"Content-Type": "text/plain"},
+            chunks=[b"\x89PNG\r\n\x1a\nnot docs"],
+            url="https://public.example/readme",
+        )
+        client = AsyncHttpClient(
+            rate_limiter=_DummyRateLimiter(),
+            max_retries=0,
+        )
+        client._session = _FakeSession([response])
+
+        with pytest.raises(ValueError, match="Disallowed PNG image body"):
+            await client.get("https://public.example/readme")
+
+    @pytest.mark.asyncio
+    async def test_http_client_rejects_spoofed_svg_body(self) -> None:
+        response = _FakeResponse(
+            200,
+            headers={"Content-Type": "application/xml"},
+            chunks=[b"<?xml version='1.0'?><svg><script>alert(1)</script></svg>"],
+            url="https://public.example/readme",
+        )
+        client = AsyncHttpClient(
+            rate_limiter=_DummyRateLimiter(),
+            max_retries=0,
+        )
+        client._session = _FakeSession([response])
+
+        with pytest.raises(ValueError, match="Disallowed SVG document body"):
+            await client.get("https://public.example/readme")
+
+    @pytest.mark.asyncio
+    async def test_http_client_rejects_binary_looking_text_body(self) -> None:
+        response = _FakeResponse(
+            200,
+            headers={"Content-Type": "text/plain"},
+            chunks=[b"docs\x00\x01\x02" * 20],
+            url="https://public.example/readme",
+        )
+        client = AsyncHttpClient(
+            rate_limiter=_DummyRateLimiter(),
+            max_retries=0,
+        )
+        client._session = _FakeSession([response])
+
+        with pytest.raises(ValueError, match="Disallowed binary-looking body"):
+            await client.get("https://public.example/readme")
+
+    @pytest.mark.asyncio
+    async def test_http_client_allows_safe_markdown_body(self) -> None:
+        client = AsyncHttpClient(
+            rate_limiter=_DummyRateLimiter(),
+            max_retries=0,
+        )
+        client._session = _FakeSession(
+            [
+                _FakeResponse(
+                    200,
+                    headers={"Content-Type": "text/markdown; charset=utf-8"},
+                    chunks=[b"# Safe docs\n\nBody"],
+                    url="https://public.example/readme",
+                )
+            ]
+        )
+
+        response = await client.get("https://public.example/readme")
+
+        assert response.content == b"# Safe docs\n\nBody"
+        assert response.content_type == "text/markdown; charset=utf-8"
+
+    @pytest.mark.asyncio
+    async def test_http_client_does_not_buffer_4xx_body(self) -> None:
+        response = _FakeResponse(
+            404,
+            headers={"Content-Type": "application/x-msdownload"},
+            chunks=[b"MZevil"],
+            url="https://public.example/missing",
+        )
+        client = AsyncHttpClient(
+            rate_limiter=_DummyRateLimiter(),
+            max_retries=0,
+        )
+        client._session = _FakeSession([response])
+
+        result = await client.get("https://public.example/missing")
+
+        assert result.status_code == 404
+        assert result.content == b""
+        assert response.content.iterated is False
+
+    @pytest.mark.asyncio
+    async def test_http_client_rejects_request_header_injection(self) -> None:
+        client = AsyncHttpClient(
+            rate_limiter=_DummyRateLimiter(),
+            max_retries=0,
+        )
+        client._session = _FakeSession([])
+
+        with pytest.raises(ValueError, match="header injection"):
+            await client.get("https://public.example/readme", headers={"X-Test": "ok\nbad"})
+
+    @pytest.mark.asyncio
+    async def test_http_client_rejects_compressed_accept_encoding_override(self) -> None:
+        client = AsyncHttpClient(
+            rate_limiter=_DummyRateLimiter(),
+            max_retries=0,
+        )
+        client._session = _FakeSession([])
+
+        with pytest.raises(ValueError, match="Accept-Encoding: identity"):
+            await client.get("https://public.example/readme", headers={"Accept-Encoding": "gzip"})
+
+    @pytest.mark.asyncio
+    async def test_http_client_session_does_not_store_cookies(self) -> None:
+        client = AsyncHttpClient(rate_limiter=_DummyRateLimiter())
+
+        async with client:
+            assert client._session is not None
+            assert isinstance(client._session.cookie_jar, aiohttp.DummyCookieJar)
+            assert client._session.headers["Accept-Encoding"] == "identity"
 
     @pytest.mark.asyncio
     async def test_save_step_rejects_symlink_escape(self, tmp_path: Path) -> None:

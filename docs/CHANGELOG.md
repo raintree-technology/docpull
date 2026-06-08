@@ -5,6 +5,63 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.0] - 2026-06-07
+
+### Added
+- Add optional `docpull[parallel]` support for building Parallel Search +
+  Extract context packs with local NDJSON, source Markdown, manifests, and
+  workflow metadata.
+- Add `docpull parallel import` for offline fixture/demo workflows and a
+  checked-in Parallel context-pack example fixture.
+- Add `docpull parallel demo`, backed by a packaged fixture, so the offline
+  context-pack demo works from an installed wheel.
+- Add a Parallel product cross-reference covering Search, Extract, Task,
+  FindAll, Entity Search, Monitor, MCP, and planned follow-up workflows.
+- Align Search mode choices with Parallel API docs (`turbo`, `basic`, and `advanced`) and
+  request a Task text output schema for `--task-brief`.
+- Add source-policy, client-model, dry-run, and local cost-guard controls for
+  live Parallel context packs.
+- Add broader Parallel artifact workflows for Entity Search, FindAll, TaskGroup
+  batches, Monitor metadata/events, and `llms.txt`/OpenAPI API packs.
+- Add `docpull parallel search-pack`, `extract-pack`, `task-pack`,
+  `task-result`, and `task-events` for Search-only, known-URL Extract, and
+  Task lifecycle packs.
+- Add FindAll ingest, result, schema, enrich, extend, cancel, and events pack
+  workflows.
+- Add snapshot monitor creation, monitor source-policy/location/webhook/metadata
+  controls, event-group summaries, and checked-in Parallel API-pack recipes.
+- Add MCP tools for `parallel_context_pack`, `parallel_api_pack`, `pack_score`,
+  and `pack_diff`, plus a built-in `parallel` source alias.
+- Add `docpull pack score` and `docpull pack diff` for local pack quality checks
+  and refreshed-pack comparisons.
+- Add `docpull parallel auth` to check optional SDK and `PARALLEL_API_KEY`
+  readiness without storing or printing secrets.
+- Add raw Markdown/plain-text conversion for docs indexes such as `llms.txt`
+  through the normal fetch pipeline.
+- Add Parallel fetch policy, excerpt-size, and Search location controls to
+  context-pack CLI and recipe workflows.
+- Add Monitor list, retrieve, update, cancel, trigger, and cursor/event-group
+  events pack workflows.
+
+### Changed
+- Cap `docpull parallel context-pack --extract-limit` and context-pack recipes at
+  20 URLs so a single Parallel Extract request stays within the documented API
+  limit.
+- Make `docpull parallel taskgroup-pack --wait` poll TaskGroup status until the
+  group is inactive before snapshotting run outputs.
+- Treat no-content, invalid-content, HTTP-error, and save-empty skips as failures
+  for `docpull --single`, so single-page agent fetches do not report empty
+  output as success.
+- Extend `docpull parallel run` beyond context-pack recipes so YAML/JSON recipes
+  can dispatch the same Parallel pack workflows as the explicit CLI commands.
+- Refresh the documented 10,000-page benchmark wall time to the latest local
+  audit run.
+
+### Security
+- Route remote `docpull parallel api-pack` sources through docpull's hardened
+  HTTPS-only URL validation, robots.txt check, DNS-pinned HTTP client, redirect
+  revalidation, and response-size cap instead of a raw `urllib` fetch.
+
 ## [4.0.1] - 2026-06-06
 
 A release-readiness patch that tightens the public product boundary. No runtime

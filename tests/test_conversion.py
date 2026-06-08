@@ -1,5 +1,7 @@
 """Tests for the conversion module."""
 
+import yaml
+
 from docpull.conversion import (
     FrontmatterBuilder,
     HtmlToMarkdown,
@@ -182,6 +184,77 @@ class TestHtmlToMarkdown:
         # Should not have more than 2 consecutive newlines
         assert "\n\n\n" not in result
 
+    def test_preserves_latex_math_delimiters(self):
+        """Test that html2text escaping does not corrupt LaTeX math delimiters."""
+        converter = HtmlToMarkdown()
+        html = r"<p>Use \(E=mc^2\), \[x^2\], and $$y^2$$.</p>"
+
+        result = converter.convert(html, "https://example.com")
+
+        assert r"\(E=mc^2\)" in result
+        assert r"\[x^2\]" in result
+        assert r"\\\(E=mc^2\\\)" not in result
+
+    def test_preserves_rendered_math_sources(self):
+        """Test common MathJax, MathML, and KaTeX shapes become Markdown math."""
+        extractor = MainContentExtractor()
+        converter = HtmlToMarkdown()
+        context = "<p>" + ("Context text. " * 12) + "</p>"
+        cases = {
+            "mathjax": '<p>Equation:</p><script type="math/tex; mode=display">E=mc^2</script>',
+            "mathml": "<p><math><mi>E</mi><mo>=</mo><mi>m</mi><msup><mi>c</mi><mn>2</mn></msup></math></p>",
+            "katex": (
+                '<span class="katex"><span class="katex-mathml"><math><semantics>'
+                "<mrow><mi>E</mi><mo>=</mo><mi>m</mi><msup><mi>c</mi><mn>2</mn></msup></mrow>"
+                '<annotation encoding="application/x-tex">E=mc^2</annotation>'
+                "</semantics></math></span>"
+                '<span class="katex-html" aria-hidden="true">rendered</span></span>'
+            ),
+        }
+
+        for markup in cases.values():
+            extracted = extractor.extract(
+                f"<html><body><article><h1>Math</h1>{context}{markup}</article></body></html>".encode(),
+                "https://example.com/math",
+            )
+            result = converter.convert(extracted, "https://example.com/math")
+
+            assert "E=mc^2" in result
+            assert "E=mc2" not in result
+            assert "rendered" not in result
+
+    def test_link_rewriting_skips_code_boundaries(self):
+        """Test link absolutization does not mutate Markdown examples in code."""
+        converter = HtmlToMarkdown()
+        html = (
+            "<pre><code>[Docs](/relative/path)</code></pre>"
+            '<p>Literal <code>[Inline](/inline)</code> then <a href="/ok">OK</a>.</p>'
+        )
+
+        result = converter.convert(html, "https://example.com/base/page")
+
+        assert "[Docs](/relative/path)" in result
+        assert "`[Inline](/inline)`" in result
+        assert "[OK](https://example.com/ok)" in result
+        assert "https://example.com/relative/path" not in result
+        assert "https://example.com/inline" not in result
+
+    def test_protected_relative_links_are_normalized(self):
+        """Test html2text protect_links output resolves to real absolute URLs."""
+        converter = HtmlToMarkdown()
+        html = (
+            '<p><a href="/api/foo_(bar)">Paren</a> '
+            '<a href="/docs/page" title="Docs title">Docs</a> '
+            '<a href="/icon"><img src="/icon.svg" alt=""></a></p>'
+        )
+
+        result = converter.convert(html, "https://example.com/base/page")
+
+        assert "[Paren](https://example.com/api/foo_\\(bar\\))" in result
+        assert '[Docs](https://example.com/docs/page "Docs title")' in result
+        assert "[![](https://example.com/icon.svg)](https://example.com/icon)" in result
+        assert "</" not in result
+
 
 class TestFrontmatterBuilder:
     """Tests for FrontmatterBuilder."""
@@ -205,6 +278,21 @@ class TestFrontmatterBuilder:
         result = builder.build(title='Test "Quoted" Page')
 
         assert 'title: "Test \\"Quoted\\" Page"' in result
+
+    def test_escapes_backslashes_in_quoted_scalars(self):
+        """Test that math delimiters and paths produce parseable YAML."""
+        builder = FrontmatterBuilder()
+        result = builder.build(
+            title=r"Math \(x\)",
+            description=r"Path C:\Docs\file",
+            tags=[r"\alpha", r"C:\Temp"],
+        )
+
+        data = yaml.safe_load(result.split("---", 2)[1])
+
+        assert data["title"] == r"Math \(x\)"
+        assert data["description"] == r"Path C:\Docs\file"
+        assert data["tags"] == [r"\alpha", r"C:\Temp"]
 
     def test_includes_description(self):
         """Test description in frontmatter."""

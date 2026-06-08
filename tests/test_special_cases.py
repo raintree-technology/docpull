@@ -12,6 +12,7 @@ from docpull.conversion.special_cases import (
     MintlifyExtractor,
     NextDataExtractor,
     OpenApiExtractor,
+    RawTextExtractor,
     SpecialCaseResult,
     detect_source_type,
     looks_like_spa,
@@ -51,6 +52,30 @@ class TestNextDataExtractor:
     def test_returns_none_on_empty_body(self):
         html = b'<html><body><script id="__NEXT_DATA__">{"props":{"pageProps":{}}}</script></body></html>'
         assert NextDataExtractor().try_extract(html, "https://example.com/") is None
+
+    def test_prefers_raw_mdx_over_compiled_source(self):
+        payload = {
+            "props": {
+                "pageProps": {
+                    "title": "Doc",
+                    "mdxSource": {
+                        "compiledSource": 'function MDXContent(){return "compiled";}' * 8,
+                        "raw": "# Raw Doc\n\nReadable markdown body. " * 8,
+                    },
+                }
+            }
+        }
+        html = (
+            b'<html><body><script id="__NEXT_DATA__">'
+            + json.dumps(payload).encode()
+            + b"</script></body></html>"
+        )
+
+        result = NextDataExtractor().try_extract(html, "https://example.com/")
+
+        assert result is not None
+        assert "Readable markdown body" in result.markdown
+        assert "function MDXContent" not in result.markdown
 
 
 class TestOpenApiExtractor:
@@ -242,6 +267,79 @@ class TestOpenApiExtractor:
         result = OpenApiExtractor().try_extract(json.dumps(spec).encode(), "x")
         assert result is not None
 
+    def test_allof_type_hint_renders_as_intersection(self):
+        spec = {
+            "openapi": "3.1.0",
+            "info": {"title": "API"},
+            "paths": {
+                "/thing": {
+                    "get": {
+                        "responses": {
+                            "200": {
+                                "description": "ok",
+                                "content": {
+                                    "application/json": {
+                                        "schema": {
+                                            "allOf": [
+                                                {"$ref": "#/components/schemas/A"},
+                                                {"type": "object"},
+                                            ]
+                                        }
+                                    }
+                                },
+                            }
+                        }
+                    }
+                }
+            },
+            "components": {"schemas": {"A": {"type": "object"}}},
+        }
+
+        result = OpenApiExtractor().try_extract(json.dumps(spec).encode(), "x")
+
+        assert result is not None
+        assert "`200` → `(A & object)`" in result.markdown
+        assert "`200` → `(A | object)`" not in result.markdown
+
+
+class TestRawTextExtractor:
+    def test_extracts_llms_txt_as_markdown(self):
+        body = (
+            "# Parallel\n\n"
+            "- [Search](https://docs.parallel.ai/search/search.md): Searches the web.\n"
+            "- [Extract](https://docs.parallel.ai/extract/extract.md): Extracts URLs.\n"
+        )
+
+        result = RawTextExtractor().try_extract(
+            body.encode(),
+            "https://docs.parallel.ai/llms.txt",
+        )
+
+        assert result is not None
+        assert result.source_type == "llms_txt"
+        assert result.title == "Parallel"
+        assert "Search" in result.markdown
+
+    def test_rejects_non_docs_txt(self):
+        assert RawTextExtractor().try_extract(b"hello", "https://example.com/file.txt") is None
+
+    def test_frontmatter_title_is_used_for_raw_markdown(self):
+        body = "---\ntitle: Original\n---\n\n# Body\n\nContent.\n"
+
+        result = RawTextExtractor().try_extract(body.encode(), "https://example.com/page.md")
+
+        assert result is not None
+        assert result.title == "Original"
+        assert result.markdown.startswith("---\n")
+
+    def test_frontmatter_title_handles_bom_and_crlf(self):
+        body = "\ufeff---\r\ntitle: Windows Markdown\r\n---\r\n\r\n# Body\r\n"
+
+        result = RawTextExtractor().try_extract(body.encode(), "https://example.com/page.md")
+
+        assert result is not None
+        assert result.title == "Windows Markdown"
+
 
 class TestMintlifyExtractor:
     def test_matches_when_marker_present_and_next_data_parses(self):
@@ -296,4 +394,4 @@ class TestDetectSourceType:
 class TestDefaultChain:
     def test_chain_has_expected_extractors(self):
         names = {e.name for e in DEFAULT_CHAIN}
-        assert {"openapi", "next_data", "mintlify", "docusaurus", "sphinx"} <= names
+        assert {"openapi", "raw_text", "next_data", "mintlify", "docusaurus", "sphinx"} <= names

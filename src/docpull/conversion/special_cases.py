@@ -157,10 +157,13 @@ class NextDataExtractor:
             if isinstance(cand, str) and len(cand) > 100:
                 return cand
             if isinstance(cand, dict):
-                for key in ("compiledSource", "raw", "content", "body"):
+                for key in ("raw", "content", "body", "markdown", "markdownContent"):
                     val = cand.get(key)
                     if isinstance(val, str) and len(val) > 100:
                         return val
+                val = cand.get("compiledSource")
+                if isinstance(val, str) and len(val) > 100 and not _looks_like_compiled_mdx(val):
+                    return val
                 flat = _walk_text(cand)
                 if flat and len(flat) > 100:
                     return flat
@@ -228,6 +231,36 @@ def _clean_text(value: Any) -> str:
     return re.sub(r"\s+", " ", unescaped).strip()
 
 
+def _split_markdown_frontmatter(markdown: str) -> tuple[str | None, str]:
+    """Return (frontmatter, body) for a Markdown document with YAML frontmatter."""
+    text = markdown.lstrip("\ufeff")
+    if not text.startswith("---"):
+        return None, markdown
+    lines = text.splitlines(keepends=True)
+    if not lines or lines[0].strip() != "---":
+        return None, markdown
+    for index, line in enumerate(lines[1:], start=1):
+        if line.strip() == "---":
+            return "".join(lines[1:index]), "".join(lines[index + 1 :])
+    return None, markdown
+
+
+def _frontmatter_title(frontmatter: str | None) -> str | None:
+    if not frontmatter:
+        return None
+    for line in frontmatter.splitlines():
+        if not line.lower().startswith("title:"):
+            continue
+        title = line.split(":", 1)[1].strip().strip("\"'")
+        return title[:120] if title else None
+    return None
+
+
+def _looks_like_compiled_mdx(value: str) -> bool:
+    head = value[:500]
+    return "function MDXContent" in head or "_jsx(" in head or "jsxDEV(" in head
+
+
 def _resolve_ref(spec: dict[str, Any], ref: str) -> Any:
     if not isinstance(ref, str) or not ref.startswith("#/"):
         return None
@@ -255,8 +288,9 @@ def _describe_type(schema: Any, spec: dict[str, Any]) -> str:
                 desc = _describe_type(sub, spec)
                 if desc not in seen:
                     seen.append(desc)
-            inner = " | ".join(seen)
-            return inner if key != "allOf" else f"({inner})"
+            if key == "allOf":
+                return f"({' & '.join(seen)})"
+            return " | ".join(seen)
     t = schema.get("type")
     if t == "array":
         return f"array<{_describe_type(schema.get('items') or {}, spec)}>"
@@ -491,6 +525,75 @@ class OpenApiExtractor:
         return key, value if isinstance(value, dict) else {}
 
 
+class RawTextExtractor:
+    """Render raw Markdown and documentation text responses directly.
+
+    The fetch step allows `text/plain` and Markdown content types so agent-facing
+    indexes such as `llms.txt` can be ingested. BeautifulSoup cannot extract
+    useful content from a bare text response, so this extractor handles
+    Markdown-like URLs before the generic HTML path runs.
+    """
+
+    name = "raw_text"
+
+    _TEXT_SUFFIXES = (".md", ".markdown", ".mdx", ".txt")
+    _HTML_MARKERS = ("<html", "<body", "<!doctype")
+
+    def try_extract(self, html: bytes, url: str) -> SpecialCaseResult | None:
+        parsed = urlparse(url)
+        path = parsed.path.lower()
+        if not path.endswith(self._TEXT_SUFFIXES):
+            return None
+
+        text = _decode_html(html).strip()
+        if not text:
+            return None
+        lower_head = text[:500].lower()
+        if any(marker in lower_head for marker in self._HTML_MARKERS):
+            return None
+        if path.endswith(".txt") and not self._looks_like_docs_text(text, path):
+            return None
+
+        title = self._extract_title(text) or parsed.path.rsplit("/", 1)[-1] or "Document"
+        source_type = "llms_txt" if path.endswith(("/llms.txt", "/llms-full.txt")) else self.name
+        return SpecialCaseResult(
+            markdown=text.rstrip() + "\n",
+            title=title,
+            source_type=source_type,
+            extra={"framework": source_type},
+        )
+
+    @staticmethod
+    def _looks_like_docs_text(text: str, path: str) -> bool:
+        if path.endswith(("/llms.txt", "/llms-full.txt")):
+            return True
+        lines = [line.strip() for line in text.splitlines()[:20] if line.strip()]
+        if not lines:
+            return False
+        markdown_signals = sum(
+            1 for line in lines if line.startswith(("#", "-", "*", ">", "```")) or _MD_LINK_RE.search(line)
+        )
+        return markdown_signals >= 2
+
+    @staticmethod
+    def _extract_title(text: str) -> str | None:
+        frontmatter, body = _split_markdown_frontmatter(text)
+        title = _frontmatter_title(frontmatter)
+        if title:
+            return title
+        text = body
+        for line in text.splitlines():
+            stripped = line.strip()
+            if not stripped:
+                continue
+            if stripped.startswith("#"):
+                title = stripped.lstrip("#").strip()
+                if title:
+                    return title[:120]
+            return stripped[:120]
+        return None
+
+
 class SphinxObjectsInvExtractor:
     """Detect Sphinx-built docs and let the generic extractor run.
 
@@ -546,6 +649,7 @@ class MdxSourceExtractor:
 # manually (e.g. a `prefer_source` pipeline step).
 DEFAULT_CHAIN: list[SpecialCaseExtractor] = [
     OpenApiExtractor(),
+    RawTextExtractor(),
     MintlifyExtractor(),
     NextDataExtractor(),
     DocusaurusExtractor(),
@@ -650,6 +754,7 @@ __all__ = [
     "MintlifyExtractor",
     "NextDataExtractor",
     "OpenApiExtractor",
+    "RawTextExtractor",
     "SpecialCaseExtractor",
     "SpecialCaseResult",
     "SphinxObjectsInvExtractor",

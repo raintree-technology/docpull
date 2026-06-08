@@ -12,6 +12,7 @@ from ...conversion.markdown import FrontmatterBuilder, HtmlToMarkdown
 from ...conversion.special_cases import (
     DEFAULT_CHAIN,
     SpecialCaseExtractor,
+    _split_markdown_frontmatter,
     detect_source_type,
     looks_like_spa,
     looks_like_spa_output,
@@ -185,6 +186,12 @@ class ConvertStep:
                 return self._handle_empty_content(ctx, emit)
 
             if self._add_frontmatter and self._frontmatter_builder:
+                if ctx.source_type in {"raw_text", "llms_txt"}:
+                    frontmatter, body = _split_markdown_frontmatter(markdown)
+                    if frontmatter is not None:
+                        markdown = body.lstrip()
+                        if markdown:
+                            markdown = markdown.rstrip() + "\n"
                 extra: dict[str, Any] = {}
                 if ctx.source_type and ctx.source_type != "generic":
                     extra["source_type"] = ctx.source_type

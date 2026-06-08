@@ -130,6 +130,141 @@ docpull https://site.com --profile mirror   # Full archive, polite, cached, hier
 docpull https://site.com --profile quick    # Sampling: 50 pages, depth 2.
 ```
 
+## Parallel context packs
+
+`docpull[parallel]` adds an optional source-discovery and research layer on top
+of Parallel web intelligence APIs. Use the core crawler when you already know
+the docs URL. Use Parallel packs when an agent needs current web sources found,
+extracted, researched, organized, and loaded as durable local context.
+
+Parallel handles live Search, Extract, Task, Entity Search, FindAll, TaskGroup,
+and Monitor calls. docpull turns those results into local, inspectable packs
+with Markdown, NDJSON, manifests, hashes, source indexes, workflow metadata, and
+an `AGENT_CONTEXT.md` load plan so agents do not need to reverse-engineer raw API
+responses before using the pack.
+
+Live calls use your own Parallel API key. docpull never proxies requests through
+a shared account or writes the key into pack artifacts. For normal PyPI installs,
+`docpull parallel init` stores the key in a local secrets file with restricted
+permissions so it works across shells and agent sessions. Pack artifacts can
+still contain source content, workflow inputs/outputs, selected URLs, and
+metadata, so treat them as research data.
+
+```bash
+pip install 'docpull[parallel]'
+
+# Recommended local setup. Prompts securely and writes ~/.config/docpull/secrets.env.
+docpull parallel init
+docpull parallel auth --json
+
+# Optional project-local setup for agent worktrees. Writes .env.local and
+# adds it to .gitignore.
+docpull parallel init --project
+
+# CI can still use a normal environment secret instead.
+export PARALLEL_API_KEY="<your-parallel-api-key>"
+
+docpull parallel context-pack "Compare AI web-search APIs for agents" \
+  --query "AI web search API" \
+  --query "agent web extraction API" \
+  --include-domain parallel.ai \
+  --exclude-domain onparallel.com \
+  --output-dir ./packs/ai-web-search \
+  --mode advanced \
+  --extract-limit 8 \
+  --max-estimated-cost 0.05 \
+  --task-brief
+```
+
+`docpull parallel auth` checks local SDK/key presence without printing the key
+value and reports the key source (`env`, `project_env`, `user_config`, or
+`missing`). It does not make a live Parallel call or prove the key is valid. Use
+`--json` when an agent or CI job needs machine-readable configuration status.
+
+The pack contains:
+
+- `AGENT_CONTEXT.md` — agent load plan with source order, pack signals, warnings, errors, and artifact map.
+- `documents.ndjson` — chunked records for agents and RAG pipelines.
+- `corpus.manifest.json` — stable docpull record manifest.
+- `parallel.pack.json` — Parallel workflow metadata, selected URLs, errors, IDs, and usage.
+- `sources.md` and `sources/*.md` — human-readable sources and extracted Markdown.
+- `brief.md` when `--task-brief` is enabled.
+
+That makes the Parallel layer more than a pass-through wrapper: Parallel finds
+and enriches live web sources, while docpull normalizes them into a repeatable
+context pack that can be scored, diffed, audited, and loaded offline.
+
+For planning without spending credits, use `--dry-run`. For repeatable packs,
+use `--include-domain`, `--exclude-domain`, `--after-date`, and `--max-search-results`
+to pin the source policy that appears later in `parallel.pack.json`.
+Use `--fetch-max-age-seconds`, `--fetch-timeout-seconds`,
+`--disable-cache-fallback`, `--excerpt-chars-per-result`, and `--location`
+when you need Parallel's freshness, excerpt-size, and geo controls.
+
+Offline fixtures are supported for demos and tests without a Parallel account:
+
+```bash
+docpull parallel demo --output-dir ./packs/demo
+```
+
+When working from the source checkout, the same fixture can also be imported
+directly with `docpull parallel import ./docs/examples/parallel-search-extract.json`.
+
+The core workflow is Search + Extract + optional Task. Broader pack workflows
+cover Search-only snapshots, docs discovery plans, Extract-known-URL packs,
+core-fetch-with-Parallel-fallback packs, diff briefs, Task lifecycle snapshots,
+Entity Search, FindAll lifecycle actions, TaskGroup batches, Monitor
+metadata/events, API specs, and local source scoring.
+See [docs/parallel.md](docs/parallel.md) for the Parallel product cross-reference
+and the boundary between docpull, Parallel MCP, and planned workflows.
+
+Additional Parallel-backed artifact commands:
+
+```bash
+# Readiness and API-key setup checks.
+docpull parallel auth
+docpull parallel init
+docpull parallel init --project
+
+# Search + Extract + optional Task brief.
+docpull parallel context-pack "Compare AI web-search APIs for agents" \
+  --query "AI web search API" \
+  --include-domain parallel.ai \
+  --dry-run
+
+# Search-only, docs-discovery, known-URL extract, fallback, and structured Task packs.
+docpull parallel search-pack "Parallel Search API docs" --query "Parallel Search API" --dry-run
+docpull parallel discover-docs "Find Parallel API docs" \
+  --query "Parallel Search API docs" \
+  --include-domain docs.parallel.ai \
+  --dry-run
+docpull parallel extract-pack https://docs.parallel.ai/api-reference/search/search --dry-run
+docpull parallel fallback-pack https://docs.parallel.ai/api-reference/search/search --dry-run
+docpull parallel task-pack "Research Parallel Search API" \
+  --source-include-domain docs.parallel.ai \
+  --output-schema-json '{"type":"object","properties":{"summary":{"type":"string"}},"required":["summary"]}' \
+  --dry-run
+
+# Entity dossiers, FindAll lifecycle, batch enrichment, monitors, and API specs.
+docpull parallel entity-pack "AI developer infrastructure companies" --entity-type companies
+docpull parallel findall-pack "AI developer infrastructure companies" --generator preview --dry-run
+docpull parallel findall-ingest-pack "Find companies with public API docs"
+docpull parallel findall-result-pack findall_123 --output-dir ./packs/findall-result
+docpull parallel taskgroup-pack ./companies.json --prompt-template "Research {company}" --dry-run
+docpull parallel taskgroup-pack ./companies.json --prompt-template "Research {company}" --wait
+docpull parallel monitor-pack create "New vendor pricing changes" --dry-run
+docpull parallel monitor-pack create --type snapshot --task-run-id run_123 --dry-run
+docpull parallel monitor-pack list --status active --output-dir ./packs/monitors
+docpull parallel monitor-pack events monitor_123 --cursor next_cursor --output-dir ./packs/events
+docpull parallel api-pack https://docs.parallel.ai/public-openapi.json --output-dir ./packs/parallel-openapi
+docpull parallel run ./docs/examples/parallel-llms-api-pack.yaml --dry-run
+docpull parallel run ./docs/examples/parallel-openapi-api-pack.yaml --dry-run
+docpull pack score ./packs/parallel-openapi
+docpull pack sources ./packs/parallel-openapi --require-domain docs.parallel.ai
+docpull pack diff ./packs/old ./packs/new --markdown ./packs/changes.md
+docpull parallel diff-brief ./packs/old ./packs/new --dry-run
+```
+
 ## MCP server
 
 docpull ships an MCP (Model Context Protocol) server so AI agents can call it
@@ -181,17 +316,21 @@ pip install 'docpull[mcp]'
 
 See [plugin/README.md](plugin/README.md) for details.
 
-Tools exposed (8 total — read tools advertise `readOnlyHint` so hosts that auto-approve safe tools won't prompt):
+Tools exposed (12 total — read tools advertise `readOnlyHint` so hosts that auto-approve safe tools won't prompt):
 
 Read:
 - `fetch_url(url, max_tokens?)` — one-shot fetch, no crawl. HTTPS-only, SSRF-validated.
-- `list_sources(category?)` — show available aliases (react, nextjs, fastapi, …)
+- `list_sources(category?)` — show available aliases (react, nextjs, parallel, fastapi, …)
 - `list_indexed()` — what has been fetched locally, with last-fetched age
 - `grep_docs(pattern, library?, limit?, context?)` — regex search across fetched Markdown (length-capped + wall-clock budgeted to mitigate ReDoS)
 - `read_doc(library, path, line_start?, line_end?)` — read a specific cached file, optionally line-sliced
+- `pack_score(pack_dir, required_domains?)` — score a local context pack for agent readiness.
+- `pack_diff(old_pack_dir, new_pack_dir)` — compare pack URL sets and content hashes.
 
 Write:
 - `ensure_docs(source, force?, profile?)` — fetch a named library (cached 7 days). Forwards progress to clients that supply a `progressToken`.
+- `parallel_context_pack(...)` — build or dry-run a Parallel Search + Extract pack without shelling out.
+- `parallel_api_pack(source, kind?, output_dir?)` — build a pack from `llms.txt` or OpenAPI.
 - `add_source(name, url, description?, category?, max_pages?, force?)` — register a user alias (HTTPS-only, atomic write to `sources.yaml`).
 - `remove_source(name, delete_cache?)` — drop a user alias and (optionally) its cached docs.
 
@@ -298,15 +437,16 @@ End-to-end numbers from `tests/benchmarks/test_10k_pages.py` against a
 synthetic 10,000-page localhost site (RAG profile, `max_concurrent=50`,
 `per_host_concurrent=50`, HTTP keep-alive, 5% injected duplicate content).
 The benchmark emits progress every 1,000 pages plus a final JSON report for
-trend tooling.
+trend tooling. Wall time varies by machine; the value below is the latest
+local audit run.
 
 | Metric | Value |
 |---|---|
-| Total wall time | ~333 s |
+| Total wall time | ~309 s |
 | Pages fetched / skipped / failed | 9,501 / 499 / 0 |
-| Time to first saved page | ~130 ms |
-| Per-page latency p50 / p95 / p99 | ~0 / 166 / 232 ms |
-| Peak RSS delta from baseline | ~94 MB |
+| Time to first saved page | ~119 ms |
+| Per-page latency p50 / p95 / p99 | ~0 / 168 / 271 ms |
+| Peak RSS delta from baseline | ~93 MB |
 | Cache manifest size on disk | ~8.9 MB |
 | Duplicates detected (5% injected) | 499 / 500 |
 

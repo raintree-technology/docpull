@@ -1,7 +1,7 @@
 """stdio MCP server exposing docpull tools to AI agents.
 
 Requires the optional ``mcp`` Python package (install with
-``pip install docpull[mcp]``). The server registers eight tools:
+``pip install docpull[mcp]``). The server registers twelve tools:
 
 Read-only:
 - ``fetch_url(url)`` — one-shot fetch, no discovery. Agent-oriented fast path.
@@ -9,9 +9,13 @@ Read-only:
 - ``list_indexed()`` — show what has been fetched.
 - ``grep_docs(pattern, library?, limit?)`` — regex search through cached docs.
 - ``read_doc(library, path, line_start?, line_end?)`` — read a fetched file.
+- ``pack_score(pack_dir, required_domains?)`` — score a context pack.
+- ``pack_diff(old_pack_dir, new_pack_dir)`` — compare context packs.
 
 Write:
 - ``ensure_docs(source, force?)`` — fetch (or refresh) a named library.
+- ``parallel_context_pack(...)`` — build or dry-run a Parallel context pack.
+- ``parallel_api_pack(source, kind?, output_dir?)`` — build an API pack.
 - ``add_source(name, url, ...)`` — add or update a user source alias.
 - ``remove_source(name, delete_cache?)`` — remove a user source alias.
 """
@@ -22,8 +26,20 @@ import argparse
 import asyncio
 import logging
 import sys
+from pathlib import Path
 from typing import Any
 
+from ..pack_tools import diff_packs, score_pack
+from ..parallel_workflows import (
+    DEFAULT_MAX_ESTIMATED_COST_USD,
+    DEFAULT_MAX_TOKENS,
+    _build_fetch_policy,
+    _build_request_options,
+    _build_source_policy,
+    estimate_context_pack_cost,
+    run_api_pack,
+    run_live_context_pack,
+)
 from .tools import (
     ToolResult,
     add_source,
@@ -182,6 +198,42 @@ _REMOVE_SOURCE_OUTPUT_SCHEMA = {
     "required": ["name", "removed", "cache_deleted"],
 }
 
+_PARALLEL_PACK_OUTPUT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "workflow": {"type": "string"},
+        "output_dir": {"type": "string"},
+        "dry_run": {"type": "boolean"},
+        "estimated_cost_usd": {"type": "number"},
+    },
+    "required": ["workflow", "output_dir"],
+}
+
+_PACK_SCORE_OUTPUT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "score": {"type": "integer"},
+        "grade": {"type": "string"},
+        "summary": {"type": "object"},
+        "issues": {"type": "array"},
+        "warnings": {"type": "array"},
+    },
+    "required": ["score", "grade", "summary", "issues", "warnings"],
+}
+
+_PACK_DIFF_OUTPUT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "added_urls": {"type": "array", "items": {"type": "string"}},
+        "removed_urls": {"type": "array", "items": {"type": "string"}},
+        "changed_urls": {"type": "array", "items": {"type": "string"}},
+        "unchanged_urls": {"type": "array", "items": {"type": "string"}},
+        "old_record_count": {"type": "integer"},
+        "new_record_count": {"type": "integer"},
+    },
+    "required": ["added_urls", "removed_urls", "changed_urls", "unchanged_urls"],
+}
+
 
 def _coerce_int(value: Any, *, name: str, default: int) -> int:
     """Accept int or numeric string; reject anything else with a clear error."""
@@ -206,6 +258,22 @@ def _require_str(arguments: dict[str, Any], key: str) -> str:
     if not isinstance(value, str) or not value:
         raise ValueError(f"'{key}' must be a non-empty string")
     return value
+
+
+def _string_list_arg(arguments: dict[str, Any], key: str) -> list[str]:
+    value = arguments.get(key)
+    if value is None:
+        return []
+    if not isinstance(value, list) or not all(isinstance(item, str) and item for item in value):
+        raise ValueError(f"'{key}' must be a list of non-empty strings")
+    return value
+
+
+def _path_arg(arguments: dict[str, Any], key: str, default: str | None = None) -> Path:
+    value = arguments.get(key, default)
+    if not isinstance(value, str) or not value:
+        raise ValueError(f"'{key}' must be a non-empty path string")
+    return Path(value)
 
 
 async def _run_stdio() -> int:
@@ -401,6 +469,108 @@ async def _run_stdio() -> int:
                 outputSchema=_READ_DOC_OUTPUT_SCHEMA,
             ),
             Tool(
+                name="parallel_context_pack",
+                description=(
+                    "Build or dry-run a Parallel Search + Extract context pack from "
+                    "an objective and search queries. Requires docpull[parallel] and "
+                    "a configured Parallel API key when dry_run=false. Run "
+                    "`docpull parallel init` or set PARALLEL_API_KEY."
+                ),
+                annotations=ToolAnnotations(
+                    title="Build a Parallel context pack",
+                    readOnlyHint=False,
+                    destructiveHint=False,
+                    idempotentHint=False,
+                    openWorldHint=True,
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "objective": {"type": "string"},
+                        "queries": {"type": "array", "items": {"type": "string"}},
+                        "output_dir": {"type": "string", "default": "packs/parallel-context-pack"},
+                        "mode": {
+                            "type": "string",
+                            "enum": ["turbo", "basic", "advanced"],
+                            "default": "advanced",
+                        },
+                        "extract_limit": {"type": "integer", "minimum": 1, "maximum": 20, "default": 8},
+                        "include_domains": {"type": "array", "items": {"type": "string"}},
+                        "exclude_domains": {"type": "array", "items": {"type": "string"}},
+                        "after_date": {"type": "string"},
+                        "max_search_results": {"type": "integer", "minimum": 1},
+                        "client_model": {"type": "string"},
+                        "max_estimated_cost": {"type": "number", "default": DEFAULT_MAX_ESTIMATED_COST_USD},
+                        "dry_run": {"type": "boolean", "default": False},
+                    },
+                    "required": ["objective"],
+                },
+                outputSchema=_PARALLEL_PACK_OUTPUT_SCHEMA,
+            ),
+            Tool(
+                name="parallel_api_pack",
+                description=(
+                    "Turn a local or HTTPS llms.txt/OpenAPI source into a docpull "
+                    "context pack. Runs in a worker thread so remote sources work "
+                    "inside MCP clients."
+                ),
+                annotations=ToolAnnotations(
+                    title="Build an API context pack",
+                    readOnlyHint=False,
+                    destructiveHint=False,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "source": {"type": "string"},
+                        "kind": {"type": "string", "enum": ["auto", "llms", "openapi"], "default": "auto"},
+                        "output_dir": {"type": "string", "default": "packs/api-pack"},
+                    },
+                    "required": ["source"],
+                },
+                outputSchema=_PARALLEL_PACK_OUTPUT_SCHEMA,
+            ),
+            Tool(
+                name="pack_score",
+                description="Score a docpull context pack for agent-readiness without shelling out.",
+                annotations=ToolAnnotations(
+                    title="Score a context pack",
+                    readOnlyHint=True,
+                    openWorldHint=False,
+                    idempotentHint=True,
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "pack_dir": {"type": "string"},
+                        "required_domains": {"type": "array", "items": {"type": "string"}},
+                    },
+                    "required": ["pack_dir"],
+                },
+                outputSchema=_PACK_SCORE_OUTPUT_SCHEMA,
+            ),
+            Tool(
+                name="pack_diff",
+                description="Diff two docpull context packs by URL and content hashes without shelling out.",
+                annotations=ToolAnnotations(
+                    title="Diff context packs",
+                    readOnlyHint=True,
+                    openWorldHint=False,
+                    idempotentHint=True,
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "old_pack_dir": {"type": "string"},
+                        "new_pack_dir": {"type": "string"},
+                    },
+                    "required": ["old_pack_dir", "new_pack_dir"],
+                },
+                outputSchema=_PACK_DIFF_OUTPUT_SCHEMA,
+            ),
+            Tool(
                 name="add_source",
                 description=(
                     "Add or update a user source alias in the writable "
@@ -551,6 +721,134 @@ async def _run_stdio() -> int:
                     path,
                     line_start=_coerce_int(line_start, name="line_start", default=0) or None,
                     line_end=_coerce_int(line_end, name="line_end", default=0) or None,
+                )
+            elif name == "parallel_context_pack":
+                objective = _require_str(arguments, "objective")
+                queries = _string_list_arg(arguments, "queries") or [objective]
+                extract_limit = _coerce_int(arguments.get("extract_limit"), name="extract_limit", default=8)
+                if extract_limit < 1 or extract_limit > 20:
+                    raise ValueError("'extract_limit' must be between 1 and 20")
+                max_search_results = (
+                    _coerce_int(arguments.get("max_search_results"), name="max_search_results", default=0)
+                    or None
+                )
+                source_policy = _build_source_policy(
+                    include_domains=_string_list_arg(arguments, "include_domains"),
+                    exclude_domains=_string_list_arg(arguments, "exclude_domains"),
+                    after_date=arguments.get("after_date")
+                    if isinstance(arguments.get("after_date"), str)
+                    else None,
+                )
+                fetch_policy = _build_fetch_policy(
+                    max_age_seconds=None,
+                    timeout_seconds=None,
+                    disable_cache_fallback=False,
+                )
+                estimated_cost = estimate_context_pack_cost(
+                    extract_limit=extract_limit,
+                    max_search_results=max_search_results,
+                )
+                max_estimated_cost = float(
+                    arguments.get("max_estimated_cost", DEFAULT_MAX_ESTIMATED_COST_USD)
+                )
+                request_options = _build_request_options(
+                    source_policy=source_policy,
+                    fetch_policy=fetch_policy,
+                    excerpt_chars_per_result=None,
+                    location=None,
+                    max_search_results=max_search_results,
+                    max_search_chars_total=None,
+                    max_extract_chars_total=None,
+                    max_full_content_chars=50000,
+                    client_model=arguments.get("client_model")
+                    if isinstance(arguments.get("client_model"), str)
+                    else None,
+                    full_content=True,
+                )
+                if bool(arguments.get("dry_run", False)):
+                    result = ToolResult(
+                        "Parallel context pack dry run.",
+                        data={
+                            "workflow": "context-pack",
+                            "output_dir": str(
+                                _path_arg(arguments, "output_dir", "packs/parallel-context-pack")
+                            ),
+                            "dry_run": True,
+                            "estimated_cost_usd": estimated_cost,
+                            "request_options": request_options,
+                        },
+                    )
+                else:
+                    if estimated_cost > max_estimated_cost:
+                        raise ValueError(
+                            f"Estimated Parallel cost ${estimated_cost:.3f} exceeds max_estimated_cost "
+                            f"${max_estimated_cost:.3f}"
+                        )
+                    output_dir = _path_arg(arguments, "output_dir", "packs/parallel-context-pack")
+                    mode_arg = arguments.get("mode")
+                    mode = mode_arg if isinstance(mode_arg, str) else "advanced"
+                    pack_path = await asyncio.to_thread(
+                        run_live_context_pack,
+                        objective=objective,
+                        queries=queries,
+                        output_dir=output_dir,
+                        mode=mode,
+                        extract_limit=extract_limit,
+                        max_tokens_per_file=DEFAULT_MAX_TOKENS,
+                        source_policy=source_policy,
+                        max_search_results=max_search_results,
+                        client_model=arguments.get("client_model")
+                        if isinstance(arguments.get("client_model"), str)
+                        else None,
+                        estimated_cost_usd=estimated_cost,
+                    )
+                    result = ToolResult(
+                        f"Wrote Parallel context pack: {pack_path}",
+                        data={
+                            "workflow": "context-pack",
+                            "output_dir": str(pack_path),
+                            "dry_run": False,
+                            "estimated_cost_usd": estimated_cost,
+                        },
+                    )
+            elif name == "parallel_api_pack":
+                source = _require_str(arguments, "source")
+                kind = arguments.get("kind", "auto")
+                if kind not in {"auto", "llms", "openapi"}:
+                    raise ValueError("'kind' must be one of: auto, llms, openapi")
+                output_dir = _path_arg(arguments, "output_dir", "packs/api-pack")
+                pack_path = await asyncio.to_thread(
+                    run_api_pack,
+                    source=source,
+                    kind=kind,
+                    output_dir=output_dir,
+                )
+                result = ToolResult(
+                    f"Wrote API context pack: {pack_path}",
+                    data={"workflow": "api-pack", "output_dir": str(pack_path), "dry_run": False},
+                )
+            elif name == "pack_score":
+                payload = await asyncio.to_thread(
+                    score_pack,
+                    _path_arg(arguments, "pack_dir"),
+                    required_domains=_string_list_arg(arguments, "required_domains"),
+                )
+                result = ToolResult(
+                    f"Pack score: {payload['score']}/100 ({payload['grade']})",
+                    data=payload,
+                )
+            elif name == "pack_diff":
+                payload = await asyncio.to_thread(
+                    diff_packs,
+                    _path_arg(arguments, "old_pack_dir"),
+                    _path_arg(arguments, "new_pack_dir"),
+                )
+                result = ToolResult(
+                    "Pack diff: "
+                    f"+{len(payload['added_urls'])} "
+                    f"-{len(payload['removed_urls'])} "
+                    f"~{len(payload['changed_urls'])}",
+                    data=payload,
                 )
             elif name == "add_source":
                 add_name = _require_str(arguments, "name")

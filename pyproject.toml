@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "docpull"
-version = "4.0.1"
+version = "4.1.0"
 dynamic = []
 description = "Pull documentation from the web and convert to clean markdown"
 readme = {file = "README.md", content-type = "text/markdown"}
@@ -94,6 +94,9 @@ mcp = [
     "python-multipart>=0.0.27",
     "starlette>=1.0.1",
 ]
+parallel = [
+    "parallel-web>=1.0.1",
+]
 llm = [
     "tiktoken>=0.7.0",
 ]
@@ -106,6 +109,7 @@ all = [
     "pyjwt>=2.13.0",
     "python-multipart>=0.0.27",
     "starlette>=1.0.1",
+    "parallel-web>=1.0.1",
 ]
 dev = [
     "pytest>=7.0.0",
@@ -138,7 +142,7 @@ where = ["src"]
 include = ["docpull*"]
 
 [tool.setuptools.package-data]
-docpull = ["py.typed"]
+docpull = ["py.typed", "fixtures/*.json"]
 
 [tool.ruff]
 line-length = 110

@@ -6,6 +6,7 @@ import Features from "@/components/Features";
 import HowItWorks from "@/components/HowItWorks";
 import Profiles from "@/components/Profiles";
 import CodeExamples from "@/components/CodeExamples";
+import ParallelPacks from "@/components/ParallelPacks";
 import Install from "@/components/Install";
 import FAQ from "@/components/FAQ";
 import StructuredData from "@/components/StructuredData";
@@ -22,6 +23,7 @@ export default function Home() {
         <Features />
         <Profiles />
         <CodeExamples />
+        <ParallelPacks />
         <Install />
         <FAQ />
       </main>

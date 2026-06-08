@@ -4,12 +4,13 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 
 const baseUrl = "https://docpull.raintree.technology";
+const analyticsEnabled = process.env.VERCEL_ENV === "production";
 
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl),
   title: "docpull - Fetch the web. Get clean Markdown.",
   description:
-    "Local Python crawler that turns server-rendered documentation into clean Markdown for agents, RAG pipelines, and offline archives.",
+    "Local Python crawler that turns server-rendered documentation and Parallel-backed web intelligence into clean Markdown context packs with agent load plans.",
   applicationName: "docpull",
   authors: [{ name: "Raintree Technology", url: "https://raintree.technology" }],
   creator: "Raintree Technology",
@@ -42,12 +43,14 @@ export const metadata: Metadata = {
     "cli",
     "docs",
     "fetcher",
+    "Parallel",
+    "context packs",
   ],
 
   openGraph: {
     title: "docpull - Fetch the web. Get clean Markdown.",
     description:
-      "Turn server-rendered documentation into clean Markdown for agents, RAG pipelines, and offline archives. Local, secure, and browser-free.",
+      "Turn server-rendered documentation and Parallel-backed web intelligence into clean Markdown context packs with agent load plans.",
     url: baseUrl,
     type: "website",
     siteName: "docpull",
@@ -65,7 +68,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "docpull - Fetch the web. Get clean Markdown.",
     description:
-      "Turn server-rendered documentation into clean Markdown for agents, RAG pipelines, and offline archives. Local, secure, and browser-free.",
+      "Turn server-rendered documentation and Parallel-backed web intelligence into clean Markdown context packs with agent load plans.",
     site: "@raintree_tech",
     creator: "@raintree_tech",
     images: ["/og-image.png"],
@@ -81,7 +84,7 @@ export default function RootLayout({
     <html lang="en" className="scroll-smooth" suppressHydrationWarning>
       <body className="antialiased">
         <ThemeProvider>{children}</ThemeProvider>
-        <Analytics />
+        {analyticsEnabled ? <Analytics /> : null}
       </body>
     </html>
   );
