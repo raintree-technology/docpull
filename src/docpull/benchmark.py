@@ -2645,11 +2645,7 @@ def _pass_at_k_summary(
     tells you the typical run; pass^k tells you how often a case is reliably
     above bar. Cache-only cases are excluded — they're not scored.
     """
-    scored_cases = [
-        case
-        for case, cache_only in zip(cases, cache_only_cases, strict=True)
-        if not cache_only
-    ]
+    scored_cases = [case for case, cache_only in zip(cases, cache_only_cases, strict=True) if not cache_only]
     if not scored_cases:
         return {"k": 0, "thresholds": list(PASS_AT_K_THRESHOLDS), "results": {}}
     results: dict[str, list[dict[str, Any]]] = {}

@@ -176,12 +176,7 @@ def _format_documents(docs: list[dict[str, Any]]) -> str:
         content = str(doc.get("content") or "")
         if len(content) > MAX_DOC_CHARS:
             content = content[:MAX_DOC_CHARS] + " …"
-        chunks.append(
-            f"--- doc {i} ---\n"
-            f"url: {doc.get('url')}\n"
-            f"title: {doc.get('title')}\n\n"
-            f"{content}"
-        )
+        chunks.append(f"--- doc {i} ---\nurl: {doc.get('url')}\ntitle: {doc.get('title')}\n\n{content}")
     return "\n\n".join(chunks)
 
 
@@ -303,7 +298,7 @@ class _AnthropicMessagesClient:
             method="POST",
         )
         try:
-            with urllib.request.urlopen(request, timeout=JUDGE_REQUEST_TIMEOUT_S) as response:  # noqa: S310
+            with urllib.request.urlopen(request, timeout=JUDGE_REQUEST_TIMEOUT_S) as response:  # nosec B310
                 payload = json.loads(response.read())
         except urllib.error.HTTPError as exc:
             raise _JudgeTransportError(f"HTTP {exc.code}") from exc

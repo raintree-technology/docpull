@@ -146,9 +146,7 @@ def _failure_lines(results: list[dict[str, Any]]) -> list[str]:
             if key in seen:
                 continue
             seen.add(key)
-            lines.append(
-                f"  @{r['threshold']:<3} {f['name']}  runs={f['runs']}  worst={f['worst']}"
-            )
+            lines.append(f"  @{r['threshold']:<3} {f['name']}  runs={f['runs']}  worst={f['worst']}")
     return lines
 
 
@@ -184,9 +182,7 @@ def main(argv: list[str] | None = None) -> int:
     else:
         score_keys = (f"{args.score}_score",)
     results = [
-        pass_at_k(cases, score_key=key, threshold=t)
-        for key in score_keys
-        for t in sorted(args.thresholds)
+        pass_at_k(cases, score_key=key, threshold=t) for key in score_keys for t in sorted(args.thresholds)
     ]
     if args.json:
         json.dump(

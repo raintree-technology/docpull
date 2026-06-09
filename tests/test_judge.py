@@ -22,9 +22,7 @@ from docpull.judge import (
 
 def _write_pack(pack_dir: Path, docs: list[dict]) -> None:
     pack_dir.mkdir(parents=True, exist_ok=True)
-    (pack_dir / "documents.ndjson").write_text(
-        "\n".join(json.dumps(d) for d in docs) + "\n"
-    )
+    (pack_dir / "documents.ndjson").write_text("\n".join(json.dumps(d) for d in docs) + "\n")
 
 
 def test_skips_when_no_api_key(monkeypatch, tmp_path: Path) -> None:
@@ -56,10 +54,7 @@ def test_skips_when_pack_empty(tmp_path: Path) -> None:
 def test_parses_judge_response(tmp_path: Path) -> None:
     _write_pack(
         tmp_path,
-        [
-            {"url": f"https://docs.example.com/{i}", "title": f"t{i}", "content": "body"}
-            for i in range(3)
-        ],
+        [{"url": f"https://docs.example.com/{i}", "title": f"t{i}", "content": "body"} for i in range(3)],
     )
     response = json.dumps(
         {
