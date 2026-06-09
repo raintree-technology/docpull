@@ -40,6 +40,7 @@ from .parallel_workflows import (
     run_live_context_pack,
     run_search_pack,
 )
+from .passk import pass_at_k
 from .pipeline.manifest import CorpusManifest
 from .provider_keys import (
     PROVIDER_CONFIGS,
@@ -73,6 +74,7 @@ BENCHMARK_SCORE_WEIGHTS = {
     "freshness": 0.15,
     "density": 0.15,
 }
+PASS_AT_K_THRESHOLDS: tuple[int, ...] = (70, 80, 90)
 TARGET_SET_CHOICES = ("single", "tool-docs", "provider-matrix", "v2")
 
 
@@ -2627,7 +2629,47 @@ def _summary(cases: list[dict[str, Any]]) -> dict[str, Any]:
             if case.get("pack_score") is None and not cache_only
         ),
         "best_by_target": _best_by_target(cases),
+        "pass_at_k": _pass_at_k_summary(cases, cache_only_cases),
     }
+
+
+def _pass_at_k_summary(
+    cases: list[dict[str, Any]],
+    cache_only_cases: list[bool],
+) -> dict[str, Any]:
+    """Compute pass^k for ``pack_score`` and ``benchmark_score``.
+
+    pass^k = fraction of cases whose *worst* trial meets the threshold. The
+    Anthropic "Demystifying evals" post argues this is the right framing when
+    consistency matters ("users expect reliable behavior every time"). Median
+    tells you the typical run; pass^k tells you how often a case is reliably
+    above bar. Cache-only cases are excluded — they're not scored.
+    """
+    scored_cases = [
+        case
+        for case, cache_only in zip(cases, cache_only_cases, strict=True)
+        if not cache_only
+    ]
+    if not scored_cases:
+        return {"k": 0, "thresholds": list(PASS_AT_K_THRESHOLDS), "results": {}}
+    results: dict[str, list[dict[str, Any]]] = {}
+    k = 0
+    for score_key in ("pack_score", "benchmark_score"):
+        per_threshold: list[dict[str, Any]] = []
+        for threshold in PASS_AT_K_THRESHOLDS:
+            block = pass_at_k(scored_cases, score_key=score_key, threshold=threshold)
+            k = max(k, block["k"])
+            per_threshold.append(
+                {
+                    "threshold": threshold,
+                    "cases_total": block["cases_total"],
+                    "cases_passed": block["cases_passed"],
+                    "rate": round(block["rate"], 4),
+                    "by_provider": block["by_provider"],
+                }
+            )
+        results[score_key] = per_threshold
+    return {"k": k, "thresholds": list(PASS_AT_K_THRESHOLDS), "results": results}
 
 
 def _best_by_target(cases: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
@@ -2845,7 +2887,54 @@ def _markdown_report(report: dict[str, Any]) -> str:
             "",
         ]
     )
+    lines.extend(_pass_at_k_lines(report))
     return "\n".join(lines)
+
+
+def _pass_at_k_lines(report: dict[str, Any]) -> list[str]:
+    summary = report.get("summary")
+    if not isinstance(summary, dict):
+        return []
+    block = summary.get("pass_at_k")
+    if not isinstance(block, dict):
+        return []
+    k = block.get("k")
+    if not isinstance(k, int) or k < 2:
+        return []
+    results = block.get("results")
+    if not isinstance(results, dict) or not results:
+        return []
+    thresholds = block.get("thresholds") or list(PASS_AT_K_THRESHOLDS)
+    lines = [
+        "",
+        f"## Reliability (pass^{k})",
+        "",
+        (
+            f"Fraction of cases whose **worst** of {k} trials meets the threshold. "
+            "Stricter than the headline median: a case only counts as passing if "
+            "every run cleared the bar."
+        ),
+        "",
+        "| Score | " + " | ".join(f"@{t}" for t in thresholds) + " | n |",
+        "| --- | " + " | ".join(["---:"] * len(thresholds)) + " | ---: |",
+    ]
+    for score_key, rows in results.items():
+        if not isinstance(rows, list) or not rows:
+            continue
+        by_threshold = {row["threshold"]: row for row in rows if isinstance(row, dict)}
+        cells: list[str] = []
+        total = 0
+        for threshold in thresholds:
+            row = by_threshold.get(threshold)
+            if not row:
+                cells.append("—")
+                continue
+            total = max(total, int(row.get("cases_total") or 0))
+            rate = float(row.get("rate") or 0.0)
+            cells.append(f"{rate:.1%} ({row.get('cases_passed')}/{row.get('cases_total')})")
+        lines.append(f"| `{score_key}` | " + " | ".join(cells) + f" | {total} |")
+    lines.append("")
+    return lines
 
 
 def _case_benchmark_score_text(case: dict[str, Any]) -> str:
