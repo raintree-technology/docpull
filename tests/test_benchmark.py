@@ -643,3 +643,187 @@ def test_benchmark_article_cli_writes_publishable_markdown(tmp_path: Path) -> No
     assert "Benchmarking docpull, Parallel, Tavily, Exa, and Raindrop" in article
     assert "Raindrop tracing was enabled" in article
     assert "`parallel-context`" in article
+
+
+def test_http_json_post_retries_transient_then_succeeds(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Transient HTTPError on first attempt should retry and succeed on second."""
+    attempts = {"count": 0}
+    sleep_calls: list[float] = []
+
+    def fake_once(**_kwargs: Any) -> dict[str, Any]:
+        attempts["count"] += 1
+        if attempts["count"] == 1:
+            err = benchmark._TransientHTTPError("simulated 503", retry_after=None)
+            raise err
+        return {"ok": True, "attempt": attempts["count"]}
+
+    monkeypatch.setattr(benchmark, "_http_json_post_once", fake_once)
+
+    result = benchmark._http_json_post(
+        label="Test",
+        url="https://example.com/x",
+        headers={},
+        body={},
+        timeout=10,
+        max_attempts=3,
+        sleep=sleep_calls.append,
+    )
+
+    assert result == {"ok": True, "attempt": 2}
+    assert attempts["count"] == 2
+    assert len(sleep_calls) == 1
+    assert sleep_calls[0] > 0
+
+
+def test_http_json_post_raises_after_exhausting_retries(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """All attempts transient → BenchmarkError with the last error's message."""
+    sleep_calls: list[float] = []
+
+    def fake_once(**_kwargs: Any) -> dict[str, Any]:
+        raise benchmark._TransientHTTPError("simulated 429", retry_after=0.0)
+
+    monkeypatch.setattr(benchmark, "_http_json_post_once", fake_once)
+
+    with pytest.raises(BenchmarkError, match="429"):
+        benchmark._http_json_post(
+            label="Test",
+            url="https://example.com/x",
+            headers={},
+            body={},
+            timeout=10,
+            max_attempts=2,
+            sleep=sleep_calls.append,
+        )
+
+    # 2 attempts total → 1 sleep between them.
+    assert len(sleep_calls) == 1
+
+
+def test_benchmark_score_floors_to_zero_on_empty_pack() -> None:
+    """Empty pack should not arithmetic-average to 50 via vacuous high dims."""
+    payload = {"pack_score": {"score": 65, "summary": {"record_count": 0}}}
+    score = benchmark._benchmark_score(
+        payload=payload,
+        records=[],
+        include_domains=["docs.parallel.ai"],
+        target=None,
+    )
+
+    assert score["score"] == 0
+    assert score["grade"] == "poor"
+    assert set(score["dimensions"]) == {
+        "coverage",
+        "cleanliness",
+        "source_fidelity",
+        "freshness",
+        "density",
+    }
+    for dim in score["dimensions"].values():
+        assert dim["score"] == 0
+        assert "empty pack" in dim["signals"]
+
+
+def test_runs_n_aggregates_with_median_and_spread(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """--runs 3 should produce one aggregate case with median + min/max + raw runs."""
+    call_count = {"i": 0}
+    score_sequence = [88, 92, 95]
+    wall_sequence = [1.0, 2.0, 3.0]
+
+    async def fake(**kwargs: Any) -> dict[str, Any]:
+        i = call_count["i"]
+        call_count["i"] += 1
+        output_dir = kwargs["output_dir"]
+        output_dir.mkdir(parents=True, exist_ok=True)
+        return {
+            "name": kwargs["name"],
+            "workflow": "core-llm",
+            "output_dir": str(output_dir),
+            "wall_seconds": wall_sequence[i],
+            "rss_baseline_mb": 10.0,
+            "rss_peak_mb": 11.0,
+            "rss_delta_mb": 1.0,
+            "stats": {
+                "urls_discovered": 1,
+                "pages_fetched": 1,
+                "pages_skipped": 0,
+                "pages_failed": 0,
+                "duration_seconds": 0.01,
+                "success_rate": 100.0,
+            },
+            "skip_counts": {},
+            "artifact_size_bytes": 100,
+            "cache_size_bytes": 200,
+            "pack_score": {
+                "score": score_sequence[i],
+                "grade": "excellent",
+                "summary": {"record_count": 1, "total_tokens": 100},
+                "issues": [],
+                "warnings": [],
+            },
+            "benchmark_score": {
+                "schema_version": 2,
+                "score": score_sequence[i],
+                "grade": "excellent",
+                "weights": {},
+                "dimensions": {},
+            },
+            "source_score_count": 1,
+        }
+
+    monkeypatch.setattr(benchmark, "_run_core_case", fake)
+
+    report = run_quick_benchmark(
+        target_url="https://docs.parallel.ai",
+        output_dir=tmp_path / "bench",
+        max_pages=1,
+        max_depth=1,
+        max_concurrent=1,
+        per_host_concurrent=1,
+        cache_enabled=True,
+        cached_pass=True,  # should be forced off by runs > 1
+        parallel=False,
+        parallel_objective=None,
+        parallel_queries=[],
+        include_domains=[],
+        mode="advanced",
+        max_search_results=8,
+        extract_limit=3,
+        max_estimated_cost=0.05,
+        runs=3,
+    )
+
+    assert report["runs_per_case"] == 3
+    # cached pass should have been forced off
+    assert report["summary"]["case_count"] == 1
+    assert call_count["i"] == 3
+
+    case = report["cases"][0]
+    assert case["runs_total"] == 3
+    assert case["runs_succeeded"] == 3
+    assert case["wall_seconds"] == 2.0
+    assert case["wall_seconds_min"] == 1.0
+    assert case["wall_seconds_max"] == 3.0
+    assert case["wall_seconds_runs"] == [1.0, 2.0, 3.0]
+    assert case["pack_score"]["score"] == 92
+    assert case["pack_score"]["score_min"] == 88
+    assert case["pack_score"]["score_max"] == 95
+    assert case["pack_score"]["score_runs"] == [88, 92, 95]
+    assert case["benchmark_score"]["score"] == 92
+    assert case["benchmark_score"]["score_min"] == 88
+    assert case["benchmark_score"]["score_max"] == 95
+    assert len(case["runs"]) == 3
+    assert case["estimated_cost_usd"] == 0.0
+    # Per-run output dirs should exist as siblings under the case output dir.
+    assert (tmp_path / "bench" / "core-llm" / "run-1").exists()
+    assert (tmp_path / "bench" / "core-llm" / "run-2").exists()
+    assert (tmp_path / "bench" / "core-llm" / "run-3").exists()
+
+    summary = (tmp_path / "bench" / "benchmark.summary.md").read_text(encoding="utf-8")
+    assert "1.0" in summary and "3.0" in summary  # spread is rendered
