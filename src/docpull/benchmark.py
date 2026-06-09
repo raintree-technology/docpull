@@ -2042,8 +2042,7 @@ def _aggregate_runs(
         representative = next(
             run
             for run in successful
-            if isinstance(run.get("pack_score"), dict)
-            and int(run["pack_score"].get("score", -1)) == med
+            if isinstance(run.get("pack_score"), dict) and int(run["pack_score"].get("score", -1)) == med
         )
         case["pack_score"] = {
             **representative["pack_score"],
@@ -2536,7 +2535,8 @@ def _retry_delay_seconds(*, attempt: int, retry_after: float | None) -> float:
     if retry_after is not None:
         return retry_after
     base = min(HTTP_RETRY_CAP_SECONDS, 2.0 ** (attempt - 1))
-    return base + random.uniform(0.0, 0.5)
+    # Backoff jitter is not security-sensitive — stdlib random is fine here.
+    return base + random.uniform(0.0, 0.5)  # nosec B311
 
 
 def _require_benchmark_api_key(env_var: str, provider: str) -> str:
@@ -2729,19 +2729,17 @@ def _workload_disclosure_lines(report: dict[str, Any]) -> list[str]:
     for workflow in workflow_order:
         info = by_workflow[workflow]
         settings = info["settings"] if isinstance(info["settings"], dict) else {}
-        rendered_settings = ", ".join(
-            f"{key}={settings[key]}" for key in setting_keys if key in settings
-        )
+        rendered_settings = ", ".join(f"{key}={settings[key]}" for key in setting_keys if key in settings)
         records = info["records"]
+        med_text: str
+        range_text: str
         if records:
-            med = _median_int(records)
+            med_text = str(_median_int(records))
             range_text = f"{min(records)}–{max(records)}" if min(records) != max(records) else str(records[0])
         else:
-            med = ""
+            med_text = ""
             range_text = ""
-        lines.append(
-            f"| `{workflow}` | {rendered_settings or '—'} | {med} | {range_text} |"
-        )
+        lines.append(f"| `{workflow}` | {rendered_settings or '—'} | {med_text} | {range_text} |")
     lines.append("")
     return lines
 
@@ -2858,11 +2856,7 @@ def _case_benchmark_score_text(case: dict[str, Any]) -> str:
         text = str(score["score"])
         score_min = score.get("score_min")
         score_max = score.get("score_max")
-        if (
-            isinstance(score_min, int)
-            and isinstance(score_max, int)
-            and score_min != score_max
-        ):
+        if isinstance(score_min, int) and isinstance(score_max, int) and score_min != score_max:
             text += f" [{score_min}–{score_max}]"
         return text
     if _is_cache_only_case(case):
