@@ -134,7 +134,7 @@ export default function HowItWorks() {
             />
             <StepText
               title="Use"
-              desc="Use the Markdown in search, RAG, offline archives, or skills."
+              desc="Load the Markdown into your agent, search index, or skill directory."
               active={activeIdx === 2}
             />
           </div>
