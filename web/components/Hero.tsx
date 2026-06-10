@@ -121,12 +121,9 @@ export default function Hero() {
             </div>
 
             <p className="mt-4 text-xs text-muted-foreground max-w-md leading-relaxed">
-              Best for static docs, API references, and server-rendered
-              sites. JS-rendered SPAs are detected and skipped — pass{" "}
-              <code className="font-mono text-[11px] bg-background/60 px-1 rounded">
-                --strict-js-required
-              </code>{" "}
-              to make that an error so your agent can route elsewhere.
+              Works with static docs, API references, and server-rendered
+              sites. JavaScript-heavy pages are detected and skipped
+              automatically.
             </p>
           </div>
 
