@@ -107,6 +107,7 @@ MONITOR_EXECUTION_COST_USD = {
     "lite": 0.003,
     "base": 0.010,
 }
+MAX_RECIPE_BYTES = 1_000_000
 
 
 class ParallelWorkflowError(RuntimeError):
@@ -2202,6 +2203,9 @@ def run_live_context_pack(
     selected_urls = _select_urls(search_results, extract_limit)
     if not selected_urls:
         raise ParallelWorkflowError("Parallel Search returned no URLs to extract.")
+    selected_urls = _validated_https_urls(selected_urls)
+    if not selected_urls:
+        raise ParallelWorkflowError("Parallel Search returned no valid HTTPS URLs to extract.")
 
     extract_kwargs: dict[str, Any] = {
         "urls": selected_urls,
@@ -2297,7 +2301,7 @@ def run_recipe(
     if not isinstance(queries, list) or not all(isinstance(item, str) and item for item in queries):
         raise ParallelWorkflowError("Recipe field 'queries' must be a list of non-empty strings.")
 
-    output_dir = output_dir_override or Path(str(recipe.get("output_dir") or DEFAULT_OUTPUT_DIR))
+    output_dir = _recipe_output_dir(recipe, DEFAULT_OUTPUT_DIR, output_dir_override)
     source_policy_recipe = recipe.get("source_policy") or {}
     if not isinstance(source_policy_recipe, dict):
         raise ParallelWorkflowError("Recipe field 'source_policy' must be an object when present.")
@@ -3088,10 +3092,14 @@ def run_findall_pack(
         raise ParallelWorkflowError("Parallel FindAll create response did not include a findall_id.")
     if wait and findall_id:
         deadline = time.monotonic() + timeout
-        while time.monotonic() < deadline:
+        while True:
             current = client.beta.findall.retrieve(findall_id)
             if not _status_is_active(_get(current, "status")):
                 break
+            if time.monotonic() >= deadline:
+                raise ParallelWorkflowError(
+                    f"Parallel FindAll {findall_id} did not complete within {timeout}s."
+                )
             time.sleep(poll_interval)
         result = client.beta.findall.result(findall_id)
     candidates = [_jsonable(item) for item in _list(_get(result, "candidates"))] if result else []
@@ -4013,6 +4021,41 @@ def _write_parallel_pack(
     return path
 
 
+def _md_inline_text(value: str) -> str:
+    """Neutralize Markdown control characters in provider-supplied inline text."""
+    return (
+        value.replace("\\", "\\\\")
+        .replace("`", "\\`")
+        .replace("[", "\\[")
+        .replace("]", "\\]")
+        .replace("\r", " ")
+        .replace("\n", " ")
+    )
+
+
+def _md_safe_url(value: str) -> str:
+    """Return an http(s) URL safe to embed in Markdown, or '' if not web-safe."""
+    cleaned = value.strip().replace("\r", "").replace("\n", "")
+    if urlparse(cleaned).scheme not in {"http", "https"}:
+        return ""
+    return cleaned.replace(" ", "%20").replace("(", "%28").replace(")", "%29")
+
+
+def _md_link(title: str, url: str) -> str:
+    """Render a provider title/URL as a Markdown link that cannot break out."""
+    safe_title = _md_inline_text(title)
+    safe_url = _md_safe_url(url)
+    if not safe_url:
+        return f"{safe_title} (unverified URL)"
+    return f"[{safe_title}]({safe_url})"
+
+
+def _validated_https_urls(urls: list[str]) -> list[str]:
+    """Drop any non-HTTPS / private-host URLs from a provider-supplied list."""
+    validator = UrlValidator(allowed_schemes={"https"})
+    return [url for url in urls if validator.validate(url).is_valid]
+
+
 def _write_agent_context_md(
     output_dir: Path,
     *,
@@ -4091,7 +4134,7 @@ def _write_agent_context_md(
             source_path = _coerce_str(entry.get("path")) or ""
             index = entry.get("index") or "?"
             local = f" - `{source_path}`" if source_path else ""
-            lines.append(f"{index}. [{title}]({url}){local}")
+            lines.append(f"{index}. {_md_link(title, url)}{local}")
 
         source_scores = score_source_entries(entries, expected_domains=expected_domains)
         if source_scores:
@@ -4101,7 +4144,7 @@ def _write_agent_context_md(
                 path_text = f" - `{source['path']}`" if source.get("path") else ""
                 lines.append(
                     f"- {source['score']}/100 {source['grade']}: "
-                    f"[{source['title']}]({source['url']}){path_text} ({reason_text})"
+                    f"{_md_link(str(source['title']), str(source['url']))}{path_text} ({reason_text})"
                 )
 
     warning_lines = _agent_context_warning_lines(warnings or {}, errors or [])
@@ -4136,7 +4179,7 @@ def _agent_context_warning_lines(
     for error in errors:
         url = _coerce_str(_get(error, "url")) or "unknown URL"
         error_type = _coerce_str(_get(error, "error_type")) or "extract_error"
-        lines.append(f"- Extract error `{error_type}`: {url}")
+        lines.append(f"- Extract error `{error_type}`: {_md_inline_text(url)}")
     return lines
 
 
@@ -4164,14 +4207,14 @@ def _write_sources_md(output_dir: Path, pack: ParallelContextPack, entries: list
         "",
     ]
     for entry in entries:
-        lines.append(f"{entry['index']}. [{entry['title']}]({entry['url']})")
+        lines.append(f"{entry['index']}. {_md_link(str(entry['title']), str(entry['url']))}")
         lines.append(f"   - Local: `{entry['path']}`")
     if pack.extract_errors:
         lines.extend(["", "## Extract Errors", ""])
         for error in pack.extract_errors:
             url = _coerce_str(_get(error, "url")) or "unknown URL"
             error_type = _coerce_str(_get(error, "error_type")) or "extract_error"
-            lines.append(f"- `{error_type}`: {url}")
+            lines.append(f"- `{error_type}`: {_md_inline_text(url)}")
     path = output_dir / "sources.md"
     path.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
     return path
@@ -4182,11 +4225,32 @@ def _write_generic_sources_md(output_dir: Path, objective: str, entries: list[di
     if not entries:
         lines.append("_No records were available when this pack was written._")
     for entry in entries:
-        lines.append(f"{entry['index']}. [{entry['title']}]({entry['url']})")
+        lines.append(f"{entry['index']}. {_md_link(str(entry['title']), str(entry['url']))}")
         lines.append(f"   - Local: `{entry['path']}`")
     path = output_dir / "sources.md"
     path.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
     return path
+
+
+def _cap_fixture_content(item: Any, max_chars: int = DEFAULT_MAX_FULL_CONTENT_CHARS) -> Any:
+    """Bound full_content/excerpts from an imported fixture to the live cap.
+
+    The live Extract path truncates server-side; fixture import has no such
+    bound, so a crafted fixture could otherwise write an unbounded source file.
+    """
+    data = _jsonable(item)
+    if not isinstance(data, dict):
+        return data
+    content = data.get("full_content")
+    if isinstance(content, str) and len(content) > max_chars:
+        data["full_content"] = content[:max_chars]
+    excerpts = data.get("excerpts")
+    if isinstance(excerpts, list):
+        data["excerpts"] = [
+            value[:max_chars] if isinstance(value, str) and len(value) > max_chars else value
+            for value in excerpts
+        ]
+    return data
 
 
 def _pack_from_fixture(raw: Any) -> ParallelContextPack:
@@ -4222,7 +4286,7 @@ def _pack_from_fixture(raw: Any) -> ParallelContextPack:
         extract_id=_coerce_str(extract.get("extract_id")),
         task_run_id=_coerce_str(task.get("run_id") or task.get("task_run_id")),
         search_results=[_jsonable(item) for item in _list(search.get("results"))],
-        extract_results=[_jsonable(item) for item in extract_results],
+        extract_results=[_cap_fixture_content(item) for item in extract_results],
         extract_errors=[_jsonable(item) for item in extract_errors],
         task_brief=_coerce_str(task.get("brief") or task.get("content")),
         task_basis=_list(task.get("basis")),
@@ -4238,6 +4302,8 @@ def _load_recipe(recipe_path: Path) -> dict[str, Any]:
         raw_text = recipe_path.read_text(encoding="utf-8")
     except OSError as err:
         raise ParallelWorkflowError(f"Could not read recipe {recipe_path}: {err}") from err
+    if len(raw_text) > MAX_RECIPE_BYTES:
+        raise ParallelWorkflowError(f"Recipe {recipe_path} exceeds the {MAX_RECIPE_BYTES}-byte limit.")
     try:
         if recipe_path.suffix.lower() in {".yaml", ".yml"}:
             import yaml
@@ -4360,6 +4426,8 @@ def _read_parallel_api_key_for_init(*, from_stdin: bool) -> str:
     api_key = _clean_parallel_api_key(value)
     if not api_key:
         raise ParallelWorkflowError("Parallel API key cannot be empty.")
+    if len(api_key) > 512:
+        raise ParallelWorkflowError("Parallel API key is implausibly long (>512 characters).")
     return api_key
 
 
@@ -4822,9 +4890,9 @@ def _discovery_next_steps_md(
         )
         lines.extend(
             [
-                f"### {title}",
+                f"### {_md_inline_text(title)}",
                 "",
-                f"- URL: {url}",
+                f"- URL: {_md_inline_text(url)}",
                 (
                     f"- Score: {_get(source_score, 'score', '?')}/100 "
                     f"({_get(source_score, 'grade', 'unscored')})"
@@ -5004,12 +5072,10 @@ def _load_mcp_servers(raw_servers: list[str]) -> list[dict[str, Any]]:
             value = _load_json_file(Path(source), "mcp_server")
         if not isinstance(value, dict):
             raise ParallelWorkflowError("MCP server entries must be JSON objects.")
-        redacted = _redact_sensitive_headers(value)
+        # Live auth headers must reach the Parallel API as-is. Any pack metadata
+        # derived from these kwargs is redacted at serialization time via
+        # _redact_sensitive_headers, so the raw value is only used for the call.
         servers.append(value)
-        if "headers" in redacted and redacted["headers"] != value.get("headers"):
-            # Keep this branch explicit to make the secret handling obvious; the
-            # returned request metadata is redacted separately.
-            pass
     return servers
 
 
@@ -5121,12 +5187,34 @@ def _collect_iterable(iterable: Any, *, limit: int) -> list[dict[str, Any]]:
     return items
 
 
+def _ensure_within_cwd(candidate: Path, *, field: str) -> Path:
+    """Confine a recipe-sourced path to the working tree.
+
+    The CLI ``--output-dir`` override is trusted and exempt; a recipe field must
+    not redirect writes outside the current directory via an absolute path or
+    ``..`` traversal (e.g. into ~/.ssh or /etc). Returns the original candidate
+    on success so existing relative-path behavior is preserved.
+    """
+    cwd = Path.cwd().resolve()
+    resolved = (cwd / candidate).resolve()
+    try:
+        resolved.relative_to(cwd)
+    except ValueError:
+        raise ParallelWorkflowError(
+            f"Recipe '{field}' must stay within the working directory "
+            f"({cwd}); use --output-dir for a path outside it."
+        ) from None
+    return candidate
+
+
 def _recipe_output_dir(
     recipe: dict[str, Any],
     default: Path,
     override: Path | None,
 ) -> Path:
-    return override or Path(str(recipe.get("output_dir") or default))
+    if override is not None:
+        return override
+    return _ensure_within_cwd(Path(str(recipe.get("output_dir") or default)), field="output_dir")
 
 
 def _resolve_recipe_path(recipe_path: Path, value: Any) -> Path | None:

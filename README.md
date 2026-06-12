@@ -13,6 +13,16 @@
   </a>
 </p>
 
+## Star History
+
+<a href="https://star-history.com/#raintree-technology/docpull&Date">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=raintree-technology/docpull&type=Date&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=raintree-technology/docpull&type=Date" />
+    <img alt="Star history chart for raintree-technology/docpull" src="https://api.star-history.com/svg?repos=raintree-technology/docpull&type=Date" />
+  </picture>
+</a>
+
 docpull is a web scraper for static and server-rendered sites, with
 documentation crawling as its sharpest default workflow. It uses async HTTP (not
 Playwright) to fetch pages, discover links, extract main content, and write clean

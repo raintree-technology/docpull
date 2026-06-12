@@ -40,7 +40,7 @@ concurrency:
 
 jobs:
   update:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
@@ -50,14 +50,23 @@ jobs:
 
       - name: Refresh METRICS.md
         env:
-          # Prefer the PAT (has Administration: read for traffic endpoints).
-          # Fall back to the default token (still works for stars / issues /
-          # downloads — only the traffic section will be empty).
-          GH_TOKEN: ${{ secrets.METRICS_TOKEN || secrets.GITHUB_TOKEN }}
-        run: python .github/scripts/update_metrics.py
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          METRICS_TOKEN: ${{ secrets.METRICS_TOKEN }}
+        run: |
+          if [ -n "${METRICS_TOKEN:-}" ] && GH_TOKEN="$METRICS_TOKEN" gh api "repos/${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            export GH_TOKEN="$METRICS_TOKEN"
+          else
+            if [ -n "${METRICS_TOKEN:-}" ]; then
+              echo "::warning::METRICS_TOKEN is present but failed GitHub API validation; falling back to GITHUB_TOKEN."
+            fi
+            export GH_TOKEN="$GITHUB_TOKEN"
+          fi
+          python .github/scripts/update_metrics.py
 
       - name: Open metrics refresh PR
-        uses: peter-evans/create-pull-request@22a9089034f40e5a961c8808d113e2c98fb63676
+        id: metrics-pr
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        continue-on-error: true
         with:
           add-paths: METRICS.md
           branch: automation/metrics-refresh
@@ -65,3 +74,13 @@ jobs:
           commit-message: "chore(metrics): refresh metrics"
           title: "chore(metrics): refresh metrics"
           body: "Automated METRICS.md refresh from the scheduled metrics workflow."
+
+      - name: Report PR creation limitation
+        if: steps.metrics-pr.outcome == 'failure'
+        run: |
+          echo "::warning::Metrics refreshed, but PR creation failed. Enable Actions-created pull requests in repository settings or create a PR from automation/metrics-refresh manually."
+          {
+            echo "### Metrics refresh"
+            echo
+            echo "METRICS.md was refreshed, but the pull request step failed. Enable Actions-created pull requests in repository settings or open a PR from automation/metrics-refresh manually."
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -6,6 +6,7 @@ import argparse
 import asyncio
 import json
 import random
+import re
 import resource
 import sys
 import time
@@ -18,7 +19,7 @@ from statistics import median
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from rich.console import Console
 from rich.markup import escape
@@ -34,6 +35,7 @@ from .parallel_workflows import (
     DEFAULT_MODE,
     ParallelWorkflowError,
     _build_source_policy,
+    _md_link,
     _parallel_sdk_installed,
     estimate_context_pack_cost,
     estimate_search_pack_cost,
@@ -76,6 +78,14 @@ BENCHMARK_SCORE_WEIGHTS = {
 }
 PASS_AT_K_THRESHOLDS: tuple[int, ...] = (70, 80, 90)
 TARGET_SET_CHOICES = ("single", "tool-docs", "provider-matrix", "v2")
+HTTP_MAX_RESPONSE_BYTES = 16 * 1024 * 1024
+HTTP_MAX_ERROR_BYTES = 64 * 1024
+# Conservative per-call USD figures used ONLY for the pre-flight
+# --max-estimated-cost guard on the live Tavily/Exa search providers. Real
+# spend is reconciled from provider usage after the run; these are loose upper
+# bounds chosen so the guard fails safe. They never feed published numbers.
+APPROX_TAVILY_CREDIT_USD = 0.01
+APPROX_EXA_SEARCH_USD = 0.01
 
 
 class BenchmarkError(RuntimeError):
@@ -502,21 +512,32 @@ def run_quick_benchmark(
 
     estimated_search_cost = 0.0
     estimated_context_cost = 0.0
+    estimated_costs: dict[str, float] = {}
     if parallel:
         estimated_search_cost = estimate_search_pack_cost(max_search_results=max_search_results)
         estimated_context_cost = estimate_context_pack_cost(
             extract_limit=extract_limit,
             max_search_results=max_search_results,
         )
-        estimated_total_cost = round(
-            (estimated_search_cost + estimated_context_cost) * len(targets),
+        estimated_costs["parallel"] = round(
+            (estimated_search_cost + estimated_context_cost) * len(targets) * runs,
             6,
         )
-        if estimated_total_cost > max_estimated_cost:
-            raise BenchmarkError(
-                "Estimated Parallel benchmark cost "
-                f"${estimated_total_cost:.6f} exceeds guard ${max_estimated_cost:.6f}."
-            )
+    if "tavily" in providers:
+        credit_usd = tavily_credit_usd if tavily_credit_usd is not None else APPROX_TAVILY_CREDIT_USD
+        estimated_costs["tavily"] = round(
+            (1 + extract_limit) * credit_usd * len(targets) * runs,
+            6,
+        )
+    if "exa" in providers:
+        estimated_costs["exa"] = round(APPROX_EXA_SEARCH_USD * len(targets) * runs, 6)
+    estimated_total_cost = round(sum(estimated_costs.values()), 6)
+    if estimated_total_cost > max_estimated_cost:
+        breakdown = ", ".join(f"{name}=${value:.6f}" for name, value in estimated_costs.items())
+        raise BenchmarkError(
+            f"Estimated live-provider benchmark cost ${estimated_total_cost:.6f} "
+            f"({breakdown}) exceeds guard ${max_estimated_cost:.6f}."
+        )
 
     trace = _make_trace_recorder(
         trace_backend,
@@ -1092,6 +1113,18 @@ def _benchmark_provider_statuses(
     return safe_statuses
 
 
+def _path_basename(value: Any) -> str | None:
+    if not value:
+        return None
+    return Path(str(value)).name
+
+
+def _basename_only(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {key: _path_basename(item) for key, item in value.items()}
+    return value
+
+
 class _TraceRecorder:
     provider = "none"
 
@@ -1148,7 +1181,7 @@ class _RaindropTraceRecorder(_TraceRecorder):
             properties={
                 "target_set": target_set,
                 "target_count": len(targets),
-                "output_dir": str(output_dir),
+                "output_dir": output_dir.name,
                 "parallel_enabled": parallel_enabled,
                 "max_estimated_cost_usd": max_estimated_cost,
                 "content_policy": "metadata_only",
@@ -1158,7 +1191,7 @@ class _RaindropTraceRecorder(_TraceRecorder):
                     "target_url": target_url,
                     "target_set": target_set,
                     "targets": [target.report_dict() for target in targets],
-                    "output_dir": str(output_dir),
+                    "output_dir": output_dir.name,
                     "parallel_enabled": parallel_enabled,
                     "max_estimated_cost_usd": max_estimated_cost,
                 }
@@ -1180,7 +1213,7 @@ class _RaindropTraceRecorder(_TraceRecorder):
                 "target": case.get("target"),
                 "prompt": case.get("prompt"),
                 "settings": case.get("settings"),
-                "output_dir": case.get("output_dir"),
+                "output_dir": _path_basename(case.get("output_dir")),
             },
             output=_trace_case_output(case),
             duration_ms=int(float(case.get("wall_seconds") or 0.0) * 1000),
@@ -1212,7 +1245,7 @@ class _RaindropTraceRecorder(_TraceRecorder):
         self._interaction.set_properties(
             {
                 "summary": report.get("summary"),
-                "artifacts": report.get("artifacts"),
+                "artifacts": _basename_only(report.get("artifacts")),
                 "signal_count": self._signal_count,
                 "positive_signal_count": self._positive_signal_count,
                 "negative_signal_count": self._negative_signal_count,
@@ -1223,7 +1256,7 @@ class _RaindropTraceRecorder(_TraceRecorder):
             output=_json_trace_text(
                 {
                     "summary": report.get("summary"),
-                    "artifacts": report.get("artifacts"),
+                    "artifacts": _basename_only(report.get("artifacts")),
                     "trace_signals": {
                         "total": self._signal_count,
                         "positive": self._positive_signal_count,
@@ -2007,7 +2040,9 @@ def _aggregate_runs(
     The full per-run list is preserved under ``runs`` for raw inspection.
     """
     successful = [run for run in runs if run.get("status") != "failed"]
-    wall_seconds_list = [float(run.get("wall_seconds") or 0.0) for run in runs]
+    # Headline wall time is the median across *successful* runs only; a run that
+    # aborts quickly on a network error must not pull the reported latency down.
+    wall_seconds_list = [float(run.get("wall_seconds") or 0.0) for run in (successful or runs)]
     estimated_costs = [float(run.get("estimated_cost_usd") or 0.0) for run in runs]
     artifact_sizes = [int(run.get("artifact_size_bytes") or 0) for run in runs]
     cache_sizes = [int(run.get("cache_size_bytes") or 0) for run in runs]
@@ -2201,7 +2236,7 @@ def _source_fidelity_dimension(
 
 def _freshness_dimension(records: list[dict[str, Any]], target: _BenchmarkTarget | None) -> dict[str, Any]:
     if not target or not target.freshness_terms:
-        return _dimension(100, [])
+        return _dimension(65, ["freshness not evaluated - no freshness terms configured"])
     haystack = "\n".join(
         " ".join(
             [
@@ -2426,7 +2461,7 @@ def _write_provider_sources_md(
         index = source.get("index")
         title = str(source.get("title") or source.get("url") or "Untitled")
         url = str(source.get("url") or "")
-        lines.append(f"{index}. [{title}]({url})")
+        lines.append(f"{index}. {_md_link(title, url)}")
         if source.get("source_type"):
             lines.append(f"   - Source type: `{source['source_type']}`")
         lines.append("   - Records file: `documents.ndjson`")
@@ -2467,6 +2502,20 @@ def _http_json_post(
     raise last_error
 
 
+class _NoRedirectHandler(HTTPRedirectHandler):
+    """Refuse 3xx redirects on authenticated POSTs.
+
+    urllib forwards ``Authorization`` / ``x-api-key`` across redirects (only
+    ``content-*`` headers are stripped) and will follow an https->http
+    downgrade, so a redirect from a provider endpoint would leak the API key
+    in cleartext and could be steered at an internal host. These endpoints
+    never legitimately redirect, so surface any 3xx as an error instead.
+    """
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # type: ignore[no-untyped-def]
+        raise HTTPError(req.full_url, code, f"Refused redirect to {newurl!r}", headers, fp)
+
+
 def _http_json_post_once(
     *,
     label: str,
@@ -2487,11 +2536,12 @@ def _http_json_post_once(
         },
         method="POST",
     )
+    opener = build_opener(_NoRedirectHandler())
     try:
-        with urlopen(request, timeout=timeout) as response:  # nosec B310
-            raw = response.read().decode("utf-8")
+        with opener.open(request, timeout=timeout) as response:  # nosec B310
+            raw_bytes = response.read(HTTP_MAX_RESPONSE_BYTES + 1)
     except HTTPError as err:
-        detail = err.read().decode("utf-8", errors="replace")
+        detail = _redact_secret_like(err.read(HTTP_MAX_ERROR_BYTES).decode("utf-8", errors="replace"))
         message = f"{label} returned HTTP {err.code}: {_short_error_detail(detail)}"
         if err.code in HTTP_RETRY_TRANSIENT_STATUSES:
             transient = _TransientHTTPError(message, retry_after=_parse_retry_after(err))
@@ -2503,8 +2553,10 @@ def _http_json_post_once(
         transient = _TransientHTTPError(message, retry_after=None)
         transient.__cause__ = err
         raise transient from err
+    if len(raw_bytes) > HTTP_MAX_RESPONSE_BYTES:
+        raise BenchmarkError(f"{label} response exceeds {HTTP_MAX_RESPONSE_BYTES}-byte limit.")
     try:
-        parsed = json.loads(raw)
+        parsed = json.loads(raw_bytes.decode("utf-8"))
     except json.JSONDecodeError as err:
         raise BenchmarkError(f"{label} returned invalid JSON: {err}") from err
     if not isinstance(parsed, dict):
@@ -2586,6 +2638,20 @@ def _relative_path(path: Path, base_dir: Path) -> str:
         return str(path.resolve().relative_to(base_dir.resolve()))
     except ValueError:
         return str(path)
+
+
+_SECRET_LIKE_RE = re.compile(
+    r"(?i)(?:bearer\s+|x-api-key\s*[:=]\s*|api[-_]?key\s*[\"':=]\s*|tvly-|exa_|sk-)[A-Za-z0-9._\-]{6,}"
+)
+
+
+def _redact_secret_like(value: str) -> str:
+    """Strip token-shaped substrings out of a third-party error body.
+
+    Provider error responses occasionally echo the submitted credential back;
+    this keeps such tokens out of ``benchmark.report.json`` and any trace upload.
+    """
+    return _SECRET_LIKE_RE.sub("[redacted]", value)
 
 
 def _short_error_detail(value: str) -> str:
@@ -3141,7 +3207,24 @@ def _article_markdown(report: dict[str, Any], *, title: str) -> str:
             f"{cost_text} |"
         )
     if heatmap:
-        lines.extend(["", "## Provider x Target Heatmap", "", *heatmap])
+        lines.extend(
+            [
+                "",
+                "## Provider x Target Heatmap",
+                "",
+                (
+                    "Read across rows (one target, all providers), not down columns. "
+                    "The five workflows are not equivalent jobs: the core crawl walks a "
+                    "page graph from a known seed URL, while provider workflows run a "
+                    "search query and optionally extract a small number of results. "
+                    "A provider that returns zero search results for a lesser-known site "
+                    "scores 0 — not because its extractor is weak, but because its index "
+                    "doesn't cover that site. See Workload disclosure above."
+                ),
+                "",
+                *heatmap,
+            ]
+        )
     lines.extend(
         [
             "",
