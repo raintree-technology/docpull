@@ -71,7 +71,7 @@ jobs:
         with:
           add-paths: |
             METRICS.md
-            docs/downloads-history.svg
+            docs/cumulative-downloads-history.svg
           branch: automation/metrics-refresh
           delete-branch: true
           commit-message: "chore(metrics): refresh metrics"

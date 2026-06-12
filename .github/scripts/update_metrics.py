@@ -27,7 +27,7 @@ from pathlib import Path
 REPO = os.environ.get("GITHUB_REPOSITORY", "raintree-technology/docpull")
 PKG = os.environ.get("PYPI_PACKAGE", "docpull")
 OUTPUT = Path(os.environ.get("METRICS_OUTPUT", "METRICS.md"))
-DOWNLOAD_CHART_OUTPUT = Path(os.environ.get("DOWNLOAD_CHART_OUTPUT", "docs/downloads-history.svg"))
+DOWNLOAD_CHART_OUTPUT = Path(os.environ.get("DOWNLOAD_CHART_OUTPUT", "docs/cumulative-downloads-history.svg"))
 
 
 def gh(path: str) -> dict | list:
