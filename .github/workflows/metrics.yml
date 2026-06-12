@@ -1,9 +1,10 @@
 name: Update metrics
 
-# Refreshes METRICS.md from PyPI + GitHub APIs.
+# Refreshes METRICS.md and the README downloads chart from PyPI + GitHub APIs.
 #
 # Signals:
 #   - PyPI downloads (24h / 7d / 30d) via pypistats.org JSON API.
+#   - PyPI downloads chart via pepy.tech JSON API.
 #   - GitHub repo metadata (stars, forks, watchers, open issues/PRs).
 #   - GitHub traffic (clones, views, referrers, paths) — last 14 days.
 #
@@ -48,7 +49,7 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Refresh METRICS.md
+      - name: Refresh metrics artifacts
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           METRICS_TOKEN: ${{ secrets.METRICS_TOKEN }}
@@ -68,7 +69,9 @@ jobs:
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
         continue-on-error: true
         with:
-          add-paths: METRICS.md
+          add-paths: |
+            METRICS.md
+            docs/downloads-history.svg
           branch: automation/metrics-refresh
           delete-branch: true
           commit-message: "chore(metrics): refresh metrics"
