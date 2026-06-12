@@ -5,6 +5,7 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![PyPI version](https://badge.fury.io/py/docpull.svg)](https://badge.fury.io/py/docpull)
 [![Downloads](https://pepy.tech/badge/docpull)](https://pepy.tech/project/docpull)
+[![GitHub stars](https://img.shields.io/github/stars/raintree-technology/docpull?style=social)](https://github.com/raintree-technology/docpull/stargazers)
 [![License: MIT](https://img.shields.io/github/license/raintree-technology/docpull)](https://github.com/raintree-technology/docpull/blob/main/LICENSE)
 
 <p align="center">
@@ -12,6 +13,16 @@
     <img src="https://pub-e85a1abca36f4fd8b4300a6ec2d6f45f.r2.dev/marketing/docpull/1768954147343-iaiziy-docpull-terminal-hero.gif" alt="docpull demo" width="600">
   </a>
 </p>
+
+## Star History
+
+<a href="https://star-history.com/#raintree-technology/docpull&Date">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=raintree-technology/docpull&type=Date&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=raintree-technology/docpull&type=Date" />
+    <img alt="Star history chart for raintree-technology/docpull" src="https://api.star-history.com/svg?repos=raintree-technology/docpull&type=Date" />
+  </picture>
+</a>
 
 docpull is a web scraper for static and server-rendered sites, with
 documentation crawling as its sharpest default workflow. It uses async HTTP (not

@@ -33,11 +33,19 @@ def score_source(
             score -= 25
             reasons.append("off_domain")
 
-    if domain.startswith("docs.") or ".docs." in domain or "developer" in domain:
+    if domain.startswith("docs.") or ".docs." in domain or domain.startswith(("developer.", "developers.")):
         score += 12
         reasons.append("docs_domain")
 
-    if any(part in path for part in ("/docs", "/api", "/reference", "/developers")):
+    # Match a doc token as a whole path segment or a hyphen/underscore-prefixed
+    # one (so "/api-reference" and "/api/v2" score, but "/apiary" does not).
+    path_segments = [segment for segment in path.split("/") if segment]
+    doc_path_tokens = ("docs", "api", "reference", "developers")
+    if any(
+        segment == token or segment.startswith((f"{token}-", f"{token}_"))
+        for segment in path_segments
+        for token in doc_path_tokens
+    ):
         score += 10
         reasons.append("docs_path")
 
