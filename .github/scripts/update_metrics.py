@@ -139,8 +139,22 @@ def download_series(pepy: dict, *, days: int = 90) -> list[tuple[date, int]]:
     return [(start + timedelta(days=i), totals.get(start + timedelta(days=i), 0)) for i in range(days)]
 
 
-def render_download_chart(series: list[tuple[date, int]], *, total_downloads: int) -> str:
+def cumulative_download_series(
+    daily: list[tuple[date, int]], *, total_downloads: int
+) -> list[tuple[date, int]]:
+    """Convert a daily window into an estimated cumulative all-time series."""
+    window_total = sum(value for _, value in daily)
+    running = max(0, total_downloads - window_total)
+    cumulative: list[tuple[date, int]] = []
+    for day, value in daily:
+        running += value
+        cumulative.append((day, running))
+    return cumulative
+
+
+def render_download_chart(daily_series: list[tuple[date, int]], *, total_downloads: int) -> str:
     """Render a dependency-free SVG chart for README embedding."""
+    series = cumulative_download_series(daily_series, total_downloads=total_downloads)
     width = 920
     height = 360
     left = 70
@@ -149,7 +163,7 @@ def render_download_chart(series: list[tuple[date, int]], *, total_downloads: in
     bottom = 64
     chart_w = width - left - right
     chart_h = height - top - bottom
-    max_y = max([value for _, value in series] + [1])
+    max_y = max([value for _, value in series] + [total_downloads, 1])
     # Give the line a little headroom and round the top tick to a clean value.
     top_tick = max(10, int(((max_y * 1.18) + 9) // 10 * 10))
 
@@ -196,10 +210,10 @@ def render_download_chart(series: list[tuple[date, int]], *, total_downloads: in
 
     start_label = series[0][0].strftime("%b %-d, %Y") if series else ""
     end_label = series[-1][0].strftime("%b %-d, %Y") if series else ""
-    latest_value = series[-1][1] if series else 0
-    total_window = sum(value for _, value in series)
+    latest_value = series[-1][1] if series else total_downloads
+    total_window = sum(value for _, value in daily_series)
     subtitle = (
-        f"Daily downloads, last {len(series)} days · {fmt(total_window)} in window · "
+        f"Cumulative downloads, last {len(series)} days · +{fmt(total_window)} in window · "
         f"{fmt(total_downloads)} all time"
     )
     generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
@@ -208,23 +222,22 @@ def render_download_chart(series: list[tuple[date, int]], *, total_downloads: in
             f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" '
             f'viewBox="0 0 {width} {height}" role="img" aria-labelledby="title desc">'
         ),
-        f'  <title id="title">{escape(PKG)} PyPI download history</title>',
+        f'  <title id="title">{escape(PKG)} cumulative PyPI download history</title>',
         (
-            f'  <desc id="desc">Daily PyPI downloads from Pepy for {escape(PKG)} '
+            f'  <desc id="desc">Cumulative PyPI downloads from Pepy for {escape(PKG)} '
             f"between {escape(start_label)} and {escape(end_label)}.</desc>"
         ),
         f'  <rect width="{width}" height="{height}" rx="16" fill="#ffffff" />',
         (
             f'  <text x="{left}" y="34" font-size="22" font-weight="700" '
-            f'fill="#111827">{escape(PKG)} PyPI downloads</text>'
+            f'fill="#111827">{escape(PKG)} cumulative PyPI downloads</text>'
         ),
         f'  <text x="{left}" y="56" font-size="13" fill="#6b7280">{escape(subtitle)}</text>',
         (
             f'  <text x="{width - right}" y="34" text-anchor="end" font-size="20" '
             f'font-weight="700" fill="#2563eb">{escape(short_fmt(latest_value))}</text>'
         ),
-        f'  <text x="{width - right}" y="55" text-anchor="end" font-size="12" '
-        'fill="#6b7280">latest day</text>',
+        f'  <text x="{width - right}" y="55" text-anchor="end" font-size="12" fill="#6b7280">all time</text>',
         *grid_lines,
         *axis_labels,
         (
