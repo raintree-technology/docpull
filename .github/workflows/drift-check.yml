@@ -1,0 +1,25 @@
+name: Raintree drift check
+
+on:
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/**"
+      - ".github/dependabot.yml"
+      - ".npmrc"
+      - ".nvmrc"
+      - "README.md"
+      - "pyproject.toml"
+      - "uv.lock"
+      - "mcp/package.json"
+      - "mcp/bun.lock"
+      - "web/package.json"
+      - "web/package-lock.json"
+
+jobs:
+  drift:
+    uses: raintree-technology/.github/.github/workflows/drift-check.yml@3256afba6d5c060f8b00f1bbf96887d253b0e9e1
+    with:
+      standard-ref: 3256afba6d5c060f8b00f1bbf96887d253b0e9e1

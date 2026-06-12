@@ -1,0 +1,29 @@
+name: Raintree standard checks
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  mcp:
+    name: MCP package
+    uses: raintree-technology/.github/.github/workflows/ci.yml@3256afba6d5c060f8b00f1bbf96887d253b0e9e1
+    with:
+      package-manager: bun
+      bun-version: "1.3.11"
+      working-directory: mcp
+      standard-ref: 3256afba6d5c060f8b00f1bbf96887d253b0e9e1
+
+  web:
+    name: Web package
+    uses: raintree-technology/.github/.github/workflows/ci.yml@3256afba6d5c060f8b00f1bbf96887d253b0e9e1
+    with:
+      package-manager: npm
+      node-version: "22"
+      working-directory: web
+      standard-ref: 3256afba6d5c060f8b00f1bbf96887d253b0e9e1

@@ -1,51 +1,55 @@
 {
-	"name": "docpull-mcp-lab",
-	"version": "0.3.0",
-	"private": true,
-	"description": "Internal lab for docpull semantic-search MCP experiments",
-	"type": "module",
-	"main": "src/server.ts",
-	"scripts": {
-		"dev": "bun run src/server.ts",
-		"ingest": "bun run src/ingest.ts",
-		"typecheck": "tsc --noEmit"
-	},
-	"dependencies": {
-		"@modelcontextprotocol/sdk": "^1.29.0",
-		"ip-address": "^10.2.0",
-		"openai": "^6.39.1",
-		"pg": "^8.21.0",
-		"yaml": "^2.9.0",
-		"zod": "^4.4.3"
-	},
-	"overrides": {
-		"@hono/node-server": "^2.0.4",
-		"ajv": "^8.18.0",
-		"fast-uri": "^3.1.2",
-		"hono": "^4.12.22",
-		"ip-address": "^10.2.0",
-		"path-to-regexp": "^8.4.2",
-		"qs": "^6.15.2",
-		"zod": "^4.4.3"
-	},
-	"devDependencies": {
-		"@types/node": "^25.9.1",
-		"@types/pg": "^8.11.10",
-		"typescript": "^6.0.3"
-	},
-	"repository": {
-		"type": "git",
-		"url": "git+https://github.com/raintree-technology/docpull.git",
-		"directory": "mcp"
-	},
-	"license": "MIT",
-	"author": "Raintree Technology",
-	"keywords": [
-		"mcp",
-		"documentation",
-		"semantic-search",
-		"pgvector",
-		"embeddings",
-		"claude"
-	]
+  "name": "docpull-mcp-lab",
+  "version": "0.3.0",
+  "private": true,
+  "description": "Internal lab for docpull semantic-search MCP experiments",
+  "type": "module",
+  "main": "src/server.ts",
+  "scripts": {
+    "dev": "bun run src/server.ts",
+    "ingest": "bun run src/ingest.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "ip-address": "10.2.0",
+    "openai": "6.39.1",
+    "pg": "8.21.0",
+    "yaml": "2.9.0",
+    "zod": "4.4.3"
+  },
+  "overrides": {
+    "@hono/node-server": "2.0.4",
+    "ajv": "8.18.0",
+    "fast-uri": "3.1.2",
+    "hono": "4.12.22",
+    "ip-address": "10.2.0",
+    "path-to-regexp": "8.4.2",
+    "qs": "6.15.2",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "25.9.1",
+    "@types/pg": "8.11.10",
+    "typescript": "6.0.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/raintree-technology/docpull.git",
+    "directory": "mcp"
+  },
+  "license": "MIT",
+  "author": "Raintree Technology",
+  "keywords": [
+    "mcp",
+    "documentation",
+    "semantic-search",
+    "pgvector",
+    "embeddings",
+    "claude"
+  ],
+  "packageManager": "bun@1.3.11",
+  "engines": {
+    "node": ">=22.0.0"
+  }
 }

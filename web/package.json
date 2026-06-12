@@ -9,32 +9,36 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@vercel/analytics": "^2.0.1",
-    "lucide-react": "^1.17.0",
-    "next": "^16.2.6",
-    "next-themes": "^0.4.4",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "@vercel/analytics": "2.0.1",
+    "lucide-react": "1.17.0",
+    "next": "16.2.6",
+    "next-themes": "0.4.4",
+    "react": "19.0.0",
+    "react-dom": "19.0.0"
   },
   "overrides": {
     "next": {
-      "postcss": "^8.5.10"
+      "postcss": "8.5.10"
     }
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
-    "@next/eslint-plugin-next": "^16.2.6",
-    "@tailwindcss/postcss": "^4.3.0",
-    "@types/node": "^25.9.1",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "clsx": "^2.1.1",
-    "eslint": "^10.4.0",
-    "eslint-plugin-react-hooks": "^7.1.1",
-    "postcss": "^8.5.15",
-    "tailwind-merge": "^3.6.0",
-    "tailwindcss": "^4.3.0",
-    "typescript": "^6.0.3",
-    "typescript-eslint": "^8.60.1"
+    "@eslint/js": "10.0.1",
+    "@next/eslint-plugin-next": "16.2.6",
+    "@tailwindcss/postcss": "4.3.0",
+    "@types/node": "25.9.1",
+    "@types/react": "19.2.16",
+    "@types/react-dom": "19.2.3",
+    "clsx": "2.1.1",
+    "eslint": "10.4.0",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "postcss": "8.5.15",
+    "tailwind-merge": "3.6.0",
+    "tailwindcss": "4.3.0",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.60.1"
+  },
+  "packageManager": "npm@10.9.8",
+  "engines": {
+    "node": ">=22.0.0"
   }
 }
