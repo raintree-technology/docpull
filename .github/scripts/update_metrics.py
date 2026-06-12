@@ -1,9 +1,10 @@
-"""Refresh METRICS.md from PyPI + GitHub APIs.
+"""Refresh METRICS.md and download charts from PyPI + GitHub APIs.
 
 Pulled signals:
 - PyPI download counts (last day / week / month) via pypistats.org JSON API.
 - GitHub repo metadata (stars, forks, watchers, open issues/PRs).
 - GitHub traffic (clones, views, referrers, paths) — last 14 days.
+- PyPI daily download chart via pepy.tech.
 
 Plugin install proxy: `/plugin marketplace add <owner>/<repo>` is a git
 clone under the hood, so daily clone counts approximate plugin installs.
@@ -19,12 +20,14 @@ import subprocess
 import sys
 import urllib.error
 import urllib.request
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
+from html import escape
 from pathlib import Path
 
 REPO = os.environ.get("GITHUB_REPOSITORY", "raintree-technology/docpull")
 PKG = os.environ.get("PYPI_PACKAGE", "docpull")
 OUTPUT = Path(os.environ.get("METRICS_OUTPUT", "METRICS.md"))
+DOWNLOAD_CHART_OUTPUT = Path(os.environ.get("DOWNLOAD_CHART_OUTPUT", "docs/downloads-history.svg"))
 
 
 def gh(path: str) -> dict | list:
@@ -66,9 +69,35 @@ def pypistats(path: str) -> dict:
         return json.loads(r.read().decode("utf-8"))
 
 
+def pepy_project() -> dict:
+    """GET project download history from Pepy.
+
+    Pepy exposes all-time totals plus a per-version daily breakdown for the
+    last roughly 90 days. We aggregate that version map into daily totals for
+    the README chart.
+    """
+    url = f"https://pepy.tech/api/v2/projects/{PKG}"
+    req = urllib.request.Request(
+        url,
+        headers={"User-Agent": f"{REPO}-metrics-workflow (+https://github.com/{REPO})"},
+    )
+    with urllib.request.urlopen(req, timeout=30) as r:
+        return json.loads(r.read().decode("utf-8"))
+
+
 def fmt(n: int | float) -> str:
     """Format a number with thousands separators."""
     return f"{int(n):,}"
+
+
+def short_fmt(n: int | float) -> str:
+    """Compact label for chart axes."""
+    n = int(n)
+    if abs(n) >= 1_000_000:
+        return f"{n / 1_000_000:.1f}M"
+    if abs(n) >= 1_000:
+        return f"{n / 1_000:.1f}k"
+    return str(n)
 
 
 def safe_get(fn, default, *, on_error: list[str] | None = None):
@@ -91,6 +120,139 @@ def safe_get(fn, default, *, on_error: list[str] | None = None):
         if on_error is not None:
             on_error.append(msg)
         return default
+
+
+def download_series(pepy: dict, *, days: int = 90) -> list[tuple[date, int]]:
+    """Aggregate Pepy's per-version daily downloads into one daily series."""
+    raw = pepy.get("downloads", {})
+    totals: dict[date, int] = {}
+    for day, versions in raw.items():
+        try:
+            day_key = date.fromisoformat(day)
+        except ValueError:
+            continue
+        if isinstance(versions, dict):
+            totals[day_key] = sum(int(v or 0) for v in versions.values())
+
+    end = max(totals) if totals else datetime.now(timezone.utc).date()
+    start = end - timedelta(days=days - 1)
+    return [(start + timedelta(days=i), totals.get(start + timedelta(days=i), 0)) for i in range(days)]
+
+
+def render_download_chart(series: list[tuple[date, int]], *, total_downloads: int) -> str:
+    """Render a dependency-free SVG chart for README embedding."""
+    width = 920
+    height = 360
+    left = 70
+    right = 28
+    top = 72
+    bottom = 64
+    chart_w = width - left - right
+    chart_h = height - top - bottom
+    max_y = max([value for _, value in series] + [1])
+    # Give the line a little headroom and round the top tick to a clean value.
+    top_tick = max(10, int(((max_y * 1.18) + 9) // 10 * 10))
+
+    def x_for(i: int) -> float:
+        if len(series) <= 1:
+            return left
+        return left + (i / (len(series) - 1)) * chart_w
+
+    def y_for(value: int | float) -> float:
+        return top + chart_h - (float(value) / top_tick) * chart_h
+
+    points = [(x_for(i), y_for(value)) for i, (_, value) in enumerate(series)]
+    line_points = " ".join(f"{x:.1f},{y:.1f}" for x, y in points)
+    area_points = (
+        f"{left:.1f},{top + chart_h:.1f} " + line_points + f" {left + chart_w:.1f},{top + chart_h:.1f}"
+    )
+
+    grid_lines: list[str] = []
+    axis_labels: list[str] = []
+    for tick in range(5):
+        value = top_tick * tick / 4
+        y = y_for(value)
+        grid_lines.append(
+            f'<line x1="{left}" y1="{y:.1f}" x2="{left + chart_w}" y2="{y:.1f}" '
+            'stroke="#e5e7eb" stroke-width="1" />'
+        )
+        axis_labels.append(
+            f'<text x="{left - 14}" y="{y + 4:.1f}" text-anchor="end" '
+            f'font-size="12" fill="#6b7280">{escape(short_fmt(value))}</text>'
+        )
+
+    month_labels: list[str] = []
+    seen_months: set[tuple[int, int]] = set()
+    for i, (day, _) in enumerate(series):
+        key = (day.year, day.month)
+        if key in seen_months:
+            continue
+        seen_months.add(key)
+        x = x_for(i)
+        month_labels.append(
+            f'<text x="{x:.1f}" y="{height - 26}" text-anchor="middle" '
+            f'font-size="12" fill="#6b7280">{escape(day.strftime("%b %d"))}</text>'
+        )
+
+    start_label = series[0][0].strftime("%b %-d, %Y") if series else ""
+    end_label = series[-1][0].strftime("%b %-d, %Y") if series else ""
+    latest_value = series[-1][1] if series else 0
+    total_window = sum(value for _, value in series)
+    subtitle = (
+        f"Daily downloads, last {len(series)} days · {fmt(total_window)} in window · "
+        f"{fmt(total_downloads)} all time"
+    )
+    generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    svg_lines = [
+        (
+            f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" '
+            f'viewBox="0 0 {width} {height}" role="img" aria-labelledby="title desc">'
+        ),
+        f'  <title id="title">{escape(PKG)} PyPI download history</title>',
+        (
+            f'  <desc id="desc">Daily PyPI downloads from Pepy for {escape(PKG)} '
+            f"between {escape(start_label)} and {escape(end_label)}.</desc>"
+        ),
+        f'  <rect width="{width}" height="{height}" rx="16" fill="#ffffff" />',
+        (
+            f'  <text x="{left}" y="34" font-size="22" font-weight="700" '
+            f'fill="#111827">{escape(PKG)} PyPI downloads</text>'
+        ),
+        f'  <text x="{left}" y="56" font-size="13" fill="#6b7280">{escape(subtitle)}</text>',
+        (
+            f'  <text x="{width - right}" y="34" text-anchor="end" font-size="20" '
+            f'font-weight="700" fill="#2563eb">{escape(short_fmt(latest_value))}</text>'
+        ),
+        f'  <text x="{width - right}" y="55" text-anchor="end" font-size="12" '
+        'fill="#6b7280">latest day</text>',
+        *grid_lines,
+        *axis_labels,
+        (
+            f'  <line x1="{left}" y1="{top + chart_h}" x2="{left + chart_w}" '
+            f'y2="{top + chart_h}" stroke="#d1d5db" stroke-width="1.5" />'
+        ),
+        f'  <polygon points="{area_points}" fill="#dbeafe" opacity="0.85" />',
+        (
+            f'  <polyline points="{line_points}" fill="none" stroke="#2563eb" '
+            'stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />'
+        ),
+        *month_labels,
+        (f'  <text x="{left}" y="{height - 10}" font-size="11" fill="#9ca3af">Source: pepy.tech API</text>'),
+        (
+            f'  <text x="{width - right}" y="{height - 10}" text-anchor="end" '
+            f'font-size="11" fill="#9ca3af">Generated {escape(generated_at)}</text>'
+        ),
+        "</svg>",
+        "",
+    ]
+    return "\n".join(svg_lines)
+
+
+def write_download_chart(pepy: dict) -> None:
+    series = download_series(pepy)
+    total_downloads = int(pepy.get("total_downloads", 0) or 0)
+    DOWNLOAD_CHART_OUTPUT.parent.mkdir(parents=True, exist_ok=True)
+    DOWNLOAD_CHART_OUTPUT.write_text(render_download_chart(series, total_downloads=total_downloads))
 
 
 def main() -> int:
@@ -121,7 +283,10 @@ def main() -> int:
 
     pypi_errors: list[str] = []
     recent = safe_get(lambda: pypistats("/recent")["data"], {}, on_error=pypi_errors)
+    pepy = safe_get(lambda: pepy_project(), {}, on_error=pypi_errors)
     pypi_blocked = bool(pypi_errors)
+    if pepy:
+        write_download_chart(pepy)
 
     stars = repo.get("stargazers_count", 0)
     forks = repo.get("forks_count", 0)

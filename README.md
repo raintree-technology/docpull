@@ -14,6 +14,12 @@
   </a>
 </p>
 
+## Download History
+
+<a href="https://pepy.tech/project/docpull">
+  <img alt="PyPI download history chart for docpull" src="docs/downloads-history.svg" />
+</a>
+
 ## Star History
 
 <a href="https://star-history.com/#raintree-technology/docpull&Date">
