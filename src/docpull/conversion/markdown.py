@@ -514,3 +514,53 @@ class FrontmatterBuilder:
 
         lines.append("---")
         return "\n".join(lines) + "\n\n"
+
+    def build_okf(
+        self,
+        *,
+        concept_type: str = "Documentation Page",
+        title: str | None = None,
+        resource: str | None = None,
+        description: str | None = None,
+        tags: list[str] | None = None,
+        timestamp: str | None = None,
+        source: str | None = None,
+        **extra_fields: Any,
+    ) -> str:
+        """Build Open Knowledge Format concept frontmatter."""
+        lines = ["---", f"type: {self._quoted(concept_type)}"]
+
+        if title:
+            lines.append(f"title: {self._quoted(title)}")
+
+        if description:
+            lines.append(f"description: {self._quoted(description[:500])}")
+
+        if resource:
+            lines.append(f"resource: {self._inline(resource)}")
+
+        if tags:
+            lines.append("tags:")
+            for tag in tags:
+                lines.append(f"  - {self._quoted(tag)}")
+
+        if timestamp:
+            lines.append(f"timestamp: {self._inline(timestamp)}")
+
+        if source:
+            # docpull extension retained for compatibility with existing consumers.
+            lines.append(f"source: {self._inline(source)}")
+
+        for key, value in extra_fields.items():
+            if value is not None:
+                if isinstance(value, str):
+                    lines.append(f"{key}: {self._quoted(value)}")
+                elif isinstance(value, (list, tuple)):
+                    lines.append(f"{key}:")
+                    for item in value:
+                        lines.append(f"  - {self._quoted(item)}")
+                else:
+                    lines.append(f"{key}: {self._inline(value)}")
+
+        lines.append("---")
+        return "\n".join(lines) + "\n\n"

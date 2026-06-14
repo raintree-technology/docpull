@@ -47,7 +47,7 @@ If you want more context around a hit, use `read_doc(library, path, line_start, 
 ### 3. If the library is NOT cached → decide whether to fetch
 
 - **Built-in alias** (the library appears in `list_sources()`): call `ensure_docs(source="<alias>")`. This crawls and indexes the whole library. ~10–30s for typical sites.
-- **Arbitrary URL**: call `fetch_url(url=...)` if you only need one page. For a whole site you don't have an alias for, tell the user to run `/docs-add <URL>` (which uses the docpull CLI to crawl); the MCP `fetch_url` is single-page only.
+- **Pasted docs URL**: call `fetch_url(url=...)` if you only need one static/server-rendered page. For a whole docs site you don't have an alias for, tell the user to run `/docs-add <URL>` (which uses the docpull CLI to crawl); the MCP `fetch_url` is single-page only.
 - **No alias, user didn't paste a URL**: ask the user once whether they'd like to add the library, and what the docs URL is. Don't fetch speculatively.
 
 ### 4. Quote with attribution

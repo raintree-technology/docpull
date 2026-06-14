@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from docpull.core.fetcher import Fetcher, _url_to_filename, _url_to_path_parts
+from docpull.core.fetcher import Fetcher, _url_to_filename, _url_to_okf_path_parts, _url_to_path_parts
 from docpull.models.config import DocpullConfig
 
 
@@ -53,6 +53,22 @@ class TestHierarchicalPathParts:
         assert "index" in result or result == ["api.md"]
 
 
+class TestOkfPathParts:
+    """Test URL conversion for OKF concept filenames."""
+
+    def test_root_url_avoids_reserved_index(self) -> None:
+        assert _url_to_okf_path_parts("https://docs.foo.com/") == ["_root.md"]
+
+    def test_trailing_slash_avoids_reserved_index(self) -> None:
+        assert _url_to_okf_path_parts("https://docs.foo.com/api/") == ["api", "_page.md"]
+
+    def test_index_html_avoids_reserved_index(self) -> None:
+        assert _url_to_okf_path_parts("https://docs.foo.com/api/index.html") == ["api", "_page.md"]
+
+    def test_log_html_avoids_reserved_log(self) -> None:
+        assert _url_to_okf_path_parts("https://docs.foo.com/log.html") == ["_log.md"]
+
+
 class TestComputeOutputPath:
     """Test that Fetcher routes to the right strategy."""
 
@@ -83,6 +99,15 @@ class TestComputeOutputPath:
         fetcher = Fetcher(config)
         path = fetcher._compute_output_path("https://docs.foo.com/api/")
         assert path == tmp_path / "api" / "index.md"
+
+    def test_okf_format_uses_okf_safe_paths(self, tmp_path: Path) -> None:
+        config = DocpullConfig(
+            url="https://docs.foo.com/",
+            output={"directory": tmp_path, "format": "okf"},
+        )
+        fetcher = Fetcher(config)
+        path = fetcher._compute_output_path("https://docs.foo.com/api/")
+        assert path == tmp_path / "api" / "_page.md"
 
 
 class TestFlattenedFilename:

@@ -67,6 +67,41 @@ def _soup(html: bytes) -> BeautifulSoup:
     return BeautifulSoup(_decode_html(html), "html.parser")
 
 
+def _title_from_soup(soup: BeautifulSoup) -> str | None:
+    if soup.title and soup.title.string:
+        title = soup.title.string.strip()
+        if title:
+            return title
+    heading = soup.find(["h1", "h2"])
+    if heading:
+        title = heading.get_text(" ", strip=True)
+        if title:
+            return title
+    return None
+
+
+def _markdown_from_first_selector(
+    html: bytes,
+    url: str,
+    selectors: tuple[str, ...],
+) -> tuple[str, str | None] | None:
+    """Convert the first useful static HTML region to Markdown."""
+    soup = _soup(html)
+    for selector in selectors:
+        node = soup.select_one(selector)
+        if not isinstance(node, Tag):
+            continue
+        text = node.get_text(" ", strip=True)
+        if len(text) < 80:
+            continue
+        from .markdown import HtmlToMarkdown
+
+        markdown = HtmlToMarkdown().convert(str(node), url).strip()
+        if markdown:
+            return markdown + "\n", _title_from_soup(soup)
+    return None
+
+
 def _walk_text(node: Any) -> str:
     """Recursively flatten a Next.js/MDX AST-like JSON tree to plain text."""
     if node is None:
@@ -175,22 +210,147 @@ class NextDataExtractor:
 
 
 class DocusaurusExtractor:
-    """Detect Docusaurus pages and fall through to generic extraction.
-
-    Docusaurus v2+ pages render full content into ``article`` tags at build
-    time, so the generic extractor handles them fine. This extractor exists
-    primarily to *tag* the source so downstream code knows the content is
-    Docusaurus-shaped (for chunking, etc.).
-    """
+    """Extract static Docusaurus documentation pages."""
 
     name = "docusaurus"
+
+    _SELECTORS = (
+        "article",
+        "main article",
+        ".theme-doc-markdown",
+        ".markdown",
+        "main",
+    )
 
     def try_extract(self, html: bytes, url: str) -> SpecialCaseResult | None:
         # Signature: docusaurus writes a root div id and meta generator
         if b"docusaurus" not in html.lower() and b"__docusaurus" not in html:
             return None
-        # Let the generic extractor handle it; we just flag the source.
-        return None
+        extracted = _markdown_from_first_selector(html, url, self._SELECTORS)
+        if extracted is None:
+            return None
+        markdown, title = extracted
+        return SpecialCaseResult(
+            markdown=markdown,
+            title=title,
+            source_type=self.name,
+            extra={"framework": "docusaurus"},
+        )
+
+
+class StaticRegionFrameworkExtractor:
+    """Base extractor for frameworks that ship useful static HTML regions."""
+
+    name = "static_framework"
+    framework = "static"
+    markers: tuple[bytes, ...] = ()
+    selectors: tuple[str, ...] = ("article", "main")
+
+    def try_extract(self, html: bytes, url: str) -> SpecialCaseResult | None:
+        lower = html.lower()
+        if self.markers and not any(marker in lower for marker in self.markers):
+            return None
+        extracted = _markdown_from_first_selector(html, url, self.selectors)
+        if extracted is None:
+            return None
+        markdown, title = extracted
+        return SpecialCaseResult(
+            markdown=markdown,
+            title=title,
+            source_type=self.name,
+            extra={"framework": self.framework},
+        )
+
+
+class MkDocsMaterialExtractor(StaticRegionFrameworkExtractor):
+    """Extract MkDocs / Material for MkDocs static pages."""
+
+    name = "mkdocs"
+    framework = "mkdocs"
+    markers = (b"mkdocs", b"md-content", b"material for mkdocs")
+    selectors = (
+        "article.md-content__inner",
+        ".md-content__inner",
+        ".md-content",
+        "main article",
+        "article",
+        "main",
+    )
+
+
+class VitePressExtractor(StaticRegionFrameworkExtractor):
+    """Extract VitePress / VuePress-style static docs pages."""
+
+    name = "vitepress"
+    framework = "vitepress"
+    markers = (b"vitepress", b"vp-doc", b"vpdoc")
+    selectors = (
+        ".VPDoc .content",
+        ".vp-doc",
+        "main .content",
+        "main",
+        "article",
+    )
+
+
+class StarlightExtractor(StaticRegionFrameworkExtractor):
+    """Extract Astro Starlight static docs pages."""
+
+    name = "starlight"
+    framework = "starlight"
+    markers = (b"starlight", b"sl-markdown-content", b"astro")
+    selectors = (
+        ".sl-markdown-content",
+        "article",
+        "main",
+    )
+
+
+class GitBookExtractor(StaticRegionFrameworkExtractor):
+    """Extract GitBook static documentation pages."""
+
+    name = "gitbook"
+    framework = "gitbook"
+    markers = (b"gitbook", b"data-testid=\"page.content\"", b"data-testid='page.content'")
+    selectors = (
+        "[data-testid='page.content']",
+        '[data-testid="page.content"]',
+        ".markdown",
+        "main article",
+        "article",
+        "main",
+    )
+
+
+class ReadMeExtractor(StaticRegionFrameworkExtractor):
+    """Extract ReadMe.io static documentation pages."""
+
+    name = "readme"
+    framework = "readme"
+    markers = (b"readme.io", b"rm-markdown", b"rdmd")
+    selectors = (
+        ".rm-Markdown",
+        ".rm-markdown",
+        ".markdown-body",
+        "article",
+        "main",
+    )
+
+
+class RedocScalarExtractor(StaticRegionFrameworkExtractor):
+    """Extract static Redoc or Scalar API reference pages."""
+
+    name = "api_reference"
+    framework = "redoc_scalar"
+    markers = (b"redoc", b"scalar-api-reference", b"scalar")
+    selectors = (
+        "redoc",
+        "#redoc-container",
+        ".api-content",
+        ".scalar-app",
+        "article",
+        "main",
+    )
 
 
 class MintlifyExtractor:
@@ -595,19 +755,37 @@ class RawTextExtractor:
 
 
 class SphinxObjectsInvExtractor:
-    """Detect Sphinx-built docs and let the generic extractor run.
-
-    Sphinx emits predictable ``div.body`` / ``div.document`` wrappers that
-    ``MainContentExtractor`` already captures. We only tag the source so
-    downstream code knows the content is Sphinx-flavored.
-    """
+    """Extract static Sphinx-built documentation pages."""
 
     name = "sphinx"
 
+    _SELECTORS = (
+        "div.body",
+        "main div.body",
+        "div.document",
+        "[role='main']",
+        "main",
+        "article",
+    )
+
     def try_extract(self, html: bytes, url: str) -> SpecialCaseResult | None:
-        if b'name="generator" content="Sphinx' not in html and b"sphinx" not in html.lower():
+        host = urlparse(url).hostname or ""
+        if (
+            b'name="generator" content="sphinx' not in html.lower()
+            and b"sphinx" not in html.lower()
+            and not host.endswith("readthedocs.io")
+        ):
             return None
-        return None
+        extracted = _markdown_from_first_selector(html, url, self._SELECTORS)
+        if extracted is None:
+            return None
+        markdown, title = extracted
+        return SpecialCaseResult(
+            markdown=markdown,
+            title=title,
+            source_type=self.name,
+            extra={"framework": "sphinx"},
+        )
 
 
 class MdxSourceExtractor:
@@ -652,6 +830,12 @@ DEFAULT_CHAIN: list[SpecialCaseExtractor] = [
     RawTextExtractor(),
     MintlifyExtractor(),
     NextDataExtractor(),
+    MkDocsMaterialExtractor(),
+    VitePressExtractor(),
+    StarlightExtractor(),
+    GitBookExtractor(),
+    ReadMeExtractor(),
+    RedocScalarExtractor(),
     DocusaurusExtractor(),
     SphinxObjectsInvExtractor(),
 ]
@@ -737,6 +921,18 @@ def detect_source_type(html: bytes, url: str) -> str:
     for marker in _NEXTJS_APP_ROUTER_MARKERS:
         if marker in lower:
             return "nextjs"
+    if b"mkdocs" in lower or b"md-content" in lower:
+        return "mkdocs"
+    if b"vitepress" in lower or b"vp-doc" in lower:
+        return "vitepress"
+    if b"starlight" in lower or b"sl-markdown-content" in lower:
+        return "starlight"
+    if b"gitbook" in lower or b"data-testid=\"page.content\"" in lower:
+        return "gitbook"
+    if b"readme.io" in lower or b"rm-markdown" in lower:
+        return "readme"
+    if b"redoc" in lower or b"scalar-api-reference" in lower:
+        return "api_reference"
     if b"docusaurus" in lower:
         return "docusaurus"
     if b'name="generator" content="sphinx' in lower:
@@ -750,14 +946,20 @@ def detect_source_type(html: bytes, url: str) -> str:
 __all__ = [
     "DEFAULT_CHAIN",
     "DocusaurusExtractor",
+    "GitBookExtractor",
+    "MkDocsMaterialExtractor",
     "MdxSourceExtractor",
     "MintlifyExtractor",
     "NextDataExtractor",
     "OpenApiExtractor",
     "RawTextExtractor",
+    "ReadMeExtractor",
+    "RedocScalarExtractor",
     "SpecialCaseExtractor",
     "SpecialCaseResult",
     "SphinxObjectsInvExtractor",
+    "StarlightExtractor",
+    "VitePressExtractor",
     "detect_source_type",
     "find_mdx_source_url",
     "looks_like_spa",

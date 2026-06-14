@@ -17,6 +17,7 @@ class ProfileName(str, Enum):
     MIRROR = "mirror"
     QUICK = "quick"
     LLM = "llm"
+    OKF = "okf"
     CUSTOM = "custom"
 
 
@@ -138,7 +139,7 @@ class OutputConfig(BaseModel):
     """Configuration for output formatting and file saving."""
 
     directory: Path = Field(Path("./docs"), description="Output directory for fetched content")
-    format: Literal["markdown", "json", "ndjson", "sqlite"] = Field(
+    format: Literal["markdown", "json", "ndjson", "sqlite", "okf"] = Field(
         "markdown",
         description="Output format",
     )

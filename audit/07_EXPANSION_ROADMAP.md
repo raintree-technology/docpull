@@ -1,109 +1,96 @@
 # Expansion Roadmap
 
-## P0: Correctness, Security, Documentation
+## P0: Release The Current Baseline Cleanly
 
-### Fix current import/type/lint blockers
+### Final gate current unreleased changes
 
-- User story: As a user, I can run `docpull --help` and `docpull --version` after installing from source.
-- Why now: Current dirty worktree is unusable.
-- Evidence: `FetchEvent` NameError in `src/docpull/models/events.py:131-140`; ruff/mypy failures.
-- Plan: add postponed annotations, import `SkipReason` where used, fix ruff/mypy issues.
-- Files: `models/events.py`, `pipeline/steps/convert.py`, `cache/frontier.py`, formatting.
-- Tests: CLI smoke, import smoke, full pytest.
-- Docs: none.
-- Risk: S.
-- Estimate: S.
-- Acceptance: `ruff check .`, `mypy src/docpull`, `pytest -q`, `docpull --help` pass.
+- User story: As a user, I can install the current checkout and run the CLI,
+  API, scraper facade, and output formats without local path drift.
+- Current state: editable install now points at `/Users/mb1/Code/raintree/docpull`;
+  tests/mypy pass; ruff import-order issue was fixed.
+- Files: package metadata, CLI, scraper API, output sinks, docs.
+- Tests: `.venv/bin/ruff check .`, `.venv/bin/mypy src/docpull`,
+  `.venv/bin/pytest -q`, CLI smoke.
+- Acceptance: all gates pass from the normal `.venv/bin/*` entry points.
 
-### Align LLM profile JS policy
+### Keep OKF output scoped and stable
 
-- User story: As an agent, I know whether LLM mode skips or fails JS-only pages.
-- Evidence: README/inline comment vs `strict_js_required=False`.
-- Plan: choose behavior; likely keep skip default for compatibility and update comment/README, or set true in v5.
-- Files: `profiles.py`, README, website, tests.
-- Tests: profile contract test.
-- Risk: behavior change if set true.
-- Estimate: S.
-- Acceptance: docs, comments, and config agree.
+- User story: As an agent/wiki user, I can generate an OKF bundle without
+  colliding with generated `index.md` files.
+- Current state: `--format okf` and `--profile okf` write OKF concept
+  frontmatter, safe `_root.md` / `_page.md` files, generated indexes, and
+  `corpus.manifest.json`.
+- Acceptance: OKF e2e tests pass and README warns users to write OKF to a
+  clean directory.
 
-### Fix CLI naming aliases
+### Keep scraper positioning precise
 
-- User story: As a CLI user, deprecated `flat/short` behavior is not accepted silently then rejected later.
-- Evidence: `cli.py:136-143`, `config.py:145-150`, changelog 3.0.0.
-- Plan: remove `flat/short` from argparse or map with clear error.
-- Tests: parser/config test.
-- Risk: low.
-- Estimate: S.
-- Acceptance: `docpull --help` only lists valid names.
+- User story: As a developer, I understand docpull's scraper scope before
+  choosing it over Scrapy, Crawlee, hosted extraction APIs, or trafilatura.
+- Current state: `docs/scraping-boundary.md` defines browser-free scope and
+  non-goals; `docpull.scraper` exposes thin scraper-native APIs over Fetcher.
+- Acceptance: docs and API tests demonstrate first-class scraper usage without
+  adding a second crawler engine.
 
-### Correct plugin docs
+## P1: Deepen The Agent-Context Product
 
-- User story: As a Claude Code user, I can find/delete the actual cache.
-- Evidence: plugin README path mismatch.
-- Plan: update cache path, version prerequisite, and direct URL wording.
-- Tests: docs lint.
-- Estimate: S.
+### SQLite and local retrieval
 
-## P1: High-Impact Low-Risk
+- User story: As an agent/RAG builder, I can search locally generated artifacts
+  without loading every file into memory.
+- Current state: SQLite output creates/backfills an FTS5 index and exposes
+  `search_sqlite_documents()`.
+- Next steps: add a CLI/MCP search surface that prefers SQLite FTS when present
+  and falls back to markdown grep.
 
-### Stable corpus manifest and chunk IDs
+### Corpus manifest schema validation
 
-- User story: As a RAG builder, I can diff and cite regenerated docs reliably.
-- Code seam: `DocumentRecord`, `RunIdentity`, `NdjsonSaveStep`, `SqliteSaveStep`.
-- Plan: add `manifest.json`, stable chunk IDs from URL+heading+chunk index+content hash.
-- Tests: deterministic rerun tests.
-- Docs: output schema page.
-- Estimate: M.
+- User story: As a downstream consumer, I can validate pack/manifests before
+  indexing them.
+- Current state: manifests include stable IDs, content hashes, output paths,
+  chunk provenance, counts, and run identity; schema is documented in
+  `docs/corpus-manifest.md`.
+- Next steps: add JSON Schema and a `docpull pack validate` command.
 
-### SQLite FTS search path
+### Framework fixture expansion
 
-- User story: As an agent, I can search cached docs faster than regex scan without Postgres.
-- Code seam: `save_sqlite.py`, MCP `grep_docs`.
-- Plan: create SQLite FTS5 index; add optional MCP source `search_docs` or faster grep.
-- Tests: FTS ranking, migration, path validation.
-- Estimate: M.
+- User story: As a user, common docs frameworks are handled predictably without
+  requiring JavaScript rendering.
+- Current state: fixtures cover Next.js, Mintlify, OpenAPI, raw text,
+  Docusaurus, Sphinx, MkDocs/Material, VitePress, Astro/Starlight, GitBook,
+  ReadMe.io, and static Redoc/Scalar-style API reference pages.
+- Next targets: live-regression captures and deeper framework-specific data
+  feeds where static extraction underperforms.
 
-### Per-project MCP cache
+### Plugin/MCP cache clarity
 
-- User story: As a team, each repo has its own docs snapshot.
-- Code seam: `default_docs_dir()`, plugin config, commands.
-- Plan: support `.docpull/docs` or env/config override in plugin commands.
-- Tests: XDG/env/project precedence.
-- Estimate: M.
-
-### Framework extractor fixture suite
-
-- User story: As a user, DocPull handles common docs frameworks predictably.
-- Targets: MkDocs/Material, VitePress, VuePress, Astro/Starlight, GitBook, ReadMe.io, Redoc/Scalar.
-- Code seam: `conversion/special_cases.py`.
-- Plan: add local HTML fixtures before live extractors.
-- Tests: one fixture per framework.
-- Estimate: M.
+- User story: As a Claude Code or MCP user, I can find, refresh, and delete the
+  actual cache location.
+- Current state: `plugin/README.md` points to `docpull-mcp/docs`, matching
+  `src/docpull/mcp/sources.py`, and `tests/test_ci_policy.py` checks the
+  README path/version text.
 
 ## P2: Strategic Expansion
 
 ### Optional JS rendering adapter
 
 - User story: As a user, JS-only docs can be fetched when I explicitly opt in.
-- Plan: keep browser-free default; add Playwright/Browserless adapter behind extra and strict domain/budget controls.
+- Plan: keep browser-free default; add Playwright/Browserless behind a separate
+  extra, domain allowlists, page/request budgets, and local JS-only fixtures.
 - Risk: security, cost, flakiness.
-- Estimate: L.
-- Acceptance: JS-only local fixture succeeds only with adapter enabled.
 
 ### Authenticated/internal docs mode
 
 - User story: As an enterprise user, I can fetch private docs safely.
-- Plan: allowlist domains, scoped headers/cookies, redaction, audit log, no cross-origin auth, privacy mode.
-- Files: config, HTTP, docs, MCP tools.
+- Plan: allowlist domains, scoped headers/cookies, redaction, audit log,
+  cross-origin auth stripping, and privacy mode.
 - Risk: high.
-- Estimate: L/XL.
 
 ### Semantic search product path
 
 - User story: As an agent, I can ask conceptual questions over cached docs.
-- Plan: decide whether root `mcp/` becomes official or Python MCP gains optional embeddings adapters.
-- Dependencies: OpenAI/local embeddings/vector DB.
-- Estimate: L.
+- Plan: decide whether Python MCP gains optional embeddings adapters or whether
+  the root TypeScript MCP remains a separate/internal experiment.
 
 ## P3: Speculative Bets
 

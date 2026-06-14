@@ -20,9 +20,10 @@
 - Security: `src/docpull/security/url_validator.py`, `robots.py`.
 - Discovery: `src/docpull/discovery/sitemap.py`, `crawler.py`, `filters.py`, `link_extractors/`.
 - Conversion: `src/docpull/conversion/extractor.py`, `markdown.py`, `special_cases.py`, `trafilatura_extractor.py`, `chunking.py`.
-- Pipeline: `src/docpull/pipeline/base.py` plus `steps/validate.py`, `fetch.py`, `convert.py`, `metadata.py`, `dedup.py`, `chunk.py`, `save.py`, `save_json.py`, `save_ndjson.py`, `save_sqlite.py`.
+- Pipeline: `src/docpull/pipeline/base.py` plus `steps/validate.py`, `fetch.py`, `convert.py`, `metadata.py`, `dedup.py`, `chunk.py`, `save.py`, `save_json.py`, `save_ndjson.py`, `save_sqlite.py`, `save_okf.py`.
 - Cache/resume: `src/docpull/cache/manager.py`, `streaming_dedup.py`, dirty-worktree `frontier.py`.
 - Python MCP: `src/docpull/mcp/server.py`, `tools.py`, `sources.py`.
+- Scraper facade: `src/docpull/scraper.py`.
 
 ## Runtime Data Flow
 
@@ -33,7 +34,7 @@
 5. Discovery uses sitemaps plus link crawling: `SitemapDiscoverer` and `LinkCrawler`.
 6. Each URL enters `FetchPipeline.execute_result()` in `src/docpull/pipeline/base.py:181-222`.
 7. Pipeline validates URL/robots/cache, fetches bytes, converts/special-cases, extracts metadata, deduplicates/chunks, and saves.
-8. Output writers persist Markdown, JSON, NDJSON, or SQLite records.
+8. Output writers persist Markdown, JSON, NDJSON, SQLite, or OKF records.
 9. `Fetcher.run()` emits `FetchEvent` records for CLI/MCP/progress consumers.
 
 ## Trust Boundaries
@@ -56,13 +57,14 @@
 - Add MCP tools in `src/docpull/mcp/server.py` and implementations in `tools.py`.
 - Add Claude Code UX in `plugin/commands` and `plugin/skills`.
 - Add semantic/FTS storage in SQLite or root `mcp/` DB layer.
+- Add scraper-facing convenience APIs in `src/docpull/scraper.py` without duplicating the Fetcher engine.
 
 ## Duplicated/Dead Systems
 
 - Python MCP and root TypeScript MCP are separate products with different capabilities and operational models.
 - Root `mcp/package.json:2-3` says `docpull-mcp` version `0.3.0`, while `mcp/src/server.ts:396` initializes server version `0.2.0`.
-- README points to a root `mcp/` mirror that appears unverified/publicly unavailable.
-- Current dirty worktree introduces `src/docpull/cache/frontier.py`, `models/document.py`, `models/run.py`, SQLite/frontier tests, and pipeline changes, but the import failure prevents validating them.
+- Root `mcp/` should stay clearly documented as a separate/internal surface unless it is deliberately split or promoted.
+- Current dirty worktree adds unreleased OKF output, scraper API, SQLite FTS, framework extractors, and docs/audit updates; local test/type/lint gates should be rerun before release.
 
 ## Dependency Graph
 
@@ -85,6 +87,6 @@ CLI/Python API/MCP
       -> MetadataStep
       -> DedupStep
       -> ChunkStep
-      -> SaveStep / JsonSaveStep / NdjsonSaveStep / SqliteSaveStep
+      -> SaveStep / JsonSaveStep / NdjsonSaveStep / SqliteSaveStep / OkfSaveStep
     -> CacheManager / StreamingDeduplicator
 ```

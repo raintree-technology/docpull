@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Add first-class Open Knowledge Format output via `--format okf` and
+  `--profile okf`, including OKF concept frontmatter, generated directory
+  `index.md` files with root `okf_version: "0.1"`, and docpull corpus
+  manifests.
+- Add the `docpull.scraper` API surface (`Scraper`, `scrape_one`,
+  `scrape_site`, and `ScrapeResult`) as thin scraper-native names over the
+  existing browser-free Fetcher pipeline.
+- Add `docs/scraping-boundary.md` to define docpull as a local, auditable
+  static/server-rendered web-to-context scraper rather than a general browser
+  automation framework.
+- Add SQLite FTS5 indexing for `--format sqlite` output plus
+  `search_sqlite_documents()` for local full-text retrieval.
+- Add static Docusaurus, Sphinx, MkDocs/Material, VitePress, Starlight,
+  GitBook, ReadMe.io, and Redoc/Scalar-style extraction fixtures so common
+  docs frameworks are extracted and tagged without JavaScript rendering.
+
 ## [4.2.0] - 2026-06-08
 
 ### Added

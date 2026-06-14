@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import sqlite3
+from dataclasses import dataclass
 from pathlib import Path
 
 from ...models.document import DocumentRecord
@@ -14,6 +15,16 @@ from ..base import EventEmitter, PageContext
 from ..manifest import CorpusManifest
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class SqliteSearchResult:
+    """One full-text search hit from a docpull SQLite output database."""
+
+    url: str
+    title: str | None
+    snippet: str
+    rank: float
 
 
 class SqliteSaveStep:
@@ -100,6 +111,7 @@ class SqliteSaveStep:
                     "extraction": "TEXT",
                 },
             )
+            self._ensure_fts(self._conn)
             if self._run_identity:
                 self._conn.execute(
                     "INSERT OR REPLACE INTO run_metadata (key, value) VALUES (?, ?)",
@@ -119,6 +131,27 @@ class SqliteSaveStep:
         for name, definition in columns.items():
             if name not in existing:
                 conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {definition}")
+
+    @staticmethod
+    def _ensure_fts(conn: sqlite3.Connection) -> None:
+        """Create and backfill the local full-text search index."""
+        conn.execute("""
+            CREATE VIRTUAL TABLE IF NOT EXISTS documents_fts USING fts5(
+                url UNINDEXED,
+                title,
+                content,
+                content_hash UNINDEXED
+            )
+        """)
+        conn.execute("""
+            INSERT INTO documents_fts (url, title, content, content_hash)
+            SELECT d.url, d.title, d.content, d.content_hash
+            FROM documents d
+            WHERE d.content IS NOT NULL
+              AND NOT EXISTS (
+                  SELECT 1 FROM documents_fts f WHERE f.url = d.url
+              )
+        """)
 
     async def execute(
         self,
@@ -172,6 +205,13 @@ class SqliteSaveStep:
                 self._document_count += 1
                 self._pending_count += 1
                 self._manifest.add_record(record, self._db_path)
+                conn.execute(
+                    """
+                    INSERT INTO documents_fts (url, title, content, content_hash)
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    (record.url, record.title, record.content, record.content_hash),
+                )
 
             # Batch commits for performance
             if self._pending_count >= self.BATCH_SIZE:
@@ -225,3 +265,54 @@ class SqliteSaveStep:
     def db_path(self) -> Path:
         """Return the path to the database file."""
         return self._db_path
+
+
+def search_sqlite_documents(
+    db_path: Path,
+    query: str,
+    *,
+    limit: int = 10,
+) -> list[SqliteSearchResult]:
+    """Search a docpull SQLite output database with FTS5.
+
+    Args:
+        db_path: Path to ``documents.db``.
+        query: FTS5 query string.
+        limit: Maximum number of hits to return.
+
+    Returns:
+        Search hits ordered by FTS rank.
+    """
+    if not query.strip():
+        return []
+    if limit < 1:
+        return []
+    if not db_path.exists():
+        return []
+    conn = sqlite3.connect(db_path)
+    try:
+        rows = conn.execute(
+            """
+            SELECT
+                url,
+                title,
+                snippet(documents_fts, 2, '[', ']', ' ... ', 24) AS snippet,
+                bm25(documents_fts) AS rank
+            FROM documents_fts
+            WHERE documents_fts MATCH ?
+            ORDER BY rank
+            LIMIT ?
+            """,
+            (query, limit),
+        ).fetchall()
+    finally:
+        conn.close()
+    return [
+        SqliteSearchResult(
+            url=str(row[0]),
+            title=str(row[1]) if row[1] is not None else None,
+            snippet=str(row[2] or ""),
+            rank=float(row[3] or 0.0),
+        )
+        for row in rows
+    ]

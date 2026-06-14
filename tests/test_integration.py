@@ -44,6 +44,11 @@ class TestDocpullConfig:
         config = DocpullConfig(url="https://docs.example.com", profile=ProfileName.QUICK)
         assert config.profile == ProfileName.QUICK
 
+    def test_okf_profile(self):
+        """Test OKF profile config."""
+        config = DocpullConfig(url="https://docs.example.com", profile=ProfileName.OKF)
+        assert config.profile == ProfileName.OKF
+
     def test_config_with_crawl_settings(self):
         """Test config with custom crawl settings."""
         config = DocpullConfig(
@@ -385,6 +390,17 @@ class TestProfileDefaults:
         # Quick profile should have low max_pages (50) and max_depth (2)
         assert config.crawl.max_pages == 50
         assert config.crawl.max_depth == 2
+
+    def test_okf_profile_defaults(self):
+        """Test OKF profile applies output defaults."""
+        from docpull.models.profiles import apply_profile
+
+        config = DocpullConfig(url="https://example.com", profile=ProfileName.OKF)
+        config = apply_profile(config)
+
+        assert config.output.format == "okf"
+        assert config.output.rich_metadata is True
+        assert config.content_filter.streaming_dedup is True
 
     def test_explicit_user_value_beats_profile_value(self):
         """User-supplied values must win over profile values on collision.

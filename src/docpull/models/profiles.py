@@ -61,6 +61,18 @@ PROFILES: dict[ProfileName, dict[str, Any]] = {
             "emit_chunks": True,
         },
     },
+    ProfileName.OKF: {
+        # Open Knowledge Format bundle: Markdown concepts with OKF frontmatter
+        # plus generated index.md files for progressive disclosure.
+        "content_filter": {
+            "streaming_dedup": True,
+        },
+        "output": {
+            "format": "okf",
+            "rich_metadata": True,
+            "naming_strategy": "hierarchical",
+        },
+    },
     ProfileName.CUSTOM: {
         # No overrides - use explicit config
     },

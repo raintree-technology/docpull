@@ -1,6 +1,6 @@
 # docpull plugin for Claude Code
 
-Pull docs from any URL into Claude Code. Local, fast, no API keys.
+Pull static and server-rendered docs into Claude Code. Local, fast, no API keys.
 
 ## What you get
 

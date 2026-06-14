@@ -325,6 +325,29 @@ class TestFrontmatterBuilder:
         assert 'author: "John Doe"' in result
         assert 'date: "2024-01-01"' in result
 
+    def test_builds_okf_frontmatter(self):
+        """OKF frontmatter includes the required type and recommended resource fields."""
+        builder = FrontmatterBuilder()
+        result = builder.build_okf(
+            title="Getting Started",
+            resource="https://docs.example.com/guide",
+            source="https://docs.example.com/guide",
+            description="Start here.",
+            tags=["docs", "guide"],
+            timestamp="2026-06-12T20:00:00Z",
+            source_type="nextjs",
+        )
+
+        data = yaml.safe_load(result.split("---", 2)[1])
+
+        assert data["type"] == "Documentation Page"
+        assert data["title"] == "Getting Started"
+        assert data["resource"] == "https://docs.example.com/guide"
+        assert data["source"] == "https://docs.example.com/guide"
+        assert data["tags"] == ["docs", "guide"]
+        assert data["timestamp"].isoformat() == "2026-06-12T20:00:00+00:00"
+        assert data["source_type"] == "nextjs"
+
     def test_handles_list_fields(self):
         """Test list fields in frontmatter."""
         builder = FrontmatterBuilder()

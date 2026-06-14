@@ -41,6 +41,11 @@ sandbox-friendly way to pipe web content into an LLM context, a RAG index, or an
 offline archive. SSRF, XXE, DNS-rebinding, and CRLF-injection protections are on
 by default — a necessity when an AI agent is choosing the URLs.
 
+docpull is intentionally not a general browser-automation scraper. See
+[`docs/scraping-boundary.md`](docs/scraping-boundary.md) for the exact product
+boundary and when to use Scrapy, Crawlee, hosted extraction APIs, or trafilatura
+directly.
+
 ## Install
 
 ```bash
@@ -67,6 +72,9 @@ docpull https://docs.example.com/guide --single
 # LLM-ready NDJSON with 4k-token chunks streamed to stdout
 docpull https://docs.example.com --profile llm --stream | jq .
 
+# Open Knowledge Format bundle for agent/wiki interoperability
+docpull https://docs.example.com --format okf
+
 # Mirror scraped content for offline use
 docpull https://docs.example.com --profile mirror --cache
 ```
@@ -81,8 +89,13 @@ content directly from framework data feeds:
 | Next.js   | Parses `__NEXT_DATA__` JSON |
 | Mintlify  | `__NEXT_DATA__` with Mintlify tagging |
 | OpenAPI   | Renders `openapi.json` / `swagger.json` into Markdown |
-| Docusaurus| Detected and tagged; generic extractor produces Markdown |
-| Sphinx    | Detected from generator metadata / Read the Docs hosts and tagged; generic extractor produces Markdown |
+| Docusaurus| Extracts static article regions and tags framework metadata |
+| Sphinx    | Extracts static body/document regions and tags framework metadata |
+| MkDocs / Material | Extracts static content regions and tags framework metadata |
+| VitePress / VuePress | Extracts static doc regions and tags framework metadata |
+| Astro Starlight | Extracts static markdown content regions and tags framework metadata |
+| GitBook / ReadMe.io | Extracts static article/content regions and tags framework metadata |
+| Redoc / Scalar | Extracts static API reference regions; OpenAPI JSON is still preferred when available |
 
 JS-only SPAs with no server-rendered content are detected and skipped with a
 clear reason (or, with `--strict-js-required`, reported as an error so agents
@@ -101,6 +114,30 @@ can route elsewhere).
   for sites where the default heuristics struggle.
 
 ## Python API
+
+Scraper-facing API:
+
+```python
+import asyncio
+from docpull import scrape_one, Scraper
+
+async def main():
+    page = await scrape_one("https://docs.python.org/3/library/asyncio.html")
+    print(page.title, page.source_type)
+    print(page.text[:500])
+
+    scraper = Scraper()
+    run = await scraper.scrape_site(
+        "https://docs.example.com",
+        output_format="ndjson",
+        max_pages=100,
+    )
+    print(run.stats.pages_fetched, run.manifest_path)
+
+asyncio.run(main())
+```
+
+Core fetcher API:
 
 ```python
 from docpull import fetch_one
@@ -146,6 +183,7 @@ async def tool_call(url: str) -> str:
 ```bash
 docpull https://site.com --profile rag      # Default. Dedup, rich metadata.
 docpull https://site.com --profile llm      # NDJSON + chunks + metadata; JS-only pages skip unless --strict-js-required is passed.
+docpull https://site.com --profile okf      # OKF bundle with generated index.md files.
 docpull https://site.com --profile mirror   # Full archive, polite, cached, hierarchical paths.
 docpull https://site.com --profile quick    # Sampling: 50 pages, depth 2.
 ```
@@ -427,10 +465,42 @@ NDJSON (one record per page or chunk):
 {"document_id": "doc_...", "chunk_id": "chunk_...", "url": "...", "title": "...", "content": "...", "hash": "...", "token_count": 842, "chunk_index": 0}
 ```
 
+Open Knowledge Format:
+
+```bash
+docpull https://docs.example.com --format okf
+```
+
+OKF output is an opt-in Markdown bundle. Scraped pages are written as concept
+documents with OKF frontmatter (`type`, `title`, `description`, `resource`,
+`tags`, `timestamp` when source metadata exists) and docpull keeps `source` as a
+compatibility extension. Generated `index.md` files are reserved for directory
+listings, so URL landing pages use safe concept filenames such as `_root.md` or
+`_page.md` instead of occupying `index.md`. The root `index.md` declares
+`okf_version: "0.1"`; nested indexes stay plain listing files.
+
+Because OKF treats every non-reserved `.md` file in the tree as a concept, write
+OKF output to a clean or dedicated directory rather than mixing it with unrelated
+Markdown files.
+
 Every output format also writes `corpus.manifest.json` next to the generated
 documents. The manifest records the run identity, output format, stable
-`document_id` / `chunk_id` values, content hashes, relative output paths, and
-chunk counts so regenerated corpora can be diffed and cited by agents.
+`document_id` / `chunk_id` values, content hashes, file-backed relative output
+paths (or the stdout marker for streamed NDJSON), and chunk counts so
+regenerated corpora can be diffed and cited by agents. See
+[`docs/corpus-manifest.md`](docs/corpus-manifest.md) for the schema and
+stability contract.
+
+SQLite output includes an FTS5 index for local retrieval:
+
+```python
+from pathlib import Path
+from docpull import search_sqlite_documents
+
+hits = search_sqlite_documents(Path("docs/documents.db"), "rate limit")
+for hit in hits:
+    print(hit.url, hit.snippet)
+```
 
 ## Security
 
@@ -451,9 +521,9 @@ Run `docpull --help` for the full list. Highlights:
 
 ```
 Core:
-  --profile {rag,mirror,quick,llm}
+  --profile {rag,mirror,quick,llm,okf}
   --single                Fetch one URL (no crawl)
-  --format {markdown,json,ndjson,sqlite}
+  --format {markdown,json,ndjson,sqlite,okf}
   --stream                Stream NDJSON to stdout
 
 LLM / chunking:

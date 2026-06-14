@@ -29,7 +29,7 @@ class CorpusManifest:
         self._records: list[dict[str, Any]] = []
         self._seen: set[str] = set()
 
-    def add_record(self, record: DocumentRecord, output_path: Path | None = None) -> None:
+    def add_record(self, record: DocumentRecord, output_path: Path | str | None = None) -> None:
         record_key = record.chunk_id or record.document_id
         if record_key in self._seen:
             return
@@ -51,7 +51,9 @@ class CorpusManifest:
             item["chunk_heading"] = record.chunk_heading
         if record.token_count is not None:
             item["token_count"] = record.token_count
-        if output_path is not None:
+        if isinstance(output_path, str):
+            item["output_path"] = output_path
+        elif output_path is not None:
             try:
                 item["output_path"] = str(output_path.resolve().relative_to(self._base_dir))
             except ValueError:

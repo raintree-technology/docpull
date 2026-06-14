@@ -41,6 +41,35 @@ def test_parser_accepts_supported_naming_strategies():
     assert hierarchical.naming_strategy == "hierarchical"
 
 
+def test_parser_accepts_okf_profile_and_format():
+    parser = create_parser()
+
+    profile = parser.parse_args(["https://example.com", "--profile", "okf"])
+    output_format = parser.parse_args(["https://example.com", "--format", "okf"])
+
+    assert profile.profile == "okf"
+    assert output_format.format == "okf"
+
+
+def test_skill_rejects_okf_output(tmp_path, capsys):
+    parser = create_parser()
+    args = parser.parse_args(
+        [
+            "https://example.com",
+            "--skill",
+            "my-docs",
+            "--format",
+            "okf",
+            "--output-dir",
+            str(tmp_path),
+        ]
+    )
+
+    assert run_fetcher(args) == 1
+    captured = capsys.readouterr()
+    assert "--skill cannot be combined with OKF output" in captured.out
+
+
 def test_parser_accepts_per_host_concurrency():
     parser = create_parser()
 

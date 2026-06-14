@@ -41,6 +41,26 @@ async def test_ndjson_writes_one_line_per_page(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_ndjson_manifest_marks_stdout_stream(tmp_path, capsys):
+    step = NdjsonSaveStep(base_output_dir=tmp_path, filename="-")
+    ctx = PageContext(
+        url="https://example.com/stdout",
+        output_path=tmp_path / "stdout.md",
+        markdown="# Stdout\n\nBody.",
+        title="Stdout",
+    )
+
+    await step.execute(ctx)
+    out_path = step.finalize()
+
+    captured = capsys.readouterr()
+    assert out_path is None
+    assert '"url": "https://example.com/stdout"' in captured.out
+    manifest = json.loads((tmp_path / "corpus.manifest.json").read_text(encoding="utf-8"))
+    assert manifest["records"][0]["output_path"] == "-"
+
+
+@pytest.mark.asyncio
 async def test_ndjson_emits_chunks_when_enabled(tmp_path):
     step = NdjsonSaveStep(base_output_dir=tmp_path, filename="out.ndjson", emit_chunks=True)
     ctx = PageContext(
