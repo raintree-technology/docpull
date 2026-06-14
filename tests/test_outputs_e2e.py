@@ -223,7 +223,7 @@ async def test_okf_output_bundle_local_server(output_server: str, tmp_path: Path
     assert "# Alpha" in concept
 
     root_index = (tmp_path / "index.md").read_text()
-    assert root_index.startswith("---\nokf_version: \"0.1\"\n---")
+    assert root_index.startswith('---\nokf_version: "0.1"\n---')
     assert "* [Alpha Docs](_root.md)" in root_index
 
     manifest = json.loads((tmp_path / "corpus.manifest.json").read_text())
@@ -249,7 +249,7 @@ async def test_okf_indexes_include_nested_directories(tmp_path: Path) -> None:
     root_index = (tmp_path / "index.md").read_text()
     nested_index = (tmp_path / "api" / "index.md").read_text()
 
-    assert root_index.startswith("---\nokf_version: \"0.1\"\n---")
+    assert root_index.startswith('---\nokf_version: "0.1"\n---')
     assert "* [api](api/) - 1 concept" in root_index
     assert not nested_index.startswith("---")
     assert "* [API](_page.md)" in nested_index

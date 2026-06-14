@@ -67,6 +67,15 @@ def _soup(html: bytes) -> BeautifulSoup:
     return BeautifulSoup(_decode_html(html), "html.parser")
 
 
+def _hostname_from_url(url: str) -> str:
+    return (urlparse(url).hostname or "").lower().rstrip(".")
+
+
+def _hostname_matches_domain(hostname: str, domain: str) -> bool:
+    normalized_domain = domain.lower().rstrip(".")
+    return hostname == normalized_domain or hostname.endswith(f".{normalized_domain}")
+
+
 def _title_from_soup(soup: BeautifulSoup) -> str | None:
     if soup.title and soup.title.string:
         title = soup.title.string.strip()
@@ -244,11 +253,15 @@ class StaticRegionFrameworkExtractor:
     name = "static_framework"
     framework = "static"
     markers: tuple[bytes, ...] = ()
+    host_domains: tuple[str, ...] = ()
     selectors: tuple[str, ...] = ("article", "main")
 
     def try_extract(self, html: bytes, url: str) -> SpecialCaseResult | None:
         lower = html.lower()
-        if self.markers and not any(marker in lower for marker in self.markers):
+        has_marker = any(marker in lower for marker in self.markers)
+        host = _hostname_from_url(url)
+        has_matching_host = any(_hostname_matches_domain(host, domain) for domain in self.host_domains)
+        if (self.markers or self.host_domains) and not (has_marker or has_matching_host):
             return None
         extracted = _markdown_from_first_selector(html, url, self.selectors)
         if extracted is None:
@@ -311,7 +324,7 @@ class GitBookExtractor(StaticRegionFrameworkExtractor):
 
     name = "gitbook"
     framework = "gitbook"
-    markers = (b"gitbook", b"data-testid=\"page.content\"", b"data-testid='page.content'")
+    markers = (b"gitbook", b'data-testid="page.content"', b"data-testid='page.content'")
     selectors = (
         "[data-testid='page.content']",
         '[data-testid="page.content"]',
@@ -327,7 +340,8 @@ class ReadMeExtractor(StaticRegionFrameworkExtractor):
 
     name = "readme"
     framework = "readme"
-    markers = (b"readme.io", b"rm-markdown", b"rdmd")
+    markers = (b"rm-markdown", b"rdmd")
+    host_domains = ("readme.io",)
     selectors = (
         ".rm-Markdown",
         ".rm-markdown",
@@ -769,11 +783,11 @@ class SphinxObjectsInvExtractor:
     )
 
     def try_extract(self, html: bytes, url: str) -> SpecialCaseResult | None:
-        host = urlparse(url).hostname or ""
+        host = _hostname_from_url(url)
         if (
             b'name="generator" content="sphinx' not in html.lower()
             and b"sphinx" not in html.lower()
-            and not host.endswith("readthedocs.io")
+            and not _hostname_matches_domain(host, "readthedocs.io")
         ):
             return None
         extracted = _markdown_from_first_selector(html, url, self._SELECTORS)
@@ -927,9 +941,10 @@ def detect_source_type(html: bytes, url: str) -> str:
         return "vitepress"
     if b"starlight" in lower or b"sl-markdown-content" in lower:
         return "starlight"
-    if b"gitbook" in lower or b"data-testid=\"page.content\"" in lower:
+    if b"gitbook" in lower or b'data-testid="page.content"' in lower:
         return "gitbook"
-    if b"readme.io" in lower or b"rm-markdown" in lower:
+    host = _hostname_from_url(url)
+    if _hostname_matches_domain(host, "readme.io") or b"rm-markdown" in lower:
         return "readme"
     if b"redoc" in lower or b"scalar-api-reference" in lower:
         return "api_reference"
@@ -937,8 +952,7 @@ def detect_source_type(html: bytes, url: str) -> str:
         return "docusaurus"
     if b'name="generator" content="sphinx' in lower:
         return "sphinx"
-    host = urlparse(url).hostname or ""
-    if host.endswith("readthedocs.io"):
+    if _hostname_matches_domain(host, "readthedocs.io"):
         return "sphinx"
     return "generic"
 

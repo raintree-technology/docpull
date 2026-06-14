@@ -597,10 +597,7 @@ class Fetcher:
 
         steps = self._pipeline.steps
         if not save:
-            steps = [
-                s.without_existing_check() if isinstance(s, ValidateStep) else s
-                for s in steps
-            ]
+            steps = [s.without_existing_check() if isinstance(s, ValidateStep) else s for s in steps]
             steps = [
                 s
                 for s in steps

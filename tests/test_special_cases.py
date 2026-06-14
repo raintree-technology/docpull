@@ -515,6 +515,15 @@ class TestDetectSourceType:
     def test_readthedocs_host_assumes_sphinx(self):
         assert detect_source_type(b"<html></html>", "https://foo.readthedocs.io/page") == "sphinx"
 
+    def test_deceptive_readthedocs_suffix_is_generic(self):
+        assert detect_source_type(b"<html></html>", "https://readthedocs.io.evil.example/page") == "generic"
+
+    def test_readme_host_assumes_readme(self):
+        assert detect_source_type(b"<html></html>", "https://docs.readme.io/page") == "readme"
+
+    def test_deceptive_readme_suffix_is_generic(self):
+        assert detect_source_type(b"<html></html>", "https://readme.io.evil.example/page") == "generic"
+
 
 class TestDefaultChain:
     def test_chain_has_expected_extractors(self):
