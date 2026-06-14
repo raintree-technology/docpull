@@ -1,5 +1,7 @@
 """ValidateStep - URL validation pipeline step."""
 
+from __future__ import annotations
+
 import logging
 
 from ...models.events import EventType, FetchEvent, SkipReason
@@ -55,6 +57,14 @@ class ValidateStep:
         self._url_validator = url_validator
         self._robots_checker = robots_checker
         self._check_existing = check_existing and not cache_enabled
+
+    def without_existing_check(self) -> ValidateStep:
+        """Return an equivalent validator that ignores existing output files."""
+        return ValidateStep(
+            url_validator=self._url_validator,
+            robots_checker=self._robots_checker,
+            check_existing=False,
+        )
 
     async def execute(
         self,

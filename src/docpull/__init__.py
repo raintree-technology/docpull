@@ -1,5 +1,5 @@
 """
-docpull - Fetch and convert documentation from any URL to markdown.
+docpull - Fetch and convert static/server-rendered documentation to markdown.
 
 Usage:
     from docpull import Fetcher, DocpullConfig, ProfileName
@@ -31,12 +31,27 @@ from .models.config import (
 )
 from .models.events import EventType, FetchEvent, FetchStats
 from .pipeline.base import PageContext
+from .pipeline.steps import SqliteSearchResult, search_sqlite_documents
+from .scraper import (
+    Scraper,
+    ScrapeResult,
+    ScrapeRunResult,
+    scrape_one,
+    scrape_one_blocking,
+    scrape_site,
+)
 
 __all__ = [
     "__version__",
     "Fetcher",
     "fetch_blocking",
     "fetch_one",
+    "ScrapeResult",
+    "ScrapeRunResult",
+    "Scraper",
+    "scrape_one",
+    "scrape_one_blocking",
+    "scrape_site",
     "PageContext",
     "DocpullConfig",
     "ProfileName",
@@ -49,6 +64,8 @@ __all__ = [
     "EventType",
     "FetchEvent",
     "FetchStats",
+    "SqliteSearchResult",
+    "search_sqlite_documents",
     "CacheManager",
     "StreamingDeduplicator",
     "Chunk",

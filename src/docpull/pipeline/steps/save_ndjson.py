@@ -94,6 +94,10 @@ class NdjsonSaveStep:
             return ctx
 
         async with self._lock:
+            self._ensure_open()
+            manifest_output_path: Path | str | None = (
+                self._output_path if self._output_path is not None else "-"
+            )
             if self._emit_chunks and ctx.chunks:
                 for chunk in ctx.chunks:
                     text = getattr(chunk, "text", "")
@@ -109,7 +113,7 @@ class NdjsonSaveStep:
                         chunk_heading=getattr(chunk, "heading", None),
                         token_count=getattr(chunk, "token_count", None),
                     )
-                    self._manifest.add_record(record, self._output_path)
+                    self._manifest.add_record(record, manifest_output_path)
                     self._add_source_index_record(record)
                     self._write_record(record.model_dump(mode="json", exclude_none=True))
                     self._chunk_count += 1
@@ -123,7 +127,7 @@ class NdjsonSaveStep:
                     source_type=ctx.source_type,
                     run_identity=self._run_identity,
                 )
-                self._manifest.add_record(record, self._output_path)
+                self._manifest.add_record(record, manifest_output_path)
                 self._add_source_index_record(record)
                 self._write_record(record.model_dump(mode="json", exclude_none=True))
             self._document_count += 1

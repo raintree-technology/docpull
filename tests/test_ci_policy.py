@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+from unittest import mock
+
+from docpull.mcp.sources import default_docs_dir
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW_DIR = REPO_ROOT / ".github" / "workflows"
@@ -36,3 +39,15 @@ def test_publish_workflow_is_tag_only() -> None:
     publish = (WORKFLOW_DIR / "publish.yml").read_text()
     assert "workflow_dispatch" not in publish
     assert '"v*.*.*"' in publish
+
+
+def test_plugin_readme_cache_path_matches_mcp_default() -> None:
+    readme = (REPO_ROOT / "plugin" / "README.md").read_text(encoding="utf-8")
+
+    with mock.patch.dict("os.environ", {}, clear=True):
+        default_path = default_docs_dir()
+
+    assert default_path.parts[-2:] == ("docpull-mcp", "docs")
+    assert "$XDG_DATA_HOME/docpull-mcp/docs/" in readme
+    assert "~/.local/share/docpull-mcp/docs/" in readme
+    assert "4.0.0 or newer" in readme

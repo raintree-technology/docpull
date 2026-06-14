@@ -48,7 +48,7 @@ def create_parser() -> argparse.ArgumentParser:
     """Create argument parser for CLI."""
     parser = argparse.ArgumentParser(
         prog="docpull",
-        description="Fetch and convert documentation from any URL to markdown",
+        description="Fetch and convert static/server-rendered documentation to markdown",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -87,9 +87,9 @@ Examples:
     parser.add_argument(
         "--profile",
         "-p",
-        choices=["rag", "mirror", "quick", "llm"],
+        choices=["rag", "mirror", "quick", "llm", "okf"],
         default="rag",
-        help="Preset profile (default: rag). 'llm' bundles chunking + NDJSON + rich metadata.",
+        help="Preset profile (default: rag). 'llm' streams chunked NDJSON; 'okf' writes an OKF bundle.",
     )
 
     parser.add_argument(
@@ -125,9 +125,9 @@ Examples:
     parser.add_argument(
         "--format",
         "-f",
-        choices=["markdown", "json", "ndjson", "sqlite"],
+        choices=["markdown", "json", "ndjson", "sqlite", "okf"],
         default=None,
-        help="Output format (default: markdown; 'ndjson' streams one record per line)",
+        help="Output format (default: markdown; 'ndjson' streams records; 'okf' writes an OKF bundle)",
     )
     parser.add_argument(
         "--naming-strategy",
@@ -383,8 +383,17 @@ def run_fetcher(args: argparse.Namespace) -> int:
         "mirror": ProfileName.MIRROR,
         "quick": ProfileName.QUICK,
         "llm": ProfileName.LLM,
+        "okf": ProfileName.OKF,
     }
     profile = profile_map.get(args.profile, ProfileName.RAG)
+
+    requested_format = args.format or ("okf" if args.profile == "okf" else None)
+    if args.skill and requested_format == "okf":
+        console.print(
+            "[red]Error:[/red] --skill cannot be combined with OKF output. "
+            "Write OKF with --format okf, or generate a skill with markdown output."
+        )
+        return 1
 
     config_kwargs: dict = {
         "profile": profile,

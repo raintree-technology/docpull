@@ -2,40 +2,51 @@
 
 ## Benchmarks Found
 
-- `tests/benchmarks/test_performance.py`: conversion, deduplication, pipeline, config, memory-oriented microbenchmarks.
-- `tests/benchmarks/test_10k_pages.py`: synthetic localhost 10,000-page benchmark.
-- `.github/workflows/benchmark.yml`: nightly/on-demand 10k benchmark, fails if peak RSS exceeds 200 MB or duplicate fraction is wrong.
-- README references a synthetic 10,000-page localhost site around `README.md:286`.
+- `tests/benchmarks/test_performance.py`: conversion, deduplication, pipeline,
+  config, and memory-oriented microbenchmarks.
+- `tests/benchmarks/test_10k_pages.py`: synthetic localhost 10,000-page
+  benchmark.
+- `.github/workflows/benchmark.yml`: nightly/on-demand benchmark workflow.
+- `docpull benchmark quick`: provider/core benchmark harness.
 
-## Benchmarks Run
+## Benchmarks / Gates Run In Current Pass
 
-No performance benchmark completed. `pytest` collection fails before benchmark execution due `FetchEvent` import error.
-
-Commands attempted:
-- `pytest -q`: 11 collection errors.
-- `pytest --cov=src/docpull --cov-report=term-missing`: 11 collection errors.
+- `.venv/bin/pytest -q`: passed, 522 tests.
+- `.venv/bin/mypy src/docpull`: passed, 73 source files.
+- Targeted output/retrieval/framework tests passed after adding SQLite FTS and
+  scraper API.
+- Full 10,000-page benchmark was not run in this interactive pass.
 
 ## Static Performance Observations
 
-- Async HTTP and streaming discovery are implemented at the architecture level.
-- NDJSON writer flushes every record in `src/docpull/pipeline/steps/save_ndjson.py:63-69`, good for streaming but potentially write-heavy for large crawls.
-- `grep_docs` reads each Markdown file into memory line lists in `src/docpull/mcp/tools.py:530-532`; acceptable for small docs, but not indexed and can be slow for large caches.
-- `read_doc` refuses files over 1 MB before reading, reducing accidental huge reads.
-- Sitemap and robots caps exist, but sitemap-specific cap is post-fetch.
-- Root TypeScript MCP uses pgvector and batch inserts under PostgreSQL bind limits in `mcp/src/db.ts:24-29` and `197-231`.
+- Async HTTP and streaming discovery are implemented.
+- NDJSON flushes every record, which is good for pipes and agents but can be
+  write-heavy for very large file-output runs.
+- SQLite output now creates/backfills `documents_fts`, making local retrieval
+  cheaper than file-by-file regex scans for SQLite users.
+- MCP `grep_docs` still scans Markdown files line-by-line; it should eventually
+  prefer an indexed store when available.
+- `read_doc` has a large-file guard.
+- Sitemap and robots caps exist, but sitemap-specific cap should be enforced
+  earlier in the HTTP read path.
 
 ## Scaling Concerns
 
-- Large documentation sets need persistent searchable index beyond regex scan.
-- NDJSON per-record flush can bottleneck on slow filesystems; batch flush option could improve throughput when not piping.
-- `countMarkdownFiles` and `rglob("*.md")` scans are repeated in MCP cache/index operations.
-- Streaming discovery/backpressure claims need runtime verification.
-- Cache/resume/frontier code in dirty worktree is not validated.
+- Large documentation sets need a unified retrieval layer across Markdown,
+  NDJSON, SQLite, and MCP.
+- NDJSON per-record flush can bottleneck on slow filesystems; a batch flush
+  option may help when not writing to stdout.
+- Repeated `rglob("*.md")` scans in MCP cache/index operations can become slow
+  on large caches.
+- Streaming discovery/backpressure should be covered by a routine benchmark
+  profile.
 
 ## Recommended Performance Work
 
-1. Restore runnable tests and run `DOCPULL_BENCHMARK_10K=1 pytest -v -s tests/benchmarks/test_10k_pages.py`.
-2. Add a 100-page and 1,000-page local benchmark that runs by default or in CI quick mode.
-3. Add MCP grep benchmark on synthetic large cache; compare regex scan vs SQLite FTS.
+1. Run `DOCPULL_BENCHMARK_10K=1 .venv/bin/pytest -v -s
+   tests/benchmarks/test_10k_pages.py` before a performance-focused release.
+2. Add a 100-page and 1,000-page benchmark that can run in CI quick mode.
+3. Add MCP grep vs SQLite FTS benchmark on synthetic large cache.
 4. Add memory assertions for sitemap/robots/body caps.
-5. Add optional batch flush for NDJSON file output while preserving stdout flush.
+5. Add optional batch flush for NDJSON file output while preserving stdout
+   flush semantics.

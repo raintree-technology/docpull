@@ -28,6 +28,7 @@ from ..pipeline.steps import (
     JsonSaveStep,
     MetadataStep,
     NdjsonSaveStep,
+    OkfSaveStep,
     SaveStep,
     SqliteSaveStep,
     ValidateStep,
@@ -137,6 +138,47 @@ def _url_to_path_parts(url: str, base_url: str | None = None) -> list[str]:
     return [*sanitized[:-1], last + ".md"]
 
 
+def _url_to_okf_path_parts(url: str, base_url: str | None = None) -> list[str]:
+    """
+    Convert URL to OKF-safe concept path segments.
+
+    OKF reserves ``index.md`` for generated directory listings and ``log.md``
+    for update history, so scraped pages never use those filenames.
+    """
+    parsed = urlparse(url)
+    raw_path = parsed.path
+
+    if base_url:
+        base_path = urlparse(base_url).path.strip("/")
+        stripped = raw_path.strip("/")
+        if base_path and stripped.startswith(base_path):
+            stripped = stripped[len(base_path) :]
+            raw_path = "/" + stripped + ("/" if raw_path.endswith("/") else "")
+
+    trailing_slash = raw_path.endswith("/")
+    parts = [seg for seg in raw_path.split("/") if seg]
+
+    if not parts:
+        return ["_root.md"]
+
+    sanitized = [_sanitize_path_segment(p) for p in parts]
+    last = sanitized[-1]
+    if last.endswith(".html") or last.endswith(".htm"):
+        last = last.rsplit(".", 1)[0]
+
+    if trailing_slash:
+        return [*sanitized, "_page.md"]
+
+    if last == "index":
+        leaf = "_root.md" if len(sanitized) == 1 else "_page.md"
+        return [*sanitized[:-1], leaf]
+
+    if last == "log":
+        return [*sanitized[:-1], "_log.md"]
+
+    return [*sanitized[:-1], last + ".md"]
+
+
 class Fetcher:
     """
     Primary API for docpull v2.0 - streaming events.
@@ -189,7 +231,9 @@ class Fetcher:
         self._json_saver: JsonSaveStep | None = None
         self._sqlite_saver: SqliteSaveStep | None = None
         self._ndjson_saver: NdjsonSaveStep | None = None
+        self._okf_saver: OkfSaveStep | None = None
         self._save_step: SaveStep | None = None
+        self._output_was_used = False
 
     def _run_fingerprint(self) -> dict[str, object]:
         return self.run_identity.fingerprint()
@@ -317,7 +361,6 @@ class Fetcher:
         self._apply_robots_crawl_delay()
 
         output_dir = self.config.output.directory.resolve()
-        output_dir.mkdir(parents=True, exist_ok=True)
 
         if self.config.cache.enabled:
             cache_dir = self.config.cache.directory.resolve()
@@ -389,6 +432,13 @@ class Fetcher:
         elif self.config.output.format == "sqlite":
             self._sqlite_saver = SqliteSaveStep(base_output_dir=output_dir, run_identity=self.run_identity)
             steps.append(self._sqlite_saver)
+        elif self.config.output.format == "okf":
+            self._okf_saver = OkfSaveStep(
+                base_output_dir=output_dir,
+                emit_chunks=self.config.output.emit_chunks,
+                run_identity=self.run_identity,
+            )
+            steps.append(self._okf_saver)
         else:
             # Default to markdown file output. SaveStep also writes
             # SKILL.md on finalize() when output.skill_name is set.
@@ -463,23 +513,29 @@ class Fetcher:
             await self._http_client.__aexit__(exc_type, exc_val, exc_tb)
             self._http_client = None
 
-        # Finalize JSON/NDJSON/SQLite savers
-        if self._json_saver:
-            self._json_saver.finalize()
-            self._json_saver = None
+        if self._output_was_used:
+            # Finalize JSON/NDJSON/SQLite savers
+            if self._json_saver:
+                self._json_saver.finalize()
 
-        if self._ndjson_saver:
-            self._ndjson_saver.finalize()
-            self._ndjson_saver = None
+            if self._ndjson_saver:
+                self._ndjson_saver.finalize()
 
-        if self._sqlite_saver:
-            self._sqlite_saver.close()
-            self._sqlite_saver = None
+            if self._sqlite_saver:
+                self._sqlite_saver.close()
 
-        # Write SKILL.md when --skill mode produced a manifest-shaped run.
-        if self._save_step:
-            self._save_step.finalize()
-            self._save_step = None
+            if self._okf_saver:
+                self._okf_saver.finalize()
+
+            # Write SKILL.md when --skill mode produced a manifest-shaped run.
+            if self._save_step:
+                self._save_step.finalize()
+
+        self._json_saver = None
+        self._ndjson_saver = None
+        self._sqlite_saver = None
+        self._okf_saver = None
+        self._save_step = None
 
         # Flush cache to disk
         if self._cache_manager:
@@ -535,11 +591,18 @@ class Fetcher:
         """
         if self._pipeline is None:
             raise RuntimeError("Fetcher not initialized. Use 'async with' context manager.")
+        if save:
+            self._output_was_used = True
         output_path = self._compute_output_path(url)
 
         steps = self._pipeline.steps
         if not save:
-            steps = [s for s in steps if s.name not in {"save", "save_json", "save_ndjson", "save_sqlite"}]
+            steps = [s.without_existing_check() if isinstance(s, ValidateStep) else s for s in steps]
+            steps = [
+                s
+                for s in steps
+                if s.name not in {"save", "save_json", "save_ndjson", "save_sqlite", "save_okf"}
+            ]
         pipeline = type(self._pipeline)(steps=steps)
         ctx = await pipeline.execute(url, output_path)
         if ctx.error:
@@ -566,6 +629,10 @@ class Fetcher:
         """
         output_dir = self.config.output.directory.resolve()
         strategy = self.config.output.naming_strategy
+
+        if self.config.output.format == "okf":
+            parts = _url_to_okf_path_parts(url, self.config.url)
+            return output_dir.joinpath(*parts)
 
         if strategy == "hierarchical":
             parts = _url_to_path_parts(url, self.config.url)
@@ -602,6 +669,7 @@ class Fetcher:
         if self._pipeline is None or self._discoverer is None:
             raise RuntimeError("Fetcher not initialized. Use 'async with' context manager.")
 
+        self._output_was_used = True
         self._start_time = time.monotonic()
         yield FetchEvent(
             type=EventType.STARTED,

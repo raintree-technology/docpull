@@ -9,11 +9,17 @@ import pytest
 from docpull.conversion.special_cases import (
     DEFAULT_CHAIN,
     DocusaurusExtractor,
+    GitBookExtractor,
     MintlifyExtractor,
+    MkDocsMaterialExtractor,
     NextDataExtractor,
     OpenApiExtractor,
     RawTextExtractor,
+    ReadMeExtractor,
+    RedocScalarExtractor,
     SpecialCaseResult,
+    StarlightExtractor,
+    VitePressExtractor,
     detect_source_type,
     looks_like_spa,
 )
@@ -76,6 +82,125 @@ class TestNextDataExtractor:
         assert result is not None
         assert "Readable markdown body" in result.markdown
         assert "function MDXContent" not in result.markdown
+
+
+class TestStaticFrameworkExtractors:
+    @pytest.mark.parametrize(
+        ("extractor", "head_marker", "selector_open", "selector_close", "source_type", "framework"),
+        [
+            (
+                MkDocsMaterialExtractor(),
+                '<meta name="generator" content="mkdocs">',
+                '<article class="md-content__inner">',
+                "</article>",
+                "mkdocs",
+                "mkdocs",
+            ),
+            (
+                VitePressExtractor(),
+                '<meta name="generator" content="VitePress">',
+                '<div class="VPDoc"><div class="content vp-doc">',
+                "</div></div>",
+                "vitepress",
+                "vitepress",
+            ),
+            (
+                StarlightExtractor(),
+                '<meta name="generator" content="astro starlight">',
+                '<main class="sl-markdown-content">',
+                "</main>",
+                "starlight",
+                "starlight",
+            ),
+            (
+                GitBookExtractor(),
+                '<meta name="generator" content="gitbook">',
+                '<main data-testid="page.content">',
+                "</main>",
+                "gitbook",
+                "gitbook",
+            ),
+            (
+                ReadMeExtractor(),
+                '<meta property="og:site_name" content="readme.io">',
+                '<article class="rm-markdown">',
+                "</article>",
+                "readme",
+                "readme",
+            ),
+            (
+                RedocScalarExtractor(),
+                '<meta name="generator" content="redoc">',
+                '<main class="api-content">',
+                "</main>",
+                "api_reference",
+                "redoc_scalar",
+            ),
+        ],
+    )
+    def test_common_static_framework_extractors(
+        self,
+        extractor,
+        head_marker: str,
+        selector_open: str,
+        selector_close: str,
+        source_type: str,
+        framework: str,
+    ):
+        html = (
+            "<!doctype html><html><head><title>Framework Guide</title>"
+            f"{head_marker}</head><body>{selector_open}"
+            "<h1>Framework Guide</h1>"
+            "<p>Rendered documentation content is available in static HTML.</p>"
+            + ("<p>Reference paragraph for local context extraction.</p>" * 4)
+            + f"{selector_close}</body></html>"
+        ).encode()
+
+        result = extractor.try_extract(html, "https://docs.example.com/framework")
+
+        assert result is not None
+        assert result.source_type == source_type
+        assert result.extra == {"framework": framework}
+        assert result.title == "Framework Guide"
+        assert "# Framework Guide" in result.markdown
+
+    def test_docusaurus_extracts_static_article_and_tags_framework(self):
+        html = (
+            b"<!doctype html><html><head>"
+            b'<meta name="generator" content="Docusaurus v3">'
+            b"<title>Docusaurus Intro</title></head><body>"
+            b'<div id="__docusaurus"><main><article>'
+            b"<h1>Intro</h1><p>Docusaurus content renders statically for extraction.</p>"
+            + (b"<p>Body paragraph for documentation users.</p>" * 4)
+            + b"</article></main></div></body></html>"
+        )
+
+        result = DocusaurusExtractor().try_extract(html, "https://docs.example.com/intro")
+
+        assert result is not None
+        assert result.source_type == "docusaurus"
+        assert result.extra == {"framework": "docusaurus"}
+        assert result.title == "Docusaurus Intro"
+        assert "# Intro" in result.markdown
+
+    def test_sphinx_extracts_static_body_and_tags_framework(self):
+        html = (
+            b"<!doctype html><html><head>"
+            b'<meta name="generator" content="Sphinx 8.0">'
+            b"<title>Sphinx API</title></head><body>"
+            b'<div class="document"><div class="body" role="main">'
+            b"<h1>Sphinx API</h1><p>Sphinx content is server-rendered HTML.</p>"
+            + (b"<p>Reference paragraph for generated docs.</p>" * 4)
+            + b"</div></div></body></html>"
+        )
+
+        result = DEFAULT_CHAIN[-1].try_extract(html, "https://pkg.readthedocs.io/en/latest/api.html")
+
+        assert result is not None
+        assert result.source_type == "sphinx"
+        assert result.extra == {"framework": "sphinx"}
+        assert result.title == "Sphinx API"
+        assert "# Sphinx API" in result.markdown
 
 
 class TestOpenApiExtractor:
@@ -389,6 +514,15 @@ class TestDetectSourceType:
 
     def test_readthedocs_host_assumes_sphinx(self):
         assert detect_source_type(b"<html></html>", "https://foo.readthedocs.io/page") == "sphinx"
+
+    def test_deceptive_readthedocs_suffix_is_generic(self):
+        assert detect_source_type(b"<html></html>", "https://readthedocs.io.evil.example/page") == "generic"
+
+    def test_readme_host_assumes_readme(self):
+        assert detect_source_type(b"<html></html>", "https://docs.readme.io/page") == "readme"
+
+    def test_deceptive_readme_suffix_is_generic(self):
+        assert detect_source_type(b"<html></html>", "https://readme.io.evil.example/page") == "generic"
 
 
 class TestDefaultChain:
