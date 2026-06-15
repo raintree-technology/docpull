@@ -2,7 +2,7 @@
 
 | Feature | Documented? | Implemented? | Tested? | Current status | Evidence / next step |
 | --- | ---: | ---: | ---: | --- | --- |
-| Package version 4.2.0 | Yes | Yes | Smoke | Working | `pyproject.toml`; `.venv/bin/python -m docpull --version` |
+| Package version 4.3.0 | Yes | Yes | Smoke | Working | `pyproject.toml`; `.venv/bin/python -m docpull --version` |
 | CLI `--help` / `--version` | Yes | Yes | Smoke | Working | Final release gate should rerun direct CLI smoke |
 | Profiles `rag/mirror/quick/llm/okf` | Yes | Yes | Yes | Working | Profile tests and CLI parser tests |
 | `--single` in-memory fast path | Yes | Yes | Yes | Working | Fetcher and scraper API e2e tests |

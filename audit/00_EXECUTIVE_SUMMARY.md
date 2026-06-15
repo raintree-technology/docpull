@@ -15,22 +15,21 @@ internal Bun/TypeScript MCP lab tree.
 
 Current audit target evidence:
 
-- `pyproject.toml` declares package `docpull` version `4.2.0`.
-- `.venv/bin/python -m pip show docpull` reports version `4.2.0` with editable
-  project location `/Users/mb1/Code/raintree/docpull`.
-- Git `HEAD` is `a6cce31`.
-- The current worktree is dirty because unreleased OKF, scraper API, SQLite
-  FTS, framework extractor, docs, and audit updates are in progress.
+- `pyproject.toml` declares package `docpull` version `4.3.0`.
+- `uv run docpull --version` reports `docpull 4.3.0`.
+- Git `HEAD` is `4a3b3b5`.
+- The release branch contains the 4.3.0 version, changelog, and audit updates.
 
 ## What Works
 
 Current local verification:
 
-- `.venv/bin/pytest -q` passed: 522 tests.
-- `.venv/bin/mypy src/docpull` passed: 73 source files.
-- `.venv/bin/ruff check .` passed.
-- `.venv/bin/python -m docpull --version` reports `docpull 4.2.0`.
-- `.venv/bin/python -m docpull --help`, `--doctor`, and `mcp --help` pass.
+- `uv run pytest` passed: 532 tests.
+- `uv run mypy src/docpull` passed: 73 source files.
+- `uv run ruff check .` passed.
+- `uv run ruff format --check .` passed.
+- `uv run docpull --version` reports `docpull 4.3.0`.
+- `uv run --extra dev python -m pre_commit run --all-files --show-diff-on-failure` passed.
 
 Implemented and covered by tests:
 

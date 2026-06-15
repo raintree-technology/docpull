@@ -4,7 +4,7 @@
 
 | Claim / gap | Current evidence | Status |
 | --- | --- | --- |
-| Runtime supports CLI help/version | `.venv/bin/python -m docpull --version` reports `docpull 4.2.0`; help works through the same import path | Resolved |
+| Runtime supports CLI help/version | `.venv/bin/python -m docpull --version` reports `docpull 4.3.0`; help works through the same import path | Resolved |
 | Local editable install points at this checkout | `.venv/bin/python -m pip show docpull` reports editable project location `/Users/mb1/Code/raintree/docpull` | Resolved |
 | `flat`/`short` naming aliases removed in 3.0 | CLI help now lists only `full` and `hierarchical`; config allows only those literals | Resolved |
 | LLM profile JS policy is ambiguous | `profiles.py` documents that LLM mode skips JS-only pages by default; `--strict-js-required` remains the explicit fail-loud option | Resolved |
