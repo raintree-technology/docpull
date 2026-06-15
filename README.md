@@ -73,7 +73,7 @@ docpull https://docs.example.com/guide --single
 docpull https://docs.example.com --profile llm --stream | jq .
 
 # Open Knowledge Format bundle for agent/wiki interoperability
-docpull https://docs.example.com --format okf
+docpull https://example.com --format okf -o ./site-okf
 
 # Mirror scraped content for offline use
 docpull https://docs.example.com --profile mirror --cache
@@ -468,7 +468,22 @@ NDJSON (one record per page or chunk):
 Open Knowledge Format:
 
 ```bash
-docpull https://docs.example.com --format okf
+docpull https://example.com --format okf -o ./site-okf
+
+# Equivalent profile form
+docpull https://example.com --profile okf -o ./site-okf
+```
+
+A generated OKF bundle has a normal Markdown tree:
+
+```text
+site-okf/
+  index.md
+  corpus.manifest.json
+  _root.md
+  docs/
+    index.md
+    getting-started.md
 ```
 
 OKF output is an opt-in Markdown bundle. Scraped pages are written as concept
