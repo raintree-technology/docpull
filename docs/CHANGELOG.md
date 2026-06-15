@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.3.1] - 2026-06-15
+
+### Changed
+- Tighten PyPI, GitHub, README, and website metadata around the public-web to
+  agent-ready Markdown positioning.
+- Add launch copy, comparison guidance, and marketing visibility research for
+  developer, Python, MCP, and RAG discovery channels.
+
 ## [4.3.0] - 2026-06-14
 
 ### Added

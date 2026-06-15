@@ -1,6 +1,6 @@
 # docpull
 
-**Security-hardened, browser-free web scraper and crawler that turns server-rendered pages into clean, AI-ready Markdown — fast.**
+**Public web to agent-ready Markdown. Fast, local, browser-free.**
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![PyPI version](https://badge.fury.io/py/docpull.svg)](https://badge.fury.io/py/docpull)
@@ -14,37 +14,35 @@
   </a>
 </p>
 
-## Download History
+docpull is a Python CLI, SDK, and MCP server for pulling public static and
+server-rendered web pages into clean Markdown, NDJSON, OKF bundles, SQLite, or
+local archives. Documentation crawling is its sharpest default workflow, but
+the product is broader than docs: blogs, API references, vendor pages, OpenAPI
+specs, and other server-rendered web content all fit. It uses async HTTP instead
+of Playwright, preserves source metadata, and is built for agent-selected URLs
+with SSRF, XXE, DNS-rebinding, and CRLF-injection protections enabled by
+default.
 
-<a href="https://pepy.tech/project/docpull">
-  <img alt="Cumulative PyPI download history chart for docpull" src="docs/cumulative-downloads-history.svg" />
-</a>
+Use docpull when you need to:
 
-## Star History
+- Load public web pages, docs, API references, or blogs into an LLM context.
+- Build inspectable source corpora for RAG/search pipelines.
+- Give a coding agent a local MCP tool for fetching, caching, grepping, and
+  reading docs.
+- Mirror public web content for offline work while keeping source attribution.
 
-<a href="https://star-history.com/#raintree-technology/docpull&Date">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=raintree-technology/docpull&type=Date&theme=dark" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=raintree-technology/docpull&type=Date" />
-    <img alt="Star history chart for raintree-technology/docpull" src="https://api.star-history.com/svg?repos=raintree-technology/docpull&type=Date" />
-  </picture>
-</a>
+docpull intentionally does not render JavaScript. For JS-only apps, browser
+automation, paid extraction APIs, or general web crawling, see
+[`docs/scraping-boundary.md`](docs/scraping-boundary.md) and
+[`docs/alternatives.md`](docs/alternatives.md).
 
-docpull is a web scraper for static and server-rendered sites, with
-documentation crawling as its sharpest default workflow. It uses async HTTP (not
-Playwright) to fetch pages, discover links, extract main content, and write clean
-Markdown with source-URL frontmatter — in seconds, with a small install
-footprint. It won't render JavaScript, but for the large class of sites that
-don't need it (API references, vendor docs, Python/Go stdlib, blogs, OpenAPI
-specs, Next.js and Docusaurus builds), it is a fast, auditable,
-sandbox-friendly way to pipe web content into an LLM context, a RAG index, or an
-offline archive. SSRF, XXE, DNS-rebinding, and CRLF-injection protections are on
-by default — a necessity when an AI agent is choosing the URLs.
+## Try it in 60 seconds
 
-docpull is intentionally not a general browser-automation scraper. See
-[`docs/scraping-boundary.md`](docs/scraping-boundary.md) for the exact product
-boundary and when to use Scrapy, Crawlee, hosted extraction APIs, or trafilatura
-directly.
+```bash
+pip install docpull
+docpull https://docs.python.org/3/library/asyncio.html --single
+docpull https://docs.python.org/3/library/asyncio.html --profile llm --stream | jq .
+```
 
 ## Install
 
@@ -78,6 +76,20 @@ docpull https://example.com --format okf -o ./site-okf
 # Mirror scraped content for offline use
 docpull https://docs.example.com --profile mirror --cache
 ```
+
+## Project traction
+
+<a href="https://pepy.tech/project/docpull">
+  <img alt="Cumulative PyPI download history chart for docpull" src="docs/cumulative-downloads-history.svg" />
+</a>
+
+<a href="https://star-history.com/#raintree-technology/docpull&Date">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=raintree-technology/docpull&type=Date&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=raintree-technology/docpull&type=Date" />
+    <img alt="Star history chart for raintree-technology/docpull" src="https://api.star-history.com/svg?repos=raintree-technology/docpull&type=Date" />
+  </picture>
+</a>
 
 ## Framework-aware extraction
 

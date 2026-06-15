@@ -3,7 +3,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Copy, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useReducedMotion } from "@/lib/use-reduced-motion";
 
 const terminalLines = [
   { type: "command", content: "docpull https://docs.anthropic.com" },
@@ -20,28 +19,9 @@ const INSTALL_COMMAND = "pip install docpull";
 const COPY_RESET_DELAY_MS = 2_000;
 
 export default function Hero() {
-  const [visibleLines, setVisibleLines] = useState(0);
   const [copied, setCopied] = useState(false);
   const [copyFailed, setCopyFailed] = useState(false);
   const copyResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const reducedMotion = useReducedMotion();
-
-  useEffect(() => {
-    if (reducedMotion) {
-      return;
-    }
-
-    const timer = setInterval(() => {
-      setVisibleLines((prev) => {
-        if (prev >= terminalLines.length) {
-          clearInterval(timer);
-          return prev;
-        }
-        return prev + 1;
-      });
-    }, 350);
-    return () => clearInterval(timer);
-  }, [reducedMotion]);
 
   useEffect(() => {
     return () => {
@@ -70,8 +50,6 @@ export default function Hero() {
     }
   }, []);
 
-  const renderedVisibleLines = reducedMotion ? terminalLines.length : visibleLines;
-
   return (
     <section className="flex items-start justify-center pt-20 lg:pt-56 pb-16 lg:pb-32">
       <div className="mx-auto max-w-6xl w-full px-6">
@@ -79,15 +57,15 @@ export default function Hero() {
           {/* Left: Content */}
           <div>
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-medium tracking-tight mb-6">
-              <span>Fetch the web.</span>
+              <span>Pull public web.</span>
               <br />
-              <span className="text-muted-foreground">Get clean Markdown.</span>
+              <span className="text-muted-foreground">Feed better agents.</span>
             </h1>
 
             <p className="text-muted-foreground text-base sm:text-lg mb-8 max-w-md">
-              Turn server-rendered docs into clean Markdown your agents can
-              actually use. Base crawls need no browser or API key; optional
-              Parallel packs use your own key.
+              Turn static and server-rendered web pages into clean Markdown,
+              NDJSON, and local context packs for coding agents, MCP clients,
+              and RAG pipelines.
             </p>
 
             {/* Install command + CTA */}
@@ -121,9 +99,8 @@ export default function Hero() {
             </div>
 
             <p className="mt-4 text-xs text-muted-foreground max-w-md leading-relaxed">
-              Works with static docs, API references, and server-rendered
-              sites. JavaScript-heavy pages are detected and skipped
-              automatically.
+              Base crawls need no browser or API key. JavaScript-heavy pages are
+              detected and skipped automatically so agents can route elsewhere.
             </p>
           </div>
 
@@ -135,7 +112,7 @@ export default function Hero() {
               <div className="terminal-dot terminal-dot-maximize" />
             </div>
             <div className="p-5 lg:p-8 font-mono text-sm sm:text-base lg:text-lg min-h-[220px] lg:min-h-[320px]">
-              {terminalLines.slice(0, renderedVisibleLines).map((line, i) => (
+              {terminalLines.map((line, i) => (
                 <div
                   key={i}
                   className={cn(
@@ -153,9 +130,6 @@ export default function Hero() {
                   {line.content}
                 </div>
               ))}
-              {renderedVisibleLines < terminalLines.length && (
-                <span className="inline-block w-2 h-4 bg-neutral-500 animate-pulse" />
-              )}
             </div>
           </div>
         </div>

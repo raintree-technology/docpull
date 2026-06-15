@@ -38,8 +38,8 @@ export const faqs: { q: string; a: ReactNode; aText: string }[] = [
         infrastructure and pricing scales past their free tiers. docpull runs
         locally, stays free, and leaves no trace outside your machine. Crawl4AI
         is the closest OSS peer, but it&apos;s a general-purpose agent toolkit;
-        docpull is narrower — YAML-frontmatter Markdown tuned for documentation
-        sites, with{" "}
+        docpull is narrower — YAML-frontmatter Markdown tuned for static and
+        server-rendered web pages, with{" "}
         <Src path="src/docpull/models/profiles.py">
           rag / mirror / quick profiles
         </Src>{" "}
@@ -47,7 +47,7 @@ export const faqs: { q: string; a: ReactNode; aText: string }[] = [
       </>
     ),
     aText:
-      "Firecrawl and Jina Reader are hosted APIs — your URLs route through their infrastructure and pricing scales past their free tiers. docpull runs locally, stays free, and leaves no trace outside your machine. Crawl4AI is the closest open-source peer, but it's a general-purpose agent toolkit; docpull is narrower — YAML-frontmatter Markdown tuned for documentation sites, with rag, mirror, and quick profiles baked in.",
+      "Firecrawl and Jina Reader are hosted APIs — your URLs route through their infrastructure and pricing scales past their free tiers. docpull runs locally, stays free, and leaves no trace outside your machine. Crawl4AI is the closest open-source peer, but it's a general-purpose agent toolkit; docpull is narrower — YAML-frontmatter Markdown tuned for static and server-rendered web pages, with rag, mirror, and quick profiles baked in.",
   },
   {
     q: "How clean is the Markdown? Does it preserve code blocks, tables, and images?",

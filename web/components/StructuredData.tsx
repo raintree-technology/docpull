@@ -25,7 +25,7 @@ const graph = {
       url: baseUrl,
       name: "docpull",
       description:
-        "Local Python crawler that turns server-rendered documentation and Parallel-backed web intelligence into clean Markdown context packs with agent load plans.",
+        "Python CLI, SDK, and MCP server that turns public static and server-rendered web pages into clean Markdown, NDJSON, and local context packs for AI agents and RAG.",
       inLanguage: "en",
       publisher: { "@id": `${baseUrl}/#organization` },
     },
@@ -39,7 +39,7 @@ const graph = {
       downloadUrl: "https://pypi.org/project/docpull/",
       softwareHelp: "https://github.com/raintree-technology/docpull#readme",
       description:
-        "Security-hardened, browser-free crawler that turns static and server-rendered documentation into Markdown agents can read, cite, and reuse.",
+        "Security-hardened, browser-free crawler that turns static and server-rendered web pages into source-linked Markdown agents can read, cite, and reuse.",
       author: { "@id": `${baseUrl}/#organization` },
       license: "https://opensource.org/licenses/MIT",
       isAccessibleForFree: true,
@@ -47,6 +47,7 @@ const graph = {
         "Documentation crawling to Markdown, JSON, NDJSON, and SQLite",
         "Token-aware chunks with stable document and chunk IDs",
         "MCP server for agent access to cached docs",
+        "Single-URL fetch path for tool calls",
         "Parallel-backed context packs with AGENT_CONTEXT.md load plans",
         "Entity packs, batch packs, monitor packs, and API packs",
         "Pack scoring and diffing for local agent-readiness checks",

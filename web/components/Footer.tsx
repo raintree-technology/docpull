@@ -74,8 +74,8 @@ export default function Footer() {
             docpull
           </div>
           <p className="text-xs text-muted-foreground leading-relaxed">
-            A local documentation fetcher for turning server-rendered docs into
-            Markdown your agents can read, cite, and reuse.
+            A local Python tool for turning public web pages into Markdown your
+            agents can read, cite, and reuse.
           </p>
         </div>
 
@@ -96,6 +96,14 @@ export default function Footer() {
               className="min-h-11 inline-flex items-center hover:text-foreground transition-colors"
             >
               Docs
+            </a>
+            <a
+              href="https://github.com/raintree-technology/docpull/blob/main/docs/alternatives.md"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="min-h-11 inline-flex items-center hover:text-foreground transition-colors"
+            >
+              Compare
             </a>
             <a
               href="https://github.com/raintree-technology/docpull"
@@ -162,6 +170,14 @@ export default function Footer() {
               className="min-h-11 min-w-11 inline-flex items-center justify-center hover:text-foreground transition-colors"
             >
               Changelog
+            </a>
+            <a
+              href="https://github.com/raintree-technology/docpull/blob/main/docs/alternatives.md"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="min-h-11 min-w-11 inline-flex items-center justify-center hover:text-foreground transition-colors"
+            >
+              Compare
             </a>
             <a
               href="https://github.com/raintree-technology/docpull/blob/main/LICENSE"
