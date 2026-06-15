@@ -1,6 +1,6 @@
 # Agent Context Brief
 
-DocPull is a Python 3.10+ package/CLI at version 4.2.0. It is a browser-free
+DocPull is a Python 3.10+ package/CLI at version 4.3.0. It is a browser-free
 web scraper for static/server-rendered docs and pages, with agent-context output
 formats: Markdown, JSON, NDJSON, SQLite, OKF, manifests, source indexes, and
 MCP tools. The repo also contains optional Parallel provider workflows, a

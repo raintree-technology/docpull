@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.3.0] - 2026-06-14
+
 ### Added
 - Add first-class Open Knowledge Format output via `--format okf` and
   `--profile okf`, including OKF concept frontmatter, generated directory

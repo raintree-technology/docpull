@@ -3,7 +3,7 @@
 ## Current Inventory
 
 - Python source files: 73 checked by mypy.
-- Test suite: 522 tests passing in the current checkout.
+- Test suite: 532 tests passing in the current checkout.
 - Categories present: CLI, config, integration, discovery, link extractors,
   conversion, special cases, pipeline, output formats, OKF, scraper API,
   chunking, cache conditional GET, frontier/resume, MCP tools/server, security
@@ -12,26 +12,25 @@
 
 ## Current Baseline Results
 
-- `.venv/bin/pytest -q`: passed, 522 tests.
-- `.venv/bin/mypy src/docpull`: passed, 73 source files.
-- `.venv/bin/ruff check .`: passed.
-- `.venv/bin/python -m docpull --version`: passed, `docpull 4.2.0`.
-- `.venv/bin/python -m docpull --help`, `--doctor`, and `mcp --help`: passed.
-- `.venv/bin/pytest`, `.venv/bin/mypy`, and editable `docpull` console setup now
-  point at `/Users/mb1/Code/raintree/docpull` instead of the stale secondary
-  checkout.
+- `uv run pytest`: passed, 532 tests.
+- `uv run mypy src/docpull`: passed, 73 source files.
+- `uv run ruff check .`: passed.
+- `uv run ruff format --check .`: passed.
+- `uv run docpull --version`: passed, `docpull 4.3.0`.
+- `uv run --extra dev python -m pre_commit run --all-files --show-diff-on-failure`: passed.
 
 ## Required Release Gate
 
 P0:
 
-- `.venv/bin/ruff check .`
-- `.venv/bin/mypy src/docpull`
-- `.venv/bin/pytest -q`
-- `.venv/bin/python -m docpull --version`
-- `.venv/bin/python -m docpull --help`
-- `.venv/bin/python -m docpull --doctor`
-- `.venv/bin/python -m docpull mcp --help`
+- `uv run ruff check .`
+- `uv run ruff format --check .`
+- `uv run mypy src/docpull`
+- `uv run pytest`
+- `uv run docpull --version`
+- `uv run docpull --help`
+- `uv run docpull --doctor`
+- `uv run docpull mcp --help`
 
 ## Missing or Weak Test Areas
 
