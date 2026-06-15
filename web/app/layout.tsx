@@ -8,9 +8,9 @@ const analyticsEnabled = process.env.VERCEL_ENV === "production";
 
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl),
-  title: "docpull - Fetch the web. Get clean Markdown.",
+  title: "docpull - Public web to agent-ready Markdown.",
   description:
-    "Local Python crawler that turns server-rendered documentation and Parallel-backed web intelligence into clean Markdown context packs with agent load plans.",
+    "Python CLI, SDK, and MCP server that turns public static and server-rendered web pages into clean Markdown, NDJSON, and local context packs for AI agents and RAG.",
   applicationName: "docpull",
   authors: [{ name: "Raintree Technology", url: "https://raintree.technology" }],
   creator: "Raintree Technology",
@@ -38,19 +38,23 @@ export const metadata: Metadata = {
     "AI",
     "LLM",
     "RAG",
+    "MCP",
+    "AI agents",
     "web scraping",
+    "web crawler",
     "python",
     "cli",
+    "sdk",
     "docs",
-    "fetcher",
+    "crawler",
     "Parallel",
     "context packs",
   ],
 
   openGraph: {
-    title: "docpull - Fetch the web. Get clean Markdown.",
+    title: "docpull - Public web to agent-ready Markdown.",
     description:
-      "Turn server-rendered documentation and Parallel-backed web intelligence into clean Markdown context packs with agent load plans.",
+      "Turn public static and server-rendered web pages into clean Markdown, NDJSON, and local context packs for AI agents, MCP clients, and RAG pipelines.",
     url: baseUrl,
     type: "website",
     siteName: "docpull",
@@ -60,15 +64,15 @@ export const metadata: Metadata = {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "docpull - Fetch the web. Get clean Markdown.",
+        alt: "docpull - Public web to agent-ready Markdown.",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "docpull - Fetch the web. Get clean Markdown.",
+    title: "docpull - Public web to agent-ready Markdown.",
     description:
-      "Turn server-rendered documentation and Parallel-backed web intelligence into clean Markdown context packs with agent load plans.",
+      "Turn public static and server-rendered web pages into clean Markdown, NDJSON, and local context packs for AI agents, MCP clients, and RAG pipelines.",
     site: "@raintree_tech",
     creator: "@raintree_tech",
     images: ["/og-image.png"],

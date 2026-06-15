@@ -4,9 +4,9 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "docpull"
-version = "4.3.0"
+version = "4.3.1"
 dynamic = []
-description = "Pull documentation from the web and convert to clean markdown"
+description = "Convert public web pages into clean Markdown for AI agents and RAG"
 readme = {file = "README.md", content-type = "text/markdown"}
 requires-python = ">=3.10"
 license = "MIT"
@@ -18,8 +18,20 @@ maintainers = [
     {name = "Raintree Technology", email = "support@raintree.technology"}
 ]
 keywords = [
-    "python", "markdown", "documentation", "web-scraping", "developer-tools",
-    "claude", "ai-training-data"
+    "python",
+    "markdown",
+    "documentation",
+    "web-scraping",
+    "web-crawler",
+    "crawler",
+    "developer-tools",
+    "cli",
+    "rag",
+    "llm",
+    "mcp",
+    "ai-agents",
+    "claude",
+    "ai-training-data",
 ]
 classifiers = [
     # Development Status
@@ -134,12 +146,16 @@ dev = [
 docpull = "docpull.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/raintree-technology/docpull"
-Documentation = "https://github.com/raintree-technology/docpull#readme"
+Homepage = "https://docpull.raintree.technology"
+Documentation = "https://docpull.raintree.technology"
 Repository = "https://github.com/raintree-technology/docpull"
 "Source Code" = "https://github.com/raintree-technology/docpull"
 "Bug Tracker" = "https://github.com/raintree-technology/docpull/issues"
 "Releases" = "https://github.com/raintree-technology/docpull/releases"
+"MCP Plugin" = "https://github.com/raintree-technology/docpull/tree/main/plugin"
+"Comparison Guide" = "https://github.com/raintree-technology/docpull/blob/main/docs/alternatives.md"
+"Download Stats" = "https://pepy.tech/project/docpull"
+"Changelog" = "https://github.com/raintree-technology/docpull/blob/main/docs/CHANGELOG.md"
 
 [tool.setuptools.packages.find]
 where = ["src"]

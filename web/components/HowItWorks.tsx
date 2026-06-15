@@ -124,7 +124,7 @@ export default function HowItWorks() {
           <div className="mt-6 sm:mt-8 pt-5 sm:pt-6 border-t border-foreground/10 grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
             <StepText
               title="Point"
-              desc="Give docpull a docs URL, public or gated."
+              desc="Give docpull a public web or docs URL."
               active={activeIdx === 0}
             />
             <StepText
