@@ -8,12 +8,41 @@ from pathlib import Path
 import pytest
 
 
+def _benchmark_path(path: Path) -> bool:
+    return path.parent.name == "benchmarks" and path.name.startswith("test_")
+
+
+def _explicitly_requested(path: Path, config: pytest.Config) -> bool:
+    for arg in config.invocation_params.args:
+        if arg.startswith("-"):
+            continue
+
+        requested = Path(arg.split("::", 1)[0])
+        if not requested.is_absolute():
+            requested = Path(config.rootpath) / requested
+
+        try:
+            if path.resolve().is_relative_to(requested.resolve()):
+                return True
+        except FileNotFoundError:
+            continue
+
+    return False
+
+
 def pytest_ignore_collect(collection_path: object, config: pytest.Config) -> bool:
-    """Keep the long benchmark out of default test collection unless enabled."""
+    """Keep benchmarks out of default coverage runs unless explicitly requested."""
     path = Path(str(collection_path))
-    if os.environ.get("DOCPULL_BENCHMARK_10K") == "1":
+    if not _benchmark_path(path):
         return False
-    return path.name == "test_10k_pages.py" and path.parent.name == "benchmarks"
+
+    if path.name == "test_10k_pages.py":
+        return os.environ.get("DOCPULL_BENCHMARK_10K") != "1"
+
+    if os.environ.get("DOCPULL_BENCHMARKS") == "1":
+        return False
+
+    return not _explicitly_requested(path, config)
 
 
 @pytest.fixture
