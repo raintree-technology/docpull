@@ -5,14 +5,14 @@ import { Copy, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const terminalLines = [
-  { type: "command", content: "docpull https://docs.anthropic.com" },
+  { type: "command", content: "docpull https://www.python.org/blogs/ -o ./python-news" },
   { type: "output", content: "" },
   { type: "dim", content: "Discovering URLs..." },
-  { type: "normal", content: "Found 247 pages" },
+  { type: "normal", content: "Found 38 pages" },
   { type: "dim", content: "Fetching with RAG profile" },
-  { type: "normal", content: "[=============================] 247/247" },
+  { type: "normal", content: "[==============================] 38/38" },
   { type: "output", content: "" },
-  { type: "success", content: "Done in 34s. Saved 12.3 MB to ./docs" },
+  { type: "success", content: "Done in 12s. Saved 2.8 MB to ./python-news" },
 ] as const;
 
 const INSTALL_COMMAND = "pip install docpull";

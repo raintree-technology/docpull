@@ -396,12 +396,12 @@ async function runDocpull(
 const server = new McpServer({ name: "docpull-mcp", version: "0.3.0" });
 
 // ---------------------------------------------------------------------------
-// ensure_docs - fetch and optionally index documentation
+// ensure_docs - fetch and optionally index source Markdown
 // ---------------------------------------------------------------------------
 
 server.tool(
 	"ensure_docs",
-	"Fetch documentation for a configured library. Optionally indexes for semantic search.",
+	"Fetch Markdown for a configured source alias. Optionally indexes for semantic search.",
 	ensureDocsToolSchema,
 	async ({ source, force, index }) => {
 		const sources = getAllSources();
@@ -539,12 +539,12 @@ server.tool(
 );
 
 // ---------------------------------------------------------------------------
-// list_sources - list available documentation sources
+// list_sources - list available source aliases
 // ---------------------------------------------------------------------------
 
 server.tool(
 	"list_sources",
-	"List available documentation sources",
+	"List available source aliases",
 	{
 		category: z
 			.string()

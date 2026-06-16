@@ -1,4 +1,4 @@
-"""Built-in and user-configured documentation sources for the MCP server."""
+"""Built-in and user-configured source aliases for the MCP server."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class SourceConfig:
-    """A named documentation source.
+    """A named source alias.
 
     Attributes:
         url: Start URL to crawl from.
@@ -33,7 +33,7 @@ class SourceConfig:
     max_pages: int | None = None
 
 
-# Curated set of popular dev-facing docs. Users can extend via sources.yaml.
+# Curated set of popular dev-facing sources. Users can extend via sources.yaml.
 BUILTIN_SOURCES: dict[str, SourceConfig] = {
     # Frontend
     "react": SourceConfig("https://react.dev", "React documentation", "frontend", 500),

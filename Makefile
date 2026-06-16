@@ -1,6 +1,15 @@
-.PHONY: clean clean-pyc clean-build clean-test help test benchmark benchmark-quick benchmark-parallel benchmark-compare benchmark-matrix benchmark-raindrop lint format
+.PHONY: clean clean-pyc clean-build clean-test help test benchmark benchmark-quick benchmark-parallel benchmark-compare benchmark-matrix benchmark-raindrop license-year metrics metrics-check lint format
 
 PYTHON ?= .venv/bin/python
+COPYRIGHT_START_YEAR := 2025
+COPYRIGHT_HOLDER := Raintree Technology
+COPYRIGHT_FILES := LICENSE mcp/LICENSE
+CURRENT_YEAR := $(shell date +%Y)
+COPYRIGHT_YEAR_RANGE := $(COPYRIGHT_START_YEAR)
+ifneq ($(CURRENT_YEAR),$(COPYRIGHT_START_YEAR))
+COPYRIGHT_YEAR_RANGE := $(COPYRIGHT_START_YEAR)-$(CURRENT_YEAR)
+endif
+COPYRIGHT_NOTICE := Copyright (c) $(COPYRIGHT_YEAR_RANGE) $(COPYRIGHT_HOLDER)
 
 help:
 	@echo "clean - remove all build, test, coverage and Python artifacts"
@@ -14,6 +23,9 @@ help:
 	@echo "benchmark-compare - run real-site benchmark with all configured providers"
 	@echo "benchmark-matrix - run provider target-matrix benchmark with all configured providers"
 	@echo "benchmark-raindrop - run real-site benchmark with all configured providers and Raindrop tracing"
+	@echo "license-year - refresh license copyright years"
+	@echo "metrics - refresh METRICS.md and the downloads chart from live APIs"
+	@echo "metrics-check - fail if METRICS.md is older than METRICS_MAX_AGE_HOURS"
 	@echo "lint - check style with ruff"
 	@echo "format - format code with ruff"
 
@@ -71,8 +83,20 @@ benchmark-raindrop:
 		--max-pages 8 --max-depth 1 --max-search-results 5 --extract-limit 2 \
 		--max-estimated-cost 0.10
 
+license-year:
+	@for file in $(COPYRIGHT_FILES); do \
+		perl -0pi -e 's/^Copyright \(c\) [0-9]{4}(?:-(?:[0-9]{4}|present))? \Q$(COPYRIGHT_HOLDER)\E$$/$(COPYRIGHT_NOTICE)/m' "$$file"; \
+	done
+
+metrics:
+	$(PYTHON) .github/scripts/update_metrics.py
+	$(PYTHON) .github/scripts/check_metrics_fresh.py
+
+metrics-check:
+	$(PYTHON) .github/scripts/check_metrics_fresh.py
+
 lint:
 	ruff check .
 
-format:
+format: license-year
 	ruff format .

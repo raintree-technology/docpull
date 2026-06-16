@@ -407,9 +407,9 @@ def create_parallel_parser() -> argparse.ArgumentParser:
 
     discover_docs = subparsers.add_parser(
         "discover-docs",
-        help="Use Parallel Search to discover canonical docs URLs for core docpull crawls",
+        help="Use Parallel Search to discover canonical source URLs for core docpull crawls",
     )
-    discover_docs.add_argument("objective", help="Natural-language docs discovery objective")
+    discover_docs.add_argument("objective", help="Natural-language source discovery objective")
     discover_docs.add_argument("--query", action="append", dest="queries", default=[])
     discover_docs.add_argument("--output-dir", "-o", type=Path, default=DEFAULT_DISCOVERY_PACK_OUTPUT_DIR)
     discover_docs.add_argument("--mode", choices=SEARCH_MODES, default=DEFAULT_MODE)

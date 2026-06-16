@@ -52,7 +52,7 @@ export default function Features() {
         <div className="mb-12 text-center sm:text-left">
           <h2 className="text-2xl font-medium mb-3">Features</h2>
           <p className="text-muted-foreground">
-            The pieces that make documentation fetching dependable.
+            The pieces that make web-source fetching dependable.
           </p>
         </div>
 

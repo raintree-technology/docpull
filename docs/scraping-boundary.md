@@ -2,18 +2,18 @@
 
 docpull is a browser-free web scraper for turning static and server-rendered
 web pages into local, auditable context artifacts. Its sharpest workflow is
-documentation ingestion for agents, RAG systems, offline archives, and source
-packs.
+public web-source ingestion for agents, RAG systems, offline archives, and
+source packs.
 
 ## What docpull should do
 
 - Fetch HTTPS pages with async HTTP, URL validation, DNS pinning, redirect
   revalidation, robots.txt compliance, and rate limits.
 - Crawl known page graphs through sitemaps and static links.
-- Convert server-rendered HTML, raw Markdown/text, OpenAPI specs, and common
-  docs frameworks into clean Markdown.
+- Convert server-rendered HTML, raw Markdown/text, OpenAPI specs, product
+  pages, blogs, help centers, and common docs frameworks into clean Markdown.
 - Emit local artifacts that agents can inspect: Markdown, JSON, NDJSON, SQLite,
-  OKF bundles, manifests, source indexes, and MCP-readable docs.
+  OKF bundles, manifests, source indexes, and MCP-readable cached sources.
 - Preserve provenance with source URLs, stable document/chunk IDs, content
   hashes, extraction metadata, and reproducible manifests.
 
@@ -49,9 +49,9 @@ browser-free default remains unchanged.
 
 The product should deepen the local agent-ingestion lane:
 
-- More docs-framework fixtures and extractors.
+- More web-source fixtures and framework-specific extractors.
 - Better local search over generated artifacts.
 - Stable corpus schemas, source maps, and chunk provenance.
 - Pack scoring, diffing, and refresh workflows.
-- Explicit authenticated/internal docs mode only after source policy, redaction,
-  and audit logging are designed.
+- Explicit authenticated/internal source mode only after source policy,
+  redaction, and audit logging are designed.

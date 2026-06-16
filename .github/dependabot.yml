@@ -4,7 +4,9 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "daily"
+      time: "09:00"
+      timezone: "America/Los_Angeles"
     open-pull-requests-limit: 10
     labels:
       - "dependencies"
@@ -14,12 +16,22 @@ updates:
   - package-ecosystem: "pip"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "daily"
+      time: "09:10"
+      timezone: "America/Los_Angeles"
+    versioning-strategy: "increase-if-necessary"
     open-pull-requests-limit: 10
     labels:
       - "dependencies"
       - "python"
     groups:
+      release-tooling:
+        patterns:
+          - "build"
+          - "pip"
+          - "setuptools"
+          - "twine"
+          - "wheel"
       dev-dependencies:
         patterns:
           - "pytest*"
@@ -37,12 +49,19 @@ updates:
           - "ruff"
           - "mypy"
           - "types-*"
+          - "build"
+          - "pip"
+          - "setuptools"
+          - "twine"
+          - "wheel"
 
   # Web app npm dependencies
   - package-ecosystem: "npm"
     directory: "/web"
     schedule:
-      interval: "weekly"
+      interval: "daily"
+      time: "09:20"
+      timezone: "America/Los_Angeles"
     open-pull-requests-limit: 10
     labels:
       - "dependencies"
@@ -59,7 +78,9 @@ updates:
   - package-ecosystem: "bun"
     directory: "/mcp"
     schedule:
-      interval: "weekly"
+      interval: "daily"
+      time: "09:30"
+      timezone: "America/Los_Angeles"
     open-pull-requests-limit: 10
     labels:
       - "dependencies"

@@ -9,6 +9,7 @@ import re
 import secrets
 import socket
 from types import TracebackType
+from typing import cast
 from urllib.parse import urljoin, urlparse
 
 import aiohttp
@@ -28,6 +29,9 @@ except ImportError:
     CHARSET_NORMALIZER_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
+
+_NATIVE_PROXY_SCHEMES = frozenset({"http", "https"})
+_SOCKS_PROXY_SCHEMES = frozenset({"socks4", "socks4a", "socks5", "socks5h"})
 
 
 class _ValidatedResolver(AbstractResolver):
@@ -154,7 +158,9 @@ class AsyncHttpClient:
         self._max_retries = max_retries
         self._retry_base_delay = retry_base_delay
         self._max_content_size = max_content_size
-        self._proxy = proxy
+        self._proxy = self._validate_proxy_url(proxy)
+        self._socks_proxy_url = self._proxy if self._is_socks_proxy_url(self._proxy) else None
+        self._request_proxy = None if self._socks_proxy_url is not None else self._proxy
         self._default_timeout = default_timeout
         self._auth_headers = auth_headers or {}
         self._url_validator = url_validator
@@ -189,6 +195,25 @@ class AsyncHttpClient:
     def user_agent(self) -> str:
         """The User-Agent string this client sends on every request."""
         return self._user_agent
+
+    @staticmethod
+    def _validate_proxy_url(proxy: str | None) -> str | None:
+        """Validate proxy schemes before handing the URL to aiohttp."""
+        if proxy is None:
+            return None
+
+        scheme = urlparse(proxy).scheme.lower()
+        if not scheme:
+            raise ValueError("Proxy URL must include a scheme such as http://, https://, or socks5://")
+        if scheme not in _NATIVE_PROXY_SCHEMES | _SOCKS_PROXY_SCHEMES:
+            supported = ", ".join(sorted(_NATIVE_PROXY_SCHEMES | _SOCKS_PROXY_SCHEMES))
+            raise ValueError(f"Unsupported proxy URL scheme '{scheme}'. Supported schemes: {supported}")
+        return proxy
+
+    @staticmethod
+    def _is_socks_proxy_url(proxy: str | None) -> bool:
+        """Return True when the proxy requires the optional aiohttp-socks connector."""
+        return proxy is not None and urlparse(proxy).scheme.lower() in _SOCKS_PROXY_SCHEMES
 
     def _validate_url(self, url: str) -> None:
         """Re-validate each request URL, including redirect targets."""
@@ -280,6 +305,34 @@ class AsyncHttpClient:
             return redirect_url, new_headers, redirect_count + 1
         return None
 
+    def _build_connector(self, resolver: AbstractResolver | None) -> aiohttp.BaseConnector:
+        """Build the right connector for direct, native-proxy, or SOCKS proxy mode."""
+        if self._socks_proxy_url is not None:
+            try:
+                from aiohttp_socks import ProxyConnector  # type: ignore[import-not-found]
+            except ImportError as err:
+                raise ImportError(
+                    "SOCKS proxy support requires the optional 'aiohttp-socks' package. "
+                    "Install it with: pip install docpull[proxy]"
+                ) from err
+
+            return cast(
+                aiohttp.BaseConnector,
+                ProxyConnector.from_url(
+                    self._socks_proxy_url,
+                    limit=100,
+                    limit_per_host=10,
+                    ttl_dns_cache=300,
+                ),
+            )
+
+        return aiohttp.TCPConnector(
+            limit=100,
+            limit_per_host=10,
+            ttl_dns_cache=300,
+            resolver=resolver,
+        )
+
     async def __aenter__(self) -> AsyncHttpClient:
         """Enter async context and create session."""
         resolver: AbstractResolver | None = None
@@ -291,12 +344,7 @@ class AsyncHttpClient:
                 "URL validation still runs pre-flight, but the proxy resolves DNS independently."
             )
 
-        connector = aiohttp.TCPConnector(
-            limit=100,
-            limit_per_host=10,
-            ttl_dns_cache=300,
-            resolver=resolver,
-        )
+        connector = self._build_connector(resolver)
         self._session = aiohttp.ClientSession(
             connector=connector,
             cookie_jar=aiohttp.DummyCookieJar(),
@@ -430,7 +478,7 @@ class AsyncHttpClient:
                             current_url,
                             timeout=aiohttp.ClientTimeout(total=timeout_val),
                             headers=current_headers,
-                            proxy=self._proxy,
+                            proxy=self._request_proxy,
                             allow_redirects=False,
                         ) as response,
                     ):
@@ -581,7 +629,7 @@ class AsyncHttpClient:
                     current_url,
                     timeout=aiohttp.ClientTimeout(total=timeout),
                     headers=current_headers if current_headers else None,
-                    proxy=self._proxy,
+                    proxy=self._request_proxy,
                     allow_redirects=False,
                 ) as response,
             ):

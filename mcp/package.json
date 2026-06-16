@@ -8,7 +8,13 @@
 	"scripts": {
 		"dev": "bun run src/server.ts",
 		"ingest": "bun run src/ingest.ts",
+		"test": "bun test",
 		"typecheck": "tsc --noEmit"
+	},
+	"knip": {
+		"ignoreBinaries": [
+			"docpull"
+		]
 	},
 	"dependencies": {
 		"@modelcontextprotocol/sdk": "^1.29.0",

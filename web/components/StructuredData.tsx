@@ -44,9 +44,9 @@ const graph = {
       license: "https://opensource.org/licenses/MIT",
       isAccessibleForFree: true,
       featureList: [
-        "Documentation crawling to Markdown, JSON, NDJSON, and SQLite",
+        "Public web-source crawling to Markdown, JSON, NDJSON, and SQLite",
         "Token-aware chunks with stable document and chunk IDs",
-        "MCP server for agent access to cached docs",
+        "MCP server for agent access to cached Markdown sources",
         "Single-URL fetch path for tool calls",
         "Parallel-backed context packs with AGENT_CONTEXT.md load plans",
         "Entity packs, batch packs, monitor packs, and API packs",

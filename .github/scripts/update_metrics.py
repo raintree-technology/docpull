@@ -10,6 +10,8 @@ Plugin install proxy: `/plugin marketplace add <owner>/<repo>` is a git
 clone under the hood, so daily clone counts approximate plugin installs.
 
 Stdlib only — no extra deps to keep CI fast and the supply chain small.
+Critical data-source failures abort the update so the committed snapshot does
+not get a fresh timestamp with placeholder values.
 """
 
 from __future__ import annotations
@@ -112,6 +114,7 @@ def safe_get(fn, default, *, on_error: list[str] | None = None):
         urllib.error.HTTPError,
         urllib.error.URLError,
         subprocess.CalledProcessError,
+        OSError,
         KeyError,
         ValueError,
     ) as err:
@@ -120,6 +123,12 @@ def safe_get(fn, default, *, on_error: list[str] | None = None):
         if on_error is not None:
             on_error.append(msg)
         return default
+
+
+def report_critical_errors(errors: list[str]) -> None:
+    print("error: refusing to update metrics with incomplete critical data.", file=sys.stderr)
+    for error in errors:
+        print(f"  - {error}", file=sys.stderr)
 
 
 def download_series(pepy: dict, *, days: int = 90) -> list[tuple[date, int]]:
@@ -272,7 +281,9 @@ def main() -> int:
     now = datetime.now(timezone.utc)
     timestamp = now.strftime("%Y-%m-%d %H:%M UTC")
 
-    repo = safe_get(lambda: gh(""), {})
+    critical_errors: list[str] = []
+    repo_errors: list[str] = []
+    repo = safe_get(lambda: gh(""), None, on_error=repo_errors)
 
     # Traffic endpoints require Administration: read — collect errors so we
     # can show a clear note in METRICS.md if the token is under-scoped.
@@ -291,15 +302,44 @@ def main() -> int:
     paths = safe_get(lambda: gh("/traffic/popular/paths"), [], on_error=traffic_errors)
     traffic_blocked = bool(traffic_errors)
 
-    open_issues = safe_get(lambda: gh_search_count(f"repo:{REPO} is:open is:issue"), 0)
-    open_prs = safe_get(lambda: gh_search_count(f"repo:{REPO} is:open is:pr"), 0)
+    open_issue_errors: list[str] = []
+    open_issues = safe_get(
+        lambda: gh_search_count(f"repo:{REPO} is:open is:issue"),
+        None,
+        on_error=open_issue_errors,
+    )
+    open_pr_errors: list[str] = []
+    open_prs = safe_get(
+        lambda: gh_search_count(f"repo:{REPO} is:open is:pr"),
+        None,
+        on_error=open_pr_errors,
+    )
 
-    pypi_errors: list[str] = []
-    recent = safe_get(lambda: pypistats("/recent")["data"], {}, on_error=pypi_errors)
-    pepy = safe_get(lambda: pepy_project(), {}, on_error=pypi_errors)
-    pypi_blocked = bool(pypi_errors)
-    if pepy:
-        write_download_chart(pepy)
+    recent_errors: list[str] = []
+    recent = safe_get(lambda: pypistats("/recent")["data"], None, on_error=recent_errors)
+    pepy_errors: list[str] = []
+    pepy = safe_get(lambda: pepy_project(), None, on_error=pepy_errors)
+
+    critical_errors.extend(repo_errors)
+    critical_errors.extend(open_issue_errors)
+    critical_errors.extend(open_pr_errors)
+    critical_errors.extend(recent_errors)
+    critical_errors.extend(pepy_errors)
+    if not repo_errors and not isinstance(repo, dict):
+        critical_errors.append("GitHub repository metadata response was unavailable or malformed.")
+    if not open_issue_errors and open_issues is None:
+        critical_errors.append("GitHub open issue count was unavailable.")
+    if not open_pr_errors and open_prs is None:
+        critical_errors.append("GitHub open pull request count was unavailable.")
+    if not recent_errors and not isinstance(recent, dict):
+        critical_errors.append("PyPI recent download response was unavailable or malformed.")
+    if not pepy_errors and (not isinstance(pepy, dict) or not pepy):
+        critical_errors.append("Pepy project download response was unavailable or malformed.")
+    if critical_errors:
+        report_critical_errors(critical_errors)
+        return 1
+
+    write_download_chart(pepy)
 
     stars = repo.get("stargazers_count", 0)
     forks = repo.get("forks_count", 0)
@@ -320,14 +360,6 @@ def main() -> int:
     push("")
     push("## Snapshot")
     push("")
-    if pypi_blocked:
-        push(
-            "> **PyPI download counts unavailable this run.** pypistats.org "
-            "returned an error (often a transient rate-limit on shared CI "
-            "IPs). Showing the last successful values would be misleading; "
-            "the next run should recover automatically."
-        )
-        push("")
     push("| Metric | Value |")
     push("|---|---|")
     push(f"| PyPI downloads (last 24h) | {fmt(last_day)} |")

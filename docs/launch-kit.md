@@ -19,6 +19,7 @@ python
 web-scraping
 crawler
 documentation
+web-extraction
 markdown
 rag
 llm
@@ -55,9 +56,9 @@ DocPull is a security-hardened Python tool for turning public static and
 server-rendered web pages into clean, structured context for developers, AI
 agents, and RAG systems. It fetches pages without Playwright, discovers links,
 extracts main content, preserves source metadata, and writes Markdown, NDJSON,
-OKF bundles, SQLite, or local archives. Documentation crawling is its sharpest
-default workflow, but blogs, vendor pages, API references, OpenAPI specs, and
-other public web content also fit when the content is available without
+OKF bundles, SQLite, or local archives. Web-source extraction is the core
+workflow; blogs, vendor pages, API references, OpenAPI specs, docs, and other
+public web content all fit when the content is available without
 JavaScript rendering.
 
 Use it as a CLI, Python SDK, or MCP server. Agents can fetch one URL, crawl a
@@ -81,15 +82,15 @@ Hi HN, I built DocPull, a Python CLI/SDK/MCP server for turning public static an
 
 The specific pain: agents often need current web context, but browser automation is heavy, hosted scraping APIs can be overkill, and raw HTML makes poor context. DocPull uses async HTTP, framework-aware extraction, source metadata, chunking, and local caching. It intentionally does not render JavaScript. For public pages that are static or server-rendered, that tradeoff keeps it fast, inspectable, and easy to run in local agent workflows.
 
-Example:
+Examples:
 
 pip install docpull
+docpull https://www.python.org/blogs/ --max-pages 25 -o ./python-news
 docpull https://docs.python.org/3/library/asyncio.html --single
-docpull https://docs.example.com --profile llm --stream
 pip install 'docpull[mcp]'
 docpull mcp
 
-I would especially like feedback from people building coding agents, RAG/search systems, docs tooling, and scraping pipelines. Where would you expect the boundary to be between a browser-free crawler like this and full browser automation?
+I would especially like feedback from people building coding agents, RAG/search systems, knowledge tooling, and scraping pipelines. Where would you expect the boundary to be between a browser-free crawler like this and full browser automation?
 ```
 
 ## Product Hunt

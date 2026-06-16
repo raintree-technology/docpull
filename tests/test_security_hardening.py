@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import socket
+import sys
 from pathlib import Path
-from types import SimpleNamespace
+from types import ModuleType, SimpleNamespace
 from unittest.mock import MagicMock
 
 import aiohttp
@@ -22,7 +23,7 @@ class _NullAsyncContext:
     async def __aenter__(self) -> None:
         return None
 
-    async def __aexit__(self, exc_type, exc, tb) -> None:
+    async def __aexit__(self, _exc_type, _exc, _tb) -> None:
         return None
 
 
@@ -68,7 +69,7 @@ class _FakeRequestContext:
     async def __aenter__(self) -> _FakeResponse:
         return self._response
 
-    async def __aexit__(self, exc_type, exc, tb) -> None:
+    async def __aexit__(self, _exc_type, _exc, _tb) -> None:
         return None
 
 
@@ -656,6 +657,100 @@ class TestRedirectValidation:
 
         with pytest.raises(ValueError, match="outside base directory"):
             await step.execute(ctx)
+
+
+class TestProxyHandling:
+    def test_socks_proxy_without_extra_has_actionable_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setitem(sys.modules, "aiohttp_socks", None)
+        client = AsyncHttpClient(
+            rate_limiter=_DummyRateLimiter(),
+            proxy="socks5://127.0.0.1:1080",
+        )
+
+        with pytest.raises(ImportError, match=r"docpull\[proxy\]"):
+            client._build_connector(None)
+
+    def test_socks_proxy_uses_optional_connector(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        sentinel = object()
+        created: dict[str, object] = {}
+
+        class FakeProxyConnector:
+            @classmethod
+            def from_url(cls, url: str, **kwargs: object) -> object:
+                created["url"] = url
+                created["kwargs"] = kwargs
+                return sentinel
+
+        fake_module = ModuleType("aiohttp_socks")
+        fake_module.ProxyConnector = FakeProxyConnector  # type: ignore[attr-defined]
+        monkeypatch.setitem(sys.modules, "aiohttp_socks", fake_module)
+
+        client = AsyncHttpClient(
+            rate_limiter=_DummyRateLimiter(),
+            proxy="socks5://user:pass@127.0.0.1:1080",
+        )
+
+        connector = client._build_connector(None)
+
+        assert connector is sentinel
+        assert client._request_proxy is None
+        assert created["url"] == "socks5://user:pass@127.0.0.1:1080"
+        assert created["kwargs"] == {"limit": 100, "limit_per_host": 10, "ttl_dns_cache": 300}
+
+    @pytest.mark.asyncio
+    async def test_native_http_proxy_is_passed_per_request(self) -> None:
+        client = AsyncHttpClient(
+            rate_limiter=_DummyRateLimiter(),
+            proxy="http://corp.proxy:8080",
+            max_retries=0,
+        )
+        client._session = _FakeSession(
+            [
+                _FakeResponse(
+                    200,
+                    headers={"Content-Type": "text/html"},
+                    chunks=[b"ok"],
+                    url="https://public.example/page",
+                )
+            ]
+        )
+
+        await client.get("https://public.example/page")
+
+        assert client._session is not None
+        _, kwargs = client._session.calls[0]
+        assert kwargs["proxy"] == "http://corp.proxy:8080"
+
+    @pytest.mark.asyncio
+    async def test_socks_proxy_is_not_passed_per_request(self) -> None:
+        client = AsyncHttpClient(
+            rate_limiter=_DummyRateLimiter(),
+            proxy="socks5://127.0.0.1:1080",
+            max_retries=0,
+        )
+        client._session = _FakeSession(
+            [
+                _FakeResponse(
+                    200,
+                    headers={"Content-Type": "text/html"},
+                    chunks=[b"ok"],
+                    url="https://public.example/page",
+                )
+            ]
+        )
+
+        await client.get("https://public.example/page")
+
+        assert client._session is not None
+        _, kwargs = client._session.calls[0]
+        assert kwargs["proxy"] is None
+
+    def test_proxy_url_requires_supported_scheme(self) -> None:
+        with pytest.raises(ValueError, match="Unsupported proxy URL scheme 'ftp'"):
+            AsyncHttpClient(
+                rate_limiter=_DummyRateLimiter(),
+                proxy="ftp://corp.proxy:21",
+            )
 
 
 # ---------------------------------------------------------------------------

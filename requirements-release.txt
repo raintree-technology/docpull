@@ -1,11 +1,13 @@
 # Pinned release tooling for .github/workflows/publish.yml.
 #
 # The publish job builds and signs the wheel that is pushed to PyPI via OIDC.
-# Installing pip/build/twine with `--upgrade` would pull whatever is *latest* at
-# release time, so a single compromised release of any of these packages could
-# inject code into the artifact before it is published. Pinning to exact versions
-# removes that auto-latest vector. Dependabot/Renovate watch root requirements*.txt
-# files and will open update PRs.
+# Installing release tooling or build backends with `--upgrade` would pull
+# whatever is *latest* at release time. Pinning direct release tools here, then
+# building with `--no-isolation`, keeps the wheel-building entry points and
+# backend on reviewed versions. Dependabot watches root requirements*.txt files
+# and opens update PRs.
 pip==26.1.2
 build==1.5.0
+setuptools==82.0.1
 twine==6.2.0
+wheel==0.47.0

@@ -19,6 +19,7 @@ from docpull.parallel_workflows import (
     estimate_context_pack_cost,
     run_parallel_cli,
 )
+from docpull.security.url_validator import UrlValidator
 
 EXAMPLE_FIXTURE = Path(__file__).resolve().parents[1] / "docs/examples/parallel-search-extract.json"
 
@@ -26,6 +27,15 @@ EXAMPLE_FIXTURE = Path(__file__).resolve().parents[1] / "docs/examples/parallel-
 @pytest.fixture(autouse=True)
 def isolate_parallel_auth_files(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg-config"))
+
+
+@pytest.fixture(autouse=True)
+def deterministic_parallel_url_validation(monkeypatch: pytest.MonkeyPatch) -> None:
+    def validator_factory(*args: object, **kwargs: object) -> UrlValidator:
+        kwargs["resolver"] = lambda _hostname: ["93.184.216.34"]
+        return UrlValidator(*args, **kwargs)
+
+    monkeypatch.setattr(parallel_workflows, "UrlValidator", validator_factory)
 
 
 def _write_fixture(path: Path) -> None:

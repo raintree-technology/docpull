@@ -1,8 +1,0 @@
-{
-  "mcpServers": {
-    "docpull": {
-      "command": "docpull",
-      "args": ["mcp"]
-    }
-  }
-}

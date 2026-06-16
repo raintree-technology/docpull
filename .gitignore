@@ -54,6 +54,9 @@ coverage.xml
 .pytest_cache/
 cover/
 
+# Local audit artifacts
+audit/
+
 # Translations
 *.mo
 *.pot
@@ -159,6 +162,7 @@ cython_debug/
 .vscode/
 .idea/
 .claude/
+/.claude-plugin/
 *.swp
 *.swo
 *~
@@ -192,6 +196,9 @@ test_error_handling.py
 playwright/.auth/
 trace.zip
 screenshots/
+
+# Vercel local project binding
+.vercel/
 
 # Async test artifacts
 .async_cache/

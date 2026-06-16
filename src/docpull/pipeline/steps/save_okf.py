@@ -19,8 +19,8 @@ from .convert import _extract_headings
 
 logger = logging.getLogger(__name__)
 
-OKF_CONCEPT_TYPE = "Documentation Page"
-OKF_CHUNK_TYPE = "Documentation Chunk"
+OKF_CONCEPT_TYPE = "Web Page"
+OKF_CHUNK_TYPE = "Web Page Chunk"
 _INDEX_FILENAME = "index.md"
 
 

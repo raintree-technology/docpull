@@ -23,11 +23,11 @@ const workflows = [
 
 const decisionCards = [
   {
-    title: "Use docpull for known docs",
+    title: "Use docpull for known URLs",
     description:
       "Start here when you already have the URL and want a clean Markdown mirror — no browser, no API key.",
     points: [
-      "static docs and API references",
+      "static pages, docs, and API references",
       "search-ready or skill-ready Markdown",
       "repeatable, offline-friendly archives",
     ],
@@ -38,9 +38,9 @@ const decisionCards = [
       "Use the Parallel layer when you need to find sources first, extract live content, or run entity and batch research before writing local context.",
     points: [
       "research packs from search queries",
-      "ranked docs discovery with crawl plans",
+      "ranked source discovery with crawl plans",
       "cited source bundles with a load plan",
-      "API-doc and vendor comparison research",
+      "API and vendor comparison research",
       "diffs, entity dossiers, and batch workflows",
     ],
   },

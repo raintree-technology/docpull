@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Documentation Ingestion Script
+ * Source Markdown Ingestion Script
  * Chunks and embeds markdown files, then stores in pgvector
  */
 
@@ -150,7 +150,7 @@ function resolveLibraryPath(libraryName: string): string {
 	const libraryPath = resolve(docsRoot, libraryName);
 	const rel = relative(docsRoot, libraryPath);
 	if (rel === "" || rel.startsWith("..")) {
-		throw new Error(`Library path escapes docs directory: ${libraryName}`);
+		throw new Error(`Library path escapes cache directory: ${libraryName}`);
 	}
 	return libraryPath;
 }
@@ -265,14 +265,14 @@ export async function ingestSingleLibrary(libraryName: string): Promise<void> {
 }
 
 async function main(): Promise<number> {
-	writeLine("docpull-mcp Documentation Ingestion");
+	writeLine("docpull-mcp Source Markdown Ingestion");
 	writeLine("=".repeat(50));
-	writeLine(`Docs directory: ${DOCS_DIR}`);
+	writeLine(`Cache directory: ${DOCS_DIR}`);
 	writeLine();
 
 	if (!existsSync(DOCS_DIR)) {
-		writeErrorLine(`Error: Docs directory not found: ${DOCS_DIR}`);
-		writeErrorLine("\nFetch some docs first with ensure_docs tool, or run:");
+		writeErrorLine(`Error: cache directory not found: ${DOCS_DIR}`);
+		writeErrorLine("\nFetch a source first with ensure_docs tool, or run:");
 		writeErrorLine(
 			"  docpull https://example.com/docs -o ~/.local/share/docpull-mcp/docs/example",
 		);

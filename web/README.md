@@ -1,6 +1,6 @@
 # docpull web
 
-Marketing website for [docpull](https://github.com/raintree-technology/docpull) - the documentation fetcher for AI.
+Marketing website for [docpull](https://github.com/raintree-technology/docpull) - the public web-source fetcher for AI agents.
 
 ## Tech Stack
 

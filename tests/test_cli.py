@@ -6,7 +6,7 @@ from types import SimpleNamespace
 import pytest
 
 import docpull
-from docpull.cli import create_parser, run_fetcher
+from docpull.cli import create_parser, main, run_fetcher
 from docpull.models.events import SkipReason
 
 
@@ -49,6 +49,33 @@ def test_parser_accepts_okf_profile_and_format():
 
     assert profile.profile == "okf"
     assert output_format.format == "okf"
+
+
+def test_parser_accepts_sec_filing_profile():
+    parser = create_parser()
+
+    args = parser.parse_args(["https://www.sec.gov/Archives/example.htm", "--profile", "sec-filing"])
+
+    assert args.profile == "sec-filing"
+
+
+def test_evidence_pack_help_exits_cleanly(capsys):
+    with pytest.raises(SystemExit) as exc_info:
+        main(["evidence-pack", "--help"])
+
+    assert exc_info.value.code == 0
+    captured = capsys.readouterr()
+    assert "docpull evidence-pack" in captured.out
+    assert "--sec-user-agent" in captured.out
+
+
+def test_evidence_pack_dispatch_reports_user_error(capsys):
+    result = main(["evidence-pack", "missing.ndjson", "--rules", "missing.yml"])
+
+    assert result == 1
+    captured = capsys.readouterr()
+    assert "Evidence pack error:" in captured.out
+    assert "Input filing NDJSON does not exist" in captured.out
 
 
 def test_skill_rejects_okf_output(tmp_path, capsys):

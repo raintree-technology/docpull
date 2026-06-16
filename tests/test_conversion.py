@@ -340,7 +340,7 @@ class TestFrontmatterBuilder:
 
         data = yaml.safe_load(result.split("---", 2)[1])
 
-        assert data["type"] == "Documentation Page"
+        assert data["type"] == "Web Page"
         assert data["title"] == "Getting Started"
         assert data["resource"] == "https://docs.example.com/guide"
         assert data["source"] == "https://docs.example.com/guide"

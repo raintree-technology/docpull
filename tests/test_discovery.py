@@ -355,8 +355,8 @@ class TestCompositeDiscoverer:
 
             async def discover(self, start_url, *, max_urls=None):
                 self.discover_called = True
-                return
-                yield  # Make it a generator
+                for url in ():
+                    yield url
 
         sitemap = MockSitemap()
         crawler = MockCrawler()

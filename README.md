@@ -16,9 +16,9 @@
 
 docpull is a Python CLI, SDK, and MCP server for pulling public static and
 server-rendered web pages into clean Markdown, NDJSON, OKF bundles, SQLite, or
-local archives. Documentation crawling is its sharpest default workflow, but
-the product is broader than docs: blogs, API references, vendor pages, OpenAPI
-specs, and other server-rendered web content all fit. It uses async HTTP instead
+local archives. Web-source extraction is the core workflow; docs are one
+high-value lane alongside blogs, API references, vendor pages, OpenAPI specs,
+and other server-rendered web content. It uses async HTTP instead
 of Playwright, preserves source metadata, and is built for agent-selected URLs
 with SSRF, XXE, DNS-rebinding, and CRLF-injection protections enabled by
 default.
@@ -72,6 +72,13 @@ docpull https://docs.example.com --profile llm --stream | jq .
 
 # Open Knowledge Format bundle for agent/wiki interoperability
 docpull https://example.com --format okf -o ./site-okf
+
+# SEC filing evidence pack with citation anchors
+docpull evidence-pack filings.ndjson \
+  --profile sec-filing \
+  --rules docs/examples/vendor-dependency-rules.yml \
+  --sec-user-agent "YourOrg your-email@example.com" \
+  --output-dir packs/dla-vendors
 
 # Mirror scraped content for offline use
 docpull https://docs.example.com --profile mirror --cache
@@ -196,15 +203,37 @@ async def tool_call(url: str) -> str:
 docpull https://site.com --profile rag      # Default. Dedup, rich metadata.
 docpull https://site.com --profile llm      # NDJSON + chunks + metadata; JS-only pages skip unless --strict-js-required is passed.
 docpull https://site.com --profile okf      # OKF bundle with generated index.md files.
+docpull https://site.com --profile sec-filing # EDGAR-friendly NDJSON chunks, trafilatura, Inline XBRL cleanup.
 docpull https://site.com --profile mirror   # Full archive, polite, cached, hierarchical paths.
 docpull https://site.com --profile quick    # Sampling: 50 pages, depth 2.
 ```
+
+## SEC filing evidence packs
+
+`docpull evidence-pack` turns an NDJSON list of filings into a source pack for
+government/vendor-dependency research. Each input row needs a filing URL under
+`primary_document_url` or `url`; filing fields such as `cik`,
+`accession_number`, `form`, `filing_date`, and `issuer_name` are carried into
+the emitted records.
+
+Use `docs/examples/vendor-dependency-rules.yml` as a starting rule profile for
+government customer, customer concentration, segment revenue, and related-party
+signals. Rules can use literal strings or regex entries with optional
+confidence values.
+
+The pack writes `evidence.pack.json`, `documents.ndjson`, `evidence.ndjson`,
+`diagnostics.ndjson`, `sources.md`, `corpus.manifest.json`,
+`EVIDENCE_CONTEXT.md`, and `AGENT_CONTEXT.md`. Evidence hits include source URL,
+chunk id, section heading when available, quote, surrounding context, source
+document hash, confidence, and extraction method. Diagnostics flag no readable
+content, high XBRL noise, degraded tables, missing evidence categories, and
+source hash changes since the last run.
 
 ## Parallel context packs
 
 `docpull[parallel]` adds an optional source-discovery and research layer on top
 of Parallel web intelligence APIs. Use the core crawler when you already know
-the docs URL. Use Parallel packs when an agent needs current web sources found,
+the target URL. Use Parallel packs when an agent needs current web sources found,
 extracted, researched, organized, and loaded as durable local context.
 
 Parallel handles live Search, Extract, Task, Entity Search, FindAll, TaskGroup,
@@ -427,7 +456,7 @@ Write:
 - `parallel_context_pack(...)` — build or dry-run a Parallel Search + Extract pack without shelling out.
 - `parallel_api_pack(source, kind?, output_dir?)` — build a pack from `llms.txt` or OpenAPI.
 - `add_source(name, url, description?, category?, max_pages?, force?)` — register a user alias (HTTPS-only, atomic write to `sources.yaml`).
-- `remove_source(name, delete_cache?)` — drop a user alias and (optionally) its cached docs.
+- `remove_source(name, delete_cache?)` — drop a user alias and (optionally) its cached Markdown.
 
 All schema-backed tools return `structuredContent` validated against an
 `outputSchema` for clients that prefer typed output. `fetch_url` intentionally
@@ -541,6 +570,8 @@ for hit in hits:
 When running with `--proxy`, DNS pinning is delegated to the proxy. Pass
 `--require-pinned-dns` to refuse this configuration and keep the connector-
 level SSRF guarantees in effect.
+HTTP and HTTPS proxies work with the base install; SOCKS proxies require
+`pip install "docpull[proxy]"`.
 
 ## Options
 
@@ -548,7 +579,7 @@ Run `docpull --help` for the full list. Highlights:
 
 ```
 Core:
-  --profile {rag,mirror,quick,llm,okf}
+  --profile {rag,mirror,quick,llm,okf,sec-filing}
   --single                Fetch one URL (no crawl)
   --format {markdown,json,ndjson,sqlite,okf}
   --stream                Stream NDJSON to stdout

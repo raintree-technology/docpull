@@ -5,7 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [4.4.0] - 2026-06-16
+
+### Added
+- Add release-ready SEC filing evidence packs with `evidence.pack.json`,
+  `AGENT_CONTEXT.md`, validated rule confidence values, and a checked-in
+  vendor-dependency rules example.
+
+### Changed
+- Wire `docpull[proxy]` to actual SOCKS proxy handling via `aiohttp-socks`,
+  keep HTTP/HTTPS proxying on aiohttp's native request path, raise the optional
+  proxy floor to `aiohttp-socks>=0.11.0`, and document security-floor
+  dependencies as Dependabot-managed constraints.
+- Run Dependabot version checks daily across Python, GitHub Actions, web npm,
+  and MCP Bun manifests so dependency floor updates are raised promptly.
+- Pin release build backends (`setuptools`, `wheel`) alongside `pip`, `build`,
+  and `twine`, and run the publish build without isolation so releases do not
+  silently download latest build tooling.
 
 ## [4.3.1] - 2026-06-15
 
@@ -328,7 +344,7 @@ the user registry programmatically.
   alias unless `force=true`; URL is HTTPS-only and validated against
   the same SSRF rules as `fetch_url`. Atomic write (tmp + rename).
 - **`remove_source(name, delete_cache?)`** — remove a user source
-  alias and optionally its cached docs directory. Cannot remove
+  alias and optionally its cached Markdown directory. Cannot remove
   builtins (suggest `add_source(force=true)` to shadow instead).
   Cache deletion does a defense-in-depth resolved-path check.
 - **`ToolAnnotations` on every tool** — `readOnlyHint` /

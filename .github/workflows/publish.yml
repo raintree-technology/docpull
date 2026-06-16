@@ -57,10 +57,10 @@ jobs:
 
       - name: Install release dependencies
         run: |
-          # Pinned (see requirements-release.txt) so a compromised *latest* release
-          # of pip/build/twine cannot be auto-pulled into the wheel-building job.
+          # Pinned (see requirements-release.txt) so compromised *latest*
+          # release tooling cannot be auto-pulled into the wheel-building job.
           python -m pip install -r requirements-release.txt
-          pip install -e ".[all,dev]"
+          pip install --no-build-isolation -e ".[all,dev]"
 
       - name: Run release gates
         run: |
@@ -73,7 +73,7 @@ jobs:
 
       - name: Build distributions
         run: |
-          python -m build
+          python -m build --no-isolation
 
       - name: Verify wheel and sdist
         run: python -m twine check dist/*

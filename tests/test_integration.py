@@ -49,6 +49,11 @@ class TestDocpullConfig:
         config = DocpullConfig(url="https://docs.example.com", profile=ProfileName.OKF)
         assert config.profile == ProfileName.OKF
 
+    def test_sec_filing_profile(self):
+        """Test SEC filing profile config."""
+        config = DocpullConfig(url="https://www.sec.gov/Archives/example.htm", profile=ProfileName.SEC_FILING)
+        assert config.profile == ProfileName.SEC_FILING
+
     def test_config_with_crawl_settings(self):
         """Test config with custom crawl settings."""
         config = DocpullConfig(
@@ -401,6 +406,20 @@ class TestProfileDefaults:
         assert config.output.format == "okf"
         assert config.output.rich_metadata is True
         assert config.content_filter.streaming_dedup is True
+
+    def test_sec_filing_profile_defaults(self):
+        """Test SEC filing profile applies extraction and output defaults."""
+        from docpull.models.profiles import apply_profile
+
+        config = DocpullConfig(url="https://www.sec.gov/Archives/example.htm", profile=ProfileName.SEC_FILING)
+        config = apply_profile(config)
+
+        assert config.output.format == "ndjson"
+        assert config.output.emit_chunks is True
+        assert config.output.max_tokens_per_file == 2500
+        assert config.content_filter.extractor == "trafilatura"
+        assert config.content_filter.clean_inline_xbrl is True
+        assert config.crawl.per_host_concurrent == 1
 
     def test_explicit_user_value_beats_profile_value(self):
         """User-supplied values must win over profile values on collision.

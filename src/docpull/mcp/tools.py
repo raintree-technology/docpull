@@ -5,7 +5,7 @@ an optional structured ``data`` dict. The server wraps both into an MCP
 ``CallToolResult`` (with ``structuredContent`` validated against the
 tool's ``outputSchema``).
 
-Tools share state via module-level caches (source config, docs dir); the
+Tools share state via module-level caches (source config, cache dir); the
 server wires them up at startup.
 """
 
@@ -199,7 +199,7 @@ async def ensure_docs(
     docs_dir: Path | None = None,
     on_progress: Callable[[int, int | None], Awaitable[None]] | None = None,
 ) -> ToolResult:
-    """Fetch docs for a configured alias; use cached content if fresh.
+    """Fetch Markdown for a configured alias; use cached content if fresh.
 
     Args:
         source: alias name from sources.yaml.
@@ -401,10 +401,10 @@ def _humanize_age(seconds: float) -> str:
 
 
 def list_indexed(docs_dir: Path | None = None) -> ToolResult:
-    """List sources that have local fetched docs, with last-fetched age."""
+    """List sources that have local fetched Markdown, with last-fetched age."""
     docs_dir = docs_dir or default_docs_dir()
     if not docs_dir.exists():
-        return ToolResult("No docs fetched yet.", data={"libraries": []})
+        return ToolResult("No sources fetched yet.", data={"libraries": []})
     rows: list[str] = []
     payload: list[dict[str, Any]] = []
     now = time.time()
@@ -449,9 +449,9 @@ def list_indexed(docs_dir: Path | None = None) -> ToolResult:
             entry["age_seconds"] = int(now - epoch)
         payload.append(entry)
     if not rows:
-        return ToolResult(f"No fetched docs under {docs_dir}.", data={"libraries": []})
+        return ToolResult(f"No fetched sources under {docs_dir}.", data={"libraries": []})
     return ToolResult(
-        f"Fetched docs at {docs_dir}:\n\n" + "\n".join(rows),
+        f"Fetched sources at {docs_dir}:\n\n" + "\n".join(rows),
         data={"libraries": payload},
     )
 
@@ -838,7 +838,7 @@ def remove_source(
     config_dir: Path | None = None,
     docs_dir: Path | None = None,
 ) -> ToolResult:
-    """Remove a user source alias. Optionally delete its cached docs.
+    """Remove a user source alias. Optionally delete its cached Markdown.
 
     Cannot remove a builtin (no force flag — builtins are part of the
     package, not the user's config). To stop using a builtin, shadow it
@@ -894,7 +894,7 @@ def remove_source(
     if removed:
         parts.append(f"removed '{name}' from {path}")
     if cache_deleted:
-        parts.append(f"deleted cached docs at {cache_dir}")
+        parts.append(f"deleted cached Markdown at {cache_dir}")
     return ToolResult(
         "Done: " + " and ".join(parts) + ".",
         data={
