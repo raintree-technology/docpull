@@ -97,26 +97,21 @@ class MetadataStep:
             return ctx
 
         try:
-            # Parse HTML
             soup = BeautifulSoup(ctx.html, "html.parser")
 
-            # Extract basic metadata
             ctx.title = self._extract_title(soup)
             description = self._extract_description(soup)
 
-            # Initialize metadata dict
             if ctx.metadata is None:
                 ctx.metadata = {}
 
             if description:
                 ctx.metadata["description"] = description
 
-            # Extract rich metadata if enabled
             if self._extract_rich and self._rich_extractor:
                 html_str = ctx.html.decode("utf-8", errors="replace")
                 rich_meta = self._rich_extractor.extract(html_str, ctx.url)
                 ctx.metadata.update(self._rich_extractor.merge_with_fallback(rich_meta, ctx.title))
-                # Update title from rich metadata if better
                 if not ctx.title and ctx.metadata.get("title"):
                     ctx.title = ctx.metadata["title"]
 

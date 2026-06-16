@@ -126,7 +126,6 @@ class StaticLinkExtractor:
             logger.debug("Could not resolve href %r against %s: %s", href, base_url, err)
             return None
 
-        # Remove fragment
         parsed = urlparse(absolute_url)
         clean_url = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
         if parsed.query:
