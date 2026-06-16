@@ -8,7 +8,13 @@ from pathlib import Path
 import pytest
 from aiohttp import web
 
-from docpull.evidence_pack import EvidencePackError, build_evidence_pack, load_evidence_rules
+from docpull.evidence_pack import (
+    EvidencePackError,
+    FilingSource,
+    _targets_sec,
+    build_evidence_pack,
+    load_evidence_rules,
+)
 from docpull.security.robots import RobotsChecker
 from docpull.security.url_validator import UrlValidator
 
@@ -117,6 +123,17 @@ categories:
 
     with pytest.raises(EvidencePackError, match="Invalid confidence"):
         load_evidence_rules(rules_path)
+
+
+def test_targets_sec_requires_exact_host_or_subdomain() -> None:
+    def source(url: str) -> FilingSource:
+        return FilingSource(source_url=url, metadata={}, raw={})
+
+    assert _targets_sec([source("https://sec.gov/Archives/test.htm")])
+    assert _targets_sec([source("https://www.sec.gov/Archives/test.htm")])
+    assert _targets_sec([source("https://WWW.SEC.GOV./Archives/test.htm")])
+    assert not _targets_sec([source("https://evilsec.gov/Archives/test.htm")])
+    assert not _targets_sec([source("https://sec.gov.evil.test/Archives/test.htm")])
 
 
 @pytest.mark.asyncio

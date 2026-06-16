@@ -1016,8 +1016,8 @@ def _diagnostic(code: str, message: str, *, severity: str, **extra: Any) -> dict
 
 def _targets_sec(sources: list[FilingSource]) -> bool:
     for source in sources:
-        hostname = urlparse(source.source_url).hostname or ""
-        if hostname.lower().endswith("sec.gov"):
+        hostname = (urlparse(source.source_url).hostname or "").rstrip(".").lower()
+        if hostname == "sec.gov" or hostname.endswith(".sec.gov"):
             return True
     return False
 
