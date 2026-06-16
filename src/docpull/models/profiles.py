@@ -73,6 +73,29 @@ PROFILES: dict[ProfileName, dict[str, Any]] = {
             "naming_strategy": "hierarchical",
         },
     },
+    ProfileName.SEC_FILING: {
+        # SEC/EDGAR filing capture for evidence packs. Filings are large,
+        # table-heavy, and XBRL-noisy, so default to conservative concurrency,
+        # trafilatura extraction, chunked NDJSON, and Inline XBRL cleanup.
+        "crawl": {
+            "max_concurrent": 2,
+            "per_host_concurrent": 1,
+            "rate_limit": 0.25,
+            "adaptive_rate_limit": True,
+        },
+        "content_filter": {
+            "extractor": "trafilatura",
+            "clean_inline_xbrl": True,
+            "enable_special_cases": True,
+            "strict_js_required": False,
+        },
+        "output": {
+            "format": "ndjson",
+            "rich_metadata": True,
+            "max_tokens_per_file": 2500,
+            "emit_chunks": True,
+        },
+    },
     ProfileName.CUSTOM: {
         # No overrides - use explicit config
     },

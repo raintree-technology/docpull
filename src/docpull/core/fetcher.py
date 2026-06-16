@@ -397,6 +397,7 @@ class Fetcher:
                 enable_special_cases=self.config.content_filter.enable_special_cases,
                 use_trafilatura=self.config.content_filter.extractor == "trafilatura",
                 strict_js_required=self.config.content_filter.strict_js_required,
+                clean_inline_xbrl=self.config.content_filter.clean_inline_xbrl,
             )
         )
 

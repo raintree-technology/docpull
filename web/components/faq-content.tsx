@@ -87,12 +87,12 @@ export const faqs: { q: string; a: ReactNode; aText: string }[] = [
         <code className="px-1 py-0.5 rounded bg-foreground/5 font-mono text-xs">
           --strict-js-required
         </code>
-        ) so an agent can route elsewhere. For JS-rendered docs, use
+        ) so an agent can route elsewhere. For JS-rendered pages, use
         Firecrawl or Crawl4AI.
       </>
     ),
     aText:
-      "No. docpull runs no browser. Pages that require JavaScript to render content are detected and skipped — or hard-failed with --strict-js-required — so an agent can route elsewhere. For JS-rendered docs, use Firecrawl or Crawl4AI.",
+      "No. docpull runs no browser. Pages that require JavaScript to render content are detected and skipped — or hard-failed with --strict-js-required — so an agent can route elsewhere. For JS-rendered pages, use Firecrawl or Crawl4AI.",
   },
   {
     q: "Will it scale to a 10,000-page site, and can I re-run it on a schedule?",
@@ -126,7 +126,7 @@ export const faqs: { q: string; a: ReactNode; aText: string }[] = [
       "Yes — measured against a synthetic 10,000-page site: about 309 s wall time, about 93 MB peak RSS delta, and 0 failed pages. Streaming deduplication keeps memory constant per page; the cache sends If-None-Match / If-Modified-Since on every cached URL so scheduled re-runs only transfer changed pages, and fetched and failed URL sets persist on disk so a crash resumes from the discovered-URL list instead of restarting.",
   },
   {
-    q: "Does it handle auth-gated documentation?",
+    q: "Does it handle auth-gated pages?",
     a: (
       <>
         Yes. Pass credentials with{" "}
@@ -134,11 +134,11 @@ export const faqs: { q: string; a: ReactNode; aText: string }[] = [
           --auth-bearer, --auth-basic, --auth-cookie, or --auth-header
         </Src>
         . They ride with every request, so internal docs, subscriber-only
-        content, and corporate wikis all work.
+        pages, customer portals, and corporate wikis all work.
       </>
     ),
     aText:
-      "Yes. Pass credentials with --auth-bearer, --auth-basic, --auth-cookie, or --auth-header. They ride with every request, so internal docs, subscriber-only content, and corporate wikis all work.",
+      "Yes. Pass credentials with --auth-bearer, --auth-basic, --auth-cookie, or --auth-header. They ride with every request, so internal docs, subscriber-only pages, customer portals, and corporate wikis all work.",
   },
   {
     q: "Do Parallel workflows require an API key?",

@@ -1,5 +1,5 @@
 """
-docpull - Fetch and convert static/server-rendered documentation to markdown.
+docpull - Fetch and convert static/server-rendered web content to markdown.
 
 Usage:
     from docpull import Fetcher, DocpullConfig, ProfileName
@@ -14,7 +14,7 @@ Usage:
             print(event)
 """
 
-__version__ = "4.3.1"
+__version__ = "4.4.0"
 
 from .cache import CacheManager, StreamingDeduplicator
 from .conversion.chunking import Chunk, TokenCounter, chunk_markdown

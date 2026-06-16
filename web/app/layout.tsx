@@ -33,6 +33,8 @@ export const metadata: Metadata = {
     icon: "/logo.svg",
   },
   keywords: [
+    "web extraction",
+    "source packs",
     "documentation",
     "markdown",
     "AI",

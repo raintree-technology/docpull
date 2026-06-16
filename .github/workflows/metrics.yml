@@ -32,7 +32,6 @@ on:
 
 permissions:
   contents: write
-  pull-requests: write
 
 # Avoid overlapping runs piling up if a previous run is still committing.
 concurrency:
@@ -64,26 +63,18 @@ jobs:
           fi
           python .github/scripts/update_metrics.py
 
-      - name: Open metrics refresh PR
-        id: metrics-pr
-        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
-        continue-on-error: true
-        with:
-          add-paths: |
-            METRICS.md
-            docs/cumulative-downloads-history.svg
-          branch: automation/metrics-refresh
-          delete-branch: true
-          commit-message: "chore(metrics): refresh metrics"
-          title: "chore(metrics): refresh metrics"
-          body: "Automated METRICS.md refresh from the scheduled metrics workflow."
+      - name: Check generated metrics freshness
+        run: python .github/scripts/check_metrics_fresh.py
 
-      - name: Report PR creation limitation
-        if: steps.metrics-pr.outcome == 'failure'
+      - name: Commit metrics refresh
         run: |
-          echo "::warning::Metrics refreshed, but PR creation failed. Enable Actions-created pull requests in repository settings or create a PR from automation/metrics-refresh manually."
-          {
-            echo "### Metrics refresh"
-            echo
-            echo "METRICS.md was refreshed, but the pull request step failed. Enable Actions-created pull requests in repository settings or open a PR from automation/metrics-refresh manually."
-          } >> "$GITHUB_STEP_SUMMARY"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add METRICS.md docs/cumulative-downloads-history.svg
+          if git diff --cached --quiet; then
+            echo "No metrics changes to commit."
+            exit 0
+          fi
+          git commit -m "chore(metrics): refresh metrics"
+          git pull --rebase --autostash origin "$GITHUB_REF_NAME"
+          git push

@@ -266,8 +266,8 @@ class SaveStep:
             if isinstance(value, str) and value.strip():
                 return value.strip()
         if self._first_title:
-            return f"Documentation snapshot from {self._first_title}."
-        return f"Documentation snapshot for the {self._skill_name} skill."
+            return f"Web source snapshot from {self._first_title}."
+        return f"Web source snapshot for the {self._skill_name} skill."
 
     def _render_skill_manifest(self, description: str) -> str:
         # Escape double-quotes in the description for safe YAML emission.

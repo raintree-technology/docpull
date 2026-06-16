@@ -4,8 +4,8 @@ DocPull is optimized for one job: turn public static and server-rendered web
 pages into clean, source-linked context for AI agents, RAG/search systems,
 offline archives, and developer workflows.
 
-Documentation crawling is its sharpest default workflow, but the product is not
-limited to docs. It is not a browser automation framework, anti-bot scraper,
+Web-source crawling is the core workflow; documentation is one high-value lane,
+not the boundary. It is not a browser automation framework, anti-bot scraper,
 hosted extraction API, or search engine. Use the guide below to choose the right
 tool.
 
@@ -15,7 +15,7 @@ tool.
 |---|---|---|
 | Pull public web pages into Markdown for an agent or RAG index | DocPull | Fast local CLI/SDK/MCP workflow, source metadata, chunking, framework-aware extraction |
 | Fetch one URL from an agent tool call | DocPull | `--single` and MCP `fetch_url` avoid crawl setup and browser overhead |
-| Crawl static/server-rendered docs at modest to large scale | DocPull | Async HTTP, framework-aware extraction, manifests, cache support |
+| Crawl static/server-rendered websites at modest to large scale | DocPull | Async HTTP, framework-aware extraction, manifests, cache support |
 | Parse one messy article page in Python | trafilatura | Excellent text extraction library; DocPull can also use it as an optional extractor |
 | Build a custom crawling pipeline with queues, middleware, and spiders | Scrapy | Mature scraping framework for custom pipelines and broad crawler control |
 | Automate a real browser or interact with JavaScript-heavy pages | Playwright, Puppeteer, Selenium | Required when useful content only exists after client-side rendering or interaction |
@@ -66,13 +66,13 @@ If you already know the URL and want clean local context, start with
 DocPull:
 
 ```bash
-docpull https://docs.example.com --profile llm --stream
+docpull https://example.com/blog --profile llm --stream
 ```
 
 If you need a single page inside an agent loop:
 
 ```bash
-docpull https://docs.example.com/guide --single
+docpull https://example.com/pricing --single
 ```
 
 If you need browser interaction, use a browser automation tool. If you need

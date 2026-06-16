@@ -28,15 +28,6 @@ PAGE_HTML = b"""<!doctype html><html><body><article>
 </article></body></html>"""
 
 
-def _make_resolver(server_host: str, server_port: int):
-    """Resolver that maps any incoming hostname to the test server."""
-
-    def resolve(hostname: str) -> list[str]:
-        return [server_host]
-
-    return resolve
-
-
 @pytest.fixture
 async def server(monkeypatch):
     """aiohttp server that serves PAGE_HTML with a stable ETag and honors

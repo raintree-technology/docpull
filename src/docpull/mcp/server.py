@@ -7,13 +7,13 @@ Read-only:
 - ``fetch_url(url)`` — one-shot fetch, no discovery. Agent-oriented fast path.
 - ``list_sources(category?)`` — show available aliases.
 - ``list_indexed()`` — show what has been fetched.
-- ``grep_docs(pattern, library?, limit?)`` — regex search through cached docs.
+- ``grep_docs(pattern, library?, limit?)`` — regex search through cached Markdown.
 - ``read_doc(library, path, line_start?, line_end?)`` — read a fetched file.
 - ``pack_score(pack_dir, required_domains?)`` — score a context pack.
 - ``pack_diff(old_pack_dir, new_pack_dir)`` — compare context packs.
 
 Write:
-- ``ensure_docs(source, force?)`` — fetch (or refresh) a named library.
+- ``ensure_docs(source, force?)`` — fetch (or refresh) a named source.
 - ``parallel_context_pack(...)`` — build or dry-run a Parallel context pack.
 - ``parallel_api_pack(source, kind?, output_dir?)`` — build an API pack.
 - ``add_source(name, url, ...)`` — add or update a user source alias.
@@ -56,7 +56,7 @@ logger = logging.getLogger(__name__)
 
 SERVER_INSTRUCTIONS = (
     "Call list_sources to discover aliases before ensure_docs. "
-    "Use ensure_docs for a whole library (cached 7 days), fetch_url for one "
+    "Use ensure_docs for a whole named source (cached 7 days), fetch_url for one "
     "ad-hoc HTTPS page. After ensure_docs, use grep_docs to find passages "
     "and read_doc to pull the surrounding lines. Use add_source / "
     "remove_source to manage the user-defined registry."
@@ -330,7 +330,7 @@ async def _run_stdio() -> int:
             Tool(
                 name="ensure_docs",
                 description=(
-                    "Fetch documentation for a named source alias (e.g. 'react', "
+                    "Fetch Markdown for a named source alias (e.g. 'react', "
                     "'nextjs'). Uses a 7-day cache; pass force=true to refresh. "
                     "Optional profile selects fetch behavior: rag (default, "
                     "balanced for retrieval), mirror (full archive), quick "
@@ -338,7 +338,7 @@ async def _run_stdio() -> int:
                     "discover aliases first."
                 ),
                 annotations=ToolAnnotations(
-                    title="Fetch a documentation library",
+                    title="Fetch a source alias",
                     readOnlyHint=False,
                     destructiveHint=False,
                     idempotentHint=True,
@@ -362,7 +362,7 @@ async def _run_stdio() -> int:
             Tool(
                 name="list_sources",
                 description=(
-                    "List configured documentation source aliases, optionally "
+                    "List configured source aliases, optionally "
                     "filtered by category. Use this to discover what ensure_docs "
                     "can fetch."
                 ),
@@ -387,11 +387,11 @@ async def _run_stdio() -> int:
             Tool(
                 name="list_indexed",
                 description=(
-                    "List sources that have been fetched to the local docs "
+                    "List sources that have been fetched to the local Markdown "
                     "directory, with last-fetched age. Sorted alphabetically."
                 ),
                 annotations=ToolAnnotations(
-                    title="List locally cached libraries",
+                    title="List locally cached sources",
                     readOnlyHint=True,
                     openWorldHint=False,
                     idempotentHint=True,
@@ -409,7 +409,7 @@ async def _run_stdio() -> int:
                     "fields straight into read_doc. Use ensure_docs first."
                 ),
                 annotations=ToolAnnotations(
-                    title="Regex-search cached docs",
+                    title="Regex-search cached Markdown",
                     readOnlyHint=True,
                     openWorldHint=False,
                     idempotentHint=True,
@@ -447,7 +447,7 @@ async def _run_stdio() -> int:
                     "library root) to pull more surrounding context."
                 ),
                 annotations=ToolAnnotations(
-                    title="Read a cached doc file",
+                    title="Read a cached Markdown file",
                     readOnlyHint=True,
                     openWorldHint=False,
                     idempotentHint=True,
@@ -624,7 +624,7 @@ async def _run_stdio() -> int:
                 name="remove_source",
                 description=(
                     "Remove a user source alias. Optionally delete its cached "
-                    "docs (delete_cache=true). Cannot remove a builtin source — "
+                    "Markdown cache (delete_cache=true). Cannot remove a builtin source — "
                     "to stop using one, just don't call ensure_docs on it."
                 ),
                 annotations=ToolAnnotations(
@@ -645,7 +645,7 @@ async def _run_stdio() -> int:
                         "delete_cache": {
                             "type": "boolean",
                             "default": False,
-                            "description": "Also delete the cached docs directory",
+                            "description": "Also delete the cached Markdown directory",
                         },
                     },
                     "required": ["name"],

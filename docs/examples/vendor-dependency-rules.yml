@@ -1,0 +1,25 @@
+profile: vendor-dependency
+categories:
+  government_customer:
+    patterns:
+      - "U.S. government"
+      - "Department of Defense"
+      - "government contracts"
+      - regex: "\\bDoD\\b"
+        confidence: 0.74
+  customer_concentration:
+    patterns:
+      - "major customer"
+      - "customers accounted for"
+      - regex: "customer\\s+concentration"
+        confidence: 0.78
+  segment_revenue:
+    patterns:
+      - "net sales by segment"
+      - "segment revenue"
+      - "revenues by segment"
+  related_party:
+    patterns:
+      - "related party"
+      - "subsidiary"
+      - "affiliate"

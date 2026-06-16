@@ -50,4 +50,4 @@ def test_plugin_readme_cache_path_matches_mcp_default() -> None:
     assert default_path.parts[-2:] == ("docpull-mcp", "docs")
     assert "$XDG_DATA_HOME/docpull-mcp/docs/" in readme
     assert "~/.local/share/docpull-mcp/docs/" in readme
-    assert "4.0.0 or newer" in readme
+    assert "4.4.0 or newer" in readme

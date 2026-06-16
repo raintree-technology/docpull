@@ -237,7 +237,7 @@ def create_benchmark_parser() -> argparse.ArgumentParser:
         "quick",
         help="Run a small real-site benchmark and write JSON/Markdown reports",
     )
-    quick.add_argument("--target-url", default=DEFAULT_TARGET_URL, help="Docs URL to crawl")
+    quick.add_argument("--target-url", default=DEFAULT_TARGET_URL, help="Target URL to crawl")
     quick.add_argument(
         "--target-set",
         choices=TARGET_SET_CHOICES,

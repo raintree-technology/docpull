@@ -51,6 +51,21 @@ class CorpusManifest:
             item["chunk_heading"] = record.chunk_heading
         if record.token_count is not None:
             item["token_count"] = record.token_count
+        for key in (
+            "cik",
+            "accession_number",
+            "form",
+            "filing_date",
+            "issuer_name",
+            "primary_document_url",
+            "retrieved_at",
+        ):
+            value = getattr(record, key)
+            if value is not None:
+                item[key] = value
+        source_document_hash = record.metadata.get("source_document_hash")
+        if source_document_hash:
+            item["source_document_hash"] = str(source_document_hash)
         if isinstance(output_path, str):
             item["output_path"] = output_path
         elif output_path is not None:

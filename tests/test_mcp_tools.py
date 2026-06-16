@@ -6,6 +6,8 @@ import logging
 
 import pytest
 
+import docpull.mcp.sources as mcp_sources
+import docpull.mcp.tools as mcp_tools
 from docpull.mcp.sources import (
     BUILTIN_SOURCES,
     all_sources,
@@ -22,7 +24,14 @@ from docpull.mcp.tools import (
     read_doc,
     remove_source,
 )
-from docpull.security.url_validator import UrlValidationResult
+from docpull.security.url_validator import UrlValidationResult, UrlValidator
+
+
+@pytest.fixture(autouse=True)
+def deterministic_source_url_validation(monkeypatch):
+    validator = UrlValidator(allowed_schemes={"https"}, resolver=lambda _hostname: ["93.184.216.34"])
+    monkeypatch.setattr(mcp_sources, "_USER_SOURCE_URL_VALIDATOR", validator)
+    monkeypatch.setattr(mcp_tools, "_ADD_SOURCE_VALIDATOR", validator)
 
 
 def test_builtin_sources_include_common_libraries():
@@ -60,7 +69,7 @@ def test_list_sources_filter_by_category():
 
 def test_list_indexed_when_empty(tmp_path):
     result = list_indexed(docs_dir=tmp_path)
-    assert "No fetched docs" in result.text or "No docs fetched" in result.text
+    assert "No fetched sources" in result.text or "No sources fetched" in result.text
 
 
 def test_grep_docs_requires_fetched_content(tmp_path):

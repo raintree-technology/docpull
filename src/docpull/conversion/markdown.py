@@ -512,7 +512,7 @@ class FrontmatterBuilder:
     def build_okf(
         self,
         *,
-        concept_type: str = "Documentation Page",
+        concept_type: str = "Web Page",
         title: str | None = None,
         resource: str | None = None,
         description: str | None = None,

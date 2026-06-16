@@ -7,23 +7,22 @@ import { cn } from "@/lib/utils";
 const examples = [
   {
     id: "default",
-    name: "Default",
-    code: `docpull https://docs.stripe.com`,
-    output: `./docs/authentication.md:
+    name: "Website",
+    code: `docpull https://www.python.org/blogs/ -o ./python-news`,
+    output: `./python-news/index.md:
 
 ---
-title: "Authentication"
-source: https://docs.stripe.com/authentication
+title: "Blogs"
+source: https://www.python.org/blogs/
 ---
 
-# Authentication
+# Blogs
 
-The Stripe API uses API keys to authenticate requests.
-You can view and manage your API keys in the Stripe
-Dashboard.
+News from the Python Software Foundation, Python core
+developers, and the wider Python community.
 
-Test mode secret keys have the prefix sk_test_ and live
-mode secret keys have the prefix sk_live_...`,
+Recent posts include release notes, governance updates,
+events, and project announcements...`,
   },
   {
     id: "rag",
@@ -132,15 +131,15 @@ Source scores: 2 sources -> source.scores.json`,
     name: "Python",
     code: `from docpull import Fetcher, DocpullConfig
 
-config = DocpullConfig(url="https://docs.example.com")
+config = DocpullConfig(url="https://example.com/blog")
 async with Fetcher(config) as fetcher:
     async for event in fetcher.run():
         print(f"{event.current}/{event.total}: {event.url}")`,
-    output: `1/124: https://docs.example.com/intro
-2/124: https://docs.example.com/quickstart
-3/124: https://docs.example.com/api/overview
+    output: `1/124: https://example.com/blog
+2/124: https://example.com/blog/company-update
+3/124: https://example.com/blog/product-launch
 ...
-124/124: https://docs.example.com/changelog
+124/124: https://example.com/blog/changelog
 
 Completed: 124 pages, 4.2 MB`,
   },

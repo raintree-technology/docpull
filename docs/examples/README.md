@@ -162,6 +162,21 @@ docpull parallel run ./docs/examples/parallel-llms-api-pack.yaml --dry-run
 docpull parallel run ./docs/examples/parallel-openapi-api-pack.yaml --dry-run
 ```
 
+## SEC Filing Evidence Pack
+
+Prepare filing rows as NDJSON with `primary_document_url` or `url`, then run:
+
+```bash
+docpull evidence-pack ./filings.ndjson \
+  --profile sec-filing \
+  --rules ./docs/examples/vendor-dependency-rules.yml \
+  --sec-user-agent "YourOrg your-email@example.com" \
+  --output-dir ./packs/dla-vendors
+```
+
+The checked-in `vendor-dependency-rules.yml` profile covers government
+customer, customer concentration, segment revenue, and related-party signals.
+
 Inspect packs locally:
 
 ```bash

@@ -216,7 +216,7 @@ async def test_okf_output_bundle_local_server(output_server: str, tmp_path: Path
     concept = concept_path.read_text()
     assert concept.startswith("---\n")
     frontmatter = yaml.safe_load(concept.split("---", 2)[1])
-    assert frontmatter["type"] == "Documentation Page"
+    assert frontmatter["type"] == "Web Page"
     assert frontmatter["title"] == "Alpha Docs"
     assert frontmatter["resource"] == output_server
     assert frontmatter["source"] == output_server

@@ -18,11 +18,12 @@ class ProfileName(str, Enum):
     QUICK = "quick"
     LLM = "llm"
     OKF = "okf"
+    SEC_FILING = "sec-filing"
     CUSTOM = "custom"
 
 
 class AuthType(str, Enum):
-    """Authentication types for protected documentation sites."""
+    """Authentication types for protected web sources."""
 
     NONE = "none"
     BEARER = "bearer"
@@ -49,7 +50,7 @@ class ByteSize(int):
     """
 
     @classmethod
-    def __get_pydantic_core_schema__(cls, source: Any, handler: Any) -> Any:
+    def __get_pydantic_core_schema__(cls, _source: Any, _handler: Any) -> Any:
         from pydantic_core import core_schema
 
         return core_schema.no_info_plain_validator_function(cls._parse)
@@ -130,6 +131,10 @@ class ContentFilterConfig(BaseModel):
     strict_js_required: bool = Field(
         False,
         description="Error (instead of silently skipping) when a page appears to require JavaScript",
+    )
+    clean_inline_xbrl: bool = Field(
+        False,
+        description="Remove hidden Inline XBRL boilerplate before content extraction",
     )
 
     model_config = {"extra": "forbid"}
@@ -227,7 +232,7 @@ def _reject_header_injection(value: str | None, field_name: str) -> str | None:
 
 
 class AuthConfig(BaseModel):
-    """Configuration for authentication to protected documentation sites.
+    """Configuration for authentication to protected web sources.
 
     Supports environment variable expansion in sensitive fields using
     $VAR or ${VAR} syntax. For example:
@@ -250,7 +255,7 @@ class AuthConfig(BaseModel):
     def _reject_crlf_in_headers(cls, v: str | None, info: Any) -> str | None:
         return _reject_header_injection(v, info.field_name)
 
-    def model_post_init(self, __context: object) -> None:
+    def model_post_init(self, _context: object) -> None:
         """Expand environment variables in sensitive fields after init."""
         # Use object.__setattr__ to bypass frozen model if needed
         if self.token:
@@ -270,7 +275,7 @@ class AuthConfig(BaseModel):
 class NetworkConfig(BaseModel):
     """Configuration for HTTP client and network behavior."""
 
-    proxy: str | None = Field(None, description="HTTP/HTTPS proxy URL")
+    proxy: str | None = Field(None, description="HTTP, HTTPS, or SOCKS proxy URL")
     user_agent: str | None = Field(None, description="Custom User-Agent header")
     insecure_tls: bool = Field(
         False,

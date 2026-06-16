@@ -271,7 +271,7 @@ def _looks_like_binary_text(body_prefix: bytes) -> bool:
 
 
 class SafeDownloadPolicy:
-    """Reject responses that look like downloadable files instead of docs."""
+    """Reject responses that look like downloadable files instead of readable web content."""
 
     max_sniff_bytes = 8192
 
@@ -282,7 +282,7 @@ class SafeDownloadPolicy:
         if extension is not None:
             raise UnsafeDownloadError(
                 f"Disallowed download URL extension '{extension}' for {url}. "
-                "docpull only fetches documentation-like text responses."
+                "docpull only fetches readable web/text responses."
             )
 
     def validate_response_headers(
@@ -303,7 +303,7 @@ class SafeDownloadPolicy:
             filename = _filename_from_content_disposition(disposition)
             if "attachment" in lowered:
                 raise UnsafeDownloadError(
-                    f"Refusing attachment response from {url}; docpull only fetches inline documentation."
+                    f"Refusing attachment response from {url}; docpull only fetches inline web/text content."
                 )
             if filename:
                 extension = _first_dangerous_extension(filename)
@@ -319,7 +319,7 @@ class SafeDownloadPolicy:
         if base_type and base_type not in ALLOWED_DOCUMENT_CONTENT_TYPES:
             raise UnsafeDownloadError(
                 f"Unsupported content type '{base_type}' for {url}; "
-                "docpull only fetches documentation-like text responses."
+                "docpull only fetches readable web/text responses."
             )
 
     def validate_body_prefix(self, url: str, body_prefix: bytes) -> None:

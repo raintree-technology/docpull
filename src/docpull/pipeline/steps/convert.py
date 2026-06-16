@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
 from ...conversion.extractor import MainContentExtractor
+from ...conversion.filings import clean_inline_xbrl_html
 from ...conversion.markdown import FrontmatterBuilder, HtmlToMarkdown
 from ...conversion.special_cases import (
     DEFAULT_CHAIN,
@@ -108,6 +109,7 @@ class ConvertStep:
         enable_special_cases: bool = True,
         use_trafilatura: bool = False,
         strict_js_required: bool = False,
+        clean_inline_xbrl: bool = False,
     ):
         """Initialize the convert step.
 
@@ -122,6 +124,8 @@ class ConvertStep:
             strict_js_required: If True, a page that appears to be a JS-only
                 SPA and produces empty content raises (ctx.error) instead of
                 silently skipping.
+            clean_inline_xbrl: Remove hidden Inline XBRL blocks and unwrap
+                visible ``ix:*`` tags before extraction.
         """
         self._add_frontmatter = add_frontmatter
         self._frontmatter_builder = FrontmatterBuilder() if add_frontmatter else None
@@ -129,6 +133,7 @@ class ConvertStep:
         self._special_cases = special_cases if special_cases is not None else list(DEFAULT_CHAIN)
         self._strict_js_required = strict_js_required
         self._use_trafilatura = use_trafilatura
+        self._clean_inline_xbrl = clean_inline_xbrl
 
         # Exactly one of (_trafilatura) or (_extractor + _converter) is populated.
         self._trafilatura: TrafilaturaExtractor | None = None
@@ -157,6 +162,10 @@ class ConvertStep:
             return ctx
 
         try:
+            if self._clean_inline_xbrl:
+                ctx.html, cleanup_stats = clean_inline_xbrl_html(ctx.html)
+                ctx.extraction_info["inline_xbrl_cleanup"] = cleanup_stats
+
             ctx.source_type = detect_source_type(ctx.html, ctx.url)
             ctx.extraction_info["detected_source_type"] = ctx.source_type
 

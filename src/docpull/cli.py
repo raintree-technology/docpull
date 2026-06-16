@@ -48,7 +48,7 @@ def create_parser() -> argparse.ArgumentParser:
     """Create argument parser for CLI."""
     parser = argparse.ArgumentParser(
         prog="docpull",
-        description="Fetch and convert static/server-rendered documentation to markdown",
+        description="Fetch and convert static/server-rendered web content to markdown",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -69,7 +69,7 @@ Examples:
     parser.add_argument(
         "url",
         nargs="?",
-        help="URL to fetch documentation from",
+        help="URL to fetch content from",
     )
 
     parser.add_argument(
@@ -87,9 +87,12 @@ Examples:
     parser.add_argument(
         "--profile",
         "-p",
-        choices=["rag", "mirror", "quick", "llm", "okf"],
+        choices=["rag", "mirror", "quick", "llm", "okf", "sec-filing"],
         default="rag",
-        help="Preset profile (default: rag). 'llm' streams chunked NDJSON; 'okf' writes an OKF bundle.",
+        help=(
+            "Preset profile (default: rag). 'llm' streams chunked NDJSON; "
+            "'okf' writes an OKF bundle; 'sec-filing' tunes extraction for EDGAR filings."
+        ),
     )
 
     parser.add_argument(
@@ -257,7 +260,7 @@ Examples:
         "--proxy",
         type=str,
         metavar="URL",
-        help="Proxy URL",
+        help="HTTP, HTTPS, or SOCKS proxy URL (SOCKS requires docpull[proxy])",
     )
     network_group.add_argument(
         "--user-agent",
@@ -384,6 +387,7 @@ def run_fetcher(args: argparse.Namespace) -> int:
         "quick": ProfileName.QUICK,
         "llm": ProfileName.LLM,
         "okf": ProfileName.OKF,
+        "sec-filing": ProfileName.SEC_FILING,
     }
     profile = profile_map.get(args.profile, ProfileName.RAG)
 
@@ -683,6 +687,10 @@ def main(argv: list[str] | None = None) -> int:
         from .pack_tools import run_pack_cli
 
         return run_pack_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "evidence-pack":
+        from .evidence_pack import run_evidence_pack_cli
+
+        return run_evidence_pack_cli(raw_argv[1:])
     if raw_argv and raw_argv[0] == "benchmark":
         from .benchmark import run_benchmark_cli
 
