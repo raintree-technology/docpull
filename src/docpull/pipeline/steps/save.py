@@ -134,13 +134,10 @@ class SaveStep:
             return ctx
 
         try:
-            # Validate output path
             validated_path = self._validate_output_path(output_path)
 
-            # Ensure parent directory exists
             validated_path.parent.mkdir(parents=True, exist_ok=True)
 
-            # Write chunked output if requested and available
             if self._emit_chunks and ctx.chunks:
                 stem = validated_path.stem
                 parent = validated_path.parent
@@ -171,7 +168,6 @@ class SaveStep:
                 ctx.persisted_path = first_chunk_path
                 logger.info("Saved %d chunks: %s.*%s", len(ctx.chunks), parent / stem, ext)
             else:
-                # Write full document (use asyncio.to_thread to avoid blocking)
                 await asyncio.to_thread(
                     validated_path.write_text,
                     content,
@@ -209,7 +205,6 @@ class SaveStep:
             return ctx
 
         except ValueError as e:
-            # Path validation error
             ctx.mark_failed(str(e))
             logger.error(f"Path validation failed for {url}: {e}")
 
@@ -225,7 +220,6 @@ class SaveStep:
             raise
 
         except OSError as e:
-            # File system error
             ctx.mark_failed(f"Failed to save: {e}")
             logger.error(f"Failed to save {url} to {output_path}: {e}")
 

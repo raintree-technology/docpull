@@ -384,13 +384,10 @@ class HtmlToMarkdown:
         markdown = _restore_latex_math_delimiters(markdown)
         markdown = _rewrite_markdown_links(markdown, _normalize_protected_absolute_destination)
 
-        # Remove excessive blank lines
         markdown = re.sub(r"\n{3,}", "\n\n", markdown)
 
-        # Remove trailing whitespace on each line
         markdown = "\n".join(line.rstrip() for line in markdown.split("\n"))
 
-        # Ensure single newline at end
         return markdown.strip() + "\n"
 
     def _fix_relative_links(self, markdown: str, base_url: str) -> str:
@@ -412,13 +409,10 @@ class HtmlToMarkdown:
             Markdown string
         """
         try:
-            # Set base URL for link resolution
             self._converter.baseurl = url
 
-            # Convert to markdown
             markdown = self._converter.handle(html)
 
-            # Clean up output
             markdown = self._clean_output(markdown)
 
             # Fix any remaining relative links

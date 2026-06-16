@@ -170,12 +170,10 @@ class SitemapDiscoverer:
             ns = SITEMAP_NS if use_ns else {}
             prefix = "ns:" if use_ns else ""
 
-            # Find page URLs
             for url_elem in root.findall(f".//{prefix}url/{prefix}loc", ns):
                 if url_elem.text:
                     page_urls.append(url_elem.text.strip())
 
-            # Find nested sitemap URLs
             for sitemap_elem in root.findall(f".//{prefix}sitemap/{prefix}loc", ns):
                 if sitemap_elem.text:
                     sitemap_urls.append(sitemap_elem.text.strip())
@@ -229,14 +227,12 @@ class SitemapDiscoverer:
             if self._filter and not self._filter.should_include(url):
                 continue
 
-            # Skip duplicates
             if not self._seen.add(url):
                 continue
 
             yield url
             count += 1
 
-        # Process nested sitemaps
         remaining = max_urls - count if max_urls is not None else None
         for nested_url in nested_sitemaps:
             if remaining is not None and remaining <= 0:

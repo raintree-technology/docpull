@@ -196,12 +196,10 @@ class MainContentExtractor:
         keep_attrs = {"href", "src", "alt", "title", "class", "id"}
 
         for tag in element.find_all(True):
-            # Get list of attrs to remove (can't modify during iteration)
             attrs_to_remove = [attr for attr in tag.attrs if attr not in keep_attrs]
             for attr in attrs_to_remove:
                 del tag[attr]
 
-            # Remove empty class/id
             if tag.get("class") == []:
                 del tag["class"]
             if tag.get("id") == "":
@@ -211,7 +209,6 @@ class MainContentExtractor:
         """Convert relative URLs to absolute URLs."""
         urlparse(base_url)
 
-        # Resolve href attributes
         for tag in element.find_all("a", href=True):
             href = tag["href"]
             if href.startswith("#"):
@@ -219,7 +216,6 @@ class MainContentExtractor:
             if not href.startswith(("http://", "https://", "//")):
                 tag["href"] = urljoin(base_url, href)
 
-        # Resolve src attributes
         for tag in element.find_all(src=True):
             src = tag["src"]
             if not src.startswith(("http://", "https://", "//", "data:")):
@@ -227,11 +223,8 @@ class MainContentExtractor:
 
     def _clean_whitespace(self, text: str) -> str:
         """Clean up excessive whitespace."""
-        # Normalize line endings
         text = text.replace("\r\n", "\n").replace("\r", "\n")
-        # Remove excessive blank lines (more than 2)
         text = re.sub(r"\n{3,}", "\n\n", text)
-        # Remove trailing whitespace on lines
         text = "\n".join(line.rstrip() for line in text.split("\n"))
         return text.strip()
 
@@ -248,7 +241,6 @@ class MainContentExtractor:
         """
         soup = self._parse_html(html)
 
-        # Find main content
         main_content = self._find_main_content(soup)
         if main_content is None:
             # Try the entire document as fallback
@@ -261,7 +253,6 @@ class MainContentExtractor:
         # Make a copy to avoid modifying original
         content = BeautifulSoup(str(main_content), "html.parser")
 
-        # Clean up
         # Math-rendering libraries often hide the source TeX in script,
         # MathML annotation, or aria-hidden wrappers that the generic cleanup
         # removes. Normalize those to Markdown text before deleting chrome.

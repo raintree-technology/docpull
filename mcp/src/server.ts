@@ -450,7 +450,6 @@ server.tool(
 		}
 		const needsIndex = index && isDbConfigured() && openai !== null;
 
-		// Return early if cached and indexed
 		if (!needsFetch && cache.exists && (!needsIndex || cache.indexed)) {
 			return {
 				content: [

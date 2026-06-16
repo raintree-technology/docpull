@@ -59,7 +59,6 @@ class RichMetadataExtractor:
         try:
             import extruct
 
-            # Extract all structured data
             data = extruct.extract(
                 html,
                 base_url=url,
@@ -67,19 +66,16 @@ class RichMetadataExtractor:
                 errors="ignore",
             )
 
-            # Extract Open Graph data
             og_data = data.get("opengraph", [])
             if og_data and isinstance(og_data, list) and len(og_data) > 0:
                 og = og_data[0].get("properties", [])
                 if og:
                     metadata.update(self._extract_opengraph(og))  # type: ignore[typeddict-item]
 
-            # Extract JSON-LD data
             jsonld_data = data.get("json-ld", [])
             if jsonld_data and isinstance(jsonld_data, list):
                 metadata.update(self._extract_jsonld(jsonld_data))  # type: ignore[typeddict-item]
 
-            # Extract microdata
             microdata = data.get("microdata", [])
             if microdata and isinstance(microdata, list):
                 metadata.update(self._extract_microdata(microdata))  # type: ignore[typeddict-item]
@@ -102,7 +98,6 @@ class RichMetadataExtractor:
         """
         result: dict[str, Any] = {}
 
-        # Build dict from properties list
         og_dict: dict[str, Any] = {}
         for prop in og_properties:
             if isinstance(prop, dict):
@@ -170,7 +165,6 @@ class RichMetadataExtractor:
             if not isinstance(item, dict):
                 continue
 
-            # Extract common fields
             if "headline" in item and not result.get("title"):
                 result["title"] = self._safe_string(item["headline"])
 
@@ -193,7 +187,6 @@ class RichMetadataExtractor:
             if "keywords" in item and not result.get("keywords"):
                 keywords = item["keywords"]
                 if isinstance(keywords, str):
-                    # Split comma-separated keywords
                     result["keywords"] = [k.strip() for k in keywords.split(",") if k.strip()]
                 elif isinstance(keywords, list):
                     result["keywords"] = [self._safe_string(k) for k in keywords if k]
@@ -226,7 +219,6 @@ class RichMetadataExtractor:
             if not properties:
                 continue
 
-            # Extract relevant fields
             if "headline" in properties and not result.get("title"):
                 result["title"] = self._safe_string(properties["headline"])
 
@@ -275,11 +267,9 @@ class RichMetadataExtractor:
         """
         result: dict[str, Any] = dict(rich_metadata)
 
-        # Use fallback title if no title found
         if not result.get("title") and fallback_title:
             result["title"] = fallback_title
 
-        # Clean up empty values
         result = {k: v for k, v in result.items() if v}
 
         return result

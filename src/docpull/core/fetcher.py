@@ -54,23 +54,18 @@ def _url_to_filename(url: str, base_url: str | None = None) -> str:
     parsed = urlparse(url)
     path = parsed.path.strip("/")
 
-    # Remove base URL prefix if provided
     if base_url:
         base_path = urlparse(base_url).path.strip("/")
         if path.startswith(base_path):
             path = path[len(base_path) :].strip("/")
 
-    # Convert path to filename
     if not path or path == "/":
         filename = "index"
     else:
-        # Replace path separators with underscores
         filename = path.replace("/", "_")
-        # Remove file extension if present
         if filename.endswith(".html") or filename.endswith(".htm"):
             filename = filename.rsplit(".", 1)[0]
 
-    # Clean up filename
     filename = re.sub(r"[^\w\-]", "_", filename)
     filename = re.sub(r"_+", "_", filename)
     filename = filename.strip("_")

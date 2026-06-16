@@ -166,7 +166,6 @@ class JsonSaveStep:
             return self._output_file
 
         try:
-            # Close the documents array and add metadata
             self._temp_file.write("\n  ],\n")
             self._temp_file.write('  "schema_version": 1,\n')
             self._temp_file.write(f'  "generated_at": "{utc_now_iso()}",\n')
@@ -186,7 +185,6 @@ class JsonSaveStep:
             logger.info(f"Saved {self._document_count} documents to {self._output_file}")
 
         except Exception:
-            # Clean up on error
             if self._temp_file:
                 self._temp_file.close()
                 self._temp_file = None
