@@ -35,10 +35,15 @@ def test_workflows_do_not_use_latest_container_tags() -> None:
     assert offenders == []
 
 
-def test_publish_workflow_is_tag_only() -> None:
+def test_publish_workflow_accepts_only_tags_or_guarded_manual_dispatch() -> None:
     publish = (WORKFLOW_DIR / "publish.yml").read_text()
-    assert "workflow_dispatch" not in publish
     assert '"v*.*.*"' in publish
+    assert "workflow_dispatch:" in publish
+    assert "version:" in publish
+    assert 'required: true' in publish
+    assert 'elif [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then' in publish
+    assert 'if [ "${GITHUB_REF_NAME}" != "main" ]; then' in publish
+    assert 'if [ "$REQUESTED_VERSION" != "$PROJECT_VERSION" ]; then' in publish
 
 
 def test_plugin_readme_cache_path_matches_mcp_default() -> None:

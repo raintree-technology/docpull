@@ -1,6 +1,7 @@
-.PHONY: clean clean-pyc clean-build clean-test help test benchmark benchmark-quick benchmark-parallel benchmark-compare benchmark-matrix benchmark-raindrop license-year metrics metrics-check lint format
+.PHONY: clean clean-pyc clean-build clean-test help test benchmark benchmark-quick benchmark-parallel benchmark-compare benchmark-matrix benchmark-raindrop license-year metrics metrics-check lint format release-pr release-publish release-dispatch
 
 PYTHON ?= .venv/bin/python
+VERSION_ARG := $(if $(VERSION),--version $(VERSION),)
 COPYRIGHT_START_YEAR := 2025
 COPYRIGHT_HOLDER := Raintree Technology
 COPYRIGHT_FILES := LICENSE mcp/LICENSE
@@ -28,6 +29,9 @@ help:
 	@echo "metrics-check - fail if METRICS.md is older than METRICS_MAX_AGE_HOURS"
 	@echo "lint - check style with ruff"
 	@echo "format - format code with ruff"
+	@echo "release-pr - push current release branch and open a protected-main PR"
+	@echo "release-publish - tag merged origin/main and trigger PyPI publish"
+	@echo "release-dispatch - manually dispatch PyPI publish from origin/main"
 
 clean: clean-build clean-pyc clean-test
 
@@ -100,3 +104,12 @@ lint:
 
 format: license-year
 	ruff format .
+
+release-pr:
+	$(PYTHON) scripts/release.py prepare-pr $(VERSION_ARG) --auto-merge
+
+release-publish:
+	$(PYTHON) scripts/release.py publish $(VERSION_ARG) --replace-tag
+
+release-dispatch:
+	$(PYTHON) scripts/release.py dispatch $(VERSION_ARG)
