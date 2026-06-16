@@ -6,6 +6,7 @@
       "name": "docpull-mcp-lab",
       "dependencies": {
         "@modelcontextprotocol/sdk": "^1.29.0",
+        "hono": "^4.12.23",
         "ip-address": "^10.2.0",
         "openai": "^6.39.1",
         "pg": "^8.21.0",
