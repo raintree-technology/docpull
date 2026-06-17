@@ -1,9 +1,9 @@
 # Scraping Boundary
 
-docpull is a browser-free web scraper for turning static and server-rendered
-web pages into local, auditable context artifacts. Its sharpest workflow is
-public web-source ingestion for agents, RAG systems, offline archives, and
-source packs.
+docpull is a browser-free web scraper for turning public static and
+server-rendered web pages into local, auditable context artifacts. Its sharpest
+workflow is public web-source ingestion for agents, retrieval-augmented
+generation (RAG) systems, offline archives, and source packs.
 
 ## What docpull should do
 
@@ -37,8 +37,8 @@ browser-free default remains unchanged.
 
 - Use Scrapy when you need a programmable spider framework with custom item
   pipelines.
-- Use Crawlee when browser automation, sessions, queues, and anti-blocking
-  workflows are the core job.
+- Use Playwright, Puppeteer, Selenium, or Crawlee when browser automation,
+  sessions, queues, and interaction are the core job.
 - Use a hosted extraction service when you want managed rendering, proxies, and
   external infrastructure.
 - Use trafilatura directly when you only need article text extraction and do

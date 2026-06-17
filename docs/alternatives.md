@@ -1,7 +1,7 @@
-# DocPull Alternatives And When To Use Each
+# DocPull Alternatives and When to Use Each
 
 DocPull is optimized for one job: turn public static and server-rendered web
-pages into clean, source-linked context for AI agents, RAG/search systems,
+pages into clean, source-linked local context for AI agents, RAG/search systems,
 offline archives, and developer workflows.
 
 Web-source crawling is the core workflow; documentation is one high-value lane,
@@ -37,13 +37,13 @@ tool.
 - Local-first workflows where running a browser or hosted crawler would be too
   heavy, too opaque, or too awkward inside an agent sandbox.
 
-## Where DocPull Is The Wrong Tool
+## Where DocPull Is the Wrong Tool
 
 - JS-only single-page apps where the meaningful content is created after client
   hydration.
 - Sites that require login, form interaction, scrolling interaction, or
   browser state.
-- Anti-bot, captcha, residential proxy, or evasion workflows.
+- CAPTCHA, anti-bot, residential proxy, or evasion workflows.
 - Full custom crawler infrastructure with domain-specific queues, item
   pipelines, or storage backends.
 - Search-engine style discovery across the open web without a provider such as
@@ -75,6 +75,6 @@ If you need a single page inside an agent loop:
 docpull https://example.com/pricing --single
 ```
 
-If you need browser interaction, use a browser automation tool. If you need
-open-web source discovery before extraction, use a search/extract provider and
-then normalize the selected sources into a DocPull context pack.
+If you need browser interaction, use browser automation, such as Playwright. If
+you need open-web source discovery before extraction, use a search/extract
+provider and then normalize the selected sources into a DocPull context pack.
