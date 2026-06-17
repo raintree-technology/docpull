@@ -1,4 +1,4 @@
-.PHONY: clean clean-pyc clean-build clean-test help test benchmark benchmark-quick benchmark-parallel benchmark-compare benchmark-matrix benchmark-raindrop license-year metrics metrics-check lint format release-pr release-publish release-dispatch
+.PHONY: clean clean-pyc clean-build clean-test help test benchmark benchmark-quick benchmark-parallel benchmark-compare benchmark-matrix benchmark-raindrop license-year metrics metrics-check lint format release-pr release-publish release-publish-replace-tag release-dispatch
 
 PYTHON ?= .venv/bin/python
 VERSION_ARG := $(if $(VERSION),--version $(VERSION),)
@@ -31,6 +31,7 @@ help:
 	@echo "format - format code with ruff"
 	@echo "release-pr - push current release branch and open a protected-main PR"
 	@echo "release-publish - tag merged origin/main and trigger PyPI publish"
+	@echo "release-publish-replace-tag - replace an early bad release tag after confirming it did not publish"
 	@echo "release-dispatch - manually dispatch PyPI publish from origin/main"
 
 clean: clean-build clean-pyc clean-test
@@ -109,6 +110,9 @@ release-pr:
 	$(PYTHON) scripts/release.py prepare-pr $(VERSION_ARG) --auto-merge
 
 release-publish:
+	$(PYTHON) scripts/release.py publish $(VERSION_ARG)
+
+release-publish-replace-tag:
 	$(PYTHON) scripts/release.py publish $(VERSION_ARG) --replace-tag
 
 release-dispatch:

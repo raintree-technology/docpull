@@ -11,7 +11,8 @@ from pathlib import Path
 try:
     import tomllib
 except ModuleNotFoundError:  # pragma: no cover - exercised on Python 3.10
-    import tomli as tomllib
+    print("Python 3.11+ is required for release automation.", file=sys.stderr)
+    raise SystemExit(2) from None
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -142,7 +143,8 @@ def publish(args: argparse.Namespace) -> None:
         if not args.replace_tag:
             raise SystemExit(
                 f"Remote {tag} points at {existing[:12]}, but origin/main is {main_sha[:12]}.\n"
-                f"Re-run with --replace-tag after confirming {version} was not already published."
+                f"If this is an early bad tag and {version} was not published yet, run:\n"
+                f"  make release-publish-replace-tag VERSION={version}"
             )
         delete_local_tag(tag)
         git("push", "origin", f":refs/tags/{tag}")

@@ -2,6 +2,8 @@
 
 Use the guarded helper instead of hand-typing merge/tag commands.
 
+Prerequisite: run these commands with Python 3.11 or newer.
+
 ## Prepare a Release PR
 
 Work on a release branch, commit the release changes, then run:
@@ -19,14 +21,20 @@ After the PR merges:
 
 ```bash
 git switch main
-git reset --hard origin/main
+git pull --ff-only origin main
 make release-publish VERSION=4.4.0
 ```
 
 This verifies `origin/main` has the requested `pyproject.toml` version, puts
 `vX.Y.Z` on the merged `origin/main` commit, and pushes the tag to start the
-PyPI workflow. If a tag already points at an old pre-merge commit, the helper
-replaces it only when `--replace-tag` is used through the Makefile target.
+PyPI workflow. It refuses to move an existing remote tag by default.
+
+If a tag was pushed early and the publish workflow did not complete, first
+confirm the version was not published on PyPI, then run:
+
+```bash
+make release-publish-replace-tag VERSION=4.4.0
+```
 
 ## Manual Publish Fallback
 
