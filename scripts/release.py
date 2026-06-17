@@ -4,9 +4,11 @@
 from __future__ import annotations
 
 import argparse
-import subprocess
+import subprocess  # nosec B404
 import sys
 from pathlib import Path
+
+# Bandit B404: release helper invokes fixed git/gh argument lists without shell.
 
 try:
     import tomllib
@@ -18,7 +20,8 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def run(*args: str, capture: bool = False, check: bool = True) -> str:
-    proc = subprocess.run(
+    # Fixed argv from release helpers; shell remains disabled.
+    proc = subprocess.run(  # nosec B603
         args,
         cwd=ROOT,
         check=False,

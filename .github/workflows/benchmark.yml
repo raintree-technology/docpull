@@ -43,7 +43,7 @@ jobs:
         env:
           DOCPULL_BENCHMARK_10K: "1"
         run: |
-          PYTHONPATH=src pytest -v -s tests/benchmarks/test_10k_pages.py \
+          PYTHONPATH=src python -m pytest -v -s tests/benchmarks/test_10k_pages.py \
             | tee benchmark.log
 
       - name: Surface report in summary

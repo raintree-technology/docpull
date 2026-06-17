@@ -48,13 +48,13 @@ jobs:
           pip install -e ".[dev]"
 
       - name: Audit Python dependencies
-        run: pip-audit
+        run: python -m pip_audit
 
       - name: Run Bandit
-        run: bandit -q -c pyproject.toml -r src
+        run: python -m bandit -q -c pyproject.toml -r src scripts
 
       - name: Run Python security regression tests
-        run: PYTHONPATH=src pytest -q tests/test_security_hardening.py tests/test_discovery.py tests/test_integration.py
+        run: PYTHONPATH=src python -m pytest -q tests/test_security_hardening.py tests/test_discovery.py tests/test_integration.py
 
   mcp-security:
     runs-on: ubuntu-24.04

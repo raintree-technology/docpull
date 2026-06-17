@@ -82,19 +82,26 @@ jobs:
 
       - name: Run release gates
         run: |
-          ruff check .
-          ruff format --check .
-          mypy src
-          pytest -q
-          pip-audit
-          bandit -q -c pyproject.toml -r src
+          python -m ruff check .
+          python -m ruff format --check .
+          python -m mypy src
+          python -m pytest -q
+          python -m pip_audit
+          python -m bandit -q -c pyproject.toml -r src scripts
 
       - name: Build distributions
-        run: |
-          python -m build --no-isolation
+        run: python -m build --no-isolation
 
       - name: Verify wheel and sdist
         run: python -m twine check dist/*
+
+      - name: Smoke install built wheel
+        run: |
+          python -m venv .release-smoke
+          .release-smoke/bin/python -m pip install --upgrade pip
+          .release-smoke/bin/python -m pip install dist/*.whl
+          .release-smoke/bin/docpull --version
+          .release-smoke/bin/python -c "import docpull; print(docpull.__version__)"
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
