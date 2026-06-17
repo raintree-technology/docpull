@@ -25,7 +25,7 @@ repos:
     hooks:
       - id: mypy
         name: mypy
-        entry: mypy src
+        entry: python3 scripts/precommit_mypy.py
         language: system
         pass_filenames: false
         types: [python]
