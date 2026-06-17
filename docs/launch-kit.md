@@ -36,30 +36,32 @@ context-engineering
 
 ### Tagline
 
-Public web to agent-ready Markdown.
+Turn public documentation sites into local Markdown, NDJSON, and agent-ready
+context packs. No browser required.
 
 ### One-line pitch
 
-DocPull turns public static and server-rendered web pages into clean,
-structured, agent-ready Markdown from a Python CLI, SDK, or MCP server.
+DocPull turns public static and server-rendered documentation/API pages into
+clean local Markdown, NDJSON, and agent-ready context packs from a Python CLI,
+SDK, or MCP server.
 
 ### 50-word description
 
-DocPull is a Python CLI, SDK, and MCP server for pulling public static and
-server-rendered web pages into clean Markdown, NDJSON, and local context packs.
-It avoids browser automation, preserves source metadata, supports chunking for
-LLM/RAG workflows, and includes security protections for agent-selected URLs.
+DocPull is a Python CLI, SDK, and MCP server that fetches public static or
+server-rendered pages and converts them into clean Markdown, NDJSON, and local
+context packs. It avoids browser automation, preserves source metadata, supports
+LLM/RAG chunking, and includes security protections for agent-selected URLs.
 
 ### 150-word description
 
 DocPull is a security-hardened Python tool for turning public static and
 server-rendered web pages into clean, structured context for developers, AI
-agents, and RAG systems. It fetches pages without Playwright, discovers links,
-extracts main content, preserves source metadata, and writes Markdown, NDJSON,
-OKF bundles, SQLite, or local archives. Web-source extraction is the core
-workflow; blogs, vendor pages, API references, OpenAPI specs, docs, and other
-public web content all fit when the content is available without
-JavaScript rendering.
+agents, and retrieval-augmented generation (RAG) systems. It fetches pages
+without Playwright, discovers links, extracts main content, preserves source
+metadata, and writes Markdown, NDJSON, Open Knowledge Format (OKF) bundles,
+SQLite, or local archives. Documentation sites, blogs, vendor pages, API
+references, OpenAPI specs, and other public web content all fit when the useful
+content is available in HTML or embedded page data.
 
 Use it as a CLI, Python SDK, or MCP server. Agents can fetch one URL, crawl a
 site, stream chunked records, cache sources, grep local Markdown, and read exact
@@ -72,13 +74,13 @@ not browser automation; it is the fast, auditable path for clean web context.
 Title:
 
 ```text
-Show HN: DocPull - pull the public web into agent-ready Markdown
+Show HN: DocPull - turn public docs into Markdown, no browser required
 ```
 
 First comment:
 
 ```text
-Hi HN, I built DocPull, a Python CLI/SDK/MCP server for turning public static and server-rendered web pages into clean Markdown and NDJSON for coding agents, RAG indexes, and offline archives.
+Hi HN, I built DocPull, a Python CLI/SDK/MCP server for turning public static and server-rendered documentation/API pages into clean Markdown and NDJSON for coding agents, RAG indexes, and offline archives.
 
 The specific pain: agents often need current web context, but browser automation is heavy, hosted scraping APIs can be overkill, and raw HTML makes poor context. DocPull uses async HTTP, framework-aware extraction, source metadata, chunking, and local caching. It intentionally does not render JavaScript. For public pages that are static or server-rendered, that tradeoff keeps it fast, inspectable, and easy to run in local agent workflows.
 
@@ -95,7 +97,7 @@ I would especially like feedback from people building coding agents, RAG/search 
 
 ## Product Hunt
 
-- Tagline: `Pull public web pages into clean, agent-ready Markdown.`
+- Tagline: `Turn public docs into local Markdown and agent-ready context packs.`
 - Suggested categories: Developer Tools, Open Source, Artificial Intelligence,
   Productivity.
 - Maker comment angle: explain the web-context problem, the no-browser

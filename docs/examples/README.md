@@ -1,5 +1,8 @@
 # CLI Recipes
 
+Use these recipes after the 30-second README example when you need a specific
+output format, crawl policy, agent skill, or context-pack workflow.
+
 These examples use the current `docpull` CLI. The old multi-source YAML runner
 and options such as `--sources-file`, `language`, `keep_variant`, TOON output,
 and `create_index` are not part of the current CLI surface.
@@ -51,7 +54,11 @@ docpull https://docs.example.com --format markdown -o ./out/markdown
 docpull https://docs.example.com --format json -o ./out/json
 docpull https://docs.example.com --format ndjson -o ./out/ndjson
 docpull https://docs.example.com --format sqlite -o ./out/sqlite
+docpull https://docs.example.com --format okf -o ./out/okf
 ```
+
+OKF means Open Knowledge Format: a portable Markdown bundle with generated
+indexes, manifests, hashes, metadata, and source-preserving concept files.
 
 ## Claude Code Skill
 

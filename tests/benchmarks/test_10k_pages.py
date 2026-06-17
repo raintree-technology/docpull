@@ -1,8 +1,7 @@
 """End-to-end benchmark: 10,000 synthetic pages over localhost HTTP.
 
-Numbers this benchmark produces are the ones we will publish in the
-README under "Performance." They cover what the plan calls the
-falsifiable scaling claim:
+Numbers this benchmark produces feed release notes, benchmark reports, and
+marketing material when we need a falsifiable scaling claim:
 
 - Wall time (full crawl, sitemap-driven)
 - Peak RSS delta from baseline (via stdlib resource.getrusage)

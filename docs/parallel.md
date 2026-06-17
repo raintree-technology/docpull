@@ -1,10 +1,11 @@
 # Parallel Integration
 
-This page cross-references the Parallel products against docpull's 4.1.0
-integration surface. The goal is to make Parallel web intelligence outputs
-durable, local, inspectable, and easy for agents to reuse.
+This page maps Parallel products to docpull's optional context-pack workflows.
+The goal is to make Parallel web intelligence outputs durable, local,
+inspectable, and easy for agents to reuse.
 
-Sources checked on 2026-06-08:
+Parallel sources checked on 2026-06-08. Workflow coverage last reviewed for
+docpull 4.4.0.
 
 - https://docs.parallel.ai/llms.txt
 - https://docs.parallel.ai/public-openapi.json
@@ -58,7 +59,7 @@ estimate, but not `PARALLEL_API_KEY`.
 key is valid; live workflows still fail fast if Parallel rejects the configured
 key.
 
-## Implemented in 4.1.0
+## Implemented Workflows
 
 | Parallel product | Parallel shape | docpull surface | Why it fits |
 | --- | --- | --- | --- |
@@ -76,7 +77,7 @@ key.
 
 | Parallel product | Product fit | Planned docpull workflow |
 | --- | --- | --- |
-| Chat API | OpenAI-compatible live web chat and JSON responses. | Out of scope for docpull 4.1.0 because it is an interactive answer surface, not a context-pack source. |
+| Chat API | OpenAI-compatible live web chat and JSON responses. | Out of scope because it is an interactive answer surface, not a context-pack source. |
 | Data integrations | BigQuery, Snowflake, DuckDB, Spark, Polars, Supabase, Sheets. | Out of scope unless docpull later emits warehouse-friendly pack manifests or imports table rows as source candidates. |
 
 ## Additional Pack Workflows
@@ -213,12 +214,12 @@ Parallel's MCP servers are a separate adoption path:
 - Task MCP requires auth and is useful for deep research and enrichment in MCP-aware clients.
 - Parallel CLI is a direct user/agent tool for searching, extracting, enriching, and monitoring.
 
-docpull 4.1.0 intentionally uses the Python SDK with `docpull[parallel]` and a
-bring-your-own-key model. It does not proxy requests or install MCP servers.
-When users opt in with `docpull parallel init`, the key is stored in local
-machine/project configuration, never in generated packs. That keeps the package
-suitable for open source release while making the outputs durable enough for
-agents, RAG, audits, and demos.
+docpull intentionally uses the Python SDK with `docpull[parallel]` and a
+bring-your-own-key model. It does not proxy requests or install Parallel MCP
+servers. When users opt in with `docpull parallel init`, the key is stored in
+local machine/project configuration, never in generated packs. That keeps the
+package suitable for open source release while making the outputs durable enough
+for agents, RAG, audits, and demos.
 
 ## Controls That Make Packs Useful
 
