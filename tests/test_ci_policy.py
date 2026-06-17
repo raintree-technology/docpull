@@ -40,7 +40,7 @@ def test_publish_workflow_accepts_only_tags_or_guarded_manual_dispatch() -> None
     assert '"v*.*.*"' in publish
     assert "workflow_dispatch:" in publish
     assert "version:" in publish
-    assert 'required: true' in publish
+    assert "required: true" in publish
     assert 'elif [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then' in publish
     assert 'if [ "${GITHUB_REF_NAME}" != "main" ]; then' in publish
     assert 'if [ "$REQUESTED_VERSION" != "$PROJECT_VERSION" ]; then' in publish
