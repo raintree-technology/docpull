@@ -13,6 +13,10 @@ server-rendered web pages and converts them into clean, auditable local
 artifacts for LLMs, retrieval-augmented generation (RAG), offline research, and
 agent workflows.
 
+DocPull exposes the same core workflows through CLI, Python SDK, and MCP, with
+each surface optimized for its user. The [Surface Contract](docs/surface-contract.md)
+defines how those surfaces align and where they intentionally differ.
+
 It works best on documentation sites, blogs, API references, OpenAPI specs,
 vendor pages, and other public pages where the useful content is available in
 HTML or embedded page data.
@@ -251,6 +255,10 @@ part of the package release contract.
 - `docpull[parallel]` can discover, extract, enrich, score, diff, and archive
   live web sources with your own Parallel API key. See
   [Parallel Integration](docs/parallel.md).
+- Local pack intelligence can build citation maps, extract cited entities,
+  search pack records, and write provider-free research briefs with
+  `docpull pack citations`, `docpull pack entities`, `docpull pack search`,
+  and `docpull pack brief`.
 - Optional provider workflows can use Parallel, Tavily, and Exa when configured.
   See [CLI Recipes](docs/examples/README.md#parallel-context-pack).
 - SEC filing evidence packs use rule profiles such as
@@ -283,6 +291,7 @@ docpull URL --preview-urls
 - [Scraping Boundary](docs/scraping-boundary.md) - what docpull does and does not fetch.
 - [Alternatives](docs/alternatives.md) - when to use browser automation or hosted extraction.
 - [Corpus Manifest](docs/corpus-manifest.md) - stable IDs, hashes, and source maps.
+- [Surface Contract](docs/surface-contract.md) - how the CLI, Python SDK/API, and MCP surfaces align.
 - [Parallel Integration](docs/parallel.md) - live-source context pack workflows.
 - [Changelog](docs/CHANGELOG.md) - release history.
 

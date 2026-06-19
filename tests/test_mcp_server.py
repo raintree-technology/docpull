@@ -42,6 +42,10 @@ async def test_stdio_server_lists_and_calls_tools(tmp_path):
             "parallel_api_pack",
             "pack_score",
             "pack_diff",
+            "pack_citations",
+            "pack_entities",
+            "pack_search",
+            "pack_brief",
             "add_source",
             "remove_source",
         }

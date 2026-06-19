@@ -6,7 +6,15 @@ import json
 from pathlib import Path
 
 from docpull.cli import main
-from docpull.pack_tools import diff_packs, score_pack, score_pack_sources
+from docpull.pack_tools import (
+    build_citation_map,
+    build_research_brief,
+    diff_packs,
+    extract_pack_entities,
+    score_pack,
+    score_pack_sources,
+    search_pack,
+)
 
 
 def _write_pack(pack_dir: Path, records: list[dict[str, object]], *, include_domains: list[str]) -> None:
@@ -184,6 +192,202 @@ def test_pack_sources_cli_writes_source_scores(tmp_path: Path) -> None:
     payload = json.loads((pack / "source.scores.json").read_text(encoding="utf-8"))
     assert payload["source_count"] == 1
     assert payload["sources"][0]["score"] >= 85
+
+
+def test_pack_citations_cli_writes_stable_source_map(tmp_path: Path) -> None:
+    pack = tmp_path / "pack"
+    _write_pack(
+        pack,
+        [
+            _record("https://docs.parallel.ai/api-reference/search/search", "aaa"),
+            _record("https://docs.parallel.ai/api-reference/search/search", "bbb"),
+            _record("https://parallel.ai/blog/search", "ccc"),
+        ],
+        include_domains=["docs.parallel.ai"],
+    )
+
+    library_payload = build_citation_map(pack)
+    assert library_payload["source_count"] == 2
+
+    assert main(["pack", "citations", str(pack), "--markdown", str(tmp_path / "citations.md")]) == 0
+
+    payload = json.loads((pack / "citations.json").read_text(encoding="utf-8"))
+    assert payload["source_count"] == 2
+    assert payload["sources"][0]["citation_id"] == "S1"
+    assert payload["sources"][0]["record_count"] == 2
+    assert payload["sources"][0]["path"] == "sources/01.md"
+    assert "[S1]" in (tmp_path / "citations.md").read_text(encoding="utf-8")
+
+
+def test_pack_entities_extracts_cited_local_records(tmp_path: Path) -> None:
+    pack = tmp_path / "pack"
+    _write_pack(
+        pack,
+        [
+            _record(
+                "https://docs.parallel.ai/api-reference/search/search",
+                "aaa",
+                (
+                    "Contact support@example.com. Parallel Web Systems raised $100M on "
+                    "2026-04-29. Use Search API version 1.2.3 for JSON output."
+                ),
+            )
+        ],
+        include_domains=["docs.parallel.ai"],
+    )
+
+    result = extract_pack_entities(pack, limit=20)
+    by_type = {(entity["type"], entity["normalized"]): entity for entity in result["entities"]}
+
+    assert ("email", "support@example.com") in by_type
+    assert ("money", "$100m") in by_type
+    assert ("date", "2026-04-29") in by_type
+    assert ("version", "1.2.3") in by_type
+    assert by_type[("email", "support@example.com")]["citations"][0]["citation_id"] == "S1"
+
+
+def test_pack_entities_cli_writes_json_and_markdown(tmp_path: Path) -> None:
+    pack = tmp_path / "pack"
+    _write_pack(
+        pack,
+        [
+            _record(
+                "https://docs.parallel.ai/api-reference/search/search",
+                "aaa",
+                "Search API returns JSON records. Contact support@example.com for access.",
+            )
+        ],
+        include_domains=["docs.parallel.ai"],
+    )
+
+    assert main(["pack", "entities", str(pack), "--markdown", str(tmp_path / "entities.md")]) == 0
+
+    payload = json.loads((pack / "entities.json").read_text(encoding="utf-8"))
+    values = {entity["normalized"] for entity in payload["entities"]}
+    assert "support@example.com" in values
+    assert "support@example.com" in (tmp_path / "entities.md").read_text(encoding="utf-8")
+
+
+def test_pack_search_returns_ranked_cited_excerpts(tmp_path: Path) -> None:
+    pack = tmp_path / "pack"
+    _write_pack(
+        pack,
+        [
+            _record(
+                "https://docs.parallel.ai/api-reference/search/search",
+                "aaa",
+                (
+                    "Parallel Search API supports live web search for agents. "
+                    "Search results include cited excerpts, JSON records, and source controls."
+                ),
+            ),
+            _record(
+                "https://docs.parallel.ai/api-reference/extract/extract",
+                "bbb",
+                "Extract turns known URLs into markdown content for context packs.",
+            ),
+        ],
+        include_domains=["docs.parallel.ai"],
+    )
+
+    result = search_pack(pack, "live search agents", limit=5)
+
+    assert result["result_count"] == 1
+    assert result["results"][0]["citation_id"].startswith("S")
+    assert result["results"][0]["url"] == "https://docs.parallel.ai/api-reference/search/search"
+    assert result["results"][0]["matched_terms"] == ["agents", "live", "search"]
+    assert "live web search" in result["results"][0]["excerpt"]
+    assert result["citations"][0]["citation_id"] == result["results"][0]["citation_id"]
+
+
+def test_pack_search_cli_writes_json_and_markdown(tmp_path: Path) -> None:
+    pack = tmp_path / "pack"
+    _write_pack(
+        pack,
+        [
+            _record(
+                "https://docs.parallel.ai/api-reference/search/search",
+                "aaa",
+                "Search API results include citations and JSON output for agent workflows.",
+            )
+        ],
+        include_domains=["docs.parallel.ai"],
+    )
+
+    assert (
+        main(
+            [
+                "pack",
+                "search",
+                str(pack),
+                "citations JSON",
+                "--markdown",
+                str(tmp_path / "search.md"),
+            ]
+        )
+        == 0
+    )
+
+    payload = json.loads((pack / "pack.search.json").read_text(encoding="utf-8"))
+    assert payload["query"] == "citations JSON"
+    assert payload["result_count"] == 1
+    assert "[S" in (tmp_path / "search.md").read_text(encoding="utf-8")
+
+
+def test_pack_brief_cli_writes_cited_brief_and_sidecars(tmp_path: Path) -> None:
+    pack = tmp_path / "pack"
+    _write_pack(
+        pack,
+        [
+            _record(
+                "https://docs.parallel.ai/api-reference/search/search",
+                "aaa",
+                (
+                    "Parallel Search API pricing and source controls are documented for agent "
+                    "builders. The feature list explains search results, citations, and JSON "
+                    "responses for live web workflows."
+                ),
+            ),
+            _record(
+                "https://docs.parallel.ai/api-reference/extract/extract",
+                "bbb",
+                (
+                    "Parallel Extract API turns selected URLs into markdown excerpts. This "
+                    "source is useful when a context pack needs structured cited content."
+                ),
+            ),
+        ],
+        include_domains=["docs.parallel.ai"],
+    )
+
+    assert main(["pack", "brief", str(pack), "--objective", "Parallel API pricing"]) == 0
+
+    payload = json.loads((pack / "research.brief.json").read_text(encoding="utf-8"))
+    markdown = (pack / "RESEARCH_BRIEF.md").read_text(encoding="utf-8")
+    assert payload["objective"] == "Parallel API pricing"
+    assert payload["key_excerpts"][0]["citation_id"].startswith("S")
+    assert any("pricing" in excerpt["excerpt"].lower() for excerpt in payload["key_excerpts"])
+    assert payload["artifacts"]["citations"] == "citations.json"
+    assert (pack / "citations.json").exists()
+    assert (pack / "entities.json").exists()
+    assert "[S" in markdown
+
+
+def test_pack_brief_library_uses_pack_objective_when_omitted(tmp_path: Path) -> None:
+    pack = tmp_path / "pack"
+    _write_pack(
+        pack,
+        [_record("https://docs.parallel.ai/api-reference/search/search", "aaa")],
+        include_domains=["docs.parallel.ai"],
+    )
+    pack_path = pack / "parallel.pack.json"
+    metadata = json.loads(pack_path.read_text(encoding="utf-8"))
+    metadata["objective"] = "Build a Parallel docs pack"
+    pack_path.write_text(json.dumps(metadata), encoding="utf-8")
+
+    result = build_research_brief(pack)
+
+    assert result["objective"] == "Build a Parallel docs pack"
 
 
 def test_pack_score_flags_manifest_and_pack_record_count_mismatch(tmp_path: Path) -> None:

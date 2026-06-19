@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from collections import Counter
 from pathlib import Path
 from typing import Any
@@ -18,6 +19,47 @@ from .time_utils import utc_now_iso
 SCORE_SCHEMA_VERSION = 1
 DIFF_SCHEMA_VERSION = 1
 SOURCE_SCORE_SCHEMA_VERSION = 1
+CITATION_SCHEMA_VERSION = 1
+ENTITY_SCHEMA_VERSION = 1
+BRIEF_SCHEMA_VERSION = 1
+SEARCH_SCHEMA_VERSION = 1
+DEFAULT_ENTITY_LIMIT = 100
+DEFAULT_BRIEF_EXCERPTS = 8
+DEFAULT_BRIEF_ENTITY_LIMIT = 20
+DEFAULT_SEARCH_LIMIT = 10
+
+_WORD_RE = re.compile(r"[a-z0-9][a-z0-9-]{2,}", re.IGNORECASE)
+_MARKDOWN_LINK_RE = re.compile(r"\[([^\]]+)]\([^)]+\)")
+_EMAIL_RE = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")
+_MONEY_RE = re.compile(
+    r"(?<!\w)(?:\$|USD\s*)\d[\d,]*(?:\.\d+)?(?:\s?(?:k|K|m|M|b|B|million|billion|thousand))?\b"
+)
+_DATE_RE = re.compile(
+    r"\b(?:\d{4}-\d{2}-\d{2}|\d{1,2}/\d{1,2}/\d{2,4}|"
+    r"(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|"
+    r"Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|"
+    r"Dec(?:ember)?)\s+\d{1,2},?\s+\d{4})\b",
+    re.IGNORECASE,
+)
+_VERSION_RE = re.compile(r"\b(?:v|version\s*)?\d+\.\d+(?:\.\d+)?(?:[-+][A-Za-z0-9.]+)?\b", re.IGNORECASE)
+_ORG_RE = re.compile(
+    r"\b[A-Z][A-Za-z0-9&.'-]+(?:\s+[A-Z][A-Za-z0-9&.'-]+){0,5}\s+"
+    r"(?:Inc\.?|LLC|Ltd\.?|Corporation|Corp\.?|Labs?|Systems?|Technologies|"
+    r"Technology|Software|Cloud|Research|Foundation)\b"
+)
+_TECH_TERM_RE = re.compile(
+    r"\b(?:[A-Z][A-Za-z0-9.+-]*\s+){0,4}"
+    r"(?:API|SDK|MCP|RAG|LLM|CLI|JSON|NDJSON|SQLite|SQL|OpenAPI)"
+    r"(?:\s+[A-Z][A-Za-z0-9.+-]*){0,3}\b"
+)
+_ENTITY_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    ("email", _EMAIL_RE),
+    ("money", _MONEY_RE),
+    ("date", _DATE_RE),
+    ("version", _VERSION_RE),
+    ("organization", _ORG_RE),
+    ("technical_term", _TECH_TERM_RE),
+)
 
 
 class PackToolError(RuntimeError):
@@ -53,6 +95,70 @@ def create_pack_parser() -> argparse.ArgumentParser:
     sources.add_argument("pack_dir", type=Path, help="Context pack directory")
     sources.add_argument("--output", type=Path, help="Source score JSON output path")
     sources.add_argument(
+        "--require-domain",
+        action="append",
+        dest="required_domains",
+        default=[],
+        help="Expected source domain or suffix. Repeat as needed.",
+    )
+
+    citations = subparsers.add_parser("citations", help="Build a stable citation map for a pack")
+    citations.add_argument("pack_dir", type=Path, help="Context pack directory")
+    citations.add_argument("--output", type=Path, help="Citation JSON output path")
+    citations.add_argument("--markdown", type=Path, help="Citation Markdown output path")
+    citations.add_argument(
+        "--require-domain",
+        action="append",
+        dest="required_domains",
+        default=[],
+        help="Expected source domain or suffix. Repeat as needed.",
+    )
+
+    entities = subparsers.add_parser("entities", help="Extract cited local entities from a pack")
+    entities.add_argument("pack_dir", type=Path, help="Context pack directory")
+    entities.add_argument("--output", type=Path, help="Entity JSON output path")
+    entities.add_argument("--markdown", type=Path, help="Entity Markdown output path")
+    entities.add_argument("--limit", type=int, default=DEFAULT_ENTITY_LIMIT, help="Maximum entities")
+    entities.add_argument(
+        "--require-domain",
+        action="append",
+        dest="required_domains",
+        default=[],
+        help="Expected source domain or suffix. Repeat as needed.",
+    )
+
+    search = subparsers.add_parser("search", help="Search a context pack locally with citations")
+    search.add_argument("pack_dir", type=Path, help="Context pack directory")
+    search.add_argument("query", help="Search query")
+    search.add_argument("--output", type=Path, help="Search JSON output path")
+    search.add_argument("--markdown", type=Path, help="Search Markdown output path")
+    search.add_argument("--limit", type=int, default=DEFAULT_SEARCH_LIMIT, help="Maximum results")
+    search.add_argument(
+        "--require-domain",
+        action="append",
+        dest="required_domains",
+        default=[],
+        help="Expected source domain or suffix. Repeat as needed.",
+    )
+
+    brief = subparsers.add_parser("brief", help="Write a local cited research brief for a pack")
+    brief.add_argument("pack_dir", type=Path, help="Context pack directory")
+    brief.add_argument("--objective", help="Brief objective. Defaults to pack metadata when present.")
+    brief.add_argument("--output", type=Path, help="Markdown brief output path")
+    brief.add_argument("--json-output", type=Path, help="Brief JSON output path")
+    brief.add_argument(
+        "--max-excerpts",
+        type=int,
+        default=DEFAULT_BRIEF_EXCERPTS,
+        help="Maximum cited excerpts in the brief",
+    )
+    brief.add_argument(
+        "--entity-limit",
+        type=int,
+        default=DEFAULT_BRIEF_ENTITY_LIMIT,
+        help="Maximum entity records included in the brief",
+    )
+    brief.add_argument(
         "--require-domain",
         action="append",
         dest="required_domains",
@@ -97,6 +203,72 @@ def run_pack_cli(argv: list[str] | None = None) -> int:
             output = args.output or (args.pack_dir / "source.scores.json")
             _write_json(output, payload)
             console.print(f"[green]Source scores:[/green] {len(payload['sources'])} sources -> {output}")
+            return 0
+        if args.command == "citations":
+            payload = build_citation_map(args.pack_dir, required_domains=args.required_domains)
+            output = args.output or (args.pack_dir / "citations.json")
+            _write_json(output, payload)
+            if args.markdown:
+                args.markdown.parent.mkdir(parents=True, exist_ok=True)
+                args.markdown.write_text(_citations_markdown(payload), encoding="utf-8")
+            console.print(f"[green]Citations:[/green] {payload['source_count']} sources -> {output}")
+            return 0
+        if args.command == "entities":
+            payload = extract_pack_entities(
+                args.pack_dir,
+                required_domains=args.required_domains,
+                limit=args.limit,
+            )
+            output = args.output or (args.pack_dir / "entities.json")
+            _write_json(output, payload)
+            if args.markdown:
+                args.markdown.parent.mkdir(parents=True, exist_ok=True)
+                args.markdown.write_text(_entities_markdown(payload), encoding="utf-8")
+            console.print(f"[green]Entities:[/green] {payload['entity_count']} entities -> {output}")
+            return 0
+        if args.command == "search":
+            payload = search_pack(
+                args.pack_dir,
+                args.query,
+                required_domains=args.required_domains,
+                limit=args.limit,
+            )
+            output = args.output or (args.pack_dir / "pack.search.json")
+            _write_json(output, payload)
+            if args.markdown:
+                args.markdown.parent.mkdir(parents=True, exist_ok=True)
+                args.markdown.write_text(_search_markdown(payload), encoding="utf-8")
+            console.print(f"[green]Pack search:[/green] {payload['result_count']} results -> {output}")
+            return 0
+        if args.command == "brief":
+            payload = build_research_brief(
+                args.pack_dir,
+                objective=args.objective,
+                required_domains=args.required_domains,
+                max_excerpts=args.max_excerpts,
+                entity_limit=args.entity_limit,
+            )
+            json_output = args.json_output or (args.pack_dir / "research.brief.json")
+            markdown_output = args.output or (args.pack_dir / "RESEARCH_BRIEF.md")
+            _write_json(json_output, payload)
+            markdown_output.parent.mkdir(parents=True, exist_ok=True)
+            markdown_output.write_text(_brief_markdown(payload), encoding="utf-8")
+            _write_json(
+                args.pack_dir / "citations.json",
+                build_citation_map(args.pack_dir, required_domains=args.required_domains),
+            )
+            _write_json(
+                args.pack_dir / "entities.json",
+                extract_pack_entities(
+                    args.pack_dir,
+                    required_domains=args.required_domains,
+                    limit=max(args.entity_limit, 1),
+                ),
+            )
+            console.print(
+                "[green]Research brief:[/green] "
+                f"{len(payload['key_excerpts'])} excerpts -> {markdown_output}"
+            )
             return 0
         parser.error(f"Unknown command: {args.command}")
     except PackToolError as err:
@@ -272,6 +444,129 @@ def score_pack_sources(pack_dir: Path, *, required_domains: list[str] | None = N
     }
 
 
+def build_citation_map(
+    pack_dir: Path,
+    *,
+    required_domains: list[str] | None = None,
+) -> dict[str, Any]:
+    pack_dir = pack_dir.resolve()
+    pack = _read_pack_metadata(pack_dir)
+    records = _read_ndjson(pack_dir / "documents.ndjson")
+    sources, _citation_by_url, expected = _citation_sources(pack_dir, pack, records, required_domains)
+    return {
+        "schema_version": CITATION_SCHEMA_VERSION,
+        "generated_at": utc_now_iso(),
+        "pack_dir": str(pack_dir),
+        "expected_domains": expected,
+        "source_count": len(sources),
+        "record_count": len(records),
+        "sources": sources,
+    }
+
+
+def extract_pack_entities(
+    pack_dir: Path,
+    *,
+    required_domains: list[str] | None = None,
+    limit: int = DEFAULT_ENTITY_LIMIT,
+) -> dict[str, Any]:
+    if limit < 1:
+        raise PackToolError("--limit must be at least 1.")
+    pack_dir = pack_dir.resolve()
+    pack = _read_pack_metadata(pack_dir)
+    records = _read_ndjson(pack_dir / "documents.ndjson")
+    sources, citation_by_url, expected = _citation_sources(pack_dir, pack, records, required_domains)
+    entities = _extract_entities(records, citation_by_url, limit=limit)
+    return {
+        "schema_version": ENTITY_SCHEMA_VERSION,
+        "generated_at": utc_now_iso(),
+        "pack_dir": str(pack_dir),
+        "expected_domains": expected,
+        "source_count": len(sources),
+        "record_count": len(records),
+        "entity_count": len(entities),
+        "entities": entities,
+    }
+
+
+def build_research_brief(
+    pack_dir: Path,
+    *,
+    objective: str | None = None,
+    required_domains: list[str] | None = None,
+    max_excerpts: int = DEFAULT_BRIEF_EXCERPTS,
+    entity_limit: int = DEFAULT_BRIEF_ENTITY_LIMIT,
+) -> dict[str, Any]:
+    if max_excerpts < 1:
+        raise PackToolError("--max-excerpts must be at least 1.")
+    if entity_limit < 0:
+        raise PackToolError("--entity-limit cannot be negative.")
+    pack_dir = pack_dir.resolve()
+    pack = _read_pack_metadata(pack_dir)
+    records = _read_ndjson(pack_dir / "documents.ndjson")
+    sources, citation_by_url, expected = _citation_sources(pack_dir, pack, records, required_domains)
+    brief_objective = objective or str(pack.get("objective") or "Review local DocPull context pack")
+    entities = _extract_entities(records, citation_by_url, limit=max(1, entity_limit)) if entity_limit else []
+    return {
+        "schema_version": BRIEF_SCHEMA_VERSION,
+        "generated_at": utc_now_iso(),
+        "pack_dir": str(pack_dir),
+        "objective": brief_objective,
+        "expected_domains": expected,
+        "summary": {
+            "source_count": len(sources),
+            "record_count": len(records),
+            "entity_count": len(entities),
+            "total_tokens": sum(_safe_int(record.get("token_count")) for record in records),
+        },
+        "load_plan": sources[: min(len(sources), 12)],
+        "key_excerpts": _select_key_excerpts(
+            records,
+            citation_by_url,
+            objective=brief_objective,
+            max_excerpts=max_excerpts,
+        ),
+        "entities": entities[:entity_limit] if entity_limit else [],
+        "artifacts": {
+            "citations": "citations.json",
+            "entities": "entities.json",
+            "brief_json": "research.brief.json",
+            "brief_markdown": "RESEARCH_BRIEF.md",
+        },
+    }
+
+
+def search_pack(
+    pack_dir: Path,
+    query: str,
+    *,
+    required_domains: list[str] | None = None,
+    limit: int = DEFAULT_SEARCH_LIMIT,
+) -> dict[str, Any]:
+    if not query.strip():
+        raise PackToolError("query must be non-empty.")
+    if limit < 1:
+        raise PackToolError("--limit must be at least 1.")
+    pack_dir = pack_dir.resolve()
+    pack = _read_pack_metadata(pack_dir)
+    records = _read_ndjson(pack_dir / "documents.ndjson")
+    sources, citation_by_url, expected = _citation_sources(pack_dir, pack, records, required_domains)
+    results = _search_records(records, citation_by_url, query=query, limit=limit)
+    citation_ids = {str(result["citation_id"]) for result in results}
+    return {
+        "schema_version": SEARCH_SCHEMA_VERSION,
+        "generated_at": utc_now_iso(),
+        "pack_dir": str(pack_dir),
+        "query": query,
+        "expected_domains": expected,
+        "source_count": len(sources),
+        "record_count": len(records),
+        "result_count": len(results),
+        "results": results,
+        "citations": [source for source in sources if source["citation_id"] in citation_ids],
+    }
+
+
 def diff_packs(old_pack_dir: Path, new_pack_dir: Path) -> dict[str, Any]:
     old_records = _records_by_url(_read_ndjson(old_pack_dir / "documents.ndjson"))
     new_records = _records_by_url(_read_ndjson(new_pack_dir / "documents.ndjson"))
@@ -382,6 +677,89 @@ def _relative_pack_path(value: Any) -> str | None:
     return value
 
 
+def _citation_sources(
+    pack_dir: Path,
+    pack: dict[str, Any],
+    records: list[dict[str, Any]],
+    required_domains: list[str] | None,
+) -> tuple[list[dict[str, Any]], dict[str, str], list[str]]:
+    expected = required_domains or _expected_domains(pack)
+    entries: list[dict[str, Any]] = []
+    entry_urls: set[str] = set()
+    for entry in _pack_source_entries(pack, records):
+        url = str(entry.get("url") or "")
+        if not url or url in entry_urls:
+            continue
+        entries.append(entry)
+        entry_urls.add(url)
+    for index, record in enumerate(records, start=1):
+        url = str(record.get("url") or "")
+        if not url or url in entry_urls:
+            continue
+        entries.append({"index": index, "url": url, "title": str(record.get("title") or url)})
+        entry_urls.add(url)
+
+    scored = score_source_entries(entries, expected_domains=expected)
+    records_by_url = _records_by_url(records)
+    sources: list[dict[str, Any]] = []
+    citation_by_url: dict[str, str] = {}
+    for index, source in enumerate(scored, start=1):
+        url = str(source.get("url") or "")
+        if not url:
+            continue
+        citation_id = f"S{index}"
+        citation_by_url[url] = citation_id
+        url_records = records_by_url.get(url, [])
+        headings = sorted(
+            {
+                str(record.get("chunk_heading") or "").strip()
+                for record in url_records
+                if str(record.get("chunk_heading") or "").strip()
+            }
+        )
+        content_hashes = sorted(
+            {
+                str(record.get("content_hash") or "").strip()
+                for record in url_records
+                if str(record.get("content_hash") or "").strip()
+            }
+        )
+        source_types = sorted(
+            {
+                str(record.get("source_type") or "unknown")
+                for record in url_records
+            }
+        )
+        fetched_at_values = sorted(
+            str(record.get("fetched_at") or "") for record in url_records if record.get("fetched_at")
+        )
+        path = source.get("path")
+        relative_path = _relative_pack_path(path)
+        if relative_path and not (pack_dir / relative_path).exists():
+            relative_path = None
+        sources.append(
+            {
+                "citation_id": citation_id,
+                "url": url,
+                "title": str(source.get("title") or url),
+                "domain": str(source.get("domain") or _domain(url)),
+                "score": _safe_int(source.get("score")),
+                "grade": str(source.get("grade") or "usable"),
+                "reasons": list(source.get("reasons") or []),
+                "path": relative_path,
+                "record_count": len(url_records),
+                "chunk_count": sum(1 for record in url_records if record.get("chunk_id")),
+                "token_count": sum(_safe_int(record.get("token_count")) for record in url_records),
+                "source_types": source_types,
+                "headings": headings[:20],
+                "content_hashes": content_hashes[:20],
+                "first_fetched_at": fetched_at_values[0] if fetched_at_values else None,
+                "latest_fetched_at": fetched_at_values[-1] if fetched_at_values else None,
+            }
+        )
+    return sources, citation_by_url, expected
+
+
 def _pack_source_entries(
     parallel_pack: dict[str, Any],
     records: list[dict[str, Any]],
@@ -409,9 +787,448 @@ def _pack_source_entries(
     return entries
 
 
+def _extract_entities(
+    records: list[dict[str, Any]],
+    citation_by_url: dict[str, str],
+    *,
+    limit: int,
+) -> list[dict[str, Any]]:
+    entities: dict[tuple[str, str], dict[str, Any]] = {}
+    for record in records:
+        content = str(record.get("content") or "")
+        if not content:
+            continue
+        url = str(record.get("url") or "")
+        citation_id = citation_by_url.get(url)
+        for entity_type, pattern in _ENTITY_PATTERNS:
+            for match in pattern.finditer(content):
+                value = _clean_entity_value(match.group(0))
+                if not _valid_entity(entity_type, value):
+                    continue
+                normalized = _normalize_entity_value(entity_type, value)
+                key = (entity_type, normalized)
+                item = entities.setdefault(
+                    key,
+                    {
+                        "type": entity_type,
+                        "value": value,
+                        "normalized": normalized,
+                        "count": 0,
+                        "source_count": 0,
+                        "citations": [],
+                    },
+                )
+                item["count"] = _safe_int(item.get("count")) + 1
+                citations = item["citations"]
+                if isinstance(citations, list) and citation_id:
+                    existing_ids = {str(citation.get("citation_id")) for citation in citations}
+                    if citation_id not in existing_ids:
+                        citations.append(
+                            {
+                                "citation_id": citation_id,
+                                "url": url,
+                                "title": str(record.get("title") or url),
+                                "excerpt": _nearest_sentence(content, match.start(), match.end()),
+                            }
+                        )
+                        item["source_count"] = len(citations)
+
+    sorted_entities = sorted(
+        entities.values(),
+        key=lambda item: (
+            -_safe_int(item.get("source_count")),
+            -_safe_int(item.get("count")),
+            str(item.get("type") or ""),
+            str(item.get("normalized") or ""),
+        ),
+    )
+    return sorted_entities[:limit]
+
+
+def _select_key_excerpts(
+    records: list[dict[str, Any]],
+    citation_by_url: dict[str, str],
+    *,
+    objective: str,
+    max_excerpts: int,
+) -> list[dict[str, Any]]:
+    objective_terms = set(_keywords(objective))
+    seen: set[str] = set()
+    excerpts: list[dict[str, Any]] = []
+    for record in records:
+        url = str(record.get("url") or "")
+        citation_id = citation_by_url.get(url)
+        if not citation_id:
+            continue
+        content = str(record.get("content") or "")
+        best = _best_passage(content, objective_terms)
+        if not best:
+            continue
+        normalized = re.sub(r"\W+", " ", best["excerpt"].lower()).strip()
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        excerpts.append(
+            {
+                "citation_id": citation_id,
+                "url": url,
+                "title": str(record.get("title") or url),
+                "chunk_id": record.get("chunk_id"),
+                "chunk_heading": record.get("chunk_heading"),
+                "score": best["score"],
+                "excerpt": best["excerpt"],
+            }
+        )
+    excerpts.sort(key=lambda item: (-_safe_int(item.get("score")), str(item.get("citation_id"))))
+    return excerpts[:max_excerpts]
+
+
+def _search_records(
+    records: list[dict[str, Any]],
+    citation_by_url: dict[str, str],
+    *,
+    query: str,
+    limit: int,
+) -> list[dict[str, Any]]:
+    terms = sorted(set(_keywords(query)))
+    phrase = _clean_passage(query).lower()
+    scored: list[dict[str, Any]] = []
+    for record_index, record in enumerate(records, start=1):
+        url = str(record.get("url") or "")
+        citation_id = citation_by_url.get(url)
+        if not citation_id:
+            continue
+        title = str(record.get("title") or url)
+        heading = str(record.get("chunk_heading") or "")
+        content = str(record.get("content") or "")
+        score, matched_terms = _search_score(
+            query_terms=terms,
+            phrase=phrase,
+            title=title,
+            heading=heading,
+            url=url,
+            content=content,
+        )
+        if score <= 0:
+            continue
+        scored.append(
+            {
+                "record_index": record_index,
+                "score": score,
+                "citation_id": citation_id,
+                "url": url,
+                "title": title,
+                "chunk_id": record.get("chunk_id"),
+                "chunk_heading": record.get("chunk_heading"),
+                "content_hash": record.get("content_hash"),
+                "token_count": _safe_int(record.get("token_count")),
+                "matched_terms": matched_terms,
+                "excerpt": _best_search_excerpt(content or title, terms, phrase),
+            }
+        )
+
+    scored.sort(
+        key=lambda item: (
+            -_safe_int(item.get("score")),
+            str(item.get("citation_id") or ""),
+            str(item.get("chunk_id") or ""),
+            str(item.get("url") or ""),
+        )
+    )
+    return [
+        {
+            "rank": rank,
+            **result,
+        }
+        for rank, result in enumerate(scored[:limit], start=1)
+    ]
+
+
+def _search_score(
+    *,
+    query_terms: list[str],
+    phrase: str,
+    title: str,
+    heading: str,
+    url: str,
+    content: str,
+) -> tuple[int, list[str]]:
+    title_text = _clean_passage(title).lower()
+    heading_text = _clean_passage(heading).lower()
+    url_text = url.lower()
+    content_text = _clean_passage(content).lower()
+    matched_terms: list[str] = []
+    score = 0
+    for term in query_terms:
+        title_hits = _term_count(title_text, term)
+        heading_hits = _term_count(heading_text, term)
+        url_hits = _term_count(url_text, term)
+        content_hits = _term_count(content_text, term)
+        if title_hits or heading_hits or url_hits or content_hits:
+            matched_terms.append(term)
+        score += min(title_hits, 3) * 8
+        score += min(heading_hits, 3) * 6
+        score += min(url_hits, 3) * 3
+        score += min(content_hits, 10) * 2
+
+    if phrase and len(phrase) >= 4:
+        if phrase in title_text:
+            score += 20
+        if phrase in heading_text:
+            score += 14
+        if phrase in content_text:
+            score += 10
+
+    if len(matched_terms) > 1:
+        score += len(matched_terms) * 3
+    return score, matched_terms
+
+
+def _term_count(text: str, term: str) -> int:
+    if not text or not term:
+        return 0
+    return len(re.findall(rf"\b{re.escape(term)}\b", text, flags=re.IGNORECASE))
+
+
+def _best_search_excerpt(content: str, query_terms: list[str], phrase: str) -> str:
+    cleaned = _clean_passage(content)
+    if not cleaned:
+        return ""
+    lowered = cleaned.lower()
+    positions = [lowered.find(term) for term in query_terms if lowered.find(term) != -1]
+    if phrase:
+        phrase_position = lowered.find(phrase)
+        if phrase_position != -1:
+            positions.append(phrase_position)
+    if not positions:
+        return _truncate_text(cleaned, 520)
+    position = min(positions)
+    start = max(0, position - 180)
+    end = min(len(cleaned), position + 420)
+    if start:
+        space = cleaned.find(" ", start)
+        if 0 <= space < position:
+            start = space + 1
+    if end < len(cleaned):
+        space = cleaned.rfind(" ", position, end)
+        if space > position:
+            end = space
+    prefix = "..." if start else ""
+    suffix = "..." if end < len(cleaned) else ""
+    return _truncate_text(prefix + cleaned[start:end].strip(" ,.;:-") + suffix, 520)
+
+
+def _best_passage(content: str, objective_terms: set[str]) -> dict[str, Any] | None:
+    candidates = _candidate_passages(content)
+    if not candidates:
+        return None
+    scored: list[dict[str, Any]] = []
+    for passage in candidates:
+        terms = set(_keywords(passage))
+        overlap = len(objective_terms & terms) if objective_terms else 0
+        score = min(8, max(1, len(passage) // 90)) + (overlap * 4)
+        if any(marker in passage.lower() for marker in ("api", "pricing", "feature", "source", "citation")):
+            score += 2
+        scored.append({"score": score, "excerpt": _truncate_text(passage, 520)})
+    scored.sort(key=lambda item: (-_safe_int(item.get("score")), str(item.get("excerpt"))))
+    return scored[0]
+
+
+def _candidate_passages(content: str) -> list[str]:
+    cleaned = _clean_passage(content)
+    candidates: list[str] = []
+    for paragraph in re.split(r"\n\s*\n", cleaned):
+        paragraph = _clean_passage(paragraph)
+        if 80 <= len(paragraph) <= 1200:
+            candidates.append(paragraph)
+    if candidates:
+        return candidates
+    return [_truncate_text(cleaned, 520)] if cleaned else []
+
+
+def _truncate_text(value: str, max_chars: int) -> str:
+    text = value.strip()
+    if max_chars < 4 or len(text) <= max_chars:
+        return text
+    return text[: max_chars - 3].rstrip() + "..."
+
+
+def _clean_passage(value: str) -> str:
+    text = _MARKDOWN_LINK_RE.sub(r"\1", value)
+    text = re.sub(r"^\s*[-*+]\s+", "", text, flags=re.MULTILINE)
+    text = re.sub(r"^\s{0,3}#{1,6}\s*", "", text, flags=re.MULTILINE)
+    text = text.replace("`", "")
+    text = re.sub(r"\s+", " ", text)
+    return text.strip()
+
+
+def _nearest_sentence(content: str, start: int, end: int) -> str:
+    left = max(content.rfind(".", 0, start), content.rfind("\n", 0, start))
+    right_dot = content.find(".", end)
+    right_newline = content.find("\n", end)
+    right_candidates = [value for value in (right_dot, right_newline) if value != -1]
+    sentence_start = 0 if left == -1 else left + 1
+    sentence_end = min(right_candidates) + 1 if right_candidates else min(len(content), end + 220)
+    return _truncate_text(_clean_passage(content[sentence_start:sentence_end]), 280)
+
+
+def _keywords(value: str) -> list[str]:
+    return [match.group(0).lower() for match in _WORD_RE.finditer(value)]
+
+
+def _clean_entity_value(value: str) -> str:
+    return value.strip(" \t\r\n,.;:()[]{}\"'")
+
+
+def _normalize_entity_value(entity_type: str, value: str) -> str:
+    if entity_type in {"email", "technical_term", "organization"}:
+        return re.sub(r"\s+", " ", value).strip().lower()
+    if entity_type == "money":
+        return re.sub(r"\s+", "", value).lower()
+    if entity_type == "version":
+        return re.sub(r"^(?:version\s*|v)", "", value, flags=re.IGNORECASE).strip().lower()
+    return re.sub(r"\s+", " ", value).strip().lower()
+
+
+def _valid_entity(entity_type: str, value: str) -> bool:
+    if len(value) < 3:
+        return False
+    if entity_type == "version" and len(value) > 24:
+        return False
+    if entity_type == "technical_term" and value.upper() in {"API", "SDK", "MCP", "RAG", "LLM", "CLI"}:
+        return False
+    if entity_type == "organization":
+        return not value.lower().startswith(("section title", "copy page"))
+    return True
+
+
+def _safe_int(value: Any) -> int:
+    if isinstance(value, bool):
+        return 0
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        return int(value)
+    return 0
+
+
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+
+
+def _citations_markdown(payload: dict[str, Any]) -> str:
+    lines = ["# Citation Map", "", f"Sources: {payload['source_count']}", ""]
+    for source in payload.get("sources", []):
+        if not isinstance(source, dict):
+            continue
+        title = source.get("title") or source.get("url")
+        lines.append(
+            f"- [{source.get('citation_id')}] {title} - {source.get('url')} "
+            f"({source.get('grade')}, score {source.get('score')})"
+        )
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def _entities_markdown(payload: dict[str, Any]) -> str:
+    lines = ["# Extracted Entities", "", f"Entities: {payload['entity_count']}", ""]
+    current_type: str | None = None
+    for entity in payload.get("entities", []):
+        if not isinstance(entity, dict):
+            continue
+        entity_type = str(entity.get("type") or "unknown")
+        if entity_type != current_type:
+            current_type = entity_type
+            lines.extend(["", f"## {entity_type.replace('_', ' ').title()}", ""])
+        citations = ", ".join(
+            str(citation.get("citation_id"))
+            for citation in entity.get("citations", [])
+            if isinstance(citation, dict) and citation.get("citation_id")
+        )
+        suffix = f" [{citations}]" if citations else ""
+        lines.append(f"- {entity.get('value')} (count {entity.get('count')}){suffix}")
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def _search_markdown(payload: dict[str, Any]) -> str:
+    lines = [
+        "# Pack Search Results",
+        "",
+        f"Query: {payload.get('query')}",
+        f"Results: {payload.get('result_count', 0)}",
+        "",
+    ]
+    for result in payload.get("results", []):
+        if not isinstance(result, dict):
+            continue
+        matched_terms = ", ".join(str(term) for term in result.get("matched_terms", []))
+        suffix = f" terms: {matched_terms}" if matched_terms else ""
+        lines.extend(
+            [
+                f"## {result.get('rank')}. [{result.get('citation_id')}] {result.get('title')}",
+                "",
+                f"- URL: {result.get('url')}",
+                f"- Score: {result.get('score')}{suffix}",
+                "",
+                str(result.get("excerpt") or ""),
+                "",
+            ]
+        )
+    if payload.get("citations"):
+        lines.extend(["## Citations", ""])
+        for source in payload["citations"]:
+            if not isinstance(source, dict):
+                continue
+            lines.append(f"- [{source.get('citation_id')}] {source.get('url')}")
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def _brief_markdown(payload: dict[str, Any]) -> str:
+    summary = payload.get("summary") if isinstance(payload.get("summary"), dict) else {}
+    lines = [
+        "# Local Research Brief",
+        "",
+        f"Objective: {payload.get('objective')}",
+        f"Generated: {payload.get('generated_at')}",
+        "",
+        "## Coverage",
+        "",
+        f"- Sources: {summary.get('source_count', 0)}",
+        f"- Records: {summary.get('record_count', 0)}",
+        f"- Extracted entities: {summary.get('entity_count', 0)}",
+        f"- Total tokens: {summary.get('total_tokens', 0)}",
+        "",
+        "## Load Plan",
+        "",
+    ]
+    for source in payload.get("load_plan", []):
+        if not isinstance(source, dict):
+            continue
+        lines.append(
+            f"1. [{source.get('citation_id')}] {source.get('title')} - {source.get('url')} "
+            f"({source.get('grade')}, score {source.get('score')})"
+        )
+    lines.extend(["", "## Key Excerpts", ""])
+    for excerpt in payload.get("key_excerpts", []):
+        if not isinstance(excerpt, dict):
+            continue
+        lines.append(f"- [{excerpt.get('citation_id')}] {excerpt.get('excerpt')}")
+    if payload.get("entities"):
+        lines.extend(["", "## Structured Signals", ""])
+        for entity in payload["entities"]:
+            if not isinstance(entity, dict):
+                continue
+            citations = ", ".join(
+                str(citation.get("citation_id"))
+                for citation in entity.get("citations", [])
+                if isinstance(citation, dict) and citation.get("citation_id")
+            )
+            suffix = f" [{citations}]" if citations else ""
+            lines.append(
+                f"- {entity.get('type')}: {entity.get('value')} "
+                f"(count {entity.get('count')}){suffix}"
+            )
+    return "\n".join(lines).rstrip() + "\n"
 
 
 def _records_by_url(records: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:

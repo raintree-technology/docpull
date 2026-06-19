@@ -278,6 +278,10 @@ Parallel packs can be scored and diffed without any Parallel account:
 ```bash
 docpull pack score ./packs/parallel-openapi --require-domain docs.parallel.ai
 docpull pack sources ./packs/parallel-openapi --require-domain docs.parallel.ai
+docpull pack citations ./packs/parallel-openapi --markdown ./packs/parallel-openapi/CITATIONS.md
+docpull pack entities ./packs/parallel-openapi --markdown ./packs/parallel-openapi/ENTITIES.md
+docpull pack search ./packs/parallel-openapi "task webhooks" --markdown ./packs/parallel-openapi/SEARCH.md
+docpull pack brief ./packs/parallel-openapi --objective "Review Parallel API docs"
 docpull pack diff ./packs/old ./packs/new --markdown ./packs/changes.md
 docpull parallel diff-brief ./packs/old ./packs/new --dry-run
 ```
@@ -285,7 +289,13 @@ docpull parallel diff-brief ./packs/old ./packs/new --dry-run
 `score` flags empty records, extract errors, missing manifests, mismatched record
 counts, missing declared artifacts/source files, duplicate content, off-domain
 sources, and missing Task basis metadata. `sources` ranks source URLs with a
-local docs/API/reference heuristic. `diff` compares record URLs and content
-hashes so agents can identify changed context before loading a refreshed pack.
-`diff-brief` sends that diff through Parallel Task and persists
-`CHANGE_SUMMARY.md` plus `pack.diff.json`.
+local docs/API/reference heuristic. `citations` rolls pack records up into a
+stable URL-level source map. `entities` extracts cited local signals such as
+emails, dates, money amounts, versions, organizations, and API/SDK terms.
+`search` returns ranked local hits with citation IDs and query-centered
+excerpts. `brief` writes `RESEARCH_BRIEF.md`, `research.brief.json`,
+`citations.json`, and `entities.json` from local pack content without a
+provider account. `diff` compares record URLs and content hashes so agents can
+identify changed context before loading a refreshed pack. `diff-brief` sends
+that diff through Parallel Task and persists `CHANGE_SUMMARY.md` plus
+`pack.diff.json`.

@@ -2,10 +2,14 @@
 
 Pull static and server-rendered public web sources into Codex or Claude Code. Local, fast, no API keys.
 
+DocPull exposes the same core workflows through CLI, Python SDK, and MCP, with
+each surface optimized for its user. See the [Surface Contract](../docs/surface-contract.md)
+for the boundary between the plugin's MCP tools and the broader CLI/SDK.
+
 ## What you get
 
-- **MCP server** (12 tools):
-  - Read: `fetch_url`, `list_sources`, `list_indexed`, `grep_docs`, `read_doc`, `pack_score`, `pack_diff`
+- **MCP server** (16 tools):
+  - Read: `fetch_url`, `list_sources`, `list_indexed`, `grep_docs`, `read_doc`, `pack_score`, `pack_diff`, `pack_citations`, `pack_entities`, `pack_search`, `pack_brief`
   - Write: `ensure_docs`, `parallel_context_pack`, `parallel_api_pack`, `add_source`, `remove_source`
   - All read tools advertise `readOnlyHint` so hosts that auto-approve safe tools won't prompt for them.
 - **Claude Code slash commands**:

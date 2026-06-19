@@ -189,6 +189,10 @@ Inspect packs locally:
 ```bash
 docpull pack score ./packs/demo
 docpull pack sources ./packs/demo --require-domain docs.parallel.ai
+docpull pack citations ./packs/demo --markdown ./packs/demo/CITATIONS.md
+docpull pack entities ./packs/demo --markdown ./packs/demo/ENTITIES.md
+docpull pack search ./packs/demo "authentication webhooks" --markdown ./packs/demo/SEARCH.md
+docpull pack brief ./packs/demo --objective "Summarize the API surface"
 docpull pack diff ./packs/old ./packs/new --markdown ./packs/changes.md
 docpull parallel diff-brief ./packs/old ./packs/new --dry-run
 ```

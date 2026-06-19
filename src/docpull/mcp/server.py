@@ -1,7 +1,7 @@
 """stdio MCP server exposing docpull tools to AI agents.
 
 Requires the optional ``mcp`` Python package (install with
-``pip install docpull[mcp]``). The server registers twelve tools:
+``pip install docpull[mcp]``). The server registers sixteen tools:
 
 Read-only:
 - ``fetch_url(url)`` — one-shot fetch, no discovery. Agent-oriented fast path.
@@ -11,6 +11,10 @@ Read-only:
 - ``read_doc(library, path, line_start?, line_end?)`` — read a fetched file.
 - ``pack_score(pack_dir, required_domains?)`` — score a context pack.
 - ``pack_diff(old_pack_dir, new_pack_dir)`` — compare context packs.
+- ``pack_citations(pack_dir, required_domains?)`` — build a stable source map.
+- ``pack_entities(pack_dir, limit?, required_domains?)`` — extract cited entities.
+- ``pack_search(pack_dir, query, limit?, required_domains?)`` — search pack records.
+- ``pack_brief(pack_dir, objective?, ...)`` — generate a cited local research brief.
 
 Write:
 - ``ensure_docs(source, force?)`` — fetch (or refresh) a named source.
@@ -29,7 +33,14 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from ..pack_tools import diff_packs, score_pack
+from ..pack_tools import (
+    build_citation_map,
+    build_research_brief,
+    diff_packs,
+    extract_pack_entities,
+    score_pack,
+    search_pack,
+)
 from ..parallel_workflows import (
     DEFAULT_MAX_ESTIMATED_COST_USD,
     DEFAULT_MAX_TOKENS,
@@ -232,6 +243,57 @@ _PACK_DIFF_OUTPUT_SCHEMA = {
         "new_record_count": {"type": "integer"},
     },
     "required": ["added_urls", "removed_urls", "changed_urls", "unchanged_urls"],
+}
+
+_PACK_CITATIONS_OUTPUT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "source_count": {"type": "integer"},
+        "record_count": {"type": "integer"},
+        "expected_domains": {"type": "array", "items": {"type": "string"}},
+        "sources": {"type": "array", "items": {"type": "object"}},
+    },
+    "required": ["source_count", "record_count", "sources"],
+}
+
+_PACK_ENTITIES_OUTPUT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "entity_count": {"type": "integer"},
+        "source_count": {"type": "integer"},
+        "record_count": {"type": "integer"},
+        "expected_domains": {"type": "array", "items": {"type": "string"}},
+        "entities": {"type": "array", "items": {"type": "object"}},
+    },
+    "required": ["entity_count", "source_count", "record_count", "entities"],
+}
+
+_PACK_BRIEF_OUTPUT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "objective": {"type": "string"},
+        "expected_domains": {"type": "array", "items": {"type": "string"}},
+        "summary": {"type": "object"},
+        "load_plan": {"type": "array", "items": {"type": "object"}},
+        "key_excerpts": {"type": "array", "items": {"type": "object"}},
+        "entities": {"type": "array", "items": {"type": "object"}},
+        "artifacts": {"type": "object"},
+    },
+    "required": ["objective", "summary", "load_plan", "key_excerpts", "entities"],
+}
+
+_PACK_SEARCH_OUTPUT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "query": {"type": "string"},
+        "source_count": {"type": "integer"},
+        "record_count": {"type": "integer"},
+        "result_count": {"type": "integer"},
+        "expected_domains": {"type": "array", "items": {"type": "string"}},
+        "results": {"type": "array", "items": {"type": "object"}},
+        "citations": {"type": "array", "items": {"type": "object"}},
+    },
+    "required": ["query", "source_count", "record_count", "result_count", "results", "citations"],
 }
 
 
@@ -571,6 +633,94 @@ async def _run_stdio() -> int:
                 outputSchema=_PACK_DIFF_OUTPUT_SCHEMA,
             ),
             Tool(
+                name="pack_citations",
+                description="Build a stable citation/source map for a docpull context pack.",
+                annotations=ToolAnnotations(
+                    title="Build pack citations",
+                    readOnlyHint=True,
+                    openWorldHint=False,
+                    idempotentHint=True,
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "pack_dir": {"type": "string"},
+                        "required_domains": {"type": "array", "items": {"type": "string"}},
+                    },
+                    "required": ["pack_dir"],
+                },
+                outputSchema=_PACK_CITATIONS_OUTPUT_SCHEMA,
+            ),
+            Tool(
+                name="pack_entities",
+                description=(
+                    "Extract cited entities and structured signals from a "
+                    "docpull context pack locally."
+                ),
+                annotations=ToolAnnotations(
+                    title="Extract pack entities",
+                    readOnlyHint=True,
+                    openWorldHint=False,
+                    idempotentHint=True,
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "pack_dir": {"type": "string"},
+                        "limit": {"type": "integer", "minimum": 1, "default": 100},
+                        "required_domains": {"type": "array", "items": {"type": "string"}},
+                    },
+                    "required": ["pack_dir"],
+                },
+                outputSchema=_PACK_ENTITIES_OUTPUT_SCHEMA,
+            ),
+            Tool(
+                name="pack_search",
+                description="Search a docpull context pack locally and return cited excerpts.",
+                annotations=ToolAnnotations(
+                    title="Search a context pack",
+                    readOnlyHint=True,
+                    openWorldHint=False,
+                    idempotentHint=True,
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "pack_dir": {"type": "string"},
+                        "query": {"type": "string"},
+                        "limit": {"type": "integer", "minimum": 1, "default": 10},
+                        "required_domains": {"type": "array", "items": {"type": "string"}},
+                    },
+                    "required": ["pack_dir", "query"],
+                },
+                outputSchema=_PACK_SEARCH_OUTPUT_SCHEMA,
+            ),
+            Tool(
+                name="pack_brief",
+                description=(
+                    "Generate a cited local research brief from a docpull context pack, "
+                    "including source load order, key excerpts, and structured signals."
+                ),
+                annotations=ToolAnnotations(
+                    title="Build pack research brief",
+                    readOnlyHint=True,
+                    openWorldHint=False,
+                    idempotentHint=True,
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "pack_dir": {"type": "string"},
+                        "objective": {"type": "string"},
+                        "max_excerpts": {"type": "integer", "minimum": 1, "default": 8},
+                        "entity_limit": {"type": "integer", "minimum": 0, "default": 20},
+                        "required_domains": {"type": "array", "items": {"type": "string"}},
+                    },
+                    "required": ["pack_dir"],
+                },
+                outputSchema=_PACK_BRIEF_OUTPUT_SCHEMA,
+            ),
+            Tool(
                 name="add_source",
                 description=(
                     "Add or update a user source alias in the writable "
@@ -848,6 +998,57 @@ async def _run_stdio() -> int:
                     f"+{len(payload['added_urls'])} "
                     f"-{len(payload['removed_urls'])} "
                     f"~{len(payload['changed_urls'])}",
+                    data=payload,
+                )
+            elif name == "pack_citations":
+                payload = await asyncio.to_thread(
+                    build_citation_map,
+                    _path_arg(arguments, "pack_dir"),
+                    required_domains=_string_list_arg(arguments, "required_domains"),
+                )
+                result = ToolResult(
+                    f"Citation map: {payload['source_count']} sources",
+                    data=payload,
+                )
+            elif name == "pack_entities":
+                payload = await asyncio.to_thread(
+                    extract_pack_entities,
+                    _path_arg(arguments, "pack_dir"),
+                    required_domains=_string_list_arg(arguments, "required_domains"),
+                    limit=_coerce_int(arguments.get("limit"), name="limit", default=100),
+                )
+                result = ToolResult(
+                    f"Extracted entities: {payload['entity_count']}",
+                    data=payload,
+                )
+            elif name == "pack_search":
+                payload = await asyncio.to_thread(
+                    search_pack,
+                    _path_arg(arguments, "pack_dir"),
+                    _require_str(arguments, "query"),
+                    required_domains=_string_list_arg(arguments, "required_domains"),
+                    limit=_coerce_int(arguments.get("limit"), name="limit", default=10),
+                )
+                result = ToolResult(
+                    f"Pack search: {payload['result_count']} results",
+                    data=payload,
+                )
+            elif name == "pack_brief":
+                objective = arguments.get("objective")
+                if objective is not None and not isinstance(objective, str):
+                    raise ValueError("'objective' must be a string")
+                payload = await asyncio.to_thread(
+                    build_research_brief,
+                    _path_arg(arguments, "pack_dir"),
+                    objective=objective,
+                    required_domains=_string_list_arg(arguments, "required_domains"),
+                    max_excerpts=_coerce_int(arguments.get("max_excerpts"), name="max_excerpts", default=8),
+                    entity_limit=_coerce_int(arguments.get("entity_limit"), name="entity_limit", default=20),
+                )
+                result = ToolResult(
+                    "Research brief: "
+                    f"{len(payload['key_excerpts'])} excerpts from "
+                    f"{payload['summary']['source_count']} sources",
                     data=payload,
                 )
             elif name == "add_source":
