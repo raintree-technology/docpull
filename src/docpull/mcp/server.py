@@ -762,7 +762,7 @@ async def _run_stdio() -> int:
                             ),
                         },
                         "max_excerpts": {"type": "integer", "minimum": 1, "default": 8},
-                        "entity_limit": {"type": "integer", "minimum": 1, "default": 20},
+                        "entity_limit": {"type": "integer", "minimum": 0, "default": 20},
                         "search_limit": {"type": "integer", "minimum": 1, "default": 10},
                         "required_domains": {"type": "array", "items": {"type": "string"}},
                         "markdown": {

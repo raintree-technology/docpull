@@ -1570,7 +1570,6 @@ def _run_parallel_search_case(
     )
     payload["estimated_cost_usd"] = estimated_cost
     payload["artifact_size_bytes"] = _dir_size(output_dir)
-    _attach_pack_scores(payload, output_dir, include_domains)
     _attach_pack_metadata(payload, output_dir / "search.pack.json")
     _attach_pack_intelligence(
         payload,
@@ -1617,7 +1616,6 @@ def _run_parallel_context_case(
     )
     payload["estimated_cost_usd"] = estimated_cost
     payload["artifact_size_bytes"] = _dir_size(output_dir)
-    _attach_pack_scores(payload, output_dir, include_domains)
     _attach_pack_metadata(payload, output_dir / "parallel.pack.json")
     _attach_pack_intelligence(
         payload,
@@ -1746,7 +1744,6 @@ def _run_tavily_case(
     )
     _attach_tavily_cost(payload, search_payload.get("usage"), extract_payload.get("usage"), tavily_credit_usd)
     payload["artifact_size_bytes"] = _dir_size(output_dir)
-    _attach_pack_scores(payload, output_dir, include_domains)
     _attach_pack_metadata(payload, pack_path)
     _attach_pack_intelligence(
         payload,
@@ -1855,7 +1852,6 @@ def _run_exa_case(
     if estimated_cost is not None:
         payload["estimated_cost_usd"] = estimated_cost
     payload["artifact_size_bytes"] = _dir_size(output_dir)
-    _attach_pack_scores(payload, output_dir, include_domains)
     _attach_pack_metadata(payload, pack_path)
     _attach_pack_intelligence(
         payload,
@@ -1936,6 +1932,14 @@ def _attach_pack_scores(payload: dict[str, Any], output_dir: Path, include_domai
         json.dumps(sources, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
     )
+    _attach_pack_score_payload(payload, score, sources)
+
+
+def _attach_pack_score_payload(
+    payload: dict[str, Any],
+    score: dict[str, Any],
+    sources: dict[str, Any],
+) -> None:
     payload["pack_score"] = {
         "score": score["score"],
         "grade": score["grade"],
@@ -1956,14 +1960,38 @@ def _attach_pack_intelligence(
 ) -> None:
     documents_path = output_dir / "documents.ndjson"
     if not documents_path.exists():
+        payload["pack_score"] = None
+        payload["source_score_count"] = 0
         payload["pack_intelligence"] = None
         return
-    prepared = prepare_pack(
-        output_dir,
-        objective=objective,
-        search_queries=queries,
-        required_domains=include_domains,
-    )
+    try:
+        prepared = prepare_pack(
+            output_dir,
+            objective=objective,
+            search_queries=queries,
+            required_domains=include_domains,
+        )
+    except Exception as err:  # noqa: BLE001
+        payload["pack_intelligence"] = None
+        payload["pack_intelligence_error"] = {
+            "type": type(err).__name__,
+            "message": _short_error_detail(str(err)),
+        }
+        try:
+            _attach_pack_scores(payload, output_dir, include_domains)
+        except Exception as score_err:  # noqa: BLE001
+            payload["pack_score"] = None
+            payload["source_score_count"] = 0
+            payload["pack_score_error"] = {
+                "type": type(score_err).__name__,
+                "message": _short_error_detail(str(score_err)),
+            }
+        payload["artifact_size_bytes"] = _dir_size(output_dir)
+        return
+
+    score = json.loads((output_dir / "pack.score.json").read_text(encoding="utf-8"))
+    sources = json.loads((output_dir / "source.scores.json").read_text(encoding="utf-8"))
+    _attach_pack_score_payload(payload, score, sources)
     payload["pack_intelligence"] = {
         "summary": prepared["summary"],
         "artifacts": prepared["artifacts"],

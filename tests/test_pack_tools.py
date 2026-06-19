@@ -440,7 +440,7 @@ def test_pack_prepare_writes_standard_intelligence_bundle(tmp_path: Path) -> Non
     assert (pack / "pack.prepare.json").exists()
 
 
-def test_pack_prepare_cli_can_skip_search_and_markdown(tmp_path: Path) -> None:
+def test_pack_prepare_cli_can_skip_search_entities_and_markdown(tmp_path: Path) -> None:
     pack = tmp_path / "pack"
     _write_pack(
         pack,
@@ -448,13 +448,15 @@ def test_pack_prepare_cli_can_skip_search_and_markdown(tmp_path: Path) -> None:
         include_domains=["docs.parallel.ai"],
     )
 
-    assert main(["pack", "prepare", str(pack), "--no-search", "--no-markdown"]) == 0
+    assert main(["pack", "prepare", str(pack), "--no-search", "--entity-limit", "0", "--no-markdown"]) == 0
 
     payload = json.loads((pack / "pack.prepare.json").read_text(encoding="utf-8"))
     assert payload["summary"]["search_query_count"] == 0
+    assert payload["summary"]["entity_count"] == 0
     assert "search" not in payload["artifacts"]
     assert "brief_markdown" not in payload["artifacts"]
     assert (pack / "pack.score.json").exists()
+    assert json.loads((pack / "entities.json").read_text(encoding="utf-8"))["entity_count"] == 0
     assert (pack / "research.brief.json").exists()
     assert not (pack / "SEARCH.md").exists()
 

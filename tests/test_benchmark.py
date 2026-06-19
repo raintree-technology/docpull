@@ -13,6 +13,7 @@ import pytest
 import docpull.benchmark as benchmark
 from docpull.benchmark import BenchmarkError, run_quick_benchmark
 from docpull.cli import main
+from tests.pack_fixtures import write_context_pack
 
 
 async def _fake_core_case(**kwargs: Any) -> dict[str, Any]:
@@ -454,6 +455,33 @@ def test_exa_case_records_cost_and_pack_metadata(
     assert payload["pack_intelligence"]["summary"]["search_query_count"] == 1
     assert (tmp_path / "exa" / "pack.prepare.json").exists()
     assert (tmp_path / "exa" / "SEARCH.md").exists()
+
+
+def test_pack_intelligence_failure_preserves_provider_case(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output_dir = tmp_path / "provider"
+    write_context_pack(output_dir, provider="tavily")
+    payload: dict[str, Any] = {"artifact_size_bytes": 0}
+
+    def fail_prepare(*_args: Any, **_kwargs: Any) -> dict[str, Any]:
+        raise RuntimeError("prepare exploded")
+
+    monkeypatch.setattr(benchmark, "prepare_pack", fail_prepare)
+
+    benchmark._attach_pack_intelligence(
+        payload,
+        output_dir,
+        ["docs.parallel.ai"],
+        objective="Build a pack",
+        queries=["Parallel API docs"],
+    )
+
+    assert payload["pack_intelligence"] is None
+    assert payload["pack_intelligence_error"]["type"] == "RuntimeError"
+    assert payload["pack_score"]["score"] == 100
+    assert payload["source_score_count"] == 1
 
 
 def test_raindrop_trace_requires_write_key_before_core(

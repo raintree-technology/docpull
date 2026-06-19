@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import os
 import sys
 
@@ -14,6 +13,7 @@ pytest.importorskip("mcp.client.stdio")
 from mcp.client.stdio import stdio_client
 
 from mcp import ClientSession, StdioServerParameters
+from tests.pack_fixtures import write_context_pack
 
 
 @pytest.mark.asyncio
@@ -22,63 +22,7 @@ async def test_stdio_server_lists_and_calls_tools(tmp_path):
     env["XDG_CONFIG_HOME"] = str(tmp_path / "config")
     env["XDG_DATA_HOME"] = str(tmp_path / "data")
     pack_dir = tmp_path / "pack"
-    sources_dir = pack_dir / "sources"
-    sources_dir.mkdir(parents=True)
-    record = {
-        "document_id": "doc_1",
-        "url": "https://docs.parallel.ai/api-reference/search/search",
-        "title": "Parallel Search API",
-        "content": "Parallel Search API returns cited JSON results for live agent search.",
-        "content_hash": "hash_1",
-        "source_type": "parallel_extract",
-    }
-    (pack_dir / "documents.ndjson").write_text(json.dumps(record) + "\n", encoding="utf-8")
-    (pack_dir / "corpus.manifest.json").write_text(
-        json.dumps(
-            {
-                "schema_version": 1,
-                "document_count": 1,
-                "record_count": 1,
-                "records": [
-                    {
-                        "document_id": record["document_id"],
-                        "url": record["url"],
-                        "content_hash": record["content_hash"],
-                    }
-                ],
-            }
-        ),
-        encoding="utf-8",
-    )
-    (sources_dir / "01.md").write_text(str(record["content"]), encoding="utf-8")
-    (pack_dir / "sources.md").write_text("# Sources\n", encoding="utf-8")
-    (pack_dir / "parallel.pack.json").write_text(
-        json.dumps(
-            {
-                "schema_version": 1,
-                "provider": "parallel",
-                "workflow": "context-pack",
-                "objective": "Review Parallel Search API",
-                "request_options": {"source_policy": {"include_domains": ["docs.parallel.ai"]}},
-                "extract_error_count": 0,
-                "record_count": 1,
-                "sources": [
-                    {
-                        "index": 1,
-                        "url": record["url"],
-                        "title": record["title"],
-                        "path": "sources/01.md",
-                    }
-                ],
-                "artifacts": {
-                    "documents_ndjson": "documents.ndjson",
-                    "corpus_manifest": "corpus.manifest.json",
-                    "sources": "sources.md",
-                },
-            }
-        ),
-        encoding="utf-8",
-    )
+    write_context_pack(pack_dir)
 
     server = StdioServerParameters(
         command=sys.executable,

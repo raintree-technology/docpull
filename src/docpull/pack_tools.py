@@ -614,8 +614,8 @@ def prepare_pack(
 ) -> dict[str, Any]:
     if max_excerpts < 1:
         raise PackToolError("--max-excerpts must be at least 1.")
-    if entity_limit < 1:
-        raise PackToolError("--entity-limit must be at least 1.")
+    if entity_limit < 0:
+        raise PackToolError("--entity-limit cannot be negative.")
     if search_limit < 1:
         raise PackToolError("--search-limit must be at least 1.")
 
@@ -629,84 +629,42 @@ def prepare_pack(
     )
 
     artifacts: dict[str, str] = {}
-
-    score_payload = score_pack(pack_dir, required_domains=required_domains)
-    score_path = pack_dir / "pack.score.json"
-    _write_json(score_path, score_payload)
-    artifacts["score"] = _artifact_ref(pack_dir, score_path)
-
-    source_scores_payload = score_pack_sources(pack_dir, required_domains=required_domains)
-    source_scores_path = pack_dir / "source.scores.json"
-    _write_json(source_scores_path, source_scores_payload)
-    artifacts["source_scores"] = _artifact_ref(pack_dir, source_scores_path)
-
-    citations_payload = build_citation_map(pack_dir, required_domains=required_domains)
-    citations_path = pack_dir / "citations.json"
-    _write_json(citations_path, citations_payload)
-    artifacts["citations"] = _artifact_ref(pack_dir, citations_path)
-    if markdown:
-        citations_md_path = pack_dir / "CITATIONS.md"
-        citations_md_path.write_text(_citations_markdown(citations_payload), encoding="utf-8")
-        artifacts["citations_markdown"] = _artifact_ref(pack_dir, citations_md_path)
-
-    entities_payload = extract_pack_entities(
+    score_payload, source_scores_payload = _write_prepare_score_artifacts(
         pack_dir,
         required_domains=required_domains,
-        limit=entity_limit,
+        artifacts=artifacts,
     )
-    entities_path = pack_dir / "entities.json"
-    _write_json(entities_path, entities_payload)
-    artifacts["entities"] = _artifact_ref(pack_dir, entities_path)
-    if markdown:
-        entities_md_path = pack_dir / "ENTITIES.md"
-        entities_md_path.write_text(_entities_markdown(entities_payload), encoding="utf-8")
-        artifacts["entities_markdown"] = _artifact_ref(pack_dir, entities_md_path)
-
-    search_payloads: list[dict[str, Any]] = []
-    for query in queries:
-        search_payloads.append(
-            search_pack(
-                pack_dir,
-                query,
-                required_domains=required_domains,
-                limit=search_limit,
-            )
-        )
-    if search_payloads:
-        primary_search_path = pack_dir / "pack.search.json"
-        _write_json(primary_search_path, search_payloads[0])
-        artifacts["search"] = _artifact_ref(pack_dir, primary_search_path)
-
-        search_collection = {
-            "schema_version": SEARCH_COLLECTION_SCHEMA_VERSION,
-            "generated_at": utc_now_iso(),
-            "pack_dir": str(pack_dir),
-            "query_count": len(search_payloads),
-            "result_count": sum(_safe_int(payload.get("result_count")) for payload in search_payloads),
-            "queries": search_payloads,
-        }
-        search_collection_path = pack_dir / "pack.searches.json"
-        _write_json(search_collection_path, search_collection)
-        artifacts["searches"] = _artifact_ref(pack_dir, search_collection_path)
-        if markdown:
-            search_md_path = pack_dir / "SEARCH.md"
-            search_md_path.write_text(_searches_markdown(search_collection), encoding="utf-8")
-            artifacts["search_markdown"] = _artifact_ref(pack_dir, search_md_path)
-
-    brief_payload = build_research_brief(
+    citations_payload = _write_prepare_citation_artifacts(
+        pack_dir,
+        required_domains=required_domains,
+        markdown=markdown,
+        artifacts=artifacts,
+    )
+    entities_payload = _write_prepare_entity_artifacts(
+        pack_dir,
+        required_domains=required_domains,
+        citations_payload=citations_payload,
+        entity_limit=entity_limit,
+        markdown=markdown,
+        artifacts=artifacts,
+    )
+    search_payloads = _write_prepare_search_artifacts(
+        pack_dir,
+        queries=queries,
+        required_domains=required_domains,
+        search_limit=search_limit,
+        markdown=markdown,
+        artifacts=artifacts,
+    )
+    brief_payload = _write_prepare_brief_artifacts(
         pack_dir,
         objective=prepare_objective,
         required_domains=required_domains,
         max_excerpts=max_excerpts,
         entity_limit=entity_limit,
+        markdown=markdown,
+        artifacts=artifacts,
     )
-    brief_json_path = pack_dir / "research.brief.json"
-    _write_json(brief_json_path, brief_payload)
-    artifacts["brief_json"] = _artifact_ref(pack_dir, brief_json_path)
-    if markdown:
-        brief_md_path = pack_dir / "RESEARCH_BRIEF.md"
-        brief_md_path.write_text(_brief_markdown(brief_payload), encoding="utf-8")
-        artifacts["brief_markdown"] = _artifact_ref(pack_dir, brief_md_path)
 
     output_path = (output or (pack_dir / "pack.prepare.json")).resolve()
     artifacts["prepare"] = _artifact_ref(pack_dir, output_path)
@@ -734,6 +692,152 @@ def prepare_pack(
     }
     _write_json(output_path, payload)
     return payload
+
+
+def _write_prepare_score_artifacts(
+    pack_dir: Path,
+    *,
+    required_domains: list[str] | None,
+    artifacts: dict[str, str],
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    score_payload = score_pack(pack_dir, required_domains=required_domains)
+    score_path = pack_dir / "pack.score.json"
+    _write_json(score_path, score_payload)
+    artifacts["score"] = _artifact_ref(pack_dir, score_path)
+
+    source_scores_payload = score_pack_sources(pack_dir, required_domains=required_domains)
+    source_scores_path = pack_dir / "source.scores.json"
+    _write_json(source_scores_path, source_scores_payload)
+    artifacts["source_scores"] = _artifact_ref(pack_dir, source_scores_path)
+    return score_payload, source_scores_payload
+
+
+def _write_prepare_citation_artifacts(
+    pack_dir: Path,
+    *,
+    required_domains: list[str] | None,
+    markdown: bool,
+    artifacts: dict[str, str],
+) -> dict[str, Any]:
+    citations_payload = build_citation_map(pack_dir, required_domains=required_domains)
+    citations_path = pack_dir / "citations.json"
+    _write_json(citations_path, citations_payload)
+    artifacts["citations"] = _artifact_ref(pack_dir, citations_path)
+    if markdown:
+        citations_md_path = pack_dir / "CITATIONS.md"
+        citations_md_path.write_text(_citations_markdown(citations_payload), encoding="utf-8")
+        artifacts["citations_markdown"] = _artifact_ref(pack_dir, citations_md_path)
+    return citations_payload
+
+
+def _write_prepare_entity_artifacts(
+    pack_dir: Path,
+    *,
+    required_domains: list[str] | None,
+    citations_payload: dict[str, Any],
+    entity_limit: int,
+    markdown: bool,
+    artifacts: dict[str, str],
+) -> dict[str, Any]:
+    if entity_limit:
+        entities_payload = extract_pack_entities(
+            pack_dir,
+            required_domains=required_domains,
+            limit=entity_limit,
+        )
+    else:
+        entities_payload = _empty_entities_payload(pack_dir, citations_payload)
+    entities_path = pack_dir / "entities.json"
+    _write_json(entities_path, entities_payload)
+    artifacts["entities"] = _artifact_ref(pack_dir, entities_path)
+    if markdown:
+        entities_md_path = pack_dir / "ENTITIES.md"
+        entities_md_path.write_text(_entities_markdown(entities_payload), encoding="utf-8")
+        artifacts["entities_markdown"] = _artifact_ref(pack_dir, entities_md_path)
+    return entities_payload
+
+
+def _write_prepare_search_artifacts(
+    pack_dir: Path,
+    *,
+    queries: list[str],
+    required_domains: list[str] | None,
+    search_limit: int,
+    markdown: bool,
+    artifacts: dict[str, str],
+) -> list[dict[str, Any]]:
+    search_payloads = [
+        search_pack(
+            pack_dir,
+            query,
+            required_domains=required_domains,
+            limit=search_limit,
+        )
+        for query in queries
+    ]
+    if not search_payloads:
+        return []
+
+    primary_search_path = pack_dir / "pack.search.json"
+    _write_json(primary_search_path, search_payloads[0])
+    artifacts["search"] = _artifact_ref(pack_dir, primary_search_path)
+
+    search_collection = {
+        "schema_version": SEARCH_COLLECTION_SCHEMA_VERSION,
+        "generated_at": utc_now_iso(),
+        "pack_dir": str(pack_dir),
+        "query_count": len(search_payloads),
+        "result_count": sum(_safe_int(payload.get("result_count")) for payload in search_payloads),
+        "queries": search_payloads,
+    }
+    search_collection_path = pack_dir / "pack.searches.json"
+    _write_json(search_collection_path, search_collection)
+    artifacts["searches"] = _artifact_ref(pack_dir, search_collection_path)
+    if markdown:
+        search_md_path = pack_dir / "SEARCH.md"
+        search_md_path.write_text(_searches_markdown(search_collection), encoding="utf-8")
+        artifacts["search_markdown"] = _artifact_ref(pack_dir, search_md_path)
+    return search_payloads
+
+
+def _write_prepare_brief_artifacts(
+    pack_dir: Path,
+    *,
+    objective: str,
+    required_domains: list[str] | None,
+    max_excerpts: int,
+    entity_limit: int,
+    markdown: bool,
+    artifacts: dict[str, str],
+) -> dict[str, Any]:
+    brief_payload = build_research_brief(
+        pack_dir,
+        objective=objective,
+        required_domains=required_domains,
+        max_excerpts=max_excerpts,
+        entity_limit=entity_limit,
+    )
+    brief_json_path = pack_dir / "research.brief.json"
+    _write_json(brief_json_path, brief_payload)
+    artifacts["brief_json"] = _artifact_ref(pack_dir, brief_json_path)
+    if markdown:
+        brief_md_path = pack_dir / "RESEARCH_BRIEF.md"
+        brief_md_path.write_text(_brief_markdown(brief_payload), encoding="utf-8")
+        artifacts["brief_markdown"] = _artifact_ref(pack_dir, brief_md_path)
+    return brief_payload
+
+
+def _empty_entities_payload(pack_dir: Path, citations_payload: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "schema_version": ENTITY_SCHEMA_VERSION,
+        "generated_at": utc_now_iso(),
+        "pack_dir": str(pack_dir),
+        "expected_domains": citations_payload.get("expected_domains") or [],
+        "source_count": _safe_int(citations_payload.get("source_count")),
+        "record_count": _safe_int(citations_payload.get("record_count")),
+        "entity_count": 0,
+        "entities": [],
+    }
 
 
 def search_pack(
