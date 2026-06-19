@@ -70,7 +70,7 @@ key.
 | FindAll | Entity discovery, ingest, schema, enrichment, extension, cancellation, events, and result snapshots. | `findall-pack` plus `findall-ingest-pack/result-pack/schema-pack/enrich-pack/extend-pack/cancel-pack/events-pack` | Preserves candidate records, inferred schemas, enrichment specs, run status, event pages, and lifecycle action metadata. |
 | Monitor API | Event-stream and snapshot monitors with event retrieval and lifecycle actions. | `docpull parallel monitor-pack create/list/retrieve/update/cancel/trigger/events ...` | Saves monitor metadata, event pages, event-group summaries, webhooks, source policy, location, metadata, and lifecycle action results as local packs. |
 | API docs/spec packs | `llms.txt` indexes and OpenAPI specs. | `docpull parallel api-pack ...` and `docpull parallel run docs/examples/parallel-*.yaml` | Builds durable API context packs without a Parallel account. |
-| MCP tools | Agent-facing MCP calls for pack creation and pack inspection. | `parallel_context_pack`, `parallel_api_pack`, `pack_score`, `pack_diff` | Lets MCP-aware clients build and inspect packs without shelling out. The CLI also adds `pack sources` for deterministic local source ranking. |
+| MCP tools | Agent-facing MCP calls for pack creation and pack inspection. | `parallel_context_pack`, `parallel_api_pack`, `pack_score`, `pack_diff`, `pack_citations`, `pack_entities`, `pack_search`, `pack_brief`, `pack_prepare` | Lets MCP-aware clients build, inspect, search, and prepare packs without shelling out. The CLI also adds `pack sources` for deterministic local source ranking. |
 | Offline/demo fixtures | Saved Search, Extract, and Task-shaped JSON can be replayed locally. | `docpull parallel import fixture.json` and `docpull parallel demo` | Makes the integration testable, demoable, and usable without a Parallel account. The demo fixture is packaged in the wheel. |
 
 ## Not Implemented Yet
@@ -262,6 +262,11 @@ Every successful context pack writes:
 - `parallel.pack.json` also includes the request options, warning objects, and local cost estimate.
 - `sources.md` - human-readable source index.
 - `sources/*.md` - extracted Markdown for each successful URL.
+- Local post-processing sidecars such as `pack.score.json`,
+  `source.scores.json`, `citations.json`, `entities.json`, `SEARCH.md`,
+  `research.brief.json`, `RESEARCH_BRIEF.md`, and `pack.prepare.json` when
+  `docpull pack prepare` is run. Provider comparison runs write these
+  automatically for successful Parallel, Tavily, and Exa packs.
 - `brief.md` - only when Task output is requested or imported from a fixture.
 
 `PARALLEL_API_KEY` is never echoed by docpull and is never persisted in pack
@@ -282,6 +287,7 @@ docpull pack citations ./packs/parallel-openapi --markdown ./packs/parallel-open
 docpull pack entities ./packs/parallel-openapi --markdown ./packs/parallel-openapi/ENTITIES.md
 docpull pack search ./packs/parallel-openapi "task webhooks" --markdown ./packs/parallel-openapi/SEARCH.md
 docpull pack brief ./packs/parallel-openapi --objective "Review Parallel API docs"
+docpull pack prepare ./packs/parallel-openapi --objective "Review Parallel API docs"
 docpull pack diff ./packs/old ./packs/new --markdown ./packs/changes.md
 docpull parallel diff-brief ./packs/old ./packs/new --dry-run
 ```
@@ -295,7 +301,8 @@ emails, dates, money amounts, versions, organizations, and API/SDK terms.
 `search` returns ranked local hits with citation IDs and query-centered
 excerpts. `brief` writes `RESEARCH_BRIEF.md`, `research.brief.json`,
 `citations.json`, and `entities.json` from local pack content without a
-provider account. `diff` compares record URLs and content hashes so agents can
-identify changed context before loading a refreshed pack. `diff-brief` sends
-that diff through Parallel Task and persists `CHANGE_SUMMARY.md` plus
-`pack.diff.json`.
+provider account. `prepare` runs the full local inspection/search/brief pipeline
+and records the generated sidecars in `pack.prepare.json`. `diff` compares
+record URLs and content hashes so agents can identify changed context before
+loading a refreshed pack. `diff-brief` sends that diff through Parallel Task and
+persists `CHANGE_SUMMARY.md` plus `pack.diff.json`.

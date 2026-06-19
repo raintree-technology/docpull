@@ -256,10 +256,13 @@ part of the package release contract.
   live web sources with your own Parallel API key. See
   [Parallel Integration](docs/parallel.md).
 - Local pack intelligence can build citation maps, extract cited entities,
-  search pack records, and write provider-free research briefs with
+  search pack records, write provider-free research briefs, or prepare the full
+  sidecar bundle with
   `docpull pack citations`, `docpull pack entities`, `docpull pack search`,
-  and `docpull pack brief`.
+  `docpull pack brief`, and `docpull pack prepare`.
 - Optional provider workflows can use Parallel, Tavily, and Exa when configured.
+  Successful provider context-pack runs are post-processed into the same local
+  pack intelligence artifacts.
   See [CLI Recipes](docs/examples/README.md#parallel-context-pack).
 - SEC filing evidence packs use rule profiles such as
   [vendor-dependency-rules.yml](docs/examples/vendor-dependency-rules.yml).

@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `docpull pack entities`, `docpull pack search`, and `docpull pack brief`,
   plus matching MCP tools for agent access to citation maps, structured
   signals, cited pack search, and cited briefs.
+- Add `docpull pack prepare`, `prepare_pack`, and MCP `pack_prepare` to write
+  the standard local pack intelligence bundle in one step.
+- Post-process successful Parallel, Tavily, and Exa provider context packs with
+  local score, source-score, citation, entity, search, and brief artifacts.
 
 ## [4.4.1] - 2026-06-17
 

@@ -29,7 +29,7 @@ from .core.fetcher import Fetcher
 from .models.config import CacheConfig, CrawlConfig, DocpullConfig, OutputConfig, ProfileName
 from .models.document import DocumentRecord
 from .models.events import EventType
-from .pack_tools import score_pack, score_pack_sources
+from .pack_tools import prepare_pack, score_pack, score_pack_sources
 from .parallel_workflows import (
     DEFAULT_MAX_ESTIMATED_COST_USD,
     DEFAULT_MODE,
@@ -1572,6 +1572,13 @@ def _run_parallel_search_case(
     payload["artifact_size_bytes"] = _dir_size(output_dir)
     _attach_pack_scores(payload, output_dir, include_domains)
     _attach_pack_metadata(payload, output_dir / "search.pack.json")
+    _attach_pack_intelligence(
+        payload,
+        output_dir,
+        include_domains,
+        objective=objective,
+        queries=queries,
+    )
     _attach_benchmark_score(payload, output_dir, include_domains, target=target)
     return payload
 
@@ -1612,6 +1619,13 @@ def _run_parallel_context_case(
     payload["artifact_size_bytes"] = _dir_size(output_dir)
     _attach_pack_scores(payload, output_dir, include_domains)
     _attach_pack_metadata(payload, output_dir / "parallel.pack.json")
+    _attach_pack_intelligence(
+        payload,
+        output_dir,
+        include_domains,
+        objective=objective,
+        queries=queries,
+    )
     _attach_benchmark_score(payload, output_dir, include_domains, target=target)
     return payload
 
@@ -1734,6 +1748,13 @@ def _run_tavily_case(
     payload["artifact_size_bytes"] = _dir_size(output_dir)
     _attach_pack_scores(payload, output_dir, include_domains)
     _attach_pack_metadata(payload, pack_path)
+    _attach_pack_intelligence(
+        payload,
+        output_dir,
+        include_domains,
+        objective=objective,
+        queries=queries,
+    )
     _attach_benchmark_score(payload, output_dir, include_domains, target=target)
     return payload
 
@@ -1836,6 +1857,13 @@ def _run_exa_case(
     payload["artifact_size_bytes"] = _dir_size(output_dir)
     _attach_pack_scores(payload, output_dir, include_domains)
     _attach_pack_metadata(payload, pack_path)
+    _attach_pack_intelligence(
+        payload,
+        output_dir,
+        include_domains,
+        objective=objective,
+        queries=queries,
+    )
     _attach_benchmark_score(payload, output_dir, include_domains, target=target)
     return payload
 
@@ -1916,6 +1944,32 @@ def _attach_pack_scores(payload: dict[str, Any], output_dir: Path, include_domai
         "warnings": score["warnings"],
     }
     payload["source_score_count"] = sources["source_count"]
+
+
+def _attach_pack_intelligence(
+    payload: dict[str, Any],
+    output_dir: Path,
+    include_domains: list[str],
+    *,
+    objective: str,
+    queries: list[str],
+) -> None:
+    documents_path = output_dir / "documents.ndjson"
+    if not documents_path.exists():
+        payload["pack_intelligence"] = None
+        return
+    prepared = prepare_pack(
+        output_dir,
+        objective=objective,
+        search_queries=queries,
+        required_domains=include_domains,
+    )
+    payload["pack_intelligence"] = {
+        "summary": prepared["summary"],
+        "artifacts": prepared["artifacts"],
+        "search_queries": prepared["search_queries"],
+    }
+    payload["artifact_size_bytes"] = _dir_size(output_dir)
 
 
 def _attach_pack_metadata(payload: dict[str, Any], path: Path) -> None:

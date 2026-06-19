@@ -8,9 +8,9 @@ for the boundary between the plugin's MCP tools and the broader CLI/SDK.
 
 ## What you get
 
-- **MCP server** (16 tools):
+- **MCP server** (17 tools):
   - Read: `fetch_url`, `list_sources`, `list_indexed`, `grep_docs`, `read_doc`, `pack_score`, `pack_diff`, `pack_citations`, `pack_entities`, `pack_search`, `pack_brief`
-  - Write: `ensure_docs`, `parallel_context_pack`, `parallel_api_pack`, `add_source`, `remove_source`
+  - Write: `ensure_docs`, `parallel_context_pack`, `parallel_api_pack`, `pack_prepare`, `add_source`, `remove_source`
   - All read tools advertise `readOnlyHint` so hosts that auto-approve safe tools won't prompt for them.
 - **Claude Code slash commands**:
   - `/docs-add <alias-or-url>` — fetch a source into the local index.

@@ -11,6 +11,7 @@ from docpull.pack_tools import (
     build_research_brief,
     diff_packs,
     extract_pack_entities,
+    prepare_pack,
     score_pack,
     score_pack_sources,
     search_pack,
@@ -388,6 +389,74 @@ def test_pack_brief_library_uses_pack_objective_when_omitted(tmp_path: Path) -> 
     result = build_research_brief(pack)
 
     assert result["objective"] == "Build a Parallel docs pack"
+
+
+def test_pack_prepare_writes_standard_intelligence_bundle(tmp_path: Path) -> None:
+    pack = tmp_path / "pack"
+    _write_pack(
+        pack,
+        [
+            _record(
+                "https://docs.parallel.ai/api-reference/search/search",
+                "aaa",
+                (
+                    "Parallel Search API supports live search, cited JSON results, "
+                    "and source controls for agent context packs. Contact "
+                    "support@example.com for API access."
+                ),
+            ),
+            _record(
+                "https://docs.parallel.ai/api-reference/extract/extract",
+                "bbb",
+                "Parallel Extract API turns selected URLs into markdown context.",
+            ),
+        ],
+        include_domains=["docs.parallel.ai"],
+    )
+
+    result = prepare_pack(
+        pack,
+        objective="Review Parallel API search",
+        search_queries=["live search JSON", "extract markdown"],
+    )
+
+    assert result["summary"]["score"] == 100
+    assert result["summary"]["search_query_count"] == 2
+    assert result["summary"]["search_result_count"] >= 2
+    assert result["summary"]["artifact_count"] == len(result["artifacts"])
+    assert result["artifacts"]["prepare"] == "pack.prepare.json"
+    assert "searches" in result["artifacts"]
+    assert (pack / "pack.score.json").exists()
+    assert (pack / "source.scores.json").exists()
+    assert (pack / "citations.json").exists()
+    assert (pack / "CITATIONS.md").exists()
+    assert (pack / "entities.json").exists()
+    assert (pack / "ENTITIES.md").exists()
+    assert (pack / "pack.search.json").exists()
+    assert (pack / "pack.searches.json").exists()
+    assert (pack / "SEARCH.md").exists()
+    assert (pack / "research.brief.json").exists()
+    assert (pack / "RESEARCH_BRIEF.md").exists()
+    assert (pack / "pack.prepare.json").exists()
+
+
+def test_pack_prepare_cli_can_skip_search_and_markdown(tmp_path: Path) -> None:
+    pack = tmp_path / "pack"
+    _write_pack(
+        pack,
+        [_record("https://docs.parallel.ai/api-reference/search/search", "aaa")],
+        include_domains=["docs.parallel.ai"],
+    )
+
+    assert main(["pack", "prepare", str(pack), "--no-search", "--no-markdown"]) == 0
+
+    payload = json.loads((pack / "pack.prepare.json").read_text(encoding="utf-8"))
+    assert payload["summary"]["search_query_count"] == 0
+    assert "search" not in payload["artifacts"]
+    assert "brief_markdown" not in payload["artifacts"]
+    assert (pack / "pack.score.json").exists()
+    assert (pack / "research.brief.json").exists()
+    assert not (pack / "SEARCH.md").exists()
 
 
 def test_pack_score_flags_manifest_and_pack_record_count_mismatch(tmp_path: Path) -> None:

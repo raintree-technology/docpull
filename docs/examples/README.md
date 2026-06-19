@@ -193,8 +193,15 @@ docpull pack citations ./packs/demo --markdown ./packs/demo/CITATIONS.md
 docpull pack entities ./packs/demo --markdown ./packs/demo/ENTITIES.md
 docpull pack search ./packs/demo "authentication webhooks" --markdown ./packs/demo/SEARCH.md
 docpull pack brief ./packs/demo --objective "Summarize the API surface"
+docpull pack prepare ./packs/demo --objective "Summarize the API surface"
 docpull pack diff ./packs/old ./packs/new --markdown ./packs/changes.md
 docpull parallel diff-brief ./packs/old ./packs/new --dry-run
 ```
+
+`docpull pack prepare` is the one-command local post-processor. It writes
+`pack.score.json`, `source.scores.json`, `citations.json`, `entities.json`,
+`pack.search.json` / `pack.searches.json`, `SEARCH.md`,
+`research.brief.json`, `RESEARCH_BRIEF.md`, and `pack.prepare.json` without a
+provider account.
 
 Run `docpull --help` for the full option list.

@@ -407,8 +407,12 @@ def test_tavily_case_writes_scored_provider_pack(
     assert payload["pack_score"]["score"] == 100
     assert payload["benchmark_score"]["dimensions"]["coverage"]["score"] == 100
     assert payload["pack_metadata"]["provider"] == "tavily"
+    assert payload["pack_intelligence"]["summary"]["search_query_count"] == 1
+    assert payload["pack_intelligence"]["artifacts"]["prepare"] == "pack.prepare.json"
     assert (tmp_path / "tavily" / "documents.ndjson").exists()
     assert (tmp_path / "tavily" / "tavily.pack.json").exists()
+    assert (tmp_path / "tavily" / "pack.prepare.json").exists()
+    assert (tmp_path / "tavily" / "RESEARCH_BRIEF.md").exists()
 
 
 def test_exa_case_records_cost_and_pack_metadata(
@@ -447,6 +451,9 @@ def test_exa_case_records_cost_and_pack_metadata(
     assert payload["estimated_cost_usd"] == 0.007
     assert payload["pack_score"]["score"] == 100
     assert payload["pack_metadata"]["provider"] == "exa"
+    assert payload["pack_intelligence"]["summary"]["search_query_count"] == 1
+    assert (tmp_path / "exa" / "pack.prepare.json").exists()
+    assert (tmp_path / "exa" / "SEARCH.md").exists()
 
 
 def test_raindrop_trace_requires_write_key_before_core(

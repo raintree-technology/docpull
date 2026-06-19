@@ -36,6 +36,7 @@ DocPull targets capability alignment, not 1:1 flag parity. MCP should not mirror
 | Add/remove source aliases | Plugin/MCP workflow, not core CLI | Source internals, not public SDK | `add_source`, `remove_source` | MCP-specific |
 | Score/diff context packs | `docpull pack score`, `docpull pack diff` | Pack helper modules | `pack_score`, `pack_diff` | Core-aligned |
 | Build pack citations/entities/search/briefs | `docpull pack citations`, `docpull pack entities`, `docpull pack search`, `docpull pack brief` | `build_citation_map`, `extract_pack_entities`, `search_pack`, `build_research_brief` | `pack_citations`, `pack_entities`, `pack_search`, `pack_brief` | Core-aligned |
+| Prepare full pack intelligence bundle | `docpull pack prepare` | `prepare_pack` in `docpull.pack_tools` | `pack_prepare` | Core-aligned |
 | Parallel context/API packs | `docpull parallel ...` | Parallel workflow modules | `parallel_context_pack`, `parallel_api_pack` | Adapted |
 | Provider auth/init/status | `docpull provider ...`, `docpull parallel init/auth` | Provider helper modules | Not exposed | CLI/operator-specific |
 | Doctor diagnostics | `docpull --doctor` | Diagnostic module | Not exposed | CLI/operator-specific |

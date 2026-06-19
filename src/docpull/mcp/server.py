@@ -1,7 +1,7 @@
 """stdio MCP server exposing docpull tools to AI agents.
 
 Requires the optional ``mcp`` Python package (install with
-``pip install docpull[mcp]``). The server registers sixteen tools:
+``pip install docpull[mcp]``). The server registers seventeen tools:
 
 Read-only:
 - ``fetch_url(url)`` — one-shot fetch, no discovery. Agent-oriented fast path.
@@ -20,6 +20,7 @@ Write:
 - ``ensure_docs(source, force?)`` — fetch (or refresh) a named source.
 - ``parallel_context_pack(...)`` — build or dry-run a Parallel context pack.
 - ``parallel_api_pack(source, kind?, output_dir?)`` — build an API pack.
+- ``pack_prepare(pack_dir, objective?, ...)`` — write standard pack intelligence artifacts.
 - ``add_source(name, url, ...)`` — add or update a user source alias.
 - ``remove_source(name, delete_cache?)`` — remove a user source alias.
 """
@@ -38,6 +39,7 @@ from ..pack_tools import (
     build_research_brief,
     diff_packs,
     extract_pack_entities,
+    prepare_pack,
     score_pack,
     search_pack,
 )
@@ -294,6 +296,18 @@ _PACK_SEARCH_OUTPUT_SCHEMA = {
         "citations": {"type": "array", "items": {"type": "object"}},
     },
     "required": ["query", "source_count", "record_count", "result_count", "results", "citations"],
+}
+
+_PACK_PREPARE_OUTPUT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "objective": {"type": "string"},
+        "search_queries": {"type": "array", "items": {"type": "string"}},
+        "expected_domains": {"type": "array", "items": {"type": "string"}},
+        "summary": {"type": "object"},
+        "artifacts": {"type": "object"},
+    },
+    "required": ["objective", "search_queries", "summary", "artifacts"],
 }
 
 
@@ -721,6 +735,49 @@ async def _run_stdio() -> int:
                 outputSchema=_PACK_BRIEF_OUTPUT_SCHEMA,
             ),
             Tool(
+                name="pack_prepare",
+                description=(
+                    "Write the standard local pack intelligence bundle: pack score, "
+                    "source scores, citations, entities, local search results, and a "
+                    "cited research brief."
+                ),
+                annotations=ToolAnnotations(
+                    title="Prepare pack artifacts",
+                    readOnlyHint=False,
+                    destructiveHint=False,
+                    idempotentHint=True,
+                    openWorldHint=False,
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "pack_dir": {"type": "string"},
+                        "objective": {"type": "string"},
+                        "search_queries": {"type": "array", "items": {"type": "string"}},
+                        "default_search": {
+                            "type": "boolean",
+                            "default": True,
+                            "description": (
+                                "Use the objective as a local search query when search_queries is omitted"
+                            ),
+                        },
+                        "max_excerpts": {"type": "integer", "minimum": 1, "default": 8},
+                        "entity_limit": {"type": "integer", "minimum": 1, "default": 20},
+                        "search_limit": {"type": "integer", "minimum": 1, "default": 10},
+                        "required_domains": {"type": "array", "items": {"type": "string"}},
+                        "markdown": {
+                            "type": "boolean",
+                            "default": True,
+                            "description": (
+                                "Also write Markdown sidecars such as SEARCH.md and RESEARCH_BRIEF.md"
+                            ),
+                        },
+                    },
+                    "required": ["pack_dir"],
+                },
+                outputSchema=_PACK_PREPARE_OUTPUT_SCHEMA,
+            ),
+            Tool(
                 name="add_source",
                 description=(
                     "Add or update a user source alias in the writable "
@@ -1049,6 +1106,35 @@ async def _run_stdio() -> int:
                     "Research brief: "
                     f"{len(payload['key_excerpts'])} excerpts from "
                     f"{payload['summary']['source_count']} sources",
+                    data=payload,
+                )
+            elif name == "pack_prepare":
+                objective = arguments.get("objective")
+                if objective is not None and not isinstance(objective, str):
+                    raise ValueError("'objective' must be a string")
+                raw_search_queries = arguments.get("search_queries")
+                if raw_search_queries is None:
+                    search_queries = None
+                else:
+                    if not isinstance(raw_search_queries, list) or not all(
+                        isinstance(item, str) and item for item in raw_search_queries
+                    ):
+                        raise ValueError("'search_queries' must be a list of non-empty strings")
+                    search_queries = raw_search_queries
+                payload = await asyncio.to_thread(
+                    prepare_pack,
+                    _path_arg(arguments, "pack_dir"),
+                    objective=objective,
+                    search_queries=search_queries,
+                    default_search=bool(arguments.get("default_search", True)),
+                    required_domains=_string_list_arg(arguments, "required_domains"),
+                    max_excerpts=_coerce_int(arguments.get("max_excerpts"), name="max_excerpts", default=8),
+                    entity_limit=_coerce_int(arguments.get("entity_limit"), name="entity_limit", default=20),
+                    search_limit=_coerce_int(arguments.get("search_limit"), name="search_limit", default=10),
+                    markdown=bool(arguments.get("markdown", True)),
+                )
+                result = ToolResult(
+                    f"Prepared pack: {payload['summary']['artifact_count']} artifacts",
                     data=payload,
                 )
             elif name == "add_source":

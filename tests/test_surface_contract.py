@@ -55,6 +55,7 @@ EXPECTED_MCP_TOOLS = {
     "pack_entities",
     "pack_search",
     "pack_brief",
+    "pack_prepare",
     "add_source",
     "remove_source",
 }

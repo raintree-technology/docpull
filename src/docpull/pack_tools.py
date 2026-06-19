@@ -23,6 +23,8 @@ CITATION_SCHEMA_VERSION = 1
 ENTITY_SCHEMA_VERSION = 1
 BRIEF_SCHEMA_VERSION = 1
 SEARCH_SCHEMA_VERSION = 1
+SEARCH_COLLECTION_SCHEMA_VERSION = 1
+PREPARE_SCHEMA_VERSION = 1
 DEFAULT_ENTITY_LIMIT = 100
 DEFAULT_BRIEF_EXCERPTS = 8
 DEFAULT_BRIEF_ENTITY_LIMIT = 20
@@ -166,6 +168,48 @@ def create_pack_parser() -> argparse.ArgumentParser:
         help="Expected source domain or suffix. Repeat as needed.",
     )
 
+    prepare = subparsers.add_parser(
+        "prepare",
+        help="Write all local pack intelligence artifacts for agent loading",
+    )
+    prepare.add_argument("pack_dir", type=Path, help="Context pack directory")
+    prepare.add_argument("--objective", help="Brief objective. Defaults to pack metadata when present.")
+    prepare.add_argument(
+        "--search-query",
+        action="append",
+        dest="search_queries",
+        default=[],
+        help="Local search query to include in SEARCH.md. Repeat as needed.",
+    )
+    prepare.add_argument("--no-search", action="store_true", help="Skip local pack search artifacts")
+    prepare.add_argument("--output", type=Path, help="Prepare summary JSON output path")
+    prepare.add_argument(
+        "--max-excerpts",
+        type=int,
+        default=DEFAULT_BRIEF_EXCERPTS,
+        help="Maximum cited excerpts in the brief",
+    )
+    prepare.add_argument(
+        "--entity-limit",
+        type=int,
+        default=DEFAULT_BRIEF_ENTITY_LIMIT,
+        help="Maximum entity records included in generated artifacts",
+    )
+    prepare.add_argument(
+        "--search-limit",
+        type=int,
+        default=DEFAULT_SEARCH_LIMIT,
+        help="Maximum search results",
+    )
+    prepare.add_argument(
+        "--require-domain",
+        action="append",
+        dest="required_domains",
+        default=[],
+        help="Expected source domain or suffix. Repeat as needed.",
+    )
+    prepare.add_argument("--no-markdown", action="store_true", help="Write JSON artifacts only")
+
     return parser
 
 
@@ -268,6 +312,25 @@ def run_pack_cli(argv: list[str] | None = None) -> int:
             console.print(
                 "[green]Research brief:[/green] "
                 f"{len(payload['key_excerpts'])} excerpts -> {markdown_output}"
+            )
+            return 0
+        if args.command == "prepare":
+            payload = prepare_pack(
+                args.pack_dir,
+                objective=args.objective,
+                search_queries=[] if args.no_search else (args.search_queries or None),
+                default_search=not args.no_search,
+                required_domains=args.required_domains,
+                max_excerpts=args.max_excerpts,
+                entity_limit=args.entity_limit,
+                search_limit=args.search_limit,
+                markdown=not args.no_markdown,
+                output=args.output,
+            )
+            console.print(
+                "[green]Prepared pack:[/green] "
+                f"{payload['summary']['artifact_count']} artifacts -> "
+                f"{payload['artifacts']['prepare']}"
             )
             return 0
         parser.error(f"Unknown command: {args.command}")
@@ -534,6 +597,143 @@ def build_research_brief(
             "brief_markdown": "RESEARCH_BRIEF.md",
         },
     }
+
+
+def prepare_pack(
+    pack_dir: Path,
+    *,
+    objective: str | None = None,
+    search_queries: list[str] | None = None,
+    default_search: bool = True,
+    required_domains: list[str] | None = None,
+    max_excerpts: int = DEFAULT_BRIEF_EXCERPTS,
+    entity_limit: int = DEFAULT_BRIEF_ENTITY_LIMIT,
+    search_limit: int = DEFAULT_SEARCH_LIMIT,
+    markdown: bool = True,
+    output: Path | None = None,
+) -> dict[str, Any]:
+    if max_excerpts < 1:
+        raise PackToolError("--max-excerpts must be at least 1.")
+    if entity_limit < 1:
+        raise PackToolError("--entity-limit must be at least 1.")
+    if search_limit < 1:
+        raise PackToolError("--search-limit must be at least 1.")
+
+    pack_dir = pack_dir.resolve()
+    pack = _read_pack_metadata(pack_dir)
+    prepare_objective = objective or str(pack.get("objective") or "Review local DocPull context pack")
+    queries = _prepare_search_queries(
+        search_queries,
+        objective=prepare_objective,
+        default_search=default_search,
+    )
+
+    artifacts: dict[str, str] = {}
+
+    score_payload = score_pack(pack_dir, required_domains=required_domains)
+    score_path = pack_dir / "pack.score.json"
+    _write_json(score_path, score_payload)
+    artifacts["score"] = _artifact_ref(pack_dir, score_path)
+
+    source_scores_payload = score_pack_sources(pack_dir, required_domains=required_domains)
+    source_scores_path = pack_dir / "source.scores.json"
+    _write_json(source_scores_path, source_scores_payload)
+    artifacts["source_scores"] = _artifact_ref(pack_dir, source_scores_path)
+
+    citations_payload = build_citation_map(pack_dir, required_domains=required_domains)
+    citations_path = pack_dir / "citations.json"
+    _write_json(citations_path, citations_payload)
+    artifacts["citations"] = _artifact_ref(pack_dir, citations_path)
+    if markdown:
+        citations_md_path = pack_dir / "CITATIONS.md"
+        citations_md_path.write_text(_citations_markdown(citations_payload), encoding="utf-8")
+        artifacts["citations_markdown"] = _artifact_ref(pack_dir, citations_md_path)
+
+    entities_payload = extract_pack_entities(
+        pack_dir,
+        required_domains=required_domains,
+        limit=entity_limit,
+    )
+    entities_path = pack_dir / "entities.json"
+    _write_json(entities_path, entities_payload)
+    artifacts["entities"] = _artifact_ref(pack_dir, entities_path)
+    if markdown:
+        entities_md_path = pack_dir / "ENTITIES.md"
+        entities_md_path.write_text(_entities_markdown(entities_payload), encoding="utf-8")
+        artifacts["entities_markdown"] = _artifact_ref(pack_dir, entities_md_path)
+
+    search_payloads: list[dict[str, Any]] = []
+    for query in queries:
+        search_payloads.append(
+            search_pack(
+                pack_dir,
+                query,
+                required_domains=required_domains,
+                limit=search_limit,
+            )
+        )
+    if search_payloads:
+        primary_search_path = pack_dir / "pack.search.json"
+        _write_json(primary_search_path, search_payloads[0])
+        artifacts["search"] = _artifact_ref(pack_dir, primary_search_path)
+
+        search_collection = {
+            "schema_version": SEARCH_COLLECTION_SCHEMA_VERSION,
+            "generated_at": utc_now_iso(),
+            "pack_dir": str(pack_dir),
+            "query_count": len(search_payloads),
+            "result_count": sum(_safe_int(payload.get("result_count")) for payload in search_payloads),
+            "queries": search_payloads,
+        }
+        search_collection_path = pack_dir / "pack.searches.json"
+        _write_json(search_collection_path, search_collection)
+        artifacts["searches"] = _artifact_ref(pack_dir, search_collection_path)
+        if markdown:
+            search_md_path = pack_dir / "SEARCH.md"
+            search_md_path.write_text(_searches_markdown(search_collection), encoding="utf-8")
+            artifacts["search_markdown"] = _artifact_ref(pack_dir, search_md_path)
+
+    brief_payload = build_research_brief(
+        pack_dir,
+        objective=prepare_objective,
+        required_domains=required_domains,
+        max_excerpts=max_excerpts,
+        entity_limit=entity_limit,
+    )
+    brief_json_path = pack_dir / "research.brief.json"
+    _write_json(brief_json_path, brief_payload)
+    artifacts["brief_json"] = _artifact_ref(pack_dir, brief_json_path)
+    if markdown:
+        brief_md_path = pack_dir / "RESEARCH_BRIEF.md"
+        brief_md_path.write_text(_brief_markdown(brief_payload), encoding="utf-8")
+        artifacts["brief_markdown"] = _artifact_ref(pack_dir, brief_md_path)
+
+    output_path = (output or (pack_dir / "pack.prepare.json")).resolve()
+    artifacts["prepare"] = _artifact_ref(pack_dir, output_path)
+    payload = {
+        "schema_version": PREPARE_SCHEMA_VERSION,
+        "generated_at": utc_now_iso(),
+        "pack_dir": str(pack_dir),
+        "objective": prepare_objective,
+        "search_queries": queries,
+        "expected_domains": citations_payload["expected_domains"],
+        "summary": {
+            "score": score_payload["score"],
+            "grade": score_payload["grade"],
+            "record_count": score_payload["summary"]["record_count"],
+            "source_count": citations_payload["source_count"],
+            "entity_count": entities_payload["entity_count"],
+            "brief_excerpt_count": len(brief_payload["key_excerpts"]),
+            "search_query_count": len(search_payloads),
+            "search_result_count": sum(
+                _safe_int(search_payload.get("result_count")) for search_payload in search_payloads
+            ),
+            "artifact_count": len(artifacts),
+        },
+        "artifacts": artifacts,
+    }
+    _write_json(output_path, payload)
+    return payload
 
 
 def search_pack(
@@ -944,6 +1144,27 @@ def _search_records(
     ]
 
 
+def _prepare_search_queries(
+    search_queries: list[str] | None,
+    *,
+    objective: str,
+    default_search: bool,
+) -> list[str]:
+    raw_queries = search_queries if search_queries is not None else ([objective] if default_search else [])
+    queries: list[str] = []
+    seen: set[str] = set()
+    for query in raw_queries:
+        cleaned = query.strip()
+        if not cleaned:
+            continue
+        normalized = cleaned.casefold()
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        queries.append(cleaned)
+    return queries
+
+
 def _search_score(
     *,
     query_terms: list[str],
@@ -1117,6 +1338,13 @@ def _write_json(path: Path, payload: dict[str, Any]) -> None:
     path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
+def _artifact_ref(pack_dir: Path, path: Path) -> str:
+    try:
+        return path.relative_to(pack_dir).as_posix()
+    except ValueError:
+        return str(path)
+
+
 def _citations_markdown(payload: dict[str, Any]) -> str:
     lines = ["# Citation Map", "", f"Sources: {payload['source_count']}", ""]
     for source in payload.get("sources", []):
@@ -1180,6 +1408,52 @@ def _search_markdown(payload: dict[str, Any]) -> str:
             if not isinstance(source, dict):
                 continue
             lines.append(f"- [{source.get('citation_id')}] {source.get('url')}")
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def _searches_markdown(payload: dict[str, Any]) -> str:
+    lines = [
+        "# Pack Search Results",
+        "",
+        f"Queries: {payload.get('query_count', 0)}",
+        f"Results: {payload.get('result_count', 0)}",
+        "",
+    ]
+    for search_payload in payload.get("queries", []):
+        if not isinstance(search_payload, dict):
+            continue
+        lines.extend(
+            [
+                f"## Query: {search_payload.get('query')}",
+                "",
+                f"Results: {search_payload.get('result_count', 0)}",
+                "",
+            ]
+        )
+        for result in search_payload.get("results", []):
+            if not isinstance(result, dict):
+                continue
+            matched_terms = ", ".join(str(term) for term in result.get("matched_terms", []))
+            suffix = f" terms: {matched_terms}" if matched_terms else ""
+            lines.extend(
+                [
+                    f"### {result.get('rank')}. [{result.get('citation_id')}] {result.get('title')}",
+                    "",
+                    f"- URL: {result.get('url')}",
+                    f"- Score: {result.get('score')}{suffix}",
+                    "",
+                    str(result.get("excerpt") or ""),
+                    "",
+                ]
+            )
+        citations = search_payload.get("citations")
+        if citations:
+            lines.extend(["### Citations", ""])
+            for source in citations:
+                if not isinstance(source, dict):
+                    continue
+                lines.append(f"- [{source.get('citation_id')}] {source.get('url')}")
+            lines.append("")
     return "\n".join(lines).rstrip() + "\n"
 
 
