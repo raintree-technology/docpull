@@ -8,7 +8,7 @@ from urllib.parse import urljoin, urlparse
 from bs4 import BeautifulSoup
 
 from ...http.protocols import HttpClient
-from .._fetch import fetch_html
+from .._fetch import fetch_html_response
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +40,7 @@ class StaticLinkExtractor:
             http_client: HTTP client for fetching pages when content not provided
         """
         self._client = http_client
+        self.last_final_url: str | None = None
 
     async def extract_links(
         self,
@@ -56,12 +57,17 @@ class StaticLinkExtractor:
         Returns:
             List of absolute URLs found on the page
         """
+        base_url = url
+        self.last_final_url = url
         if content is None:
-            content = await fetch_html(self._client, url)
-            if content is None:
+            response = await fetch_html_response(self._client, url)
+            if response is None:
                 return []
+            content = response.content
+            base_url = response.url if isinstance(response.url, str) and response.url else url
+            self.last_final_url = base_url
 
-        return self._parse_links(content, url)
+        return self._parse_links(content, base_url)
 
     def _parse_links(self, html: bytes, base_url: str) -> list[str]:
         """

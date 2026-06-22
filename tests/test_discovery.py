@@ -334,6 +334,36 @@ class TestLinkCrawler:
         # Only start URL, no crawling
         assert len(urls) == 1
 
+    @pytest.mark.asyncio
+    async def test_initial_redirect_target_becomes_crawl_domain(
+        self,
+        mock_http_client,
+        mock_validator,
+        mock_robots,
+    ):
+        """A moved docs root should crawl links on its canonical host."""
+        html_content = b'<html><body><a href="/docs/page">Page</a></body></html>'
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.content = html_content
+        mock_response.content_type = "text/html"
+        mock_response.url = "https://developers.example/docs"
+        mock_http_client.get.return_value = mock_response
+
+        crawler = LinkCrawler(
+            mock_http_client,
+            mock_validator,
+            mock_robots,
+            max_depth=1,
+        )
+        urls = []
+        async for url in crawler.discover("https://platform.example/docs", max_depth=1):
+            urls.append(url)
+
+        assert "https://platform.example/docs" in urls
+        assert "https://developers.example/docs/page" in urls
+
 
 class TestCompositeDiscoverer:
     """Tests for CompositeDiscoverer."""

@@ -1,9 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "./ThemeToggle";
 import { GithubIcon } from "./GithubIcon";
+import { BrandMark } from "@/components/landing";
 
 export default function Header() {
   const [scrolled, setScrolled] = useState(false);
@@ -19,55 +21,46 @@ export default function Header() {
       className={cn(
         "fixed top-0 left-0 right-0 z-50 transition-all duration-200",
         scrolled
-          ? "bg-background/80 backdrop-blur-xs border-b"
+          ? "border-b bg-background/85 backdrop-blur-md"
           : "bg-transparent",
       )}
     >
-      <div className="flex h-14 items-center justify-between px-6 max-w-5xl mx-auto">
-        <a
-          href="#"
-          className="font-medium text-sm min-h-11 flex items-center gap-2"
+      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
+        <Link
+          href="/"
+          className="flex min-h-11 items-center gap-2 text-[15px] font-semibold leading-5"
         >
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 32 32"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              d="M8 6h12l6 6v14a2 2 0 01-2 2H8a2 2 0 01-2-2V8a2 2 0 012-2z"
-              stroke="currentColor"
-              strokeWidth="2"
-              fill="none"
-            />
-            <path
-              d="M20 6v6h6"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-          docpull
-        </a>
+          <BrandMark iconClassName="h-4.5 w-4.5" />
+        </Link>
 
-        <nav className="hidden md:flex items-center gap-6">
+        <nav className="hidden md:flex items-center gap-5">
           <a
             href="#features"
-            className="text-sm text-muted-foreground hover:text-foreground"
+            className="text-[15px] font-medium leading-5 text-muted-foreground transition-colors hover:text-foreground"
           >
             Features
           </a>
           <a
+            href="#compare"
+            className="text-[15px] font-medium leading-5 text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Compare
+          </a>
+          <a
+            href="/docs"
+            className="text-[15px] font-medium leading-5 text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Docs
+          </a>
+          <a
             href="#examples"
-            className="text-sm text-muted-foreground hover:text-foreground"
+            className="text-[15px] font-medium leading-5 text-muted-foreground transition-colors hover:text-foreground"
           >
             Examples
           </a>
           <a
             href="#install"
-            className="text-sm text-muted-foreground hover:text-foreground"
+            className="text-[15px] font-medium leading-5 text-muted-foreground transition-colors hover:text-foreground"
           >
             Install
           </a>

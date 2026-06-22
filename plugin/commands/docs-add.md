@@ -6,6 +6,8 @@ allowed-tools: mcp__docpull__ensure_docs, mcp__docpull__add_source, mcp__docpull
 
 # Add a source to this session
 
+Compatibility alias: prefer `/web-add` for new web-source workflows.
+
 The user wants to add a source to docpull's local Markdown index so it's searchable later via `/docs-search` (or directly via the `grep_docs` MCP tool).
 
 User input: **$ARGUMENTS**

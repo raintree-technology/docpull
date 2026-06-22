@@ -6,6 +6,8 @@ allowed-tools: mcp__docpull__ensure_docs
 
 # Refresh a cached source
 
+Compatibility alias: prefer `/web-refresh` for new web-source workflows.
+
 Force-refetch a source that's already cached. The default `ensure_docs` honors a 7-day cache; this command bypasses it.
 
 User input: **$ARGUMENTS**

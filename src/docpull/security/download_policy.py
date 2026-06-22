@@ -1,4 +1,4 @@
-"""Download safety policy for documentation fetches."""
+"""Download safety policy for web-source fetches."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from urllib.parse import unquote, urlparse
 
 
 class UnsafeDownloadError(ValueError):
-    """Raised when a response looks like a file download, not documentation."""
+    """Raised when a response looks like a file download, not text/page content."""
 
 
 ALLOWED_DOCUMENT_CONTENT_TYPES = frozenset(

@@ -5,7 +5,7 @@ The goal is to make Parallel web intelligence outputs durable, local,
 inspectable, and easy for agents to reuse.
 
 Parallel sources checked on 2026-06-08. Workflow coverage last reviewed for
-docpull 4.4.0.
+docpull 5.0.0.
 
 - https://docs.parallel.ai/llms.txt
 - https://docs.parallel.ai/public-openapi.json
@@ -70,7 +70,7 @@ key.
 | FindAll | Entity discovery, ingest, schema, enrichment, extension, cancellation, events, and result snapshots. | `findall-pack` plus `findall-ingest-pack/result-pack/schema-pack/enrich-pack/extend-pack/cancel-pack/events-pack` | Preserves candidate records, inferred schemas, enrichment specs, run status, event pages, and lifecycle action metadata. |
 | Monitor API | Event-stream and snapshot monitors with event retrieval and lifecycle actions. | `docpull parallel monitor-pack create/list/retrieve/update/cancel/trigger/events ...` | Saves monitor metadata, event pages, event-group summaries, webhooks, source policy, location, metadata, and lifecycle action results as local packs. |
 | API docs/spec packs | `llms.txt` indexes and OpenAPI specs. | `docpull parallel api-pack ...` and `docpull parallel run docs/examples/parallel-*.yaml` | Builds durable API context packs without a Parallel account. |
-| MCP tools | Agent-facing MCP calls for pack creation and pack inspection. | `parallel_context_pack`, `parallel_api_pack`, `pack_score`, `pack_diff`, `pack_citations`, `pack_entities`, `pack_search`, `pack_brief`, `pack_prepare` | Lets MCP-aware clients build, inspect, search, and prepare packs without shelling out. The CLI also adds `pack sources` for deterministic local source ranking. |
+| MCP tools | Agent-facing MCP calls for pack creation and pack inspection. | `parallel_context_pack`, `parallel_api_pack`, `pack_score`, `pack_diff`, `pack_citations`, `pack_entities`, `pack_search`, `pack_brief`, `pack_prepare`, `graph_build`, `graph_query`, `graph_neighbors`, `graph_refresh` | Lets MCP-aware clients build, inspect, search, graph, and prepare packs without shelling out. The CLI also adds `pack sources` for deterministic local source ranking. |
 | Offline/demo fixtures | Saved Search, Extract, and Task-shaped JSON can be replayed locally. | `docpull parallel import fixture.json` and `docpull parallel demo` | Makes the integration testable, demoable, and usable without a Parallel account. The demo fixture is packaged in the wheel. |
 
 ## Not Implemented Yet
@@ -264,8 +264,9 @@ Every successful context pack writes:
 - `sources/*.md` - extracted Markdown for each successful URL.
 - Local post-processing sidecars such as `pack.score.json`,
   `source.scores.json`, `citations.json`, `entities.json`, `SEARCH.md`,
-  `research.brief.json`, `RESEARCH_BRIEF.md`, and `pack.prepare.json` when
-  `docpull pack prepare` is run. Provider comparison runs write these
+  `research.brief.json`, `RESEARCH_BRIEF.md`, `graph.json`,
+  `graph.nodes.ndjson`, `graph.edges.ndjson`, `GRAPH.md`, and
+  `pack.prepare.json` when `docpull pack prepare` is run. Provider comparison runs write these
   automatically for successful Parallel, Tavily, and Exa packs.
 - `brief.md` - only when Task output is requested or imported from a fixture.
 

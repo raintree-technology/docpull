@@ -5,6 +5,8 @@ allowed-tools: mcp__docpull__list_indexed, mcp__docpull__list_sources
 
 # List cached sources
 
+Compatibility alias: prefer `/web-list` for new web-source workflows.
+
 Show what's available to `/docs-search` right now.
 
 ## Workflow

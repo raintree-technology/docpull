@@ -12,6 +12,8 @@ logger = logging.getLogger(__name__)
 
 # Elements that typically contain main content
 CONTENT_SELECTORS = [
+    "#content-container",
+    'div[id^="S:"]',
     "article",
     "main",
     '[role="main"]',
@@ -81,6 +83,7 @@ REMOVE_SELECTORS = [
     '[aria-label*="cookie" i]',
     '[aria-label*="consent" i]',
     '[aria-label*="gdpr" i]',
+    ".sr-only",
 ]
 
 # Elements to preserve but simplify
@@ -171,11 +174,27 @@ class MainContentExtractor:
         return BeautifulSoup(text, "html.parser")
 
     def _find_main_content(self, soup: BeautifulSoup) -> Tag | None:
-        """Find the main content element using selectors."""
-        for selector in self._content_selectors:
-            element = soup.select_one(selector)
-            if element and len(element.get_text(strip=True)) > 100:
-                return element
+        """Find the strongest main content element using selector candidates."""
+        best_element: Tag | None = None
+        best_score = 0
+        seen: set[int] = set()
+
+        for selector_index, selector in enumerate(self._content_selectors):
+            for element in soup.select(selector):
+                if not isinstance(element, Tag):
+                    continue
+                element_key = id(element)
+                if element_key in seen:
+                    continue
+                seen.add(element_key)
+
+                score = self._score_content_candidate(element, selector, selector_index)
+                if score > best_score:
+                    best_element = element
+                    best_score = score
+
+        if best_element is not None:
+            return best_element
 
         # Fallback: find largest text block
         body = soup.find("body")
@@ -185,10 +204,46 @@ class MainContentExtractor:
         # Last resort: return entire soup wrapped as Tag
         return None
 
+    def _score_content_candidate(self, element: Tag, selector: str, selector_index: int) -> int:
+        """Score a possible main-content node."""
+        text = re.sub(r"\s+", " ", element.get_text(" ", strip=True)).strip()
+        text_length = len(text)
+        if text_length <= 100:
+            return 0
+
+        words = re.findall(r"[\w'-]+", text)
+        loading_matches = re.findall(r"\bloading\.?\b", text, flags=re.IGNORECASE)
+        if loading_matches and (
+            len(words) <= (len(loading_matches) * 2) + 8 or (len(loading_matches) / max(len(words), 1)) > 0.5
+        ):
+            return 0
+
+        selector_bonus = max(0, 30 - selector_index)
+        id_bonus = 40 if selector.startswith("#") else 0
+        semantic_bonus = 20 if element.name in {"article", "main"} else 0
+        heading_bonus = 80 if element.find(["h1", "h2"]) else 0
+        loading_penalty = min(len(loading_matches) * 20, text_length // 4)
+
+        return max(
+            0,
+            text_length + selector_bonus + id_bonus + semantic_bonus + heading_bonus - loading_penalty,
+        )
+
     def _remove_unwanted(self, element: Tag) -> None:
         """Remove navigation, ads, and other unwanted elements."""
         for selector in self._remove_selectors:
             for el in element.select(selector):
+                el.decompose()
+
+    def _remove_placeholder_nodes(self, element: Tag) -> None:
+        """Remove loading-only skeleton nodes left by streamed app shells."""
+        for el in reversed(element.find_all(True)):
+            text = re.sub(r"[\s.]+", " ", el.get_text(" ", strip=True).lower()).strip()
+            if not text:
+                continue
+            tokens = text.split()
+            # Bandit B105 false positive: "loading" is placeholder UI text.
+            if tokens and all(token == "loading" for token in tokens):  # nosec B105
                 el.decompose()
 
     def _clean_attributes(self, element: Tag) -> None:
@@ -265,6 +320,7 @@ class MainContentExtractor:
         # the language onto an html2text-friendly `class="lang-X"` form on
         # both the <pre> and inner <code>.
         _normalize_code_fence_language(content)
+        self._remove_placeholder_nodes(content)
         self._clean_attributes(content)
         self._resolve_links(content, url)
 

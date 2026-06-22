@@ -1,5 +1,6 @@
 """Tests for pipeline steps."""
 
+import json
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
@@ -12,6 +13,7 @@ from docpull.pipeline.steps import (
     DedupStep,
     FetchStep,
     MetadataStep,
+    RenderStep,
     SaveStep,
     ValidateStep,
 )
@@ -246,6 +248,76 @@ class TestMetadataStep:
         result = await step.execute(ctx)
 
         assert result.title == "OG Title"
+
+
+class TestRenderStep:
+    """Tests for optional local rendering in the fetch pipeline."""
+
+    @pytest.mark.asyncio
+    async def test_rendered_html_enters_existing_conversion_path(self, tmp_path):
+        from docpull.models.config import RenderConfig
+        from docpull.rendering import RenderedPage
+
+        class StubRenderer:
+            async def render(self, url, config):
+                return RenderedPage(
+                    url=url,
+                    html=(
+                        b"<html><head><title>Rendered Title</title></head>"
+                        b"<body><h1>Rendered Heading</h1></body></html>"
+                    ),
+                    backend="agent-browser",
+                    diagnostics={"stub": True},
+                )
+
+        pipeline = FetchPipeline(
+            steps=[
+                RenderStep(
+                    render_config=RenderConfig(mode="agent-browser"),
+                    output_dir=tmp_path,
+                    renderer=StubRenderer(),
+                ),
+                MetadataStep(),
+                ConvertStep(add_frontmatter=False),
+            ]
+        )
+
+        ctx = await pipeline.execute("https://example.com/app", tmp_path / "app.md")
+
+        assert ctx.error is None
+        assert ctx.title == "Rendered Title"
+        assert ctx.markdown is not None
+        assert "Rendered Heading" in ctx.markdown
+        assert ctx.metadata["rendered"] is True
+        assert ctx.metadata["render"]["backend"] == "agent-browser"
+        records = [json.loads(line) for line in (tmp_path / "rendered_pages.ndjson").read_text().splitlines()]
+        assert records[0]["source"] == "fetch_pipeline"
+        assert records[0]["diagnostics"]["stub"] is True
+
+    @pytest.mark.asyncio
+    async def test_fallback_mode_keeps_non_spa_http_html(self, tmp_path):
+        from docpull.models.config import RenderConfig
+
+        class FailingRenderer:
+            async def render(self, url, config):
+                raise AssertionError("renderer should not be called for normal HTML")
+
+        step = RenderStep(
+            render_config=RenderConfig(mode="fallback"),
+            output_dir=tmp_path,
+            renderer=FailingRenderer(),
+        )
+        ctx = PageContext(
+            url="https://example.com/page",
+            output_path=tmp_path / "page.md",
+            html=b"<html><body><h1>Server Rendered</h1><p>Useful content.</p></body></html>",
+        )
+
+        result = await step.execute(ctx)
+
+        assert result.html == ctx.html
+        assert result.metadata == {}
+        assert not (tmp_path / "rendered_pages.ndjson").exists()
 
 
 class TestDedupStep:
@@ -497,3 +569,81 @@ class TestSkillManifestGeneration:
         manifest = (tmp_path / "SKILL.md").read_text()
         assert "Override." in manifest
         assert "From metadata." not in manifest
+
+    @pytest.mark.asyncio
+    async def test_finalize_writes_all_agent_exports(self, tmp_path, monkeypatch):
+        from docpull.pipeline.steps.save import SaveStep
+
+        monkeypatch.chdir(tmp_path)
+        skill_root = tmp_path / ".docpull" / "skills" / "my-skill"
+        references_dir = skill_root / "references"
+        step = SaveStep(
+            base_output_dir=references_dir,
+            skill_name="my-skill",
+            skill_agents=["claude", "codex", "cursor"],
+            skill_root_dir=skill_root,
+            skill_install_targets=True,
+        )
+        ctx = PageContext(
+            url="https://docs.example.com/",
+            output_path=references_dir / "index.md",
+            markdown="---\ntitle: T\nsource: https://docs.example.com/\n---\n\n# Hi\n",
+            metadata={"description": "Reference docs."},
+            title="Example Docs",
+        )
+        await step.execute(ctx)
+        step.finalize()
+
+        claude_manifest = tmp_path / ".claude" / "skills" / "my-skill" / "SKILL.md"
+        codex_manifest = tmp_path / ".agents" / "skills" / "my-skill" / "SKILL.md"
+        codex_metadata = tmp_path / ".agents" / "skills" / "my-skill" / "agents" / "openai.yaml"
+        cursor_rule = tmp_path / ".cursor" / "rules" / "my-skill.mdc"
+
+        assert (skill_root / "SKILL.md").exists()
+        assert claude_manifest.exists()
+        assert ".docpull/skills/my-skill/references" in claude_manifest.read_text()
+        assert not (tmp_path / ".claude" / "skills" / "my-skill" / "agents" / "openai.yaml").exists()
+        assert (references_dir / "index.md").exists()
+        assert not (tmp_path / ".claude" / "skills" / "my-skill" / "references" / "index.md").exists()
+        assert not (tmp_path / ".agents" / "skills" / "my-skill" / "references" / "index.md").exists()
+        assert codex_manifest.exists()
+        assert "$my-skill" in codex_metadata.read_text()
+        assert ".docpull/skills/my-skill/references" in codex_manifest.read_text()
+        rule_text = cursor_rule.read_text()
+        assert "alwaysApply: false" in rule_text
+        assert ".docpull/skills/my-skill/references" in rule_text
+
+    @pytest.mark.asyncio
+    async def test_finalize_custom_root_installs_requested_agent_targets(self, tmp_path, monkeypatch):
+        from docpull.pipeline.steps.save import SaveStep
+
+        monkeypatch.chdir(tmp_path)
+        skill_root = tmp_path / "out" / "my-skill"
+        references_dir = skill_root / "references"
+        step = SaveStep(
+            base_output_dir=references_dir,
+            skill_name="my-skill",
+            skill_agents=["claude", "codex", "cursor"],
+            skill_root_dir=skill_root,
+            skill_install_targets=True,
+        )
+        ctx = PageContext(
+            url="https://docs.example.com/",
+            output_path=references_dir / "index.md",
+            markdown="# Hi\n",
+            metadata={"description": "Reference docs."},
+            title="Example Docs",
+        )
+        await step.execute(ctx)
+        step.finalize()
+
+        assert (skill_root / "SKILL.md").exists()
+        assert (tmp_path / ".claude" / "skills" / "my-skill" / "SKILL.md").exists()
+        assert not (tmp_path / ".claude" / "skills" / "my-skill" / "agents" / "openai.yaml").exists()
+        assert not (tmp_path / ".claude" / "skills" / "my-skill" / "references" / "index.md").exists()
+        assert (tmp_path / ".agents" / "skills" / "my-skill" / "SKILL.md").exists()
+        assert (tmp_path / ".agents" / "skills" / "my-skill" / "agents" / "openai.yaml").exists()
+        assert not (tmp_path / ".agents" / "skills" / "my-skill" / "references" / "index.md").exists()
+
+        rule_text = (tmp_path / ".cursor" / "rules" / "my-skill.mdc").read_text()
+        assert "out/my-skill/references" in rule_text

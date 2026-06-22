@@ -5,6 +5,7 @@ import { Database, Workflow, Sparkles } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useReducedMotion } from "@/lib/use-reduced-motion";
+import { GlassPanel, LandingSection } from "@/components/landing";
 
 const URL = "www.python.org/blogs/";
 const TOTAL_PAGES = 38;
@@ -95,52 +96,46 @@ export default function HowItWorks() {
   const flow2Lit = activeIdx >= 2;
 
   return (
-    <section id="how-it-works" className="py-16 sm:py-24 border-t">
-      <div className="mx-auto max-w-5xl px-6">
-        <div className="mb-10 sm:mb-14 text-center sm:text-left">
-          <h2 className="text-xl sm:text-2xl font-medium mb-2 sm:mb-3">
-            <span>How it works</span>
-          </h2>
-          <p className="text-sm sm:text-base text-muted-foreground">
-            Three steps from URL to usable Markdown.
-          </p>
+    <LandingSection
+      id="how-it-works"
+      title="How it works"
+      description="Three steps from URL to usable Markdown."
+      headerClassName="mb-10 sm:mb-14"
+    >
+      <GlassPanel className="p-5 sm:p-7">
+        <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1fr)] md:gap-0">
+          <Stage num="01" active={activeIdx === 0} done={activeIdx > 0}>
+            <UrlBar typed={displayTyped} />
+          </Stage>
+          <Connector active={flow1Active} lit={flow1Lit} />
+          <Stage num="02" active={activeIdx === 1} done={activeIdx > 1}>
+            <FetchDisplay pages={displayPages} />
+          </Stage>
+          <Connector active={flow2Active} lit={flow2Lit} />
+          <Stage num="03" active={activeIdx === 2} done={activeIdx > 2}>
+            <DestList lit={displayDestLit} />
+          </Stage>
         </div>
 
-        <div className="glass rounded-2xl p-5 sm:p-8">
-          <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1fr)] gap-4 md:gap-0 items-start">
-            <Stage num="01" active={activeIdx === 0} done={activeIdx > 0}>
-              <UrlBar typed={displayTyped} />
-            </Stage>
-            <Connector active={flow1Active} lit={flow1Lit} />
-            <Stage num="02" active={activeIdx === 1} done={activeIdx > 1}>
-              <FetchDisplay pages={displayPages} />
-            </Stage>
-            <Connector active={flow2Active} lit={flow2Lit} />
-            <Stage num="03" active={activeIdx === 2} done={activeIdx > 2}>
-              <DestList lit={displayDestLit} />
-            </Stage>
-          </div>
-
-          <div className="mt-6 sm:mt-8 pt-5 sm:pt-6 border-t border-foreground/10 grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-            <StepText
-              title="Point"
-              desc="Give docpull a public URL."
-              active={activeIdx === 0}
-            />
-            <StepText
-              title="Fetch"
-              desc="It discovers pages, respects robots.txt, and converts server HTML."
-              active={activeIdx === 1}
-            />
-            <StepText
-              title="Use"
-              desc="Load the Markdown into your agent, search index, or skill directory."
-              active={activeIdx === 2}
-            />
-          </div>
+        <div className="mt-6 grid grid-cols-1 gap-4 border-t border-foreground/10 pt-5 sm:mt-8 sm:pt-6 md:grid-cols-3 md:gap-6">
+          <StepText
+            title="Point"
+            desc="Give docpull a public URL."
+            active={activeIdx === 0}
+          />
+          <StepText
+            title="Fetch"
+            desc="It discovers pages, respects robots.txt, and converts server HTML."
+            active={activeIdx === 1}
+          />
+          <StepText
+            title="Use"
+            desc="Load the Markdown into your agent, search index, or skill directory."
+            active={activeIdx === 2}
+          />
         </div>
-      </div>
-    </section>
+      </GlassPanel>
+    </LandingSection>
   );
 }
 
@@ -168,11 +163,11 @@ function Stage({
                 : "bg-foreground/20",
           )}
         />
-        <span className="text-[10px] font-mono text-muted-foreground tracking-[0.18em]">
+        <span className="font-mono text-xs font-semibold tracking-[0.1em] text-muted-foreground">
           STEP {num}
         </span>
       </div>
-      <div className="transition-opacity duration-500 min-h-[96px]">
+      <div className="min-h-[104px] transition-opacity duration-500">
         {children}
       </div>
     </div>
@@ -181,7 +176,7 @@ function Stage({
 
 function UrlBar({ typed }: { typed: string }) {
   return (
-    <div className="bg-background/40 border border-foreground/10 rounded-lg px-2.5 py-2.5 font-mono text-[11px] flex items-center gap-1 h-[42px] overflow-hidden">
+    <div className="flex h-[46px] items-center gap-1 overflow-hidden rounded-lg border border-foreground/10 bg-background/40 px-3 py-2.5 font-mono text-[13px] leading-5">
       <svg
         viewBox="0 0 16 16"
         width="12"
@@ -197,7 +192,7 @@ function UrlBar({ typed }: { typed: string }) {
           strokeLinecap="round"
         />
       </svg>
-      <span className="text-muted-foreground select-none shrink-0">
+      <span className="shrink-0 select-none text-muted-foreground">
         https://
       </span>
       <span className="relative flex items-center min-w-0 flex-1 whitespace-nowrap overflow-hidden">
@@ -215,7 +210,7 @@ function FetchDisplay({ pages }: { pages: number }) {
   const pct = (pages / TOTAL_PAGES) * 100;
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between font-mono text-[11px]">
+      <div className="flex items-center justify-between font-mono text-[13px] leading-5">
         <span className="text-muted-foreground">discovered</span>
         <span className="tabular-nums">
           <span className="text-foreground/90">
@@ -230,8 +225,8 @@ function FetchDisplay({ pages }: { pages: number }) {
           style={{ width: `${pct}%` }}
         />
       </div>
-      <div className="flex items-center gap-1.5 font-mono text-[10px] text-foreground/80 pt-0.5">
-        <span className="px-1.5 py-0.5 rounded bg-foreground/5 border border-foreground/10">
+      <div className="flex items-center gap-1.5 pt-0.5 font-mono text-xs leading-5 text-foreground/85">
+        <span className="rounded border border-foreground/10 bg-foreground/5 px-1.5 py-0.5">
           HTML
         </span>
         <svg
@@ -249,7 +244,7 @@ function FetchDisplay({ pages }: { pages: number }) {
             strokeLinejoin="round"
           />
         </svg>
-        <span className="px-1.5 py-0.5 rounded bg-foreground/5 border border-foreground/10">
+        <span className="rounded border border-foreground/10 bg-foreground/5 px-1.5 py-0.5">
           MD
         </span>
       </div>
@@ -279,7 +274,7 @@ function DestChip({
   return (
     <div
       className={cn(
-        "flex items-center gap-2 rounded-md border px-2 py-1 transition-colors duration-300",
+        "flex items-center gap-2 rounded-md border px-2.5 py-1.5 transition-colors duration-300",
         on
           ? "border-foreground/20 bg-foreground/6"
           : "border-foreground/10 bg-foreground/2",
@@ -287,20 +282,20 @@ function DestChip({
     >
       <span
         className={cn(
-          "inline-block w-1.5 h-1.5 rounded-full transition-colors duration-300",
+          "inline-block h-1.5 w-1.5 rounded-full transition-colors duration-300",
           on ? "bg-foreground/80" : "bg-foreground/20",
         )}
       />
       <Icon
         className={cn(
-          "w-3 h-3 transition-colors duration-300",
-          on ? "text-foreground/70" : "text-foreground/30",
+          "h-3.5 w-3.5 transition-colors duration-300",
+          on ? "text-foreground/75" : "text-foreground/45",
         )}
       />
       <span
         className={cn(
-          "text-[11px] font-mono transition-colors duration-300",
-          on ? "text-foreground/80" : "text-muted-foreground",
+          "font-mono text-[13px] leading-5 transition-colors duration-300",
+          on ? "text-foreground/85" : "text-muted-foreground",
         )}
       >
         {label}
@@ -421,13 +416,13 @@ function StepText({
     <div className="transition-opacity duration-500">
       <h3
         className={cn(
-          "font-medium text-sm mb-1 transition-colors duration-300",
+          "mb-1.5 text-base font-semibold leading-6 transition-colors duration-300",
           active ? "text-foreground" : "text-muted-foreground",
         )}
       >
         {title}
       </h3>
-      <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+      <p className="text-sm leading-6 text-muted-foreground">
         {desc}
       </p>
     </div>

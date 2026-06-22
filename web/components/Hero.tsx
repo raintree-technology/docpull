@@ -1,138 +1,86 @@
-"use client";
-
-import { useEffect, useState, useCallback, useRef } from "react";
-import { Copy, Check } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { ArrowRight } from "lucide-react";
+import {
+  CommandCopy,
+  StatGrid,
+  TerminalPanel,
+  type TerminalLine,
+} from "@/components/landing";
 
 const terminalLines = [
-  { type: "command", content: "docpull https://www.python.org/blogs/ -o ./python-news" },
+  {
+    type: "command",
+    content: "docpull https://www.python.org/blogs/ --profile rag -o ./python-news",
+  },
   { type: "output", content: "" },
-  { type: "dim", content: "Discovering URLs..." },
-  { type: "normal", content: "Found 38 pages" },
-  { type: "dim", content: "Fetching with RAG profile" },
+  { type: "dim", content: "robots.txt allowed; discovered 38 pages" },
+  { type: "normal", content: "fetching static HTML with conditional cache" },
   { type: "normal", content: "[==============================] 38/38" },
-  { type: "output", content: "" },
-  { type: "success", content: "Done in 12s. Saved 2.8 MB to ./python-news" },
-] as const;
+  { type: "success", content: "wrote Markdown, NDJSON, manifest, and sources.md" },
+  { type: "dim", content: "done in 12s; 2.8 MB saved to ./python-news" },
+] as const satisfies readonly TerminalLine[];
 
 const INSTALL_COMMAND = "pip install docpull";
-const COPY_RESET_DELAY_MS = 2_000;
+
+const proofPoints = [
+  { label: "Surfaces", value: "CLI / SDK / MCP" },
+  { label: "Outputs", value: "Markdown + NDJSON" },
+  { label: "Default", value: "No browser, no API key" },
+] as const;
 
 export default function Hero() {
-  const [copied, setCopied] = useState(false);
-  const [copyFailed, setCopyFailed] = useState(false);
-  const copyResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (copyResetTimer.current) {
-        clearTimeout(copyResetTimer.current);
-      }
-    };
-  }, []);
-
-  const handleCopy = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(INSTALL_COMMAND);
-      setCopied(true);
-      setCopyFailed(false);
-      if (copyResetTimer.current) {
-        clearTimeout(copyResetTimer.current);
-      }
-      copyResetTimer.current = setTimeout(() => {
-        setCopied(false);
-        copyResetTimer.current = null;
-      }, COPY_RESET_DELAY_MS);
-    } catch (error) {
-      const writeFailed = error !== undefined;
-      setCopied(false);
-      setCopyFailed(writeFailed);
-    }
-  }, []);
-
   return (
-    <section className="flex items-start justify-center pt-20 lg:pt-56 pb-16 lg:pb-32">
-      <div className="mx-auto max-w-6xl w-full px-6">
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.3fr] gap-8 lg:gap-12 items-center">
-          {/* Left: Content */}
-          <div>
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-medium tracking-tight mb-6">
-              <span>Pull public web.</span>
-              <br />
-              <span className="text-muted-foreground">Feed better agents.</span>
-            </h1>
+    <section className="relative flex items-center justify-center pt-24 pb-12 sm:pt-28 sm:pb-16 lg:pt-32">
+      <div className="mx-auto w-full max-w-6xl px-6">
+        <div className="max-w-3xl">
+          <p className="mb-4 inline-flex items-center gap-2 rounded-md border bg-background/80 px-3 py-1.5 text-sm font-semibold leading-5 text-muted-foreground">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+            docpull
+          </p>
 
-            <p className="text-muted-foreground text-base sm:text-lg mb-8 max-w-md">
-              Turn static and server-rendered web pages into clean Markdown,
-              NDJSON, and local context packs for coding agents, MCP clients,
-              and RAG pipelines.
-            </p>
+          <h1 className="max-w-4xl text-4xl font-semibold leading-[1.16] sm:text-5xl sm:leading-[1.15] lg:text-6xl lg:leading-[1.15]">
+            Public web to agent-ready Markdown.
+          </h1>
 
-            {/* Install command + CTA */}
-            <div className="flex flex-wrap items-center gap-3">
-              <code className="px-4 py-2.5 glass rounded-xl text-sm font-mono">
-                {INSTALL_COMMAND}
-              </code>
-              <button
-                onClick={handleCopy}
-                className="min-h-11 min-w-11 p-2.5 rounded-xl glass hover:bg-foreground/5 transition-colors"
-                aria-label={
-                  copyFailed
-                    ? "Copy failed"
-                    : copied
-                      ? "Copied"
-                      : "Copy install command"
-                }
-              >
-                {copied ? (
-                  <Check className="h-4 w-4" />
-                ) : (
-                  <Copy className="h-4 w-4" />
-                )}
-              </button>
-              <a
-                href="#examples"
-                className="min-h-11 inline-flex items-center px-4 py-2.5 rounded-xl bg-foreground text-background text-sm font-medium hover:opacity-90 transition-opacity"
-              >
-                See examples
-              </a>
-            </div>
+          <p className="mt-5 max-w-2xl text-lg leading-8 text-muted-foreground">
+            Fetch public web sources locally, use explicit rendering only when
+            needed, then hand clean Markdown, NDJSON, and context packs to
+            coding agents, MCP clients, and RAG pipelines.
+          </p>
+        </div>
 
-            <p className="mt-4 text-xs text-muted-foreground max-w-md leading-relaxed">
-              Base crawls need no browser or API key. JavaScript-heavy pages are
-              detected and skipped automatically so agents can route elsewhere.
-            </p>
-          </div>
+        <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center">
+          <CommandCopy command={INSTALL_COMMAND} />
 
-          {/* Right: Terminal */}
-          <div className="terminal w-full overflow-hidden">
-            <div className="terminal-header">
-              <div className="terminal-dot terminal-dot-close" />
-              <div className="terminal-dot terminal-dot-minimize" />
-              <div className="terminal-dot terminal-dot-maximize" />
-            </div>
-            <div className="p-5 lg:p-8 font-mono text-sm sm:text-base lg:text-lg min-h-[220px] lg:min-h-[320px]">
-              {terminalLines.map((line, i) => (
-                <div
-                  key={i}
-                  className={cn(
-                    "mb-0.5",
-                    line.type === "command" && "text-white",
-                    line.type === "dim" && "text-neutral-500",
-                    line.type === "normal" && "text-neutral-400",
-                    line.type === "success" && "text-neutral-300",
-                    line.type === "output" && "h-4",
-                  )}
-                >
-                  {line.type === "command" && (
-                    <span className="text-neutral-500">$ </span>
-                  )}
-                  {line.content}
-                </div>
-              ))}
-            </div>
+          <div className="grid grid-cols-2 gap-3 sm:flex sm:items-center">
+            <a
+              href="/docs"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-foreground px-4 py-2.5 text-[15px] font-semibold leading-5 text-background transition-opacity hover:opacity-90"
+            >
+              Read docs
+              <ArrowRight className="h-4 w-4" />
+            </a>
+
+            <a
+              href="https://github.com/raintree-technology/docpull"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex min-h-11 items-center justify-center rounded-lg border bg-background/80 px-4 py-2.5 text-[15px] font-semibold leading-5 transition-colors hover:bg-muted"
+            >
+              GitHub
+            </a>
           </div>
         </div>
+
+        <StatGrid
+          stats={proofPoints}
+          className="mt-7 hidden grid-cols-3 sm:grid sm:max-w-3xl"
+        />
+
+        <TerminalPanel
+          lines={terminalLines}
+          title="rag crawl"
+          className="mt-8 w-full max-w-5xl"
+        />
       </div>
     </section>
   );

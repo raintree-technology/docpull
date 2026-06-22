@@ -6,6 +6,8 @@ allowed-tools: mcp__docpull__grep_docs, mcp__docpull__read_doc, mcp__docpull__li
 
 # Search fetched Markdown
 
+Compatibility alias: prefer `/web-search` for new web-source workflows.
+
 The user wants to search Markdown that has already been pulled by `/docs-add` (or `ensure_docs`). This composes two MCP tools: `grep_docs` finds matching files; `read_doc` pulls more context around the top hits so the answer is grounded, not just a list of file:line references.
 
 User input: **$ARGUMENTS**

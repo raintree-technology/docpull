@@ -1,3 +1,5 @@
+import { InfoCard, LandingSection } from "@/components/landing";
+
 const profiles = [
   {
     name: "RAG",
@@ -24,31 +26,25 @@ const profiles = [
 
 export default function Profiles() {
   return (
-    <section id="profiles" className="py-16 sm:py-24">
-      <div className="mx-auto max-w-5xl px-6">
-        <div className="mb-8 sm:mb-12 text-center sm:text-left">
-          <h2 className="text-xl sm:text-2xl font-medium mb-2 sm:mb-3">
-            Profiles
-          </h2>
-          <p className="text-sm sm:text-base text-muted-foreground">
-            Choose the output shape before you crawl.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-          {profiles.map((profile) => (
-            <div key={profile.name} className="p-4 rounded-xl glass">
-              <h3 className="font-medium mb-2">{profile.name}</h3>
-              <p className="text-sm text-muted-foreground mb-3">
-                {profile.description}
-              </p>
-              <code className="block px-3 py-2 bg-background/60 rounded-md text-xs font-mono text-muted-foreground overflow-x-auto">
-                {profile.example}
-              </code>
-            </div>
-          ))}
-        </div>
+    <LandingSection
+      id="profiles"
+      title="Profiles"
+      description="Choose the output shape before you crawl."
+      bordered={false}
+    >
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+        {profiles.map((profile) => (
+          <InfoCard
+            key={profile.name}
+            title={profile.name}
+            description={profile.description}
+          >
+            <code className="mt-4 block overflow-x-auto rounded-md bg-background/60 px-3 py-2.5 font-mono text-[13px] leading-6 text-foreground/80">
+              {profile.example}
+            </code>
+          </InfoCard>
+        ))}
       </div>
-    </section>
+    </LandingSection>
   );
 }

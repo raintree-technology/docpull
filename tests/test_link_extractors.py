@@ -9,30 +9,36 @@ from docpull.discovery.link_extractors.static import StaticLinkExtractor
 class MockHttpClient:
     """Mock HTTP client for testing."""
 
-    def __init__(self, responses: dict[str, tuple[int, str, bytes]] | None = None):
+    def __init__(
+        self,
+        responses: dict[str, tuple[int, str, bytes] | tuple[int, str, bytes, str]] | None = None,
+    ):
         """
         Initialize mock client.
 
         Args:
-            responses: Dict mapping URLs to (status_code, content_type, content)
+            responses: Dict mapping URLs to (status_code, content_type, content[, final_url])
         """
         self.responses = responses or {}
 
     async def get(self, url: str, timeout: float = 30.0):
         """Mock GET request."""
         if url in self.responses:
-            status, content_type, content = self.responses[url]
-            return MockResponse(status, content_type, content)
-        return MockResponse(404, "text/html", b"Not found")
+            response = self.responses[url]
+            status, content_type, content = response[:3]
+            final_url = response[3] if len(response) == 4 else url
+            return MockResponse(status, content_type, content, final_url)
+        return MockResponse(404, "text/html", b"Not found", url)
 
 
 class MockResponse:
     """Mock HTTP response."""
 
-    def __init__(self, status_code: int, content_type: str, content: bytes):
+    def __init__(self, status_code: int, content_type: str, content: bytes, url: str):
         self.status_code = status_code
         self.content_type = content_type
         self.content = content
+        self.url = url
 
 
 class TestStaticLinkExtractor:
@@ -91,6 +97,26 @@ class TestStaticLinkExtractor:
         html = b'<a href="../other/page">Other</a>'
         links = await extractor.extract_links("https://example.com/docs/api/", content=html)
         assert "https://example.com/docs/other/page" in links
+
+    @pytest.mark.asyncio
+    async def test_resolves_fetched_links_against_final_redirect_url(self):
+        """Relative links should use the post-redirect URL as their base."""
+        html = b'<a href="/api/reference">Reference</a>'
+        client = MockHttpClient(
+            {
+                "https://platform.example/docs": (
+                    200,
+                    "text/html",
+                    html,
+                    "https://developers.example/api/docs",
+                )
+            }
+        )
+        extractor = StaticLinkExtractor(http_client=client)
+
+        links = await extractor.extract_links("https://platform.example/docs")
+
+        assert links == ["https://developers.example/api/reference"]
 
 
 class TestEnhancedLinkExtractor:
@@ -237,6 +263,30 @@ class TestEnhancedLinkExtractor:
         assert "https://example.com/data" not in links
         assert "https://example.com/onclick" not in links
         # Note: JSON-LD with relative URL won't be resolved correctly, so skip this assertion
+
+    @pytest.mark.asyncio
+    async def test_resolves_fetched_links_against_final_redirect_url(self):
+        """Relative enhanced links should use the post-redirect URL as their base."""
+        html = b"""
+        <a href="/api/reference">Reference</a>
+        <div data-href="/api/models">Models</div>
+        """
+        client = MockHttpClient(
+            {
+                "https://platform.example/docs": (
+                    200,
+                    "text/html",
+                    html,
+                    "https://developers.example/api/docs",
+                )
+            }
+        )
+        extractor = EnhancedLinkExtractor(http_client=client)
+
+        links = await extractor.extract_links("https://platform.example/docs")
+
+        assert "https://developers.example/api/reference" in links
+        assert "https://developers.example/api/models" in links
 
 
 class TestRobotsSitemapDiscovery:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
+from docpull.conversion.extractor import MainContentExtractor
 from docpull.conversion.markdown import HtmlToMarkdown
 from docpull.conversion.special_cases import detect_source_type
 from docpull.pipeline.steps.fetch import ALLOWED_CONTENT_TYPES
@@ -34,6 +35,70 @@ class TestNextjsAppRouterDetection:
     def test_detects_router_state_tree(self):
         html = b'<html><body><meta name="next-router-state-tree" content=""></body></html>'
         assert detect_source_type(html, "https://example.com/") == "nextjs"
+
+
+class TestMainContentExtraction:
+    def test_skips_loading_article_when_static_content_follows(self):
+        loading_text = " ".join(["Loading..."] * 18)
+        html = f"""
+        <html>
+            <body>
+                <article>{loading_text}</article>
+                <div hidden id="S:1">
+                    <article id="content-container">
+                        <h1>Intro to Claude</h1>
+                        <p>
+                            Claude is a highly performant, trustworthy, and
+                            intelligent AI platform for production applications.
+                        </p>
+                        <p>
+                            Use the Messages API, model selection, streaming,
+                            tools, and prompt engineering guides to build with
+                            the documentation.
+                        </p>
+                    </article>
+                </div>
+            </body>
+        </html>
+        """.encode()
+
+        extracted = MainContentExtractor().extract(html, "https://docs.anthropic.com/en/docs/intro")
+
+        assert "Intro to Claude" in extracted
+        assert "Claude is a highly performant" in extracted
+        assert "Loading..." not in extracted
+
+    def test_prefers_nextjs_streamed_segment_over_loading_shell(self):
+        loading_text = " ".join(["Loading..."] * 16)
+        html = f"""
+        <html>
+            <body>
+                <main id="docs-scroll-container">
+                    <article>{loading_text}</article>
+                </main>
+                <div hidden id="S:1">
+                    <section>
+                        <h1>Start building with Claude</h1>
+                        <p>
+                            Everything you need to integrate Claude into your
+                            applications, from first API call to production.
+                        </p>
+                        <h2>Choose how you build</h2>
+                        <p>
+                            Pick the developer surface that matches your
+                            approach and infrastructure.
+                        </p>
+                    </section>
+                </div>
+            </body>
+        </html>
+        """.encode()
+
+        extracted = MainContentExtractor().extract(html, "https://platform.claude.com/docs/en/home")
+
+        assert "Start building with Claude" in extracted
+        assert "Choose how you build" in extracted
+        assert "Loading..." not in extracted
 
 
 class TestHtml2TextLinkUnmangling:

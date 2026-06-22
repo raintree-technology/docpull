@@ -9,11 +9,40 @@ Prerequisite: run these commands with Python 3.11 or newer.
 Work on a release branch, commit the release changes, then run:
 
 ```bash
-make release-pr VERSION=4.4.0
+make release-pr VERSION=5.0.0
 ```
 
 This pushes the branch, opens a PR into `main`, and enables squash auto-merge.
 It refuses to run directly from `main`.
+
+## Final Local Verification
+
+Before opening the release PR or cutting a tag, run the same local checks that
+protect the package and generated release metadata:
+
+```bash
+make metadata-check
+make lint
+make test-all-local
+make test-inventory
+git diff --check
+```
+
+Then rebuild the distribution from a clean `dist/`, validate package metadata,
+and smoke-install the wheel:
+
+```bash
+rm -rf dist .pkg-smoke
+python -m pip install -r requirements-release.txt
+python -m build --no-isolation
+python -m twine check dist/*
+python -m venv .pkg-smoke
+.pkg-smoke/bin/python -m pip install dist/*.whl
+.pkg-smoke/bin/docpull --version
+```
+
+Remove `.pkg-smoke/` after the smoke check. Do not publish from local artifacts;
+the publish workflow rebuilds and uploads from the tagged commit.
 
 ## Publish After Merge
 
@@ -22,7 +51,7 @@ After the PR merges:
 ```bash
 git switch main
 git pull --ff-only origin main
-make release-publish VERSION=4.4.0
+make release-publish VERSION=5.0.0
 ```
 
 This verifies `origin/main` has the requested `pyproject.toml` version, puts
@@ -33,7 +62,7 @@ If a tag was pushed early and the publish workflow did not complete, first
 confirm the version was not published on PyPI, then run:
 
 ```bash
-make release-publish-replace-tag VERSION=4.4.0
+make release-publish-replace-tag VERSION=5.0.0
 ```
 
 ## Manual Publish Fallback
@@ -42,7 +71,7 @@ If the tag push does not start Actions or the publish job needs to be rerun from
 the merged `main` commit:
 
 ```bash
-make release-dispatch VERSION=4.4.0
+make release-dispatch VERSION=5.0.0
 ```
 
 The workflow refuses manual dispatch from any branch other than `main`, and the

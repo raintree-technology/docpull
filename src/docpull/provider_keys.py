@@ -12,6 +12,7 @@ from typing import Literal
 DOCPULL_CONFIG_DIR_NAME = "docpull"
 SECRETS_FILENAME = "secrets.env"
 PROJECT_ENV_FILENAME = ".env.local"
+MAX_PROVIDER_API_KEY_CHARS = 512
 
 ProviderName = Literal["parallel", "tavily", "exa"]
 PROVIDER_NAMES: tuple[ProviderName, ...] = ("parallel", "tavily", "exa")
@@ -33,6 +34,11 @@ class ProviderApiKeyLookup:
     value: str | None
     source: str
     path: Path | None = None
+    invalid_reason: str | None = None
+
+
+class ProviderKeyError(ValueError):
+    """Raised when a provider API key value is not safe to use."""
 
 
 PROVIDER_CONFIGS: dict[ProviderName, ProviderConfig] = {
@@ -68,6 +74,24 @@ def clean_api_key(value: str | None) -> str | None:
     return cleaned or None
 
 
+def validate_provider_api_key(value: str | None, *, label: str = "API key") -> str:
+    cleaned = clean_api_key(value)
+    if not cleaned:
+        raise ProviderKeyError(f"{label} cannot be empty.")
+    invalid_reason = provider_api_key_invalid_reason(cleaned)
+    if invalid_reason:
+        raise ProviderKeyError(f"{label} {invalid_reason}.")
+    return cleaned
+
+
+def provider_api_key_invalid_reason(value: str) -> str | None:
+    if len(value) > MAX_PROVIDER_API_KEY_CHARS:
+        return f"is implausibly long (>{MAX_PROVIDER_API_KEY_CHARS} characters)"
+    if any(_is_control_character(char) for char in value):
+        return "cannot contain control characters"
+    return None
+
+
 def user_secrets_path() -> Path:
     xdg_home = clean_api_key(os.environ.get("XDG_CONFIG_HOME"))
     if xdg_home:
@@ -88,20 +112,24 @@ def find_project_env_path(start: Path) -> Path | None:
 
 def lookup_provider_api_key(provider: ProviderName | str) -> ProviderApiKeyLookup:
     config = PROVIDER_CONFIGS[normalize_provider_name(provider)]
-    env_key = clean_api_key(os.environ.get(config.api_key_env_var))
-    if env_key:
-        return ProviderApiKeyLookup(value=env_key, source="env")
+    env_lookup = _api_key_lookup_from_raw(
+        os.environ.get(config.api_key_env_var),
+        source="env",
+        env_var=config.api_key_env_var,
+    )
+    if env_lookup:
+        return env_lookup
 
     project_path = find_project_env_path(Path.cwd())
     if project_path:
-        project_key = read_key_file(project_path, config.api_key_env_var)
-        if project_key:
-            return ProviderApiKeyLookup(value=project_key, source="project_env", path=project_path)
+        project_lookup = read_key_file_lookup(project_path, config.api_key_env_var, source="project_env")
+        if project_lookup:
+            return project_lookup
 
     user_path = user_secrets_path()
-    user_key = read_key_file(user_path, config.api_key_env_var)
-    if user_key:
-        return ProviderApiKeyLookup(value=user_key, source="user_config", path=user_path)
+    user_lookup = read_key_file_lookup(user_path, config.api_key_env_var, source="user_config")
+    if user_lookup:
+        return user_lookup
 
     return ProviderApiKeyLookup(value=None, source="missing")
 
@@ -111,25 +139,30 @@ def lookup_api_key_env_var(env_var: str) -> ProviderApiKeyLookup:
         if config.api_key_env_var == env_var:
             return lookup_provider_api_key(provider)
 
-    env_key = clean_api_key(os.environ.get(env_var))
-    if env_key:
-        return ProviderApiKeyLookup(value=env_key, source="env")
+    env_lookup = _api_key_lookup_from_raw(os.environ.get(env_var), source="env", env_var=env_var)
+    if env_lookup:
+        return env_lookup
 
     project_path = find_project_env_path(Path.cwd())
     if project_path:
-        project_key = read_key_file(project_path, env_var)
-        if project_key:
-            return ProviderApiKeyLookup(value=project_key, source="project_env", path=project_path)
+        project_lookup = read_key_file_lookup(project_path, env_var, source="project_env")
+        if project_lookup:
+            return project_lookup
 
     user_path = user_secrets_path()
-    user_key = read_key_file(user_path, env_var)
-    if user_key:
-        return ProviderApiKeyLookup(value=user_key, source="user_config", path=user_path)
+    user_lookup = read_key_file_lookup(user_path, env_var, source="user_config")
+    if user_lookup:
+        return user_lookup
 
     return ProviderApiKeyLookup(value=None, source="missing")
 
 
 def read_key_file(path: Path, env_var: str) -> str | None:
+    lookup = read_key_file_lookup(path, env_var, source="file")
+    return lookup.value if lookup and lookup.value else None
+
+
+def read_key_file_lookup(path: Path, env_var: str, *, source: str) -> ProviderApiKeyLookup | None:
     if not path.exists():
         return None
     try:
@@ -139,7 +172,7 @@ def read_key_file(path: Path, env_var: str) -> str | None:
     for line in text.splitlines():
         parsed = parse_env_assignment(line)
         if parsed and parsed[0] == env_var:
-            return clean_api_key(parsed[1])
+            return _api_key_lookup_from_raw(parsed[1], source=source, env_var=env_var, path=path)
     return None
 
 
@@ -149,6 +182,7 @@ def write_provider_secret(provider: ProviderName | str, path: Path, api_key: str
 
 
 def write_key_file(path: Path, env_var: str, api_key: str, *, force: bool) -> None:
+    safe_api_key = validate_provider_api_key(api_key, label=env_var)
     existing = path.read_text(encoding="utf-8").splitlines() if path.exists() else []
     output_lines: list[str] = []
     replaced = False
@@ -158,12 +192,12 @@ def write_key_file(path: Path, env_var: str, api_key: str, *, force: bool) -> No
             if not force:
                 raise FileExistsError(f"{path} already contains {env_var}; pass --force to overwrite it.")
             if not replaced:
-                output_lines.append(key_assignment(env_var, api_key))
+                output_lines.append(key_assignment(env_var, safe_api_key))
                 replaced = True
             continue
         output_lines.append(line)
     if not replaced:
-        output_lines.append(key_assignment(env_var, api_key))
+        output_lines.append(key_assignment(env_var, safe_api_key))
 
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.name == SECRETS_FILENAME:
@@ -215,3 +249,29 @@ def quote_env_value(value: str) -> str:
 def chmod_best_effort(path: Path, mode: int) -> None:
     with suppress(OSError):
         path.chmod(mode)
+
+
+def _api_key_lookup_from_raw(
+    raw_value: str | None,
+    *,
+    source: str,
+    env_var: str,
+    path: Path | None = None,
+) -> ProviderApiKeyLookup | None:
+    cleaned = clean_api_key(raw_value)
+    if not cleaned:
+        return None
+    invalid_reason = provider_api_key_invalid_reason(cleaned)
+    if invalid_reason:
+        return ProviderApiKeyLookup(
+            value=None,
+            source=f"invalid_{source}",
+            path=path,
+            invalid_reason=f"{env_var} {invalid_reason}",
+        )
+    return ProviderApiKeyLookup(value=cleaned, source=source, path=path)
+
+
+def _is_control_character(value: str) -> bool:
+    codepoint = ord(value)
+    return codepoint < 32 or codepoint == 127

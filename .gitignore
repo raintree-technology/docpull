@@ -120,11 +120,19 @@ celerybeat.pid
 .venv
 
 # Key material / certificates (defense-in-depth)
+secrets.env
+*.secret
+*.secrets
 *.pem
 *.key
 *.p12
 *.pfx
 *.crt
+*.cert
+*.jks
+*.keystore
+id_rsa
+id_ed25519
 env/
 venv/
 ENV/
@@ -177,9 +185,10 @@ Thumbs.db
 *-docs/
 test-docs/
 test-output/
-*-docs/
 output/
 downloads/
+/packs/
+run.accounting.json
 
 # Generated reports and analysis files
 TEST_REPORT.md
@@ -205,3 +214,5 @@ screenshots/
 
 # Application cache
 .docpull-cache/
+.docpull/
+.env*.local

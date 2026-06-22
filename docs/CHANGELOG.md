@@ -7,7 +7,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## [5.0.0] - 2026-06-22
+
 ### Added
+- Add the local-first expansion surface: optional `agent-browser` rendering,
+  provider-neutral discovery packs, source policy validation, pack refresh
+  reports, pack audits, cited local answers, JSONL/agent exports, a
+  localhost-only pack server, authenticated-source checks, and cron-friendly
+  local monitors.
+- Add a shared free-first budget contract with CLI `--budget`, SDK
+  `BudgetConfig`, policy-file `budget.maximum_paid_cost_usd`, route
+  explanations, stricter effective paid caps, and deterministic
+  `run.accounting.json` artifacts for budgeted or paid-capable runs.
+- Enforce fail-closed zero-dollar runs: local cache, direct HTTP, sitemap/static
+  discovery, local extraction, local indexing, local pack intelligence, local
+  monitors, and local `agent-browser` rendering remain available, while live
+  Tavily, Exa, Parallel, Vercel Sandbox, E2B, provider probes, and paid-capable
+  benchmark routes are blocked before execution.
+- Add the Phase 2 zero-dollar benchmark mode and target set, including
+  completion classes for `complete_for_0`, `complete_with_local_browser`,
+  `partial_for_0`, `requires_provider`, `requires_cloud_browser`, and
+  `blocked_by_policy`.
+- Add provider-free discovery scanning with `docpull discover scan URL` for
+  `llms.txt`, RSS/Atom feeds, OpenAPI references, richer sitemap discovery, and
+  public GitHub documentation trees, all writing the standard
+  `candidate_sources.ndjson` discovery-pack contract.
+- Add Phase 4 escalation suggestions when local capture is partial, with local
+  discovery/render commands first, BYOK provider dry-run/live commands next,
+  cloud rendering last, and estimated paid request/cost guards before
+  escalation.
+- Add provider-neutral local parity workflows: `docpull extract-pack`,
+  `docpull map`, `docpull crawl-pack`, `docpull research-pack`, and
+  `docpull entities-pack`, plus SDK helpers and MCP tools over the same
+  modules. These workflows write local lifecycle artifacts including
+  `events.ndjson`, `status.json`, `poll.report.json`, and
+  `webhook.sample.json`.
+- Add local structured-output validation for `docpull research-pack --schema`
+  using a dependency-free JSON Schema subset over cited local answer fields.
+- Add monitor lifecycle controls: `docpull monitor trigger`, `pause`,
+  `unpause`, and `scheduler-snippet`, plus monitor dedupe labels.
+- Add MCP tools for local expansion workflows: `render_url`,
+  `discover_sources`, `fetch_discovered_sources`, `extract_pack`,
+  `map_sources`, `crawl_pack`, `research_pack`, `entities_pack`,
+  `refresh_pack`, `audit_pack`, `answer_pack`, `validate_policy`,
+  `export_pack`, and `serve_pack_status`.
+- Add local downstream export formats for Sheets CSV/TSV, n8n workflow JSON,
+  Vercel AI SDK JSON, CrewAI JSON, warehouse NDJSON, and optional Parquet via
+  `docpull[parquet]`.
+- Add explicit optional-renderer diagnostics: `docpull render --check`,
+  `docpull render --agent-browser-bin`, SDK
+  `check_agent_browser_availability()`, doctor reporting for the external
+  `agent-browser` runtime, and a live smoke test that skips when the executable
+  is absent.
+- Harden optional browser rendering by requiring HTTPS except localhost/loopback
+  HTTP and rejecting non-default renderer action permissions.
+- Add optional cloud sandbox render runtimes: Vercel through the Vercel Sandbox
+  CLI and E2B through the E2B Python SDK/API key.
+- Standardize cloud rendering on the same `agent-browser --json` contract as
+  local rendering. Add `docpull render --runtime local|vercel|e2b`,
+  `docpull render init ...`, `docpull render doctor`, estimated per-render
+  budget caps, E2B template support, prebuilt sandbox install skipping, E2B
+  file result transport, and opt-in live cloud smoke tests gated by
+  `DOCPULL_LIVE_CLOUD_RENDER=1`.
 - Add local pack intelligence commands: `docpull pack citations`,
   `docpull pack entities`, `docpull pack search`, and `docpull pack brief`,
   plus matching MCP tools for agent access to citation maps, structured
@@ -16,6 +77,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the standard local pack intelligence bundle in one step.
 - Post-process successful Parallel, Tavily, and Exa provider context packs with
   local score, source-score, citation, entity, search, and brief artifacts.
+- Add first-class Tavily and Exa provider adapters plus `docpull tavily ...`
+  and `docpull exa ...` aliases for context-pack and extract-pack workflows.
+- Add a provider capability matrix and `docpull tavily map-pack`, which uses
+  Tavily Map to write a standard DocPull discovery pack.
+- Harden provider API key handling by rejecting unsafe key values before header
+  use or local secret-file writes.
+- Move provider capability metadata out of adapter code, split provider tests by
+  key/adapter/CLI responsibility, and add auth path redaction for CI/agent logs.
+- Add explicit provider live probes: Tavily account usage, Exa public team info,
+  Parallel opt-in auth-gate validation, and guarded smoke probes separate from
+  offline auth readiness.
+- Add `make test-inventory` and `make test-all-local` so contributors can report
+  default pytest, fully gated pytest collection, Bun MCP, and coverage gates
+  separately.
+
+### Changed
+- Reframe public docs around DocPull as a local-first, free-first evidence
+  engine: local and open-data routes first, BYOK providers as explicit
+  escalation, hosted execution as a future product boundary, and no hidden paid
+  calls, CAPTCHA bypass, stealth scraping, or proprietary web-scale index
+  claims.
+
+### Fixed
+- Resolve discovery links against the final redirected URL so moved docs sites
+  do not produce broken relative links.
+- Prefer real streamed/hidden application content over loading skeletons when
+  extracting modern docs pages, and remove loading-only placeholders from the
+  selected content tree.
+- Clean up stdio MCP child processes in tests so the full local gate does not
+  leak servers after client failures.
 
 ## [4.4.1] - 2026-06-17
 
@@ -461,10 +552,13 @@ streaming discovery, conditional GET, and a measured 10k-page benchmark.
   (`/api/auth/oauth2` → `api/auth/oauth2.md`), with sanitized segments
   and trailing-slash → `index.md` collapse. Path-traversal segments
   (`..`) are neutralized so URL-driven escapes can't leave the output dir.
-- **`--skill NAME`** generates a Claude Code skill directory:
-  `docpull URL --skill foo` produces `<output-dir>/foo/SKILL.md` plus
-  hierarchically named pages. The manifest's `description` field is
-  derived from the first page's OpenGraph or JSON-LD metadata, with
+- **`--skill NAME`** generates agent-ready skills/rules:
+  `docpull URL --skill foo --skill-agent all` writes scraped pages under
+  `.docpull/skills/foo/references`, creates Claude Code and Codex `SKILL.md`
+  wrappers, and writes a Cursor `.cursor/rules/foo.mdc` project rule. With
+  `--output-dir`, the corpus is staged there while explicit agent targets still
+  write active wrappers. The manifest `description` is derived from the first page's
+  OpenGraph or JSON-LD metadata, with
   `--skill-description` available as an explicit override.
 - **`--require-pinned-dns`** refuses proxy configurations that delegate
   DNS to the proxy. Before this, running with `--proxy` silently weakened

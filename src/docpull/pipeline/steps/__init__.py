@@ -5,6 +5,7 @@ from .convert import ConvertStep
 from .dedup import DedupStep
 from .fetch import FetchStep
 from .metadata import MetadataStep
+from .render import RenderStep
 from .save import SaveStep
 from .save_json import JsonSaveStep
 from .save_ndjson import NdjsonSaveStep
@@ -21,6 +22,7 @@ __all__ = [
     "MetadataStep",
     "NdjsonSaveStep",
     "OkfSaveStep",
+    "RenderStep",
     "SaveStep",
     "SqliteSaveStep",
     "SqliteSearchResult",

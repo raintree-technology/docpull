@@ -6,6 +6,8 @@ allowed-tools: mcp__docpull__remove_source
 
 # Remove a source
 
+Compatibility alias: prefer `/web-remove` for new web-source workflows.
+
 The user wants to remove a previously-added source. By default this also deletes cached Markdown to free disk and avoid stale answers.
 
 User input: **$ARGUMENTS**

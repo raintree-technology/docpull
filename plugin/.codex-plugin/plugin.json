@@ -1,7 +1,7 @@
 {
   "id": "docpull",
   "name": "docpull",
-  "version": "4.4.0",
+  "version": "5.0.0",
   "description": "Pull public web sources into Codex as local, searchable Markdown through docpull's MCP server.",
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",
@@ -14,29 +14,33 @@
   "repository": "https://github.com/raintree-technology/docpull",
   "license": "MIT",
   "keywords": [
+    "web",
+    "web-scraping",
     "documentation",
     "docs",
     "fetch",
     "markdown",
     "rag",
     "mcp",
-    "local-first"
+    "local-first",
+    "source-packs"
   ],
   "interface": {
     "displayName": "docpull",
     "shortDescription": "Fetch public web sources into local, searchable Markdown.",
-    "longDescription": "docpull gives Codex a local MCP server for fetching public static and server-rendered web sources, indexing them as Markdown, searching cached pages, and reading cited passages without API keys or browser automation.",
+    "longDescription": "docpull gives Codex a local MCP server for fetching public static and server-rendered web sources, indexing them as Markdown, searching cached pages, reading cited passages, and inspecting local context packs without API keys or browser automation.",
     "developerName": "Raintree Technology",
     "category": "Productivity",
     "capabilities": [
       "Fetch public HTTPS pages as Markdown",
-      "Index documentation sites locally",
+      "Index web sources locally",
       "Search cached Markdown with regex",
       "Read cited source passages",
+      "Inspect local context packs",
       "Manage user-defined source aliases"
     ],
     "websiteURL": "https://github.com/raintree-technology/docpull",
     "brandColor": "#2563EB",
-    "defaultPrompt": "Use docpull when I ask about a specific library, framework, SDK, API, or public docs URL. Prefer cached docs first, fetch only the requested source, and cite source paths when answering."
+    "defaultPrompt": "Use docpull when I ask about a specific library, framework, SDK, API, website, or public source URL. Prefer cached sources first, fetch only the requested source, and cite source paths when answering."
   }
 }

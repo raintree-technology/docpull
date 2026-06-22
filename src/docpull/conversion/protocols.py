@@ -7,7 +7,7 @@ class ContentExtractor(Protocol):
     """
     Protocol for extracting main content from HTML.
 
-    Implementations should extract the main article/documentation content
+    Implementations should extract the main article/page content
     while removing navigation, headers, footers, ads, etc.
     """
 

@@ -313,6 +313,25 @@ def test_parallel_auth_treats_blank_key_as_missing(
     assert payload["api_key_source"] == "missing"
 
 
+def test_parallel_auth_reports_invalid_key_without_exposing_value(
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("PARALLEL_API_KEY", "test-secret\nheader-injection")
+    monkeypatch.setattr(parallel_workflows, "_parallel_sdk_installed", lambda: True)
+
+    assert run_parallel_cli(["auth", "--json"]) == 1
+
+    output = capsys.readouterr().out
+    assert "test-secret" not in output
+    assert "header-injection" not in output
+    payload = json.loads(output)
+    assert payload["ready"] is False
+    assert payload["api_key_present"] is False
+    assert payload["api_key_source"] == "invalid_env"
+    assert "control characters" in payload["api_key_invalid_reason"]
+
+
 def test_parallel_init_writes_user_secret_and_auth_uses_it(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -337,6 +356,22 @@ def test_parallel_init_writes_user_secret_and_auth_uses_it(
     assert payload["ready"] is True
     assert payload["api_key_source"] == "user_config"
     assert payload["api_key_source_path"] == str(secret_path)
+
+
+def test_parallel_init_rejects_unsafe_key_values(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.delenv("PARALLEL_API_KEY", raising=False)
+    monkeypatch.setattr("sys.stdin", io.StringIO("bad-secret\x1fvalue\n"))
+
+    assert run_parallel_cli(["init", "--from-stdin"]) == 1
+
+    output = capsys.readouterr().out
+    assert "bad-secret" not in output
+    assert "control characters" in output
+    assert not (tmp_path / "xdg-config" / "docpull" / "secrets.env").exists()
 
 
 def test_parallel_init_project_writes_env_local_and_gitignore(
@@ -387,6 +422,29 @@ def test_parallel_auth_env_overrides_project_and_user_config(
     payload = json.loads(output)
     assert payload["api_key_source"] == "env"
     assert payload["api_key_source_path"] is None
+
+
+def test_parallel_auth_json_can_redact_local_paths(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("PARALLEL_API_KEY", raising=False)
+    monkeypatch.setattr(parallel_workflows, "_parallel_sdk_installed", lambda: True)
+    secret_path = tmp_path / "xdg-config" / "docpull" / "secrets.env"
+    secret_path.parent.mkdir(parents=True)
+    secret_path.write_text('PARALLEL_API_KEY="user-secret"\n', encoding="utf-8")
+
+    assert run_parallel_cli(["auth", "--json", "--redact-paths"]) == 0
+
+    output = capsys.readouterr().out
+    assert str(tmp_path) not in output
+    payload = json.loads(output)
+    assert payload["paths_redacted"] is True
+    assert payload["api_key_source_path"] == "[redacted]"
+    assert payload["user_secrets_path"] == "[redacted]"
+    assert payload["project_env_path"] == "[redacted]"
 
 
 def test_parallel_init_refuses_overwrite_without_force(

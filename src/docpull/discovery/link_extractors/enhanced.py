@@ -10,7 +10,7 @@ from urllib.parse import urljoin, urlparse
 from bs4 import BeautifulSoup
 
 from ...http.protocols import HttpClient
-from .._fetch import fetch_html
+from .._fetch import fetch_html_response
 
 logger = logging.getLogger(__name__)
 
@@ -88,6 +88,7 @@ class EnhancedLinkExtractor:
         self._data_attrs = self.DATA_ATTRS.copy()
         if custom_data_attrs:
             self._data_attrs.extend(custom_data_attrs)
+        self.last_final_url: str | None = None
 
     async def extract_links(
         self,
@@ -104,10 +105,15 @@ class EnhancedLinkExtractor:
         Returns:
             List of absolute URLs found on the page
         """
+        base_url = url
+        self.last_final_url = url
         if content is None:
-            content = await fetch_html(self._client, url)
-            if content is None:
+            response = await fetch_html_response(self._client, url)
+            if response is None:
                 return []
+            content = response.content
+            base_url = response.url if isinstance(response.url, str) and response.url else url
+            self.last_final_url = base_url
 
         links: set[str] = set()
 
@@ -118,23 +124,23 @@ class EnhancedLinkExtractor:
             return []
 
         # Standard <a href> extraction
-        links.update(self._extract_standard_links(soup, url))
+        links.update(self._extract_standard_links(soup, base_url))
 
         # Data attribute extraction
         if self._enable_data_attrs:
-            links.update(self._extract_data_attr_links(soup, url))
+            links.update(self._extract_data_attr_links(soup, base_url))
 
         # onclick handler extraction
         if self._enable_onclick:
-            links.update(self._extract_onclick_links(soup, url))
+            links.update(self._extract_onclick_links(soup, base_url))
 
         # JSON-LD extraction
         if self._enable_json_ld:
-            links.update(self._extract_json_ld_links(soup, url))
+            links.update(self._extract_json_ld_links(soup, base_url))
 
         # Prefetch/preload link extraction
         if self._enable_prefetch:
-            links.update(self._extract_prefetch_links(soup, url))
+            links.update(self._extract_prefetch_links(soup, base_url))
 
         return list(links)
 

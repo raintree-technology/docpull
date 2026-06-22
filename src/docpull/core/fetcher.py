@@ -29,6 +29,7 @@ from ..pipeline.steps import (
     MetadataStep,
     NdjsonSaveStep,
     OkfSaveStep,
+    RenderStep,
     SaveStep,
     SqliteSaveStep,
     ValidateStep,
@@ -380,13 +381,29 @@ class Fetcher:
             ),
         ]
 
-        steps.append(
-            FetchStep(
-                http_client=self._http_client,
-                cache_manager=self._cache_manager,
-                skip_unchanged=self.config.cache.skip_unchanged,
+        render_mode = self.config.render.mode
+        if render_mode == "agent-browser":
+            steps.append(
+                RenderStep(
+                    render_config=self.config.render,
+                    output_dir=output_dir,
+                )
             )
-        )
+        else:
+            steps.append(
+                FetchStep(
+                    http_client=self._http_client,
+                    cache_manager=self._cache_manager,
+                    skip_unchanged=self.config.cache.skip_unchanged,
+                )
+            )
+            if render_mode == "fallback":
+                steps.append(
+                    RenderStep(
+                        render_config=self.config.render,
+                        output_dir=output_dir,
+                    )
+                )
 
         steps.append(MetadataStep(extract_rich=self.config.output.rich_metadata))
 
@@ -443,6 +460,9 @@ class Fetcher:
                 emit_chunks=self.config.output.emit_chunks,
                 skill_name=self.config.output.skill_name,
                 skill_description=self.config.output.skill_description,
+                skill_agents=self.config.output.skill_agents,
+                skill_root_dir=self.config.output.skill_root_dir,
+                skill_install_targets=self.config.output.skill_install_targets,
                 run_identity=self.run_identity,
             )
             steps.append(self._save_step)
@@ -523,7 +543,7 @@ class Fetcher:
             if self._okf_saver:
                 self._okf_saver.finalize()
 
-            # Write SKILL.md when --skill mode produced a manifest-shaped run.
+            # Write agent skill/rule files when --skill mode produced a corpus.
             if self._save_step:
                 self._save_step.finalize()
 
@@ -722,7 +742,8 @@ class Fetcher:
         """Legacy mode: discover everything, then fetch sequentially."""
         if self.config.url is None:
             return
-        assert self._discoverer is not None
+        if self._discoverer is None:
+            raise RuntimeError("Fetcher discoverer is not initialized.")
         start_url = self.config.url
         yield FetchEvent(
             type=EventType.DISCOVERY_STARTED,
@@ -762,8 +783,10 @@ class Fetcher:
 
     async def _fetch_collected(self, urls: list[str]) -> AsyncIterator[FetchEvent]:
         """Process a known URL list sequentially. Used by legacy mode and resume."""
-        assert self._pipeline is not None
-        assert self._start_time is not None
+        if self._pipeline is None:
+            raise RuntimeError("Fetcher pipeline is not initialized.")
+        if self._start_time is None:
+            raise RuntimeError("Fetcher start time is not initialized.")
         self._stats.urls_discovered = len(urls)
         progress_counts = {"processed": 0, "saved": 0, "skipped": 0, "failed": 0}
 
@@ -832,9 +855,12 @@ class Fetcher:
         """
         if self.config.url is None:
             return
-        assert self._discoverer is not None
-        assert self._pipeline is not None
-        assert self._start_time is not None
+        if self._discoverer is None:
+            raise RuntimeError("Fetcher discoverer is not initialized.")
+        if self._pipeline is None:
+            raise RuntimeError("Fetcher pipeline is not initialized.")
+        if self._start_time is None:
+            raise RuntimeError("Fetcher start time is not initialized.")
         # Local references so the inner closures don't have to re-narrow
         # `Optional[X]` against the same instance attributes — mypy can't
         # prove non-None across closure boundaries otherwise.

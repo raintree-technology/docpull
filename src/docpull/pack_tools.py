@@ -29,6 +29,7 @@ DEFAULT_ENTITY_LIMIT = 100
 DEFAULT_BRIEF_EXCERPTS = 8
 DEFAULT_BRIEF_ENTITY_LIMIT = 20
 DEFAULT_SEARCH_LIMIT = 10
+DEFAULT_GRAPH_ENTITY_LIMIT = 500
 
 _WORD_RE = re.compile(r"[a-z0-9][a-z0-9-]{2,}", re.IGNORECASE)
 _MARKDOWN_LINK_RE = re.compile(r"\[([^\]]+)]\([^)]+\)")
@@ -80,6 +81,23 @@ def create_pack_parser() -> argparse.ArgumentParser:
     score.add_argument("--output", type=Path, help="Score JSON output path")
     score.add_argument("--min-score", type=int, default=0, help="Exit non-zero if score is below N")
     score.add_argument(
+        "--require-domain",
+        action="append",
+        dest="required_domains",
+        default=[],
+        help="Expected source domain or suffix. Repeat as needed.",
+    )
+
+    audit = subparsers.add_parser("audit", help="Write an actionable local quality audit")
+    audit.add_argument("pack_dir", type=Path, help="Context pack directory")
+    audit.add_argument("--output", type=Path, help="Audit JSON output path")
+    audit.add_argument("--markdown", type=Path, help="Audit Markdown output path")
+    audit.add_argument(
+        "--fail-under",
+        type=float,
+        help="Exit non-zero if audit score is below this 0.0-1.0 threshold",
+    )
+    audit.add_argument(
         "--require-domain",
         action="append",
         dest="required_domains",
@@ -202,6 +220,13 @@ def create_pack_parser() -> argparse.ArgumentParser:
         help="Maximum search results",
     )
     prepare.add_argument(
+        "--graph-entity-limit",
+        type=int,
+        default=DEFAULT_GRAPH_ENTITY_LIMIT,
+        help="Maximum entities to include in graph artifacts",
+    )
+    prepare.add_argument("--no-graph", action="store_true", help="Skip local source graph artifacts")
+    prepare.add_argument(
         "--require-domain",
         action="append",
         dest="required_domains",
@@ -228,6 +253,21 @@ def run_pack_cli(argv: list[str] | None = None) -> int:
             )
             if payload["score"] < args.min_score:
                 return 1
+            return 0
+        if args.command == "audit":
+            from .local_workflows import audit_pack
+
+            payload = audit_pack(
+                args.pack_dir,
+                required_domains=args.required_domains,
+                fail_under=args.fail_under,
+                json_path=args.output,
+                markdown_path=args.markdown,
+            )
+            console.print(
+                f"[green]Pack audit:[/green] {payload['score']}/100 ({payload['grade']}) "
+                f"-> {payload['artifacts']['json']}"
+            )
             return 0
         if args.command == "diff":
             payload = diff_packs(args.old_pack_dir, args.new_pack_dir)
@@ -310,8 +350,7 @@ def run_pack_cli(argv: list[str] | None = None) -> int:
                 ),
             )
             console.print(
-                "[green]Research brief:[/green] "
-                f"{len(payload['key_excerpts'])} excerpts -> {markdown_output}"
+                f"[green]Research brief:[/green] {len(payload['key_excerpts'])} excerpts -> {markdown_output}"
             )
             return 0
         if args.command == "prepare":
@@ -324,6 +363,8 @@ def run_pack_cli(argv: list[str] | None = None) -> int:
                 max_excerpts=args.max_excerpts,
                 entity_limit=args.entity_limit,
                 search_limit=args.search_limit,
+                graph=not args.no_graph,
+                graph_entity_limit=args.graph_entity_limit,
                 markdown=not args.no_markdown,
                 output=args.output,
             )
@@ -609,6 +650,8 @@ def prepare_pack(
     max_excerpts: int = DEFAULT_BRIEF_EXCERPTS,
     entity_limit: int = DEFAULT_BRIEF_ENTITY_LIMIT,
     search_limit: int = DEFAULT_SEARCH_LIMIT,
+    graph: bool = True,
+    graph_entity_limit: int = DEFAULT_GRAPH_ENTITY_LIMIT,
     markdown: bool = True,
     output: Path | None = None,
 ) -> dict[str, Any]:
@@ -618,6 +661,8 @@ def prepare_pack(
         raise PackToolError("--entity-limit cannot be negative.")
     if search_limit < 1:
         raise PackToolError("--search-limit must be at least 1.")
+    if graph_entity_limit < 1:
+        raise PackToolError("--graph-entity-limit must be at least 1.")
 
     pack_dir = pack_dir.resolve()
     pack = _read_pack_metadata(pack_dir)
@@ -665,6 +710,16 @@ def prepare_pack(
         markdown=markdown,
         artifacts=artifacts,
     )
+    graph_payload = (
+        _write_prepare_graph_artifacts(
+            pack_dir,
+            entity_limit=graph_entity_limit,
+            markdown=markdown,
+            artifacts=artifacts,
+        )
+        if graph
+        else None
+    )
 
     output_path = (output or (pack_dir / "pack.prepare.json")).resolve()
     artifacts["prepare"] = _artifact_ref(pack_dir, output_path)
@@ -682,6 +737,16 @@ def prepare_pack(
             "source_count": citations_payload["source_count"],
             "entity_count": entities_payload["entity_count"],
             "brief_excerpt_count": len(brief_payload["key_excerpts"]),
+            "graph_node_count": (
+                _safe_int(graph_payload.get("summary", {}).get("node_count"))
+                if isinstance(graph_payload, dict)
+                else 0
+            ),
+            "graph_edge_count": (
+                _safe_int(graph_payload.get("summary", {}).get("edge_count"))
+                if isinstance(graph_payload, dict)
+                else 0
+            ),
             "search_query_count": len(search_payloads),
             "search_result_count": sum(
                 _safe_int(search_payload.get("result_count")) for search_payload in search_payloads
@@ -827,6 +892,24 @@ def _write_prepare_brief_artifacts(
     return brief_payload
 
 
+def _write_prepare_graph_artifacts(
+    pack_dir: Path,
+    *,
+    entity_limit: int,
+    markdown: bool,
+    artifacts: dict[str, str],
+) -> dict[str, Any]:
+    from .graph import build_graph
+
+    graph_payload = build_graph(pack_dir, entity_limit=entity_limit, markdown=markdown)
+    graph_artifacts = graph_payload.get("artifacts")
+    if isinstance(graph_artifacts, dict):
+        for key, value in graph_artifacts.items():
+            if isinstance(value, str):
+                artifacts[f"graph_{key}"] = value
+    return graph_payload
+
+
 def _empty_entities_payload(pack_dir: Path, citations_payload: dict[str, Any]) -> dict[str, Any]:
     return {
         "schema_version": ENTITY_SCHEMA_VERSION,
@@ -879,6 +962,13 @@ def diff_packs(old_pack_dir: Path, new_pack_dir: Path) -> dict[str, Any]:
     new_urls = set(new_records)
     shared_urls = sorted(old_urls & new_urls)
     changed_urls = [url for url in shared_urls if _hashes(old_records[url]) != _hashes(new_records[url])]
+    title_changed_urls = [
+        url for url in shared_urls if _titles(old_records[url]) != _titles(new_records[url])
+    ]
+    path_changed_urls = [
+        url for url in shared_urls if _output_paths(old_records[url]) != _output_paths(new_records[url])
+    ]
+    any_changed_urls = set(changed_urls) | set(title_changed_urls) | set(path_changed_urls)
     return {
         "schema_version": DIFF_SCHEMA_VERSION,
         "generated_at": utc_now_iso(),
@@ -887,7 +977,24 @@ def diff_packs(old_pack_dir: Path, new_pack_dir: Path) -> dict[str, Any]:
         "added_urls": sorted(new_urls - old_urls),
         "removed_urls": sorted(old_urls - new_urls),
         "changed_urls": changed_urls,
-        "unchanged_urls": [url for url in shared_urls if url not in changed_urls],
+        "title_changed_urls": title_changed_urls,
+        "path_changed_urls": path_changed_urls,
+        "changed_details": [
+            {
+                "url": url,
+                "content_changed": url in changed_urls,
+                "title_changed": url in title_changed_urls,
+                "path_changed": url in path_changed_urls,
+                "old_hashes": _hashes(old_records[url]),
+                "new_hashes": _hashes(new_records[url]),
+                "old_titles": _titles(old_records[url]),
+                "new_titles": _titles(new_records[url]),
+                "old_paths": _output_paths(old_records[url]),
+                "new_paths": _output_paths(new_records[url]),
+            }
+            for url in sorted(any_changed_urls)
+        ],
+        "unchanged_urls": [url for url in shared_urls if url not in any_changed_urls],
         "old_record_count": sum(len(items) for items in old_records.values()),
         "new_record_count": sum(len(items) for items in new_records.values()),
     }
@@ -1028,12 +1135,7 @@ def _citation_sources(
                 if str(record.get("content_hash") or "").strip()
             }
         )
-        source_types = sorted(
-            {
-                str(record.get("source_type") or "unknown")
-                for record in url_records
-            }
-        )
+        source_types = sorted({str(record.get("source_type") or "unknown") for record in url_records})
         fetched_at_values = sorted(
             str(record.get("fetched_at") or "") for record in url_records if record.get("fetched_at")
         )
@@ -1562,7 +1664,8 @@ def _searches_markdown(payload: dict[str, Any]) -> str:
 
 
 def _brief_markdown(payload: dict[str, Any]) -> str:
-    summary = payload.get("summary") if isinstance(payload.get("summary"), dict) else {}
+    summary_raw = payload.get("summary")
+    summary: dict[str, Any] = summary_raw if isinstance(summary_raw, dict) else {}
     lines = [
         "# Local Research Brief",
         "",
@@ -1603,8 +1706,7 @@ def _brief_markdown(payload: dict[str, Any]) -> str:
             )
             suffix = f" [{citations}]" if citations else ""
             lines.append(
-                f"- {entity.get('type')}: {entity.get('value')} "
-                f"(count {entity.get('count')}){suffix}"
+                f"- {entity.get('type')}: {entity.get('value')} (count {entity.get('count')}){suffix}"
             )
     return "\n".join(lines).rstrip() + "\n"
 
@@ -1621,6 +1723,14 @@ def _records_by_url(records: list[dict[str, Any]]) -> dict[str, list[dict[str, A
 
 def _hashes(records: list[dict[str, Any]]) -> list[str]:
     return sorted(str(record.get("content_hash", "")) for record in records)
+
+
+def _titles(records: list[dict[str, Any]]) -> list[str]:
+    return sorted(str(record.get("title", "")) for record in records)
+
+
+def _output_paths(records: list[dict[str, Any]]) -> list[str]:
+    return sorted(str(record.get("output_path", "")) for record in records)
 
 
 def _domain(url: str) -> str:

@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import json
 import re
+import subprocess  # nosec B404
+import sys
 from pathlib import Path
 from unittest import mock
 
@@ -14,6 +17,24 @@ FULL_SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 USE_RE = re.compile(r"uses:\s*([^@\s]+)@([^\s]+)")
 PYTHON_CLASSIFIER_RE = re.compile(r'"Programming Language :: Python :: (3\.\d+)"')
 CI_MATRIX_RE = re.compile(r"python-version:\s*\[(?P<versions>[^\]]+)\]")
+SECTION_RE = re.compile(r"^\[[^\]]+]")
+PROJECT_VERSION_RE = re.compile(r'^version\s*=\s*"([^"]+)"(?:\s*#.*)?$')
+
+
+def project_version() -> str:
+    in_project = False
+    for line in (REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if stripped == "[project]":
+            in_project = True
+            continue
+        if in_project and SECTION_RE.match(stripped):
+            break
+        if in_project:
+            match = PROJECT_VERSION_RE.match(stripped)
+            if match:
+                return match.group(1)
+    raise AssertionError("Could not find [project].version in pyproject.toml")
 
 
 def test_github_actions_are_pinned_to_full_commit_shas() -> None:
@@ -64,6 +85,7 @@ def test_ci_builds_checks_and_smoke_installs_distribution() -> None:
     ci = (WORKFLOW_DIR / "ci.yml").read_text()
 
     assert "\n  package:\n" in ci
+    assert "python scripts/sync_release_metadata.py --check" in ci
     assert "python -m pip install -r requirements-release.txt" in ci
     assert "python -m build --no-isolation" in ci
     assert "python -m twine check dist/*" in ci
@@ -75,6 +97,7 @@ def test_ci_builds_checks_and_smoke_installs_distribution() -> None:
 def test_publish_workflow_smoke_installs_distribution_before_upload() -> None:
     publish = (WORKFLOW_DIR / "publish.yml").read_text()
 
+    assert "python scripts/sync_release_metadata.py --check" in publish
     assert "python -m venv .release-smoke" in publish
     assert ".release-smoke/bin/python -m pip install dist/*.whl" in publish
     assert ".release-smoke/bin/docpull --version" in publish
@@ -117,6 +140,24 @@ def test_pre_commit_mypy_uses_project_interpreter_wrapper() -> None:
     assert "entry: mypy src" not in config
 
 
+def test_local_make_gates_include_generated_metadata_check() -> None:
+    makefile = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
+
+    assert "lint: metadata-check" in makefile
+    assert "test-all-local: metadata-check" in makefile
+    assert "format: license-year metadata-sync" in makefile
+    assert "$(PYTHON) -m ruff check ." in makefile
+    assert "$(PYTHON) -m ruff format ." in makefile
+
+
+def test_release_helper_checks_generated_metadata_on_current_release_ref() -> None:
+    release = (REPO_ROOT / "scripts" / "release.py").read_text(encoding="utf-8")
+
+    assert 'run(sys.executable, "scripts/sync_release_metadata.py", "--check")' in release
+    assert 'ensure_head_matches("origin/main", "release publish")' in release
+    assert 'ensure_head_matches("origin/main", "release dispatch")' in release
+
+
 def test_plugin_readme_cache_path_matches_mcp_default() -> None:
     readme = (REPO_ROOT / "plugin" / "README.md").read_text(encoding="utf-8")
 
@@ -126,4 +167,26 @@ def test_plugin_readme_cache_path_matches_mcp_default() -> None:
     assert default_path.parts[-2:] == ("docpull-mcp", "docs")
     assert "$XDG_DATA_HOME/docpull-mcp/docs/" in readme
     assert "~/.local/share/docpull-mcp/docs/" in readme
-    assert "4.4.0 or newer" in readme
+    assert f"{project_version()} or newer" in readme
+
+
+def test_plugin_manifest_versions_match_project_version() -> None:
+    for manifest_path in (
+        REPO_ROOT / "plugin" / ".codex-plugin" / "plugin.json",
+        REPO_ROOT / "plugin" / ".claude-plugin" / "plugin.json",
+    ):
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        assert manifest["version"] == project_version()
+
+
+def test_generated_release_metadata_is_synchronized() -> None:
+    proc = subprocess.run(  # nosec B603
+        [sys.executable, "scripts/sync_release_metadata.py", "--check"],
+        cwd=REPO_ROOT,
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+    )
+
+    assert proc.returncode == 0, proc.stdout

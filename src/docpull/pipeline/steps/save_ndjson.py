@@ -188,7 +188,8 @@ class NdjsonSaveStep:
         entry.token_count += record.token_count or 0
 
     def _write_sources_index(self) -> Path:
-        assert self._output_path is not None
+        if self._output_path is None:
+            raise RuntimeError("NDJSON output path is not initialized.")
         lines = [
             "# Context Pack Sources",
             "",

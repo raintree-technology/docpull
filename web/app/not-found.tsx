@@ -13,16 +13,18 @@ export default function NotFound() {
   return (
     <main className="min-h-screen flex items-center justify-center px-6">
       <div className="max-w-md text-center">
-        <p className="mb-4 font-mono text-sm text-muted-foreground">404</p>
-        <h1 className="mb-3 text-2xl font-medium tracking-tight sm:text-3xl">
+        <p className="mb-4 font-mono text-sm font-medium text-muted-foreground">
+          404
+        </p>
+        <h1 className="mb-3 text-2xl font-semibold leading-tight sm:text-3xl">
           Page not found
         </h1>
-        <p className="mb-8 text-sm text-muted-foreground sm:text-base">
+        <p className="mb-8 text-base leading-7 text-muted-foreground">
           The page you&apos;re looking for doesn&apos;t exist or has moved.
         </p>
         <Link
           href="/"
-          className="min-h-11 inline-flex items-center rounded-xl bg-foreground px-4 py-2.5 text-sm font-medium text-background transition-opacity hover:opacity-90"
+          className="inline-flex min-h-11 items-center rounded-lg bg-foreground px-4 py-2.5 text-[15px] font-semibold leading-5 text-background transition-opacity hover:opacity-90"
         >
           Back to home
         </Link>

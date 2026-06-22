@@ -54,6 +54,7 @@ class EventType(str, Enum):
     FETCH_RETRYING = "fetch_retrying"
 
     # Processing phase
+    PAGE_RENDERED = "page_rendered"
     PAGE_CONVERTED = "page_converted"
     METADATA_EXTRACTED = "metadata_extracted"
     PAGE_SAVED = "page_saved"

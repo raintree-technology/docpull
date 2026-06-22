@@ -5,7 +5,9 @@ from __future__ import annotations
 import argparse
 import asyncio
 import sys
+import tempfile
 from pathlib import Path
+from typing import Literal, cast
 
 if "--doctor" in sys.argv:
     from .doctor import run_doctor
@@ -39,9 +41,133 @@ from rich.markup import escape
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from . import __version__
+from .accounting import (
+    BudgetError,
+    RunAccounting,
+    blocked_action,
+    default_route_steps,
+    effective_budget_limit,
+    enforce_paid_budget,
+    maybe_write_run_accounting,
+    parse_budget_value,
+)
 from .core.fetcher import Fetcher
-from .models.config import DocpullConfig, ProfileName
+from .models.config import DEFAULT_CLOUD_ARTIFACT_PATH, DocpullConfig, ProfileName, RenderConfig
 from .models.events import EventType, SkipReason
+from .rendering import (
+    AgentBrowserRenderer,
+    Renderer,
+    RenderError,
+    VercelSandboxRenderer,
+    check_render_backend_availability,
+    estimate_cloud_render_cost_usd,
+    render_url_to_directory,
+)
+from .skill_export import default_skill_root, expand_skill_agents
+
+RenderBackend = Literal["agent-browser", "vercel-sandbox", "e2b-sandbox"]
+
+
+def _write_fetch_accounting(
+    *,
+    config: DocpullConfig,
+    stats: object | None,
+    route_steps: list,
+    render_estimated_cost: float,
+    paid_capable: bool,
+    skip_counts: dict[SkipReason, int] | None = None,
+) -> None:
+    cache_hits = 0
+    if skip_counts:
+        cache_hits = int(skip_counts.get(SkipReason.CACHE_UNCHANGED, 0))
+    http_request_count = 0
+    if stats is not None:
+        http_request_count = int(getattr(stats, "pages_fetched", 0)) + int(getattr(stats, "pages_failed", 0))
+    accounting = RunAccounting(
+        budget_limit_usd=config.budget.maximum_paid_cost_usd,
+        estimated_paid_cost_usd=render_estimated_cost if paid_capable else 0.0,
+        paid_request_count=1 if paid_capable and render_estimated_cost > 0 else 0,
+        http_request_count=http_request_count,
+        cache_hit_count=cache_hits,
+        route_steps=route_steps,
+        command="fetch",
+    )
+    maybe_write_run_accounting(
+        config.output.directory,
+        budget_limit_usd=config.budget.maximum_paid_cost_usd,
+        paid_capable=paid_capable,
+        accounting=accounting,
+    )
+
+
+def _add_render_options(parser: argparse.ArgumentParser) -> None:
+    render_group = parser.add_argument_group("rendering")
+    render_group.add_argument(
+        "--render",
+        choices=["off", "agent-browser", "fallback"],
+        default="off",
+        help="Optional browser rendering mode (default: off)",
+    )
+    render_group.add_argument(
+        "--render-runtime",
+        choices=["local", "vercel", "e2b"],
+        default="local",
+        help="Renderer runtime for --render agent-browser/fallback",
+    )
+    render_group.add_argument(
+        "--render-timeout",
+        type=float,
+        default=None,
+        metavar="SECONDS",
+        help="Renderer timeout per page",
+    )
+    render_group.add_argument(
+        "--render-wait-for",
+        choices=["load", "domcontentloaded", "networkidle"],
+        default=None,
+        metavar="STATE",
+        help="Renderer load state to wait for before reading HTML",
+    )
+    render_group.add_argument(
+        "--render-allowed-domain",
+        action="append",
+        default=None,
+        metavar="DOMAIN",
+        help=(
+            "Domain allowed during rendering. May be repeated. Defaults to the target URL host when omitted."
+        ),
+    )
+    render_group.add_argument(
+        "--render-viewport",
+        default=None,
+        metavar="WIDTHxHEIGHT",
+        help="Renderer viewport, for example 1280x720",
+    )
+    render_group.add_argument(
+        "--render-max-html-bytes",
+        default=None,
+        metavar="SIZE",
+        help="Maximum rendered HTML size, for example 10mb",
+    )
+    render_group.add_argument(
+        "--render-cloud-agent-browser-install",
+        choices=["auto", "skip"],
+        default=None,
+        help="Install agent-browser inside cloud sandboxes, or skip for prebuilt templates",
+    )
+    render_group.add_argument(
+        "--render-cloud-max-estimated-cost",
+        type=float,
+        default=None,
+        metavar="USD",
+        help="Fail cloud rendering when the estimated per-page cost exceeds this cap",
+    )
+    render_group.add_argument(
+        "--render-template",
+        default=None,
+        metavar="TEMPLATE",
+        help="Cloud runtime template name; currently used by --render-runtime e2b",
+    )
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -63,6 +189,27 @@ Examples:
 
   # Filter paths
   docpull https://example.com --include-paths "/api/*" --exclude-paths "/changelog/*"
+
+Subcommands:
+  render       Render one public URL or check the optional agent-browser backend
+  discover     Build/select/fetch provider-neutral discovery packs
+  extract-pack Extract known URLs into a provider-neutral local pack
+  map          Build URL-only local map/discovery packs
+  crawl-pack   Select mapped candidates and fetch a local pack
+  research-pack Produce cited local research results from a pack
+  entities-pack Build local entity/list packs from existing evidence
+  policy       Validate or explain source policy files
+  auth         Check authenticated source access without writing content
+  refresh      Refresh an existing local pack and write change reports
+  pack         Score, diff, audit, search, cite, and prepare context packs
+  graph        Build and query local cited source graphs for context packs
+  answer-pack  Answer from local pack evidence with citations
+  export       Export a pack for agent or RAG tools
+  serve        Serve a local pack over localhost JSON routes
+  monitor      Run cron-friendly local pack monitors
+  parallel     Build optional Parallel-backed context packs
+  provider     Check provider keys and run provider-backed context packs
+  tavily/exa   First-class aliases for provider-backed packs and capability checks
         """,
     )
 
@@ -82,6 +229,18 @@ Examples:
         "--doctor",
         action="store_true",
         help="Run diagnostic checks",
+    )
+    parser.add_argument(
+        "--budget",
+        type=parse_budget_value,
+        default=None,
+        metavar="USD",
+        help="Maximum paid-capable provider/cloud spend for this run. Use 0 for zero paid calls.",
+    )
+    parser.add_argument(
+        "--explain-route",
+        action="store_true",
+        help="Print the local-first acquisition route and exit without fetching.",
     )
 
     parser.add_argument(
@@ -106,9 +265,9 @@ Examples:
         type=str,
         metavar="NAME",
         help=(
-            "Generate a Claude Code skill directory. Output goes to "
-            "<output-dir>/<NAME>/ with hierarchical naming and a "
-            "SKILL.md manifest derived from the first page's metadata."
+            "Generate an agent skill/rule export. Scraped pages go under "
+            "references/ with hierarchical naming; Claude Code and Codex "
+            "receive SKILL.md folders, and Cursor receives an .mdc rule."
         ),
     )
     parser.add_argument(
@@ -116,6 +275,16 @@ Examples:
         type=str,
         metavar="TEXT",
         help="Override the auto-derived `description` in SKILL.md.",
+    )
+    parser.add_argument(
+        "--skill-agent",
+        action="append",
+        choices=["claude", "codex", "cursor", "all"],
+        metavar="AGENT",
+        help=(
+            "Agent export target for --skill: claude, codex, cursor, or all. "
+            "May be repeated. Default: claude."
+        ),
     )
 
     parser.add_argument(
@@ -291,6 +460,12 @@ Examples:
     # Authentication settings
     auth_group = parser.add_argument_group("authentication")
     auth_group.add_argument(
+        "--auth-policy",
+        choices=["none", "explicit-private", "public-token-only"],
+        default="none",
+        help="Authenticated source mode label for manifests and audit reports",
+    )
+    auth_group.add_argument(
         "--auth-bearer",
         type=str,
         metavar="TOKEN",
@@ -314,6 +489,8 @@ Examples:
         metavar=("NAME", "VALUE"),
         help="Custom auth header (name value)",
     )
+
+    _add_render_options(parser)
 
     cache_group = parser.add_argument_group("cache settings")
     cache_group.add_argument(
@@ -398,6 +575,12 @@ def run_fetcher(args: argparse.Namespace) -> int:
             "Write OKF with --format okf, or generate a skill with markdown output."
         )
         return 1
+    if args.skill and (args.stream or (requested_format is not None and requested_format != "markdown")):
+        console.print(
+            "[red]Error:[/red] --skill requires markdown output. "
+            "Use --format markdown or omit --format when generating a skill."
+        )
+        return 1
 
     config_kwargs: dict = {
         "profile": profile,
@@ -407,13 +590,21 @@ def run_fetcher(args: argparse.Namespace) -> int:
 
     output_kwargs: dict = {}
     if args.skill:
-        # Skill mode: nest under <output-dir>/<skill>/, force hierarchical
-        # naming, and stamp the manifest fields. Default --output-dir to
-        # `.claude/skills` for the common drop-in use case.
-        base = args.output_dir or Path(".claude/skills")
-        output_kwargs["directory"] = base / args.skill
+        # Skill mode: place scraped pages under references/ and stamp the
+        # agent-specific wrapper files after the crawl.
+        skill_agents = expand_skill_agents(args.skill_agent)
+        if args.output_dir:
+            skill_root = args.output_dir / args.skill
+        elif args.skill_agent is not None:
+            skill_root = Path(".docpull/skills") / args.skill
+        else:
+            skill_root = default_skill_root(args.skill, skill_agents)
+        output_kwargs["directory"] = skill_root / "references"
         output_kwargs["naming_strategy"] = "hierarchical"
         output_kwargs["skill_name"] = args.skill
+        output_kwargs["skill_agents"] = skill_agents
+        output_kwargs["skill_root_dir"] = skill_root
+        output_kwargs["skill_install_targets"] = args.skill_agent is not None
         if args.skill_description:
             output_kwargs["skill_description"] = args.skill_description
     elif args.output_dir:
@@ -511,7 +702,34 @@ def run_fetcher(args: argparse.Namespace) -> int:
         auth_kwargs["header_name"] = args.auth_header[0]
         auth_kwargs["header_value"] = args.auth_header[1]
     if auth_kwargs:
+        auth_kwargs["policy"] = args.auth_policy if args.auth_policy != "none" else "explicit-private"
         config_kwargs["auth"] = auth_kwargs
+
+    render_kwargs: dict = {}
+    if args.render != "off":
+        render_kwargs["mode"] = args.render
+        render_kwargs["runtime"] = args.render_runtime
+    if args.render_timeout is not None:
+        render_kwargs["timeout_seconds"] = args.render_timeout
+    if args.render_wait_for:
+        render_kwargs["wait_for"] = args.render_wait_for
+    if args.render_allowed_domain:
+        render_kwargs["allowed_domains"] = args.render_allowed_domain
+    if args.render_viewport:
+        render_kwargs["viewport"] = args.render_viewport
+    if args.render_max_html_bytes:
+        render_kwargs["max_html_bytes"] = args.render_max_html_bytes
+    if args.render_cloud_agent_browser_install:
+        render_kwargs["cloud_agent_browser_install"] = args.render_cloud_agent_browser_install
+    if args.render_cloud_max_estimated_cost is not None:
+        render_kwargs["cloud_max_estimated_cost_usd"] = args.render_cloud_max_estimated_cost
+    if args.render_template:
+        render_kwargs["e2b_template"] = args.render_template
+    if render_kwargs:
+        config_kwargs["render"] = render_kwargs
+
+    if args.budget is not None:
+        config_kwargs["budget"] = {"maximum_paid_cost_usd": args.budget}
 
     cache_kwargs: dict = {}
     if args.cache or args.resume:
@@ -537,6 +755,62 @@ def run_fetcher(args: argparse.Namespace) -> int:
         config = DocpullConfig(**config_kwargs)
     except Exception as e:
         console.print("[red]Configuration error:[/red] " + escape(str(e)))
+        return 1
+
+    budget_limit = config.budget.maximum_paid_cost_usd
+    render_is_cloud = config.render.enabled and config.render.backend in {"vercel-sandbox", "e2b-sandbox"}
+    render_is_local = config.render.enabled and config.render.backend == "agent-browser"
+    render_estimated_cost = (
+        estimate_cloud_render_cost_usd(
+            cast(Literal["vercel-sandbox", "e2b-sandbox"], config.render.backend),
+            config.render,
+        )
+        if render_is_cloud
+        else 0.0
+    )
+    route_steps = default_route_steps(
+        include_local_render=render_is_local,
+        include_cloud=render_is_cloud,
+        budget_limit_usd=budget_limit,
+    )
+    if args.explain_route:
+        console.print("[bold]Local-first route[/bold]")
+        console.print(f"Budget: {'not set' if budget_limit is None else f'${budget_limit:.6f}'}")
+        for step in route_steps:
+            payload = step.to_dict()
+            detail = f" - {payload['detail']}" if payload.get("detail") else ""
+            console.print(f"- {payload['name']}: {payload['status']} ({payload['cost_class']}){detail}")
+        return 0
+    try:
+        if render_is_cloud:
+            enforce_paid_budget(
+                f"render:{config.render.backend}",
+                budget_limit_usd=budget_limit,
+                estimated_cost_usd=render_estimated_cost,
+                provider=config.render.backend,
+            )
+    except BudgetError as err:
+        accounting = RunAccounting(
+            budget_limit_usd=budget_limit,
+            estimated_paid_cost_usd=render_estimated_cost,
+            blocked_actions=[
+                blocked_action(
+                    f"render:{config.render.backend}",
+                    budget_limit_usd=budget_limit,
+                    estimated_cost_usd=render_estimated_cost,
+                    provider=config.render.backend,
+                )
+            ],
+            route_steps=route_steps,
+            command="fetch",
+        )
+        maybe_write_run_accounting(
+            config.output.directory,
+            budget_limit_usd=budget_limit,
+            paid_capable=True,
+            accounting=accounting,
+        )
+        console.print("[red]Budget error:[/red] " + escape(str(err)))
         return 1
 
     async def run() -> int:
@@ -582,6 +856,13 @@ def run_fetcher(args: argparse.Namespace) -> int:
                         console.print(
                             f"[green]Saved:[/green] {ctx.output_path} [{ctx.source_type or 'generic'}]{extra}"
                         )
+                    _write_fetch_accounting(
+                        config=config,
+                        stats=fetcher.stats,
+                        route_steps=route_steps,
+                        render_estimated_cost=render_estimated_cost,
+                        paid_capable=render_is_cloud,
+                    )
                     return 0
 
                 # Track skip reasons for summary
@@ -643,6 +924,14 @@ def run_fetcher(args: argparse.Namespace) -> int:
 
                 # Print stats
                 stats = fetcher.stats
+                _write_fetch_accounting(
+                    config=config,
+                    stats=stats,
+                    route_steps=route_steps,
+                    render_estimated_cost=render_estimated_cost,
+                    paid_capable=render_is_cloud,
+                    skip_counts=skip_counts,
+                )
                 if not args.quiet:
                     console.print()
                     console.print("[bold]Results:[/bold]")
@@ -672,9 +961,394 @@ def run_fetcher(args: argparse.Namespace) -> int:
     return asyncio.run(run())
 
 
+def run_render_cli(argv: list[str]) -> int:
+    """Render one URL to local HTML plus rendered_pages.ndjson."""
+    if argv and argv[0] == "init":
+        return _run_render_init_cli(argv[1:])
+    if argv and argv[0] == "doctor":
+        return _run_render_doctor_cli()
+
+    parser = argparse.ArgumentParser(
+        prog="docpull render",
+        description="Render one public URL through an explicit local or cloud browser runtime",
+        epilog="Helpers: render doctor | render init e2b|vercel",
+    )
+    parser.add_argument("url", nargs="?", help="URL to render")
+    parser.add_argument(
+        "--runtime",
+        choices=["local", "vercel", "e2b"],
+        default="local",
+        help="Renderer runtime: local agent-browser, Vercel Sandbox, or E2B Sandbox",
+    )
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="Check whether the selected render runtime is available and exit",
+    )
+    parser.add_argument(
+        "--live-smoke",
+        action="store_true",
+        help=(
+            "Actually render the URL with the selected runtime, using https://example.com "
+            "when no URL is provided. May consume cloud provider quota."
+        ),
+    )
+    parser.add_argument(
+        "--vercel-sandbox-bin",
+        default=None,
+        metavar="BINARY",
+        help="Vercel Sandbox CLI executable path for --runtime vercel",
+    )
+    parser.add_argument(
+        "--agent-browser-bin",
+        default=None,
+        metavar="BINARY",
+        help="agent-browser executable inside the selected runtime",
+    )
+    parser.add_argument(
+        "--output-dir",
+        "-o",
+        type=Path,
+        default=Path("./rendered"),
+        help="Directory for rendered HTML and rendered_pages.ndjson",
+    )
+    parser.add_argument(
+        "--timeout",
+        type=float,
+        default=30.0,
+        metavar="SECONDS",
+        help="Renderer timeout",
+    )
+    parser.add_argument(
+        "--wait-for",
+        choices=["load", "domcontentloaded", "networkidle"],
+        default="load",
+        metavar="STATE",
+        help="Load state to wait for before reading HTML",
+    )
+    parser.add_argument(
+        "--allowed-domain",
+        action="append",
+        default=None,
+        metavar="DOMAIN",
+        help="Allowed render domain. May be repeated. Defaults to the URL host.",
+    )
+    parser.add_argument(
+        "--viewport",
+        default="1280x720",
+        metavar="WIDTHxHEIGHT",
+        help="Renderer viewport",
+    )
+    parser.add_argument(
+        "--max-html-bytes",
+        default="10mb",
+        metavar="SIZE",
+        help="Maximum rendered HTML size",
+    )
+    parser.add_argument(
+        "--cloud-agent-browser-install",
+        choices=["auto", "skip"],
+        default="skip",
+        help="Install agent-browser inside cloud sandboxes, or skip for prebuilt templates",
+    )
+    parser.add_argument(
+        "--cloud-result-transport",
+        choices=["auto", "stdout", "file"],
+        default="auto",
+        help="How cloud sandboxes return render payloads",
+    )
+    parser.add_argument(
+        "--cloud-max-estimated-cost",
+        type=float,
+        default=None,
+        metavar="USD",
+        help="Fail cloud rendering when the estimated per-render cost exceeds this cap",
+    )
+    parser.add_argument(
+        "--budget",
+        type=parse_budget_value,
+        default=None,
+        metavar="USD",
+        help="Maximum paid-capable provider/cloud spend for this render. Use 0 for zero paid calls.",
+    )
+    parser.add_argument(
+        "--explain-route",
+        action="store_true",
+        help="Print the local-first render route and exit without rendering.",
+    )
+    parser.add_argument(
+        "--cloud-artifact-path",
+        default=DEFAULT_CLOUD_ARTIFACT_PATH,
+        metavar="PATH",
+        help="Sandbox-local result artifact path for file-capable cloud runtimes",
+    )
+    parser.add_argument(
+        "--template",
+        default=None,
+        metavar="TEMPLATE",
+        help="Cloud runtime template name; currently used by --runtime e2b",
+    )
+    parser.add_argument(
+        "--quiet",
+        "-q",
+        action="store_true",
+        help="Suppress success output",
+    )
+    args = parser.parse_args(argv)
+
+    console = Console()
+    backend = _render_backend_from_runtime(args.runtime)
+    if args.check:
+        binary = _availability_binary_for_runtime(
+            args.runtime,
+            agent_browser_binary=args.agent_browser_bin,
+            vercel_sandbox_binary=args.vercel_sandbox_bin,
+        )
+        available, message = check_render_backend_availability(backend, binary=binary)
+        style = "green" if available else "yellow"
+        console.print(f"[{style}]{escape(message)}[/{style}]")
+        return 0 if available else 1
+    if args.live_smoke and not args.url:
+        args.url = "https://example.com"
+    if not args.url:
+        parser.error("url is required unless --check is used")
+    try:
+        config = RenderConfig(
+            mode="agent-browser",
+            backend=backend,
+            timeout_seconds=args.timeout,
+            wait_for=args.wait_for,
+            allowed_domains=args.allowed_domain or [],
+            viewport=args.viewport,
+            max_html_bytes=args.max_html_bytes,
+            cloud_agent_browser_install=args.cloud_agent_browser_install,
+            cloud_result_transport=args.cloud_result_transport,
+            cloud_max_estimated_cost_usd=args.cloud_max_estimated_cost,
+            cloud_artifact_path=args.cloud_artifact_path,
+            cloud_agent_browser_binary=args.agent_browser_bin or "agent-browser",
+            e2b_template=args.template,
+        )
+    except Exception as e:
+        console.print("[red]Configuration error:[/red] " + escape(str(e)))
+        return 1
+    budget_limit = effective_budget_limit(
+        args.budget,
+        args.cloud_max_estimated_cost if backend != "agent-browser" else None,
+    )
+    cloud_estimated_cost = (
+        estimate_cloud_render_cost_usd(cast(Literal["vercel-sandbox", "e2b-sandbox"], backend), config)
+        if backend in {"vercel-sandbox", "e2b-sandbox"}
+        else 0.0
+    )
+    route_steps = default_route_steps(
+        include_local_render=backend == "agent-browser",
+        include_cloud=backend != "agent-browser",
+        budget_limit_usd=budget_limit,
+    )
+    if args.explain_route:
+        console.print("[bold]Local-first render route[/bold]")
+        console.print(f"Budget: {'not set' if budget_limit is None else f'${budget_limit:.6f}'}")
+        for step in route_steps:
+            payload = step.to_dict()
+            detail = f" - {payload['detail']}" if payload.get("detail") else ""
+            console.print(f"- {payload['name']}: {payload['status']} ({payload['cost_class']}){detail}")
+        return 0
+    try:
+        if backend in {"vercel-sandbox", "e2b-sandbox"}:
+            enforce_paid_budget(
+                f"render:{backend}",
+                budget_limit_usd=budget_limit,
+                estimated_cost_usd=cloud_estimated_cost,
+                provider=backend,
+            )
+    except BudgetError as e:
+        if not args.live_smoke:
+            maybe_write_run_accounting(
+                args.output_dir,
+                budget_limit_usd=budget_limit,
+                paid_capable=True,
+                accounting=RunAccounting(
+                    budget_limit_usd=budget_limit,
+                    estimated_paid_cost_usd=cloud_estimated_cost,
+                    blocked_actions=[
+                        blocked_action(
+                            f"render:{backend}",
+                            budget_limit_usd=budget_limit,
+                            estimated_cost_usd=cloud_estimated_cost,
+                            provider=backend,
+                        )
+                    ],
+                    route_steps=route_steps,
+                    command="render",
+                ),
+            )
+        console.print("[red]Budget error:[/red] " + escape(str(e)))
+        return 1
+
+    async def run() -> int:
+        output_dir = args.output_dir
+        temp_dir: tempfile.TemporaryDirectory[str] | None = None
+        if args.live_smoke:
+            temp_dir = tempfile.TemporaryDirectory(prefix="docpull-render-smoke-")
+            output_dir = Path(temp_dir.name)
+        try:
+            renderer = _renderer_for_render_cli_backend(
+                backend,
+                vercel_sandbox_binary=args.vercel_sandbox_bin,
+                agent_browser_binary=args.agent_browser_bin,
+            )
+            artifact = await render_url_to_directory(
+                args.url,
+                output_dir,
+                config=config,
+                renderer=renderer,
+            )
+        except RenderError as e:
+            console.print("[red]Render failed:[/red] " + escape(str(e)))
+            return 1
+        except Exception as e:
+            console.print("[red]Error:[/red] " + escape(str(e)))
+            return 1
+        finally:
+            if temp_dir is not None:
+                temp_dir.cleanup()
+        if not args.quiet:
+            label = "Render smoke passed" if args.live_smoke else "Rendered"
+            console.print(f"[green]{label}:[/green] {args.url}")
+            if not args.live_smoke:
+                console.print(f"[green]HTML:[/green] {artifact.html_path}")
+                console.print(f"[green]Metadata:[/green] {artifact.sidecar_path}")
+        if not args.live_smoke:
+            maybe_write_run_accounting(
+                output_dir,
+                budget_limit_usd=budget_limit,
+                paid_capable=backend in {"vercel-sandbox", "e2b-sandbox"},
+                accounting=RunAccounting(
+                    budget_limit_usd=budget_limit,
+                    estimated_paid_cost_usd=cloud_estimated_cost,
+                    paid_request_count=1 if backend in {"vercel-sandbox", "e2b-sandbox"} else 0,
+                    local_browser_seconds=0.0,
+                    route_steps=route_steps,
+                    command="render",
+                ),
+            )
+        return 0
+
+    return asyncio.run(run())
+
+
+def _run_render_doctor_cli() -> int:
+    console = Console()
+    checks = [
+        ("local", "agent-browser"),
+        ("vercel", "vercel-sandbox"),
+        ("e2b", "e2b-sandbox"),
+    ]
+    exit_code = 0
+    for runtime, backend in checks:
+        available, message = check_render_backend_availability(backend)
+        style = "green" if available else "yellow"
+        console.print(f"[{style}]{runtime}:[/{style}] {escape(message)}")
+        if runtime == "local" and not available:
+            exit_code = 1
+    console.print()
+    console.print("Cloud runtimes execute the same agent-browser JSON contract inside a sandbox/template.")
+    console.print("Use `docpull render init e2b` or `docpull render init vercel` for template recipes.")
+    return exit_code
+
+
+def _run_render_init_cli(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(
+        prog="docpull render init",
+        description="Print a sandbox template recipe for agent-browser rendering",
+    )
+    parser.add_argument("runtime", choices=["e2b", "vercel"])
+    parser.add_argument("--template", default="docpull-agent-browser")
+    args = parser.parse_args(argv)
+
+    console = Console(width=120)
+    if args.runtime == "e2b":
+        console.print(_render_init_e2b(args.template))
+        return 0
+    if args.runtime == "vercel":
+        console.print(_render_init_vercel(args.template))
+        return 0
+    raise AssertionError(f"Unhandled render init runtime: {args.runtime}")
+
+
+def _render_init_e2b(template: str) -> str:
+    return f"""# E2B agent-browser template
+# Template name: {template}
+
+# In an E2B template, install agent-browser once:
+npm install -g agent-browser
+agent-browser install
+
+# Then render through the same DocPull contract:
+export E2B_API_KEY=<your-e2b-api-key>
+docpull render https://example.com --runtime e2b --template {template}
+
+# For smoke tests that may consume provider quota:
+DOCPULL_LIVE_CLOUD_RENDER=1 .venv/bin/python -m pytest tests/test_rendering.py -q
+"""
+
+
+def _render_init_vercel(template: str) -> str:
+    return f"""# Vercel Sandbox agent-browser runtime
+# Runtime label: {template}
+
+# Build or choose a Vercel Sandbox runtime that has:
+npm install -g agent-browser
+agent-browser install
+
+# Then render through the same DocPull contract:
+docpull render https://example.com --runtime vercel --cloud-agent-browser-install skip
+
+# If you intentionally want a cold runtime install and npm is available:
+docpull render https://example.com --runtime vercel --cloud-agent-browser-install auto
+"""
+
+
+def _render_backend_from_runtime(runtime: str) -> RenderBackend:
+    runtime_to_backend: dict[str, RenderBackend] = {
+        "local": "agent-browser",
+        "vercel": "vercel-sandbox",
+        "e2b": "e2b-sandbox",
+    }
+    return runtime_to_backend[runtime]
+
+
+def _availability_binary_for_runtime(
+    runtime: str,
+    *,
+    agent_browser_binary: str | None,
+    vercel_sandbox_binary: str | None,
+) -> str | None:
+    if runtime == "local":
+        return agent_browser_binary
+    if runtime == "vercel":
+        return vercel_sandbox_binary
+    return None
+
+
+def _renderer_for_render_cli_backend(
+    backend: RenderBackend,
+    *,
+    vercel_sandbox_binary: str | None,
+    agent_browser_binary: str | None,
+) -> Renderer | None:
+    if backend == "agent-browser":
+        return AgentBrowserRenderer(binary=agent_browser_binary) if agent_browser_binary else None
+    if backend == "vercel-sandbox":
+        return VercelSandboxRenderer(binary=vercel_sandbox_binary) if vercel_sandbox_binary else None
+    return None
+
+
 def main(argv: list[str] | None = None) -> int:
     """Main entry point."""
     raw_argv = list(argv) if argv is not None else sys.argv[1:]
+    if raw_argv and raw_argv[0] == "render":
+        return run_render_cli(raw_argv[1:])
     if raw_argv and raw_argv[0] == "mcp":
         from .mcp.server import run_mcp_server
 
@@ -687,6 +1361,38 @@ def main(argv: list[str] | None = None) -> int:
         from .pack_tools import run_pack_cli
 
         return run_pack_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "graph":
+        from .graph import run_graph_cli
+
+        return run_graph_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "serve":
+        from .server import run_serve_cli
+
+        return run_serve_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "export":
+        from .exports import run_export_cli
+
+        return run_export_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "refresh":
+        from .local_workflows import run_refresh_cli
+
+        return run_refresh_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "answer-pack":
+        from .local_workflows import run_answer_cli
+
+        return run_answer_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "policy":
+        from .policy_cli import run_policy_cli
+
+        return run_policy_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "auth":
+        from .auth_cli import run_auth_cli
+
+        return run_auth_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "monitor":
+        from .monitor import run_monitor_cli
+
+        return run_monitor_cli(raw_argv[1:])
     if raw_argv and raw_argv[0] == "evidence-pack":
         from .evidence_pack import run_evidence_pack_cli
 
@@ -695,10 +1401,38 @@ def main(argv: list[str] | None = None) -> int:
         from .benchmark import run_benchmark_cli
 
         return run_benchmark_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "discover":
+        from .discovery_cli import run_discovery_cli
+
+        return run_discovery_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "extract-pack":
+        from .parity_cli import run_extract_pack_cli
+
+        return run_extract_pack_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "map":
+        from .parity_cli import run_map_cli
+
+        return run_map_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "crawl-pack":
+        from .parity_cli import run_crawl_pack_cli
+
+        return run_crawl_pack_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "research-pack":
+        from .parity_cli import run_research_pack_cli
+
+        return run_research_pack_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "entities-pack":
+        from .parity_cli import run_entities_pack_cli
+
+        return run_entities_pack_cli(raw_argv[1:])
     if raw_argv and raw_argv[0] in {"provider", "providers"}:
         from .provider_cli import run_provider_cli
 
         return run_provider_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] in {"tavily", "exa"}:
+        from .provider_cli import run_provider_extension_cli
+
+        return run_provider_extension_cli(raw_argv[0], raw_argv[1:])
 
     parser = create_parser()
     args = parser.parse_args(raw_argv)

@@ -11,7 +11,7 @@ docpull mcp
 
 The Python server is the release-contract path documented in the root README
 and used by the Claude Code plugin. It exposes the supported local tools for
-fetching, caching, grepping, and reading documentation.
+fetching, caching, grepping, and reading web-source Markdown.
 
 The code in this directory is an internal TypeScript + Bun lab for optional
 PostgreSQL/pgvector semantic search. It has a different runtime, persistence

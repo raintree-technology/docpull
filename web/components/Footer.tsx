@@ -1,4 +1,5 @@
 import { GithubIcon } from "./GithubIcon";
+import { BrandMark } from "@/components/landing";
 
 function XIcon({ className }: { className?: string }) {
   return (
@@ -48,38 +49,14 @@ export default function Footer() {
     <footer className="border-t py-10 sm:py-12 relative z-10 bg-background">
       <div className="mx-auto max-w-5xl px-6">
         <div className="mb-8 max-w-md mx-auto text-center sm:mx-0 sm:text-left">
-          <div className="flex items-center gap-2 justify-center sm:justify-start mb-2 text-sm font-medium">
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 32 32"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              aria-hidden="true"
-            >
-              <path
-                d="M8 6h12l6 6v14a2 2 0 01-2 2H8a2 2 0 01-2-2V8a2 2 0 012-2z"
-                stroke="currentColor"
-                strokeWidth="2"
-                fill="none"
-              />
-              <path
-                d="M20 6v6h6"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-            docpull
-          </div>
-          <p className="text-xs text-muted-foreground leading-relaxed">
+          <BrandMark className="mb-2 justify-center text-[15px] font-semibold leading-5 sm:justify-start" />
+          <p className="text-sm leading-6 text-muted-foreground">
             A local Python tool for turning public web pages into Markdown your
             agents can read, cite, and reuse.
           </p>
         </div>
 
-        <div className="flex flex-col items-center gap-4 text-sm text-muted-foreground sm:hidden">
+        <div className="flex flex-col items-center gap-4 text-[15px] font-medium leading-5 text-muted-foreground sm:hidden">
           <div className="flex items-center gap-4">
             <a
               href="https://pypi.org/project/docpull/"
@@ -90,9 +67,7 @@ export default function Footer() {
               PyPI
             </a>
             <a
-              href="https://github.com/raintree-technology/docpull#readme"
-              target="_blank"
-              rel="noopener noreferrer"
+              href="/docs"
               className="min-h-11 inline-flex items-center hover:text-foreground transition-colors"
             >
               Docs
@@ -133,7 +108,7 @@ export default function Footer() {
               <RaintreeLogo size={22} className="-mt-0.5 -ml-0.5" />
             </a>
           </div>
-          <span className="text-xs">
+          <span className="text-sm">
             <a
               href="https://github.com/raintree-technology/docpull/blob/main/LICENSE"
               target="_blank"
@@ -146,7 +121,7 @@ export default function Footer() {
         </div>
 
         <div className="hidden sm:flex sm:items-center sm:justify-between">
-          <div className="flex items-center gap-6 text-sm text-muted-foreground">
+          <div className="flex items-center gap-6 text-[15px] font-medium leading-5 text-muted-foreground">
             <a
               href="https://pypi.org/project/docpull/"
               target="_blank"
@@ -156,9 +131,7 @@ export default function Footer() {
               PyPI
             </a>
             <a
-              href="https://github.com/raintree-technology/docpull#readme"
-              target="_blank"
-              rel="noopener noreferrer"
+              href="/docs"
               className="min-h-11 min-w-11 inline-flex items-center justify-center hover:text-foreground transition-colors"
             >
               Docs
@@ -189,7 +162,7 @@ export default function Footer() {
             </a>
           </div>
 
-          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+          <div className="flex items-center gap-3 text-[15px] text-muted-foreground">
             <a
               href="https://x.com/raintree_tech"
               target="_blank"

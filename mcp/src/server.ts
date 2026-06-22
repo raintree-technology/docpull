@@ -712,7 +712,7 @@ Examples:
 
 	server.tool(
 		"list_indexed",
-		"List all indexed documentation libraries with chunk counts",
+		"List all indexed source aliases with chunk counts",
 		{},
 		async () => {
 			try {
@@ -723,7 +723,7 @@ Examples:
 						content: [
 							{
 								type: "text" as const,
-								text: "No libraries indexed. Use ensure_docs to fetch and index documentation.",
+								text: "No sources indexed. Use ensure_docs to fetch and index a source alias.",
 							},
 						],
 					};

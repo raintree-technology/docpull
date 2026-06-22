@@ -3,6 +3,7 @@ import Header from "@/components/Header";
 import Hero from "@/components/Hero";
 import Footer from "@/components/Footer";
 import Features from "@/components/Features";
+import Comparison from "@/components/Comparison";
 import HowItWorks from "@/components/HowItWorks";
 import Profiles from "@/components/Profiles";
 import CodeExamples from "@/components/CodeExamples";
@@ -21,6 +22,7 @@ export default function Home() {
         <Hero />
         <HowItWorks />
         <Features />
+        <Comparison />
         <Profiles />
         <CodeExamples />
         <ParallelPacks />

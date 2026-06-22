@@ -49,6 +49,8 @@
 	"author": "Raintree Technology",
 	"keywords": [
 		"mcp",
+		"web",
+		"web-source",
 		"documentation",
 		"semantic-search",
 		"pgvector",

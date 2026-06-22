@@ -260,7 +260,8 @@ async def build_evidence_pack(
                         diagnostics_count += 1
                     continue
 
-                assert ctx is not None
+                if ctx is None:
+                    raise EvidencePackError(f"Could not fetch evidence source: {source.source_url}")
                 markdown = ctx.markdown or ""
                 source_hash = _sha256_text(markdown)
                 retrieved_at = utc_now_iso()

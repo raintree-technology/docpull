@@ -24,6 +24,16 @@ from urllib.parse import urlparse
 from rich.console import Console
 from rich.markup import escape
 
+from .accounting import (
+    RunAccounting,
+    blocked_action,
+    budget_block_payload,
+    default_route_steps,
+    effective_budget_limit,
+    extract_budget_flags,
+    maybe_write_run_accounting,
+    paid_action_blocked,
+)
 from .conversion.chunking import TokenCounter, chunk_markdown
 from .http import AsyncHttpClient, PerHostRateLimiter
 from .models.document import DocumentRecord
@@ -32,6 +42,7 @@ from .provider_keys import (
     PROJECT_ENV_FILENAME,
     SECRETS_FILENAME,
     ProviderApiKeyLookup,
+    ProviderKeyError,
     clean_api_key,
     find_project_env_path,
     key_assignment,
@@ -40,6 +51,7 @@ from .provider_keys import (
     quote_env_value,
     read_key_file,
     user_secrets_path,
+    validate_provider_api_key,
     write_provider_secret,
 )
 from .security.robots import RobotsChecker
@@ -207,6 +219,48 @@ def create_parallel_parser() -> argparse.ArgumentParser:
         action="store_true",
         dest="json_output",
         help="Emit machine-readable local configuration status.",
+    )
+    auth.add_argument(
+        "--redact-paths",
+        action="store_true",
+        help="Redact local filesystem paths from JSON output for CI/agent logs.",
+    )
+
+    probe = subparsers.add_parser(
+        "probe",
+        help="Explicitly validate the Parallel API key with provider-aware live probes",
+    )
+    probe.add_argument(
+        "--mode",
+        choices=["safe", "validation", "smoke"],
+        default="safe",
+        help=(
+            "Probe depth. safe reports local readiness only for Parallel; validation runs an "
+            "opt-in auth-gate request; smoke runs a minimal live Search call."
+        ),
+    )
+    probe.add_argument("--json", action="store_true", dest="json_output", help="Print probe JSON")
+    probe.add_argument(
+        "--require-verified",
+        action="store_true",
+        help="Exit non-zero unless the Parallel key is live verified and workflow-ready.",
+    )
+    probe.add_argument(
+        "--redact-paths",
+        action="store_true",
+        help="Redact local filesystem paths from JSON output for CI/agent logs.",
+    )
+    probe.add_argument(
+        "--include-account-metadata",
+        action="store_true",
+        help="Include provider account metadata when returned by a probe.",
+    )
+    probe.add_argument("--timeout", type=float, default=15.0, help="Per-request probe timeout in seconds.")
+    probe.add_argument(
+        "--max-estimated-cost",
+        type=float,
+        default=0.01,
+        help="Local spend guard for smoke probes.",
     )
 
     init = subparsers.add_parser(
@@ -860,11 +914,69 @@ def create_parallel_parser() -> argparse.ArgumentParser:
 
 def run_parallel_cli(argv: list[str] | None = None) -> int:
     """Entrypoint for ``docpull parallel``."""
+    try:
+        parsed_argv, budget_limit, explain_route = extract_budget_flags(argv)
+    except ValueError as err:
+        Console().print("[red]Parallel workflow error:[/red] " + escape(str(err)))
+        return 1
     parser = create_parallel_parser()
-    args = parser.parse_args(argv)
+    args = parser.parse_args(parsed_argv)
     console = Console()
+    route_steps = default_route_steps(include_provider=True, budget_limit_usd=budget_limit)
+    if explain_route:
+        console.print("[bold]Parallel route[/bold]")
+        console.print(f"Budget: {'not set' if budget_limit is None else f'${budget_limit:.6f}'}")
+        for step in route_steps:
+            payload = step.to_dict()
+            detail = f" - {payload['detail']}" if payload.get("detail") else ""
+            console.print(f"- {payload['name']}: {payload['status']} ({payload['cost_class']}){detail}")
+        return 0
+    if budget_limit is not None and hasattr(args, "max_estimated_cost"):
+        current_guard = getattr(args, "max_estimated_cost", None)
+        if current_guard is not None:
+            args.max_estimated_cost = effective_budget_limit(current_guard, budget_limit)
 
     try:
+        paid_command = _parallel_command_paid_capable(args)
+        if paid_command and paid_action_blocked(budget_limit, estimated_cost_usd=0.0):
+            action = f"parallel:{args.command}"
+            if getattr(args, "command", None) == "monitor-pack":
+                action = f"parallel:monitor-pack:{getattr(args, 'monitor_command', 'unknown')}"
+            payload = {
+                "schema_version": PACK_SCHEMA_VERSION,
+                "generated_at": utc_now_iso(),
+                "workflow": args.command,
+                **budget_block_payload(
+                    action,
+                    budget_limit_usd=budget_limit,
+                    estimated_cost_usd=0.0,
+                    provider="parallel",
+                ),
+            }
+            output_dir = _parallel_output_dir_from_args(args)
+            maybe_write_run_accounting(
+                output_dir,
+                budget_limit_usd=budget_limit,
+                paid_capable=True,
+                accounting=RunAccounting(
+                    budget_limit_usd=budget_limit,
+                    estimated_paid_cost_usd=0.0,
+                    blocked_actions=[
+                        blocked_action(
+                            action,
+                            budget_limit_usd=budget_limit,
+                            estimated_cost_usd=0.0,
+                            provider="parallel",
+                        )
+                    ],
+                    route_steps=route_steps,
+                    command=f"parallel {args.command}",
+                ),
+            )
+            if getattr(args, "dry_run", False):
+                console.print_json(data=payload)
+                return 0
+            raise ParallelWorkflowError(payload["blocked_action"]["reason"])
         if args.command == "init":
             init_result = init_parallel_auth(
                 project=args.project,
@@ -881,12 +993,35 @@ def run_parallel_cli(argv: list[str] | None = None) -> int:
             console.print("Secret handling: key value was not printed and is not written to pack artifacts.")
             return 0
         if args.command == "auth":
-            status = get_parallel_auth_status()
+            status = get_parallel_auth_status(redact_paths=args.redact_paths)
             if args.json_output:
                 console.print_json(data=status)
             else:
                 _print_parallel_auth_status(console, status)
             return 0 if status["ready"] else 1
+        if args.command == "probe":
+            from .provider_cli import run_provider_cli
+
+            forwarded = [
+                "probe",
+                "--provider",
+                "parallel",
+                "--mode",
+                args.mode,
+                "--timeout",
+                str(args.timeout),
+                "--max-estimated-cost",
+                str(args.max_estimated_cost),
+            ]
+            if args.json_output:
+                forwarded.append("--json")
+            if args.require_verified:
+                forwarded.append("--require-verified")
+            if args.redact_paths:
+                forwarded.append("--redact-paths")
+            if args.include_account_metadata:
+                forwarded.append("--include-account-metadata")
+            return run_provider_cli(forwarded)
         if args.command == "search-pack":
             queries = list(args.queries or []) or [args.objective]
             source_policy = _build_source_policy(
@@ -1539,6 +1674,19 @@ def run_parallel_cli(argv: list[str] | None = None) -> int:
         else:  # pragma: no cover - argparse prevents this.
             parser.error(f"Unknown command: {args.command}")
 
+        if paid_command:
+            maybe_write_run_accounting(
+                Path(pack),
+                budget_limit_usd=budget_limit,
+                paid_capable=True,
+                accounting=RunAccounting(
+                    budget_limit_usd=budget_limit,
+                    estimated_paid_cost_usd=float(locals().get("estimated_cost", 0.0) or 0.0),
+                    paid_request_count=1,
+                    route_steps=route_steps,
+                    command=f"parallel {args.command}",
+                ),
+            )
         console.print(f"[green]Wrote Parallel context pack:[/green] {pack}")
         return 0
     except ParallelWorkflowError as err:
@@ -1547,6 +1695,30 @@ def run_parallel_cli(argv: list[str] | None = None) -> int:
     except Exception as err:  # noqa: BLE001
         console.print("[red]Parallel workflow failed:[/red] " + escape(str(err)))
         return 1
+
+
+def _parallel_command_paid_capable(args: argparse.Namespace) -> bool:
+    """Return whether a parsed Parallel command may call live Parallel APIs."""
+    command = getattr(args, "command", None)
+    if command in {"api-pack", "import", "demo", "auth", "init"}:
+        return False
+    if command == "probe":
+        return getattr(args, "mode", "safe") in {"validation", "smoke"}
+    if command == "run":
+        # Recipes may be local api-pack/import shapes, but V1 treats recipe
+        # execution as paid-capable unless the user dry-runs without a budget.
+        return True
+    return True
+
+
+def _parallel_output_dir_from_args(args: argparse.Namespace) -> Path:
+    output_dir = getattr(args, "output_dir", None)
+    if isinstance(output_dir, Path):
+        return output_dir
+    command = getattr(args, "command", "")
+    if command == "api-pack":
+        return Path("packs/parallel-api-pack")
+    return DEFAULT_OUTPUT_DIR
 
 
 def run_search_pack(
@@ -4321,6 +4493,11 @@ def _load_recipe(recipe_path: Path) -> dict[str, Any]:
 def _require_api_key() -> str:
     lookup = _lookup_parallel_api_key()
     api_key = lookup.value
+    if lookup.invalid_reason:
+        raise ParallelWorkflowError(
+            f"Live Parallel workflows found an invalid API key source "
+            f"({lookup.source}): {lookup.invalid_reason}."
+        )
     if not api_key:
         raise ParallelWorkflowError(
             f"Live Parallel workflows require {PARALLEL_API_KEY_ENV}. "
@@ -4341,23 +4518,34 @@ def _require_parallel_sdk() -> Any:
     return Parallel
 
 
-def get_parallel_auth_status() -> dict[str, Any]:
+def get_parallel_auth_status(*, redact_paths: bool = False) -> dict[str, Any]:
     """Return non-secret Parallel local configuration details for humans and agents."""
     sdk_installed = _parallel_sdk_installed()
     lookup = _lookup_parallel_api_key()
     api_key_present = bool(lookup.value)
-    ready = sdk_installed and api_key_present
+    key_invalid = bool(lookup.invalid_reason)
+    ready = sdk_installed and api_key_present and not key_invalid
     next_steps: list[str] = []
     if not sdk_installed:
         next_steps.append(f"Install the optional SDK: {PARALLEL_INSTALL_COMMAND}")
-    if not api_key_present:
+    if key_invalid:
+        next_steps.append(f"Fix the invalid {PARALLEL_API_KEY_ENV} value before running live workflows.")
+    if not api_key_present and not key_invalid:
         next_steps.append(f"Create or copy a key from {PARALLEL_ACCOUNT_URL}.")
         next_steps.append("Run `docpull parallel init` to store a user-level key.")
         next_steps.append("For project-local agent workflows, run `docpull parallel init --project`.")
         next_steps.append(f"For CI, set an environment secret: {PARALLEL_API_KEY_COMMAND}")
     if ready:
+        next_steps.append(
+            "Run `docpull parallel probe --mode validation --json` for explicit live key validation."
+        )
         next_steps.append(f"Plan a workflow before spending credits: {PARALLEL_DRY_RUN_EXAMPLE}")
         next_steps.append("Keep --max-estimated-cost on live workflows to enforce a local spend guard.")
+
+    source_path = str(lookup.path) if lookup.path else None
+    if redact_paths and source_path:
+        source_path = "[redacted]"
+    project_env_path = str(_find_project_env_path(Path.cwd()) or (Path.cwd() / PARALLEL_PROJECT_ENV_FILENAME))
 
     return {
         "provider": "parallel",
@@ -4366,18 +4554,21 @@ def get_parallel_auth_status() -> dict[str, Any]:
         "api_key_env_var": PARALLEL_API_KEY_ENV,
         "api_key_present": api_key_present,
         "api_key_source": lookup.source,
-        "api_key_source_path": str(lookup.path) if lookup.path else None,
+        "api_key_source_path": source_path,
+        "api_key_invalid_reason": lookup.invalid_reason,
         "account_url": PARALLEL_ACCOUNT_URL,
         "install_command": PARALLEL_INSTALL_COMMAND,
         "api_key_command": PARALLEL_API_KEY_COMMAND,
         "init_command": "docpull parallel init",
         "project_init_command": "docpull parallel init --project",
-        "user_secrets_path": str(_parallel_user_secrets_path()),
-        "project_env_path": str(
-            _find_project_env_path(Path.cwd()) or (Path.cwd() / PARALLEL_PROJECT_ENV_FILENAME)
-        ),
+        "user_secrets_path": "[redacted]" if redact_paths else str(_parallel_user_secrets_path()),
+        "project_env_path": "[redacted]" if redact_paths else project_env_path,
+        "paths_redacted": redact_paths,
         "dry_run_example": PARALLEL_DRY_RUN_EXAMPLE,
-        "validation": "local SDK/key-presence check only; no live key validation call is made",
+        "validation": (
+            "local SDK/key-presence check only; no live key validation call is made by auth; "
+            "run `docpull parallel probe` for explicit live key validation"
+        ),
         "key_handling": (
             "PARALLEL_API_KEY environment, project .env.local, or user secrets.env; "
             "docpull does not echo API keys or write them to pack artifacts"
@@ -4423,12 +4614,10 @@ def init_parallel_auth(
 
 def _read_parallel_api_key_for_init(*, from_stdin: bool) -> str:
     value = sys.stdin.readline() if from_stdin else getpass.getpass("Parallel API key: ")
-    api_key = _clean_parallel_api_key(value)
-    if not api_key:
-        raise ParallelWorkflowError("Parallel API key cannot be empty.")
-    if len(api_key) > 512:
-        raise ParallelWorkflowError("Parallel API key is implausibly long (>512 characters).")
-    return api_key
+    try:
+        return validate_provider_api_key(value, label="Parallel API key")
+    except ProviderKeyError as err:
+        raise ParallelWorkflowError(str(err)) from err
 
 
 def _lookup_parallel_api_key() -> ParallelApiKeyLookup:
@@ -4465,6 +4654,8 @@ def _write_parallel_secret_file(path: Path, api_key: str, *, force: bool) -> Non
     try:
         write_provider_secret("parallel", path, api_key, force=force)
     except FileExistsError as err:
+        raise ParallelWorkflowError(str(err)) from err
+    except ProviderKeyError as err:
         raise ParallelWorkflowError(str(err)) from err
 
 
@@ -4504,7 +4695,10 @@ def _print_parallel_auth_status(console: Console, status: dict[str, Any]) -> Non
     if status.get("api_key_source_path"):
         console.print(f"Key path: {status['api_key_source_path']}")
     console.print("Secret handling: keys are never printed or written to pack artifacts.")
-    console.print("Validation: local SDK/key-presence check only; no live key validation call is made.")
+    console.print(
+        "Validation: local SDK/key-presence check only; no live key validation call is made by auth. "
+        "Use `docpull parallel probe` for live checks."
+    )
     if status["ready"]:
         console.print("[green]Local configuration is present for live Parallel workflows.[/green]")
     else:

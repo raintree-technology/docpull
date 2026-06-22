@@ -3,6 +3,7 @@
 from .config import (
     AuthConfig,
     AuthType,
+    BudgetConfig,
     ByteSize,
     CacheConfig,
     ContentFilterConfig,
@@ -12,6 +13,9 @@ from .config import (
     OutputConfig,
     PerformanceConfig,
     ProfileName,
+    RenderActionPolicy,
+    RenderConfig,
+    RenderViewport,
 )
 from .document import DocumentRecord
 from .events import EventType, FetchEvent, FetchStats, SkipReason
@@ -28,6 +32,7 @@ from .run import (
 __all__ = [
     "AuthConfig",
     "AuthType",
+    "BudgetConfig",
     "ByteSize",
     "CacheConfig",
     "CrawlConfig",
@@ -37,6 +42,9 @@ __all__ = [
     "OutputConfig",
     "PerformanceConfig",
     "ProfileName",
+    "RenderActionPolicy",
+    "RenderConfig",
+    "RenderViewport",
     "RunIdentity",
     "DocumentRecord",
     "RUN_IDENTITY_SCHEMA_VERSION",

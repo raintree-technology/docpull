@@ -35,11 +35,12 @@ export const faqs: { q: string; a: ReactNode; aText: string }[] = [
     a: (
       <>
         Firecrawl and Jina Reader are hosted APIs — your URLs route through their
-        infrastructure and pricing scales past their free tiers. docpull runs
-        locally, stays free, and leaves no trace outside your machine. Crawl4AI
-        is the closest OSS peer, but it&apos;s a general-purpose agent toolkit;
-        docpull is narrower — YAML-frontmatter Markdown tuned for static and
-        server-rendered web pages, with{" "}
+        infrastructure and pricing scales past their free tiers. Base docpull
+        runs locally with no API key, and <code>--budget 0</code> blocks
+        paid-capable provider and cloud calls before execution. Crawl4AI is the
+        closest OSS peer, but it&apos;s a general-purpose agent toolkit;
+        docpull is narrower — YAML-frontmatter Markdown and context packs tuned
+        for public web-source ingestion, with{" "}
         <Src path="src/docpull/models/profiles.py">
           rag / mirror / quick profiles
         </Src>{" "}
@@ -47,7 +48,7 @@ export const faqs: { q: string; a: ReactNode; aText: string }[] = [
       </>
     ),
     aText:
-      "Firecrawl and Jina Reader are hosted APIs — your URLs route through their infrastructure and pricing scales past their free tiers. docpull runs locally, stays free, and leaves no trace outside your machine. Crawl4AI is the closest open-source peer, but it's a general-purpose agent toolkit; docpull is narrower — YAML-frontmatter Markdown tuned for static and server-rendered web pages, with rag, mirror, and quick profiles baked in.",
+      "Firecrawl and Jina Reader are hosted APIs — your URLs route through their infrastructure and pricing scales past their free tiers. Base docpull runs locally with no API key, and --budget 0 blocks paid-capable provider and cloud calls before execution. Crawl4AI is the closest open-source peer, but it's a general-purpose agent toolkit; docpull is narrower — YAML-frontmatter Markdown and context packs tuned for public web-source ingestion, with rag, mirror, and quick profiles baked in.",
   },
   {
     q: "How clean is the Markdown? Does it preserve code blocks, tables, and images?",
@@ -82,17 +83,26 @@ export const faqs: { q: string; a: ReactNode; aText: string }[] = [
     q: "Does it render JavaScript?",
     a: (
       <>
-        No. docpull runs no browser. Pages that require JS to render
-        content are detected and skipped (or hard-failed with{" "}
-        <code className="px-1 py-0.5 rounded bg-foreground/5 font-mono text-xs">
+        Not by default. The normal crawler runs without a browser. Pages that
+        require JS to render content are detected and skipped (or hard-failed
+        with{" "}
+        <code className="px-1 py-0.5 rounded bg-foreground/5 font-mono text-[13px] leading-5">
           --strict-js-required
         </code>
-        ) so an agent can route elsewhere. For JS-rendered pages, use
-        Firecrawl or Crawl4AI.
+        ) so an agent can route elsewhere. For simple JS-rendered public pages,
+        use{" "}
+        <code className="px-1 py-0.5 rounded bg-foreground/5 font-mono text-[13px] leading-5">
+          --render fallback
+        </code>{" "}
+        or{" "}
+        <code className="px-1 py-0.5 rounded bg-foreground/5 font-mono text-[13px] leading-5">
+          docpull render
+        </code>
+        . For interaction-heavy pages, use a browser automation tool.
       </>
     ),
     aText:
-      "No. docpull runs no browser. Pages that require JavaScript to render content are detected and skipped — or hard-failed with --strict-js-required — so an agent can route elsewhere. For JS-rendered pages, use Firecrawl or Crawl4AI.",
+      "Not by default. The normal crawler runs without a browser. Pages that require JavaScript to render content are detected and skipped, or hard-failed with --strict-js-required, so an agent can route elsewhere. For simple JavaScript-rendered public pages, use --render fallback or docpull render. For interaction-heavy pages, use a browser automation tool.",
   },
   {
     q: "Will it scale to a 10,000-page site, and can I re-run it on a schedule?",
@@ -146,26 +156,26 @@ export const faqs: { q: string; a: ReactNode; aText: string }[] = [
       <>
         Base crawling, offline demo/import packs, and pack scoring do not. Live
         Parallel API workflows read the key from{" "}
-        <code className="px-1 py-0.5 rounded bg-foreground/5 font-mono text-xs">
+        <code className="px-1 py-0.5 rounded bg-foreground/5 font-mono text-[13px] leading-5">
           PARALLEL_API_KEY
         </code>
         , user config, or project{" "}
-        <code className="px-1 py-0.5 rounded bg-foreground/5 font-mono text-xs">
+        <code className="px-1 py-0.5 rounded bg-foreground/5 font-mono text-[13px] leading-5">
           .env.local
         </code>{" "}
         after{" "}
-        <code className="px-1 py-0.5 rounded bg-foreground/5 font-mono text-xs">
+        <code className="px-1 py-0.5 rounded bg-foreground/5 font-mono text-[13px] leading-5">
           docpull parallel init
         </code>{" "}
         or{" "}
-        <code className="px-1 py-0.5 rounded bg-foreground/5 font-mono text-xs">
+        <code className="px-1 py-0.5 rounded bg-foreground/5 font-mono text-[13px] leading-5">
           docpull parallel auth
         </code>{" "}
         checks local SDK/key presence. It does not make a live key-validation
         call. docpull never writes the key into pack artifacts, but the
         artifacts can include source content, workflow inputs/outputs, selected
         URLs, and metadata. Every generated pack also includes{" "}
-        <code className="px-1 py-0.5 rounded bg-foreground/5 font-mono text-xs">
+        <code className="px-1 py-0.5 rounded bg-foreground/5 font-mono text-[13px] leading-5">
           AGENT_CONTEXT.md
         </code>{" "}
         so agents have a local load plan before inspecting deeper metadata.
@@ -179,15 +189,15 @@ export const faqs: { q: string; a: ReactNode; aText: string }[] = [
     a: (
       <>
         Yes. Run{" "}
-        <code className="px-1 py-0.5 rounded bg-foreground/5 font-mono text-xs">
+        <code className="px-1 py-0.5 rounded bg-foreground/5 font-mono text-[13px] leading-5">
           docpull URL --skill name
         </code>{" "}
         and docpull writes a complete skill directory to{" "}
-        <code className="px-1 py-0.5 rounded bg-foreground/5 font-mono text-xs">
+        <code className="px-1 py-0.5 rounded bg-foreground/5 font-mono text-[13px] leading-5">
           .claude/skills/name/
         </code>
         : a generated{" "}
-        <code className="px-1 py-0.5 rounded bg-foreground/5 font-mono text-xs">
+        <code className="px-1 py-0.5 rounded bg-foreground/5 font-mono text-[13px] leading-5">
           SKILL.md
         </code>{" "}
         manifest with{" "}

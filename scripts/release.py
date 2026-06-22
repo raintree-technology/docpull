@@ -52,12 +52,26 @@ def local_project_version() -> str:
     return project_version_from_text((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
 
 
+def check_release_metadata() -> None:
+    run(sys.executable, "scripts/sync_release_metadata.py", "--check")
+
+
 def ref_project_version(ref: str) -> str:
     return project_version_from_text(git("show", f"{ref}:pyproject.toml", capture=True))
 
 
 def ref_sha(ref: str) -> str:
     return git("rev-parse", "--verify", ref, capture=True)
+
+
+def ensure_head_matches(ref: str, action: str) -> None:
+    head_sha = ref_sha("HEAD")
+    target_sha = ref_sha(ref)
+    if head_sha != target_sha:
+        raise SystemExit(
+            f"{action} requires the local checkout to match {ref}.\n"
+            f"HEAD is {head_sha[:12]}, but {ref} is {target_sha[:12]}."
+        )
 
 
 def current_branch() -> str:
@@ -106,6 +120,7 @@ def prepare_pr(args: argparse.Namespace) -> None:
         raise SystemExit("Do not prepare a release directly on main. Create a release branch first.")
     if local_project_version() != version:
         raise SystemExit(f"pyproject.toml is {local_project_version()}, not requested version {version}.")
+    check_release_metadata()
 
     git("push", "-u", "origin", f"HEAD:{branch}")
     create = gh(
@@ -140,6 +155,8 @@ def publish(args: argparse.Namespace) -> None:
     main_version = ref_project_version("origin/main")
     if main_version != version:
         raise SystemExit(f"origin/main has pyproject version {main_version}, not {version}.")
+    ensure_head_matches("origin/main", "release publish")
+    check_release_metadata()
 
     existing = remote_tag_sha(tag)
     if existing and existing != main_sha:
@@ -173,6 +190,8 @@ def dispatch(args: argparse.Namespace) -> None:
     main_version = ref_project_version("origin/main")
     if main_version != version:
         raise SystemExit(f"origin/main has pyproject version {main_version}, not {version}.")
+    ensure_head_matches("origin/main", "release dispatch")
+    check_release_metadata()
     gh("workflow", "run", "publish.yml", "--ref", "main", "-f", f"version={version}")
     print("Dispatched Publish to PyPI from main.")
 

@@ -423,8 +423,14 @@ def test_pack_prepare_writes_standard_intelligence_bundle(tmp_path: Path) -> Non
     assert result["summary"]["score"] == 100
     assert result["summary"]["search_query_count"] == 2
     assert result["summary"]["search_result_count"] >= 2
+    assert result["summary"]["graph_node_count"] >= 1
+    assert result["summary"]["graph_edge_count"] >= 1
     assert result["summary"]["artifact_count"] == len(result["artifacts"])
     assert result["artifacts"]["prepare"] == "pack.prepare.json"
+    assert result["artifacts"]["graph_graph"] == "graph.json"
+    assert result["artifacts"]["graph_nodes"] == "graph.nodes.ndjson"
+    assert result["artifacts"]["graph_edges"] == "graph.edges.ndjson"
+    assert result["artifacts"]["graph_markdown"] == "GRAPH.md"
     assert "searches" in result["artifacts"]
     assert (pack / "pack.score.json").exists()
     assert (pack / "source.scores.json").exists()
@@ -437,6 +443,10 @@ def test_pack_prepare_writes_standard_intelligence_bundle(tmp_path: Path) -> Non
     assert (pack / "SEARCH.md").exists()
     assert (pack / "research.brief.json").exists()
     assert (pack / "RESEARCH_BRIEF.md").exists()
+    assert (pack / "graph.json").exists()
+    assert (pack / "graph.nodes.ndjson").exists()
+    assert (pack / "graph.edges.ndjson").exists()
+    assert (pack / "GRAPH.md").exists()
     assert (pack / "pack.prepare.json").exists()
 
 
@@ -448,17 +458,61 @@ def test_pack_prepare_cli_can_skip_search_entities_and_markdown(tmp_path: Path) 
         include_domains=["docs.parallel.ai"],
     )
 
-    assert main(["pack", "prepare", str(pack), "--no-search", "--entity-limit", "0", "--no-markdown"]) == 0
+    assert (
+        main(
+            [
+                "pack",
+                "prepare",
+                str(pack),
+                "--no-search",
+                "--entity-limit",
+                "0",
+                "--no-markdown",
+                "--no-graph",
+            ]
+        )
+        == 0
+    )
 
     payload = json.loads((pack / "pack.prepare.json").read_text(encoding="utf-8"))
     assert payload["summary"]["search_query_count"] == 0
     assert payload["summary"]["entity_count"] == 0
+    assert payload["summary"]["graph_node_count"] == 0
+    assert payload["summary"]["graph_edge_count"] == 0
     assert "search" not in payload["artifacts"]
+    assert "graph_graph" not in payload["artifacts"]
     assert "brief_markdown" not in payload["artifacts"]
     assert (pack / "pack.score.json").exists()
     assert json.loads((pack / "entities.json").read_text(encoding="utf-8"))["entity_count"] == 0
     assert (pack / "research.brief.json").exists()
     assert not (pack / "SEARCH.md").exists()
+
+
+def test_pack_prepare_no_markdown_still_builds_graph_data(tmp_path: Path) -> None:
+    pack = tmp_path / "pack"
+    _write_pack(
+        pack,
+        [
+            _record(
+                "https://docs.parallel.ai/api-reference/search/search",
+                "aaa",
+                "Search API returns JSON responses. Contact support@example.com for access.",
+            )
+        ],
+        include_domains=["docs.parallel.ai"],
+    )
+
+    assert main(["pack", "prepare", str(pack), "--no-search", "--no-markdown"]) == 0
+
+    payload = json.loads((pack / "pack.prepare.json").read_text(encoding="utf-8"))
+    assert payload["artifacts"]["graph_graph"] == "graph.json"
+    assert payload["artifacts"]["graph_nodes"] == "graph.nodes.ndjson"
+    assert payload["artifacts"]["graph_edges"] == "graph.edges.ndjson"
+    assert "graph_markdown" not in payload["artifacts"]
+    assert (pack / "graph.json").exists()
+    assert (pack / "graph.nodes.ndjson").exists()
+    assert (pack / "graph.edges.ndjson").exists()
+    assert not (pack / "GRAPH.md").exists()
 
 
 def test_pack_score_flags_manifest_and_pack_record_count_mismatch(tmp_path: Path) -> None:

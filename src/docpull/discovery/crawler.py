@@ -13,7 +13,7 @@ from bs4 import BeautifulSoup
 from ..http.protocols import HttpClient
 from ..security.robots import RobotsChecker
 from ..security.url_validator import UrlValidator
-from ._fetch import fetch_html
+from ._fetch import fetch_html_response
 from .filters import DomainFilter, PatternFilter, SeenUrlTracker
 
 if TYPE_CHECKING:
@@ -133,6 +133,27 @@ class LinkCrawler:
 
         return not (self._pattern_filter and not self._pattern_filter.should_include(url))
 
+    def _allow_initial_redirect_target(self, requested_url: str, final_url: object | None) -> None:
+        """Let a start URL's redirected host become the crawl domain."""
+        if not self._stay_on_domain or not isinstance(final_url, str) or not final_url:
+            return
+
+        requested_domain = urlparse(requested_url).netloc.lower()
+        final_domain = urlparse(final_url).netloc.lower()
+        if not requested_domain or not final_domain or requested_domain == final_domain:
+            return
+
+        additional_domains: set[str] = {requested_domain}
+        if self._domain_filter is not None:
+            additional_domains.add(self._domain_filter.base_domain)
+            additional_domains.update(self._domain_filter.additional_domains)
+        additional_domains.discard(final_domain)
+        self._domain_filter = DomainFilter(
+            final_url,
+            allow_subdomains=False,
+            additional_domains=additional_domains,
+        )
+
     async def discover(
         self,
         start_url: str,
@@ -183,11 +204,17 @@ class LinkCrawler:
 
             if self._link_extractor is not None:
                 links = await self._link_extractor.extract_links(current_url)
+                if current_url == start_url:
+                    final_url = getattr(self._link_extractor, "last_final_url", None)
+                    self._allow_initial_redirect_target(start_url, final_url)
             else:
-                html = await fetch_html(self._client, current_url)
-                if html is None:
+                response = await fetch_html_response(self._client, current_url)
+                if response is None:
                     continue
-                links = self._extract_links(html, current_url)
+                response_url = response.url if isinstance(response.url, str) and response.url else current_url
+                if current_url == start_url:
+                    self._allow_initial_redirect_target(start_url, response_url)
+                links = self._extract_links(response.content, response_url)
 
             logger.debug(f"Found {len(links)} links on {current_url}")
 

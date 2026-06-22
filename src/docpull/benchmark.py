@@ -8,6 +8,7 @@ import json
 import random
 import re
 import resource
+import shlex
 import sys
 import time
 import uuid
@@ -24,9 +25,16 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 from rich.console import Console
 from rich.markup import escape
 
+from .accounting import (
+    RunAccounting,
+    default_route_steps,
+    effective_budget_limit,
+    maybe_write_run_accounting,
+    parse_budget_value,
+)
 from .conversion.chunking import TokenCounter
 from .core.fetcher import Fetcher
-from .models.config import CacheConfig, CrawlConfig, DocpullConfig, OutputConfig, ProfileName
+from .models.config import CacheConfig, CrawlConfig, DocpullConfig, OutputConfig, ProfileName, RenderConfig
 from .models.document import DocumentRecord
 from .models.events import EventType
 from .pack_tools import prepare_pack, score_pack, score_pack_sources
@@ -44,13 +52,15 @@ from .parallel_workflows import (
 )
 from .passk import pass_at_k
 from .pipeline.manifest import CorpusManifest
-from .provider_keys import (
-    PROVIDER_CONFIGS,
-    PROVIDER_NAMES,
-    ProviderName,
-    lookup_api_key_env_var,
-    lookup_provider_api_key,
+from .provider_adapters import (
+    ProviderAdapterError,
+    live_provider_statuses,
+    normalize_live_providers,
+    provider_adapter,
+    provider_case_payload,
 )
+from .provider_keys import ProviderName, lookup_api_key_env_var
+from .rendering import estimate_cloud_render_cost_usd
 from .time_utils import utc_now_iso
 
 BENCHMARK_SCHEMA_VERSION = 2
@@ -77,7 +87,7 @@ BENCHMARK_SCORE_WEIGHTS = {
     "density": 0.15,
 }
 PASS_AT_K_THRESHOLDS: tuple[int, ...] = (70, 80, 90)
-TARGET_SET_CHOICES = ("single", "tool-docs", "provider-matrix", "v2")
+TARGET_SET_CHOICES = ("single", "tool-docs", "provider-matrix", "zero-dollar", "phase2", "v2")
 HTTP_MAX_RESPONSE_BYTES = 16 * 1024 * 1024
 HTTP_MAX_ERROR_BYTES = 64 * 1024
 # Conservative per-call USD figures used ONLY for the pre-flight
@@ -86,6 +96,25 @@ HTTP_MAX_ERROR_BYTES = 64 * 1024
 # bounds chosen so the guard fails safe. They never feed published numbers.
 APPROX_TAVILY_CREDIT_USD = 0.01
 APPROX_EXA_SEARCH_USD = 0.01
+ZERO_DOLLAR_CLASSES: tuple[str, ...] = (
+    "complete_for_0",
+    "complete_with_local_browser",
+    "partial_for_0",
+    "requires_provider",
+    "requires_cloud_browser",
+    "blocked_by_policy",
+)
+ZERO_DOLLAR_COMPLETE_SCORE = 75
+ZERO_DOLLAR_ROUTE_CLASSES = {
+    "direct_http": "partial_for_0",
+    "local_browser": "complete_with_local_browser",
+    "provider": "requires_provider",
+    "cloud_browser": "requires_cloud_browser",
+    "policy": "blocked_by_policy",
+}
+ESCALATION_PROVIDER_ORDER: tuple[str, ...] = ("tavily", "exa", "parallel")
+ESCALATION_MAX_SEARCH_RESULTS = 8
+ESCALATION_EXTRACT_LIMIT = 3
 
 
 class BenchmarkError(RuntimeError):
@@ -113,6 +142,7 @@ class _BenchmarkTarget:
     min_expected_records: int = 3
     freshness_terms: tuple[str, ...] = ()
     notes: str = ""
+    zero_dollar_route: str = "direct_http"
 
     def report_dict(self) -> dict[str, Any]:
         return {
@@ -126,6 +156,7 @@ class _BenchmarkTarget:
             "min_expected_records": self.min_expected_records,
             "freshness_terms": list(self.freshness_terms),
             "notes": self.notes,
+            "zero_dollar_route": self.zero_dollar_route,
         }
 
 
@@ -190,6 +221,7 @@ ADVERSARIAL_TARGETS: tuple[_BenchmarkTarget, ...] = (
         min_expected_records=4,
         freshness_terms=("version", "latest", "app router"),
         notes="JS-heavy documentation target with a large rendered navigation surface.",
+        zero_dollar_route="local_browser",
     ),
     _BenchmarkTarget(
         id="python27_archived_stdlib",
@@ -218,9 +250,67 @@ ADVERSARIAL_TARGETS: tuple[_BenchmarkTarget, ...] = (
 )
 
 
+PHASE2_MEASUREMENT_TARGETS: tuple[_BenchmarkTarget, ...] = (
+    _BenchmarkTarget(
+        id="sec_apple_10k",
+        label="Apple 10-K filing",
+        url="https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/aapl-20240928.htm",
+        include_domains=("sec.gov",),
+        objective="Build an evidence pack for Apple's 2024 Form 10-K filing",
+        queries=("Apple 2024 10-K SEC filing risk factors business md&a",),
+        kind="filing",
+        min_expected_records=1,
+        freshness_terms=("10-k", "risk factors", "business", "2024"),
+        notes="Public SEC filing target for filing extraction without provider search.",
+    ),
+    _BenchmarkTarget(
+        id="pypi_docpull_rss",
+        label="DocPull PyPI release feed",
+        url="https://pypi.org/rss/project/docpull/releases.xml",
+        include_domains=("pypi.org",),
+        objective="Capture DocPull release feed entries from PyPI RSS",
+        queries=("DocPull PyPI release feed latest releases",),
+        kind="feed",
+        min_expected_records=1,
+        freshness_terms=("docpull", "release", "pypi"),
+        notes="RSS/Atom-style target; Phase 3 feed adapters should improve candidate extraction.",
+    ),
+    _BenchmarkTarget(
+        id="python_docs_sitemap",
+        label="Python docs sitemap",
+        url="https://docs.python.org/sitemap.xml",
+        include_domains=("docs.python.org",),
+        objective="Use the Python docs sitemap as a source-discovery seed",
+        queries=("Python documentation sitemap library reference tutorial",),
+        kind="sitemap",
+        min_expected_records=1,
+        freshness_terms=("python", "library", "tutorial"),
+        notes="Sitemap target; Phase 3 richer sitemap discovery should improve completion.",
+    ),
+    _BenchmarkTarget(
+        id="packaging_search_to_evidence",
+        label="Packaging docs search-to-evidence",
+        url="https://www.python.org",
+        include_domains=("packaging.python.org", "docs.python.org"),
+        objective="Find official evidence for Python packaging pyproject.toml build-system guidance",
+        queries=("official Python packaging pyproject.toml build system guide",),
+        kind="search_to_evidence",
+        min_expected_records=2,
+        freshness_terms=("pyproject.toml", "build-system", "packaging"),
+        notes=(
+            "Intentional discovery gap: the seed URL is broad and the evidence "
+            "lives on related official docs."
+        ),
+        zero_dollar_route="provider",
+    ),
+)
+
+
 TARGET_SETS: dict[str, tuple[_BenchmarkTarget, ...]] = {
     "tool-docs": TOOL_DOC_TARGETS,
     "provider-matrix": (*TOOL_DOC_TARGETS, *ADVERSARIAL_TARGETS),
+    "zero-dollar": (*TOOL_DOC_TARGETS, *ADVERSARIAL_TARGETS, *PHASE2_MEASUREMENT_TARGETS),
+    "phase2": (*TOOL_DOC_TARGETS, *ADVERSARIAL_TARGETS, *PHASE2_MEASUREMENT_TARGETS),
     "v2": (*TOOL_DOC_TARGETS, *ADVERSARIAL_TARGETS),
 }
 
@@ -245,8 +335,10 @@ def create_benchmark_parser() -> argparse.ArgumentParser:
         help=(
             "Target matrix to run. 'single' preserves --target-url behavior; "
             "'tool-docs' runs the five provider/docpull docs sites; "
-            "'provider-matrix' adds low-cap hard targets. 'v2' remains as a "
-            "compatibility alias."
+            "'provider-matrix' adds low-cap hard targets; 'zero-dollar' adds "
+            "Phase 2 measurement targets for JS docs, pricing, filings, feeds, "
+            "sitemaps, and search-to-evidence. 'phase2' aliases 'zero-dollar'; "
+            "'v2' remains as a compatibility alias."
         ),
     )
     quick.add_argument(
@@ -349,6 +441,18 @@ def create_benchmark_parser() -> argparse.ArgumentParser:
         help="Local pre-call spend guard for providers with known cost estimates",
     )
     quick.add_argument(
+        "--budget",
+        type=parse_budget_value,
+        default=None,
+        metavar="USD",
+        help="Maximum paid-capable provider/cloud spend for this benchmark. Use 0 for zero paid calls.",
+    )
+    quick.add_argument(
+        "--zero-dollar",
+        action="store_true",
+        help="Classify zero-dollar completion and block live provider cases.",
+    )
+    quick.add_argument(
         "--trace",
         choices=["none", "raindrop"],
         default="none",
@@ -404,6 +508,8 @@ def run_benchmark_cli(argv: list[str] | None = None) -> int:
                 extract_limit=args.extract_limit,
                 tavily_credit_usd=args.tavily_credit_usd,
                 max_estimated_cost=args.max_estimated_cost,
+                budget_limit=0.0 if args.zero_dollar else args.budget,
+                zero_dollar=args.zero_dollar,
                 trace_backend=args.trace,
                 runs=args.runs,
             )
@@ -455,6 +561,8 @@ def run_quick_benchmark(
     max_search_results: int,
     extract_limit: int,
     max_estimated_cost: float,
+    budget_limit: float | None = None,
+    zero_dollar: bool = False,
     target_set: str = DEFAULT_TARGET_SET,
     tavily_credit_usd: float | None = None,
     trace_backend: str = "none",
@@ -473,6 +581,10 @@ def run_quick_benchmark(
     _validate_positive_int(runs, "runs")
     if max_estimated_cost < 0:
         raise BenchmarkError("max_estimated_cost cannot be negative.")
+    effective_max_estimated_cost = effective_budget_limit(max_estimated_cost, budget_limit)
+    if effective_max_estimated_cost is None:
+        effective_max_estimated_cost = max_estimated_cost
+    zero_dollar = zero_dollar or budget_limit == 0
     target_set = _canonical_target_set(target_set)
     tavily_credit_usd = _resolve_tavily_credit_usd(tavily_credit_usd)
     targets = _resolve_benchmark_targets(
@@ -495,16 +607,27 @@ def run_quick_benchmark(
         exa=exa,
         live_providers=live_providers,
     )
-    provider_status = _live_provider_statuses(requested_providers)
-    providers = [provider for provider in requested_providers if provider_status[provider]["ready"]]
-    skipped_providers = [
-        {
-            "provider": provider,
-            "reason": provider_status[provider]["reason"],
-        }
-        for provider in requested_providers
-        if provider not in providers
-    ]
+    if zero_dollar and requested_providers:
+        provider_status = _live_provider_statuses(requested_providers)
+        providers = []
+        skipped_providers = [
+            {
+                "provider": provider,
+                "reason": "blocked_by_budget",
+            }
+            for provider in requested_providers
+        ]
+    else:
+        provider_status = _live_provider_statuses(requested_providers)
+        providers = [provider for provider in requested_providers if provider_status[provider]["ready"]]
+        skipped_providers = [
+            {
+                "provider": provider,
+                "reason": provider_status[provider]["reason"],
+            }
+            for provider in requested_providers
+            if provider not in providers
+        ]
     parallel = "parallel" in providers
 
     run_dir = (output_dir or _default_run_dir()).resolve()
@@ -532,11 +655,11 @@ def run_quick_benchmark(
     if "exa" in providers:
         estimated_costs["exa"] = round(APPROX_EXA_SEARCH_USD * len(targets) * runs, 6)
     estimated_total_cost = round(sum(estimated_costs.values()), 6)
-    if estimated_total_cost > max_estimated_cost:
+    if estimated_total_cost > effective_max_estimated_cost:
         breakdown = ", ".join(f"{name}=${value:.6f}" for name, value in estimated_costs.items())
         raise BenchmarkError(
             f"Estimated live-provider benchmark cost ${estimated_total_cost:.6f} "
-            f"({breakdown}) exceeds guard ${max_estimated_cost:.6f}."
+            f"({breakdown}) exceeds guard ${effective_max_estimated_cost:.6f}."
         )
 
     trace = _make_trace_recorder(
@@ -619,7 +742,8 @@ def run_quick_benchmark(
             cache_dir: Path | None,
             target: _BenchmarkTarget = target,
         ) -> dict[str, Any]:
-            assert cache_dir is not None
+            if cache_dir is None:
+                raise BenchmarkError("cache_dir is required for the core benchmark case.")
             return asyncio.run(
                 _run_core_case(
                     name="core-llm",
@@ -839,6 +963,10 @@ def run_quick_benchmark(
 
     report_path = run_dir / "benchmark.report.json"
     markdown_path = run_dir / "benchmark.summary.md"
+    artifacts: dict[str, str] = {
+        "json": str(report_path),
+        "markdown": str(markdown_path),
+    }
     report = {
         "schema_version": BENCHMARK_SCHEMA_VERSION,
         "generated_at": utc_now_iso(),
@@ -851,17 +979,36 @@ def run_quick_benchmark(
         "matrix_providers": _matrix_provider_keys(providers),
         "requested_providers": requested_providers,
         "skipped_providers": skipped_providers,
+        "budget_limit_usd": budget_limit,
+        "zero_dollar": zero_dollar,
         "provider_status": _benchmark_provider_statuses(provider_status),
         "cost_normalization": _cost_normalization_metadata(tavily_credit_usd),
         "runs_per_case": runs,
         "trace": trace.metadata(),
         "cases": cases,
         "summary": _summary(cases),
-        "artifacts": {
-            "json": str(report_path),
-            "markdown": str(markdown_path),
-        },
+        "artifacts": artifacts,
     }
+    if budget_limit is not None or zero_dollar:
+        accounting_path = maybe_write_run_accounting(
+            run_dir,
+            budget_limit_usd=budget_limit,
+            paid_capable=bool(requested_providers),
+            accounting=RunAccounting(
+                budget_limit_usd=budget_limit,
+                estimated_paid_cost_usd=estimated_total_cost,
+                paid_request_count=0 if zero_dollar else len(providers),
+                blocked_actions=[],
+                route_steps=default_route_steps(
+                    include_provider=bool(requested_providers),
+                    budget_limit_usd=budget_limit,
+                ),
+                command="benchmark quick",
+            ),
+        )
+        if accounting_path:
+            artifacts["accounting"] = str(accounting_path)
+        report["zero_dollar_completion"] = _zero_dollar_completion(cases)
     trace.finish(report)
     report["trace"] = trace.metadata()
     report_path.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
@@ -923,13 +1070,18 @@ def _resolve_benchmark_targets(
                 min_expected_records=target.min_expected_records,
                 freshness_terms=target.freshness_terms,
                 notes=target.notes,
+                zero_dollar_route=target.zero_dollar_route,
             )
         )
     return targets
 
 
 def _canonical_target_set(target_set: str) -> str:
-    return "provider-matrix" if target_set == "v2" else target_set
+    if target_set == "v2":
+        return "provider-matrix"
+    if target_set == "phase2":
+        return "zero-dollar"
+    return target_set
 
 
 def _single_benchmark_target(
@@ -953,6 +1105,7 @@ def _single_benchmark_target(
         include_domains=normalized_domains,
         objective=target_objective,
         queries=target_queries,
+        min_expected_records=1,
         freshness_terms=("changelog", "release", "latest") if "docs" in domain else (),
     )
 
@@ -1044,58 +1197,22 @@ def _normalize_live_providers(
     exa: bool,
     live_providers: list[str] | None,
 ) -> list[ProviderName]:
-    selected: list[str] = []
-    if parallel:
-        selected.append("parallel")
-    if tavily:
-        selected.append("tavily")
-    if exa:
-        selected.append("exa")
-    selected.extend(live_providers or [])
-    normalized: list[ProviderName] = []
-    for raw_provider in selected:
-        provider = raw_provider.strip().lower()
-        if provider in {"auto", "all"}:
-            for name in PROVIDER_NAMES:
-                if name not in normalized:
-                    normalized.append(name)
-            continue
-        if provider not in PROVIDER_CONFIGS:
-            raise BenchmarkError(f"Unsupported live benchmark provider: {raw_provider}")
-        name = provider  # type: ignore[assignment]
-        if name not in normalized:
-            normalized.append(name)
-    return normalized
+    try:
+        return normalize_live_providers(
+            parallel=parallel,
+            tavily=tavily,
+            exa=exa,
+            live_providers=live_providers,
+        )
+    except ProviderAdapterError as err:
+        raise BenchmarkError(str(err)) from err
 
 
 def _live_provider_statuses(providers: list[ProviderName]) -> dict[str, dict[str, Any]]:
-    statuses: dict[str, dict[str, Any]] = {}
-    for provider in providers:
-        config = PROVIDER_CONFIGS[provider]
-        lookup = lookup_provider_api_key(provider)
-        api_key_present = bool(lookup.value)
-        sdk_installed = True
-        reason = "ready"
-        ready = api_key_present
-        if provider == "parallel":
-            sdk_installed = _parallel_sdk_installed()
-            ready = api_key_present and sdk_installed
-            if api_key_present and not sdk_installed:
-                reason = "missing_optional_sdk"
-        if not api_key_present:
-            reason = "missing_api_key"
-        statuses[provider] = {
-            "provider": provider,
-            "label": config.label,
-            "ready": ready,
-            "reason": reason,
-            "api_key_env_var": config.api_key_env_var,
-            "api_key_present": api_key_present,
-            "api_key_source": lookup.source,
-            "api_key_source_path": str(lookup.path) if lookup.path else None,
-            "sdk_installed": sdk_installed,
-        }
-    return statuses
+    return live_provider_statuses(
+        providers,
+        parallel_sdk_installed=_parallel_sdk_installed,
+    )
 
 
 def _benchmark_provider_statuses(
@@ -1642,115 +1759,28 @@ def _run_tavily_case(
     api_key = _require_benchmark_api_key(TAVILY_API_KEY_ENV, "Tavily")
     rss_before = _peak_rss_bytes()
     t0 = time.perf_counter()
-    query = queries[0]
-    search_body: dict[str, Any] = {
-        "query": query,
-        "search_depth": "basic",
-        "max_results": max_search_results,
-        "include_answer": False,
-        "include_raw_content": False,
-        "include_images": False,
-        "include_favicon": True,
-    }
-    if include_domains:
-        search_body["include_domains"] = include_domains
-    search_payload = _http_json_post(
-        label="Tavily Search",
-        url=TAVILY_SEARCH_URL,
-        headers={"Authorization": f"Bearer {api_key}"},
-        body=search_body,
-        timeout=60,
-    )
-    search_results = _json_list(search_payload.get("results"))
-    selected_urls = _select_result_urls(search_results, extract_limit)
-    if not selected_urls:
-        raise BenchmarkError("Tavily Search returned no extractable URLs.")
-
-    extract_body = {
-        "urls": selected_urls,
-        "extract_depth": "basic",
-        "format": "markdown",
-        "include_favicon": True,
-        "include_usage": True,
-    }
-    extract_payload = _http_json_post(
-        label="Tavily Extract",
-        url=TAVILY_EXTRACT_URL,
-        headers={"Authorization": f"Bearer {api_key}"},
-        body=extract_body,
-        timeout=90,
-    )
-    search_by_url = {str(item.get("url")): item for item in search_results if item.get("url")}
-    documents: list[_ProviderDocument] = []
-    for item in _json_list(extract_payload.get("results")):
-        url = str(item.get("url") or "")
-        if not url:
-            continue
-        search_item = search_by_url.get(url, {})
-        raw_content = str(item.get("raw_content") or "").strip()
-        fallback_content = str(search_item.get("content") or "").strip()
-        content = raw_content or fallback_content
-        if not content:
-            continue
-        documents.append(
-            _ProviderDocument(
-                url=url,
-                title=str(search_item.get("title") or url),
-                content=content,
-                source_type="tavily",
-                metadata={
-                    "provider": "tavily",
-                    "search_score": search_item.get("score"),
-                    "favicon": item.get("favicon") or search_item.get("favicon"),
-                    "content_source": "extract.raw_content" if raw_content else "search.content",
-                },
-            )
+    try:
+        result = provider_adapter("tavily", api_key=api_key, http_post=_http_json_post).search_extract_pack(
+            objective=objective,
+            queries=queries,
+            output_dir=output_dir,
+            include_domains=include_domains,
+            max_search_results=max_search_results,
+            extract_limit=extract_limit,
+            mode="basic",
         )
-    failed_results = _json_list(extract_payload.get("failed_results"))
-    if not documents:
-        raise BenchmarkError("Tavily Extract returned no non-empty documents.")
-
-    pack_path = _write_provider_pack(
-        output_dir=output_dir,
-        provider="tavily",
-        workflow="tavily-search-extract",
-        objective=objective,
-        queries=queries,
-        documents=documents,
-        include_domains=include_domains,
-        max_search_results=max_search_results,
-        extract_limit=extract_limit,
-        selected_urls=selected_urls,
-        search_result_count=len(search_results),
-        extract_result_count=len(documents),
-        extract_error_count=len(failed_results),
-        usage={
-            "search": search_payload.get("usage"),
-            "extract": extract_payload.get("usage"),
-        },
-        response_metadata={
-            "search_request_id": search_payload.get("request_id"),
-            "extract_request_id": extract_payload.get("request_id"),
-            "search_response_time": search_payload.get("response_time"),
-            "extract_response_time": extract_payload.get("response_time"),
-        },
-    )
-    payload = _base_case(
+    except ProviderAdapterError as err:
+        raise BenchmarkError(str(err)) from err
+    payload = provider_case_payload(
+        result,
         name="tavily-search-extract",
         workflow="tavily-search-extract-pack",
-        output_dir=output_dir,
         wall_seconds=time.perf_counter() - t0,
         rss_before=rss_before,
-    )
-    _attach_tavily_cost(payload, search_payload.get("usage"), extract_payload.get("usage"), tavily_credit_usd)
-    payload["artifact_size_bytes"] = _dir_size(output_dir)
-    _attach_pack_metadata(payload, pack_path)
-    _attach_pack_intelligence(
-        payload,
-        output_dir,
-        include_domains,
+        include_domains=include_domains,
         objective=objective,
         queries=queries,
+        tavily_credit_usd=tavily_credit_usd,
     )
     _attach_benchmark_score(payload, output_dir, include_domains, target=target)
     return payload
@@ -1763,100 +1793,31 @@ def _run_exa_case(
     output_dir: Path,
     include_domains: list[str],
     max_search_results: int,
+    extract_limit: int | None = None,
     target: _BenchmarkTarget | None = None,
 ) -> dict[str, Any]:
     api_key = _require_benchmark_api_key(EXA_API_KEY_ENV, "Exa")
     rss_before = _peak_rss_bytes()
     t0 = time.perf_counter()
-    query = queries[0]
-    search_body: dict[str, Any] = {
-        "query": query,
-        "numResults": max_search_results,
-        "contents": {
-            "text": {"verbosity": "standard"},
-            "highlights": True,
-        },
-    }
-    if include_domains:
-        search_body["includeDomains"] = include_domains
-    search_payload = _http_json_post(
-        label="Exa Search",
-        url=EXA_SEARCH_URL,
-        headers={"x-api-key": api_key},
-        body=search_body,
-        timeout=90,
-    )
-    results = _json_list(search_payload.get("results"))
-    documents: list[_ProviderDocument] = []
-    for item in results:
-        url = str(item.get("url") or "")
-        if not url:
-            continue
-        content = str(item.get("text") or "").strip()
-        if not content:
-            highlights = [str(value) for value in _json_list(item.get("highlights")) if value]
-            content = "\n\n".join(highlights).strip()
-        if not content:
-            content = str(item.get("summary") or "").strip()
-        if not content:
-            continue
-        documents.append(
-            _ProviderDocument(
-                url=url,
-                title=str(item.get("title") or url),
-                content=content,
-                source_type="exa",
-                metadata={
-                    "provider": "exa",
-                    "id": item.get("id"),
-                    "published_date": item.get("publishedDate"),
-                    "author": item.get("author"),
-                    "favicon": item.get("favicon"),
-                    "content_source": "search.text",
-                },
-            )
+    try:
+        result = provider_adapter("exa", api_key=api_key, http_post=_http_json_post).search_extract_pack(
+            objective=objective,
+            queries=queries,
+            output_dir=output_dir,
+            include_domains=include_domains,
+            max_search_results=max_search_results,
+            extract_limit=extract_limit or max_search_results,
+            mode="advanced",
         )
-    if not documents:
-        raise BenchmarkError("Exa Search returned no non-empty documents.")
-    cost_dollars = search_payload.get("costDollars")
-    estimated_cost = _cost_dollars_total(cost_dollars)
-    selected_urls = [document.url for document in documents]
-    pack_path = _write_provider_pack(
-        output_dir=output_dir,
-        provider="exa",
-        workflow="exa-search-contents",
-        objective=objective,
-        queries=queries,
-        documents=documents,
-        include_domains=include_domains,
-        max_search_results=max_search_results,
-        extract_limit=len(documents),
-        selected_urls=selected_urls,
-        search_result_count=len(results),
-        extract_result_count=len(documents),
-        extract_error_count=max(0, len(results) - len(documents)),
-        usage={"cost_dollars": cost_dollars},
-        response_metadata={
-            "request_id": search_payload.get("requestId"),
-            "resolved_search_type": search_payload.get("resolvedSearchType"),
-        },
-        cost_dollars=cost_dollars if isinstance(cost_dollars, dict) else None,
-    )
-    payload = _base_case(
+    except ProviderAdapterError as err:
+        raise BenchmarkError(str(err)) from err
+    payload = provider_case_payload(
+        result,
         name="exa-search-contents",
         workflow="exa-search-contents-pack",
-        output_dir=output_dir,
         wall_seconds=time.perf_counter() - t0,
         rss_before=rss_before,
-    )
-    if estimated_cost is not None:
-        payload["estimated_cost_usd"] = estimated_cost
-    payload["artifact_size_bytes"] = _dir_size(output_dir)
-    _attach_pack_metadata(payload, pack_path)
-    _attach_pack_intelligence(
-        payload,
-        output_dir,
-        include_domains,
+        include_domains=include_domains,
         objective=objective,
         queries=queries,
     )
@@ -2580,7 +2541,8 @@ def _http_json_post(
                 break
             delay = _retry_delay_seconds(attempt=attempt, retry_after=err.retry_after)
             sleep(delay)
-    assert last_error is not None
+    if last_error is None:
+        raise BenchmarkError(f"{label} request failed without a captured response error.")
     raise last_error
 
 
@@ -2779,6 +2741,422 @@ def _summary(cases: list[dict[str, Any]]) -> dict[str, Any]:
         "best_by_target": _best_by_target(cases),
         "pass_at_k": _pass_at_k_summary(cases, cache_only_cases),
     }
+
+
+def _zero_dollar_completion(cases: list[dict[str, Any]]) -> dict[str, Any]:
+    target_results: dict[str, dict[str, Any]] = {}
+    for case in cases:
+        if case.get("provider") != "docpull" or _is_cache_only_case(case):
+            continue
+        target_id = str(case.get("target_id") or "single")
+        target = case.get("target")
+        target = target if isinstance(target, dict) else {}
+        min_expected = int(target.get("min_expected_records") or 1)
+        route = str(target.get("zero_dollar_route") or "direct_http")
+        record_count = _zero_dollar_record_count(case)
+        score = _zero_dollar_score(case)
+        signals = _zero_dollar_signals(case)
+        completion_class, reason = _zero_dollar_classify_case(
+            case,
+            record_count=record_count,
+            min_expected=min_expected,
+            score=score,
+            route=route,
+        )
+        target_results[target_id] = {
+            "target_id": target_id,
+            "target_label": target.get("label") or target_id,
+            "target_kind": target.get("kind") or case.get("target_kind"),
+            "target_url": target.get("url") or case.get("target_url"),
+            "objective": target.get("objective") or "",
+            "queries": target.get("queries") or [],
+            "include_domains": target.get("include_domains") or [],
+            "zero_dollar_route": route,
+            "completion_class": completion_class,
+            "reason": reason,
+            "record_count": record_count,
+            "min_expected_records": min_expected,
+            "score": score,
+            "signals": signals,
+            "notes": target.get("notes") or "",
+            "case": case.get("name"),
+        }
+    counts = Counter(str(result["completion_class"]) for result in target_results.values())
+    complete_count = counts.get("complete_for_0", 0)
+    local_browser_count = counts.get("complete_with_local_browser", 0)
+    target_count = len(target_results)
+    return {
+        "schema_version": 1,
+        "target_count": target_count,
+        "counts": {
+            class_name: counts[class_name] for class_name in ZERO_DOLLAR_CLASSES if counts.get(class_name)
+        },
+        "completion_rate": round(complete_count / target_count, 4) if target_count else None,
+        "local_or_browser_rate": (
+            round((complete_count + local_browser_count) / target_count, 4) if target_count else None
+        ),
+        "targets": [target_results[key] for key in sorted(target_results)],
+        "next_actions": _zero_dollar_next_actions(target_results),
+        "escalation_suggestions": _zero_dollar_escalation_suggestions(target_results),
+        "classes": list(ZERO_DOLLAR_CLASSES),
+    }
+
+
+def _zero_dollar_record_count(case: dict[str, Any]) -> int:
+    score = case.get("pack_score")
+    summary = score.get("summary") if isinstance(score, dict) else {}
+    if isinstance(summary, dict):
+        raw_count = summary.get("record_count")
+        if isinstance(raw_count, int):
+            return raw_count
+    stats = case.get("stats")
+    if isinstance(stats, dict):
+        fetched = stats.get("pages_fetched")
+        if isinstance(fetched, int):
+            return fetched
+    return 0
+
+
+def _zero_dollar_score(case: dict[str, Any]) -> int | None:
+    benchmark_score = _score_value(case.get("benchmark_score"))
+    if benchmark_score is not None:
+        return benchmark_score
+    return _score_value(case.get("pack_score"))
+
+
+def _zero_dollar_signals(case: dict[str, Any]) -> list[str]:
+    signals: list[str] = []
+    raw_score = case.get("benchmark_score")
+    dimensions = raw_score.get("dimensions") if isinstance(raw_score, dict) else None
+    if isinstance(dimensions, dict):
+        for dimension_name, dimension in sorted(dimensions.items()):
+            if not isinstance(dimension, dict):
+                continue
+            for signal in dimension.get("signals") or []:
+                signals.append(f"{dimension_name}: {signal}")
+    if case.get("status") == "failed":
+        error = case.get("error")
+        if isinstance(error, dict):
+            message = str(error.get("message") or error.get("type") or "case failed")
+        else:
+            message = str(error or "case failed")
+        signals.append(f"failure: {message}")
+    return signals[:8]
+
+
+def _zero_dollar_classify_case(
+    case: dict[str, Any],
+    *,
+    record_count: int,
+    min_expected: int,
+    score: int | None,
+    route: str,
+) -> tuple[str, str]:
+    if _zero_dollar_policy_blocked(case):
+        return "blocked_by_policy", "core docpull was blocked by source or network policy"
+    if case.get("status") == "failed":
+        fallback = ZERO_DOLLAR_ROUTE_CLASSES.get(route, "partial_for_0")
+        if fallback != "partial_for_0":
+            return fallback, f"core docpull failed; target route is {route}"
+        return "partial_for_0", "core docpull case failed"
+    if record_count >= min_expected and (score is None or score >= ZERO_DOLLAR_COMPLETE_SCORE):
+        score_text = f" with score {score}" if score is not None else ""
+        return "complete_for_0", (
+            f"core docpull produced {record_count}/{min_expected} expected record(s){score_text}"
+        )
+    fallback = ZERO_DOLLAR_ROUTE_CLASSES.get(route, "partial_for_0")
+    if fallback == "complete_with_local_browser":
+        return fallback, (
+            f"direct HTTP was partial ({record_count}/{min_expected} records); "
+            "target is a local-browser candidate"
+        )
+    if fallback == "requires_provider":
+        return fallback, (
+            f"direct HTTP was partial ({record_count}/{min_expected} records); "
+            "target needs open-web/provider discovery"
+        )
+    if fallback == "requires_cloud_browser":
+        return fallback, (
+            f"direct HTTP was partial ({record_count}/{min_expected} records); "
+            "target likely needs cloud browser infrastructure"
+        )
+    if fallback == "blocked_by_policy":
+        return fallback, "target is marked as policy-blocked for local capture"
+    score_text = f"; score {score} below {ZERO_DOLLAR_COMPLETE_SCORE}" if score is not None else ""
+    return (
+        "partial_for_0",
+        f"core docpull produced {record_count}/{min_expected} expected record(s){score_text}",
+    )
+
+
+def _zero_dollar_policy_blocked(case: dict[str, Any]) -> bool:
+    error = case.get("error")
+    text = json.dumps(error, sort_keys=True).lower() if isinstance(error, dict) else str(error or "").lower()
+    return any(
+        needle in text
+        for needle in (
+            "blocked by policy",
+            "blocked_by_policy",
+            "robots",
+            "private network",
+            "url rejected",
+            "403",
+            "forbidden",
+        )
+    )
+
+
+def _zero_dollar_next_actions(target_results: dict[str, dict[str, Any]]) -> dict[str, list[str]]:
+    buckets: dict[str, list[str]] = {
+        "try_local_browser": [],
+        "try_provider_discovery": [],
+        "consider_cloud_browser": [],
+        "improve_local_extraction": [],
+        "review_policy": [],
+    }
+    for target_id, result in sorted(target_results.items()):
+        class_name = result.get("completion_class")
+        if class_name == "complete_with_local_browser":
+            buckets["try_local_browser"].append(target_id)
+        elif class_name == "requires_provider":
+            buckets["try_provider_discovery"].append(target_id)
+        elif class_name == "requires_cloud_browser":
+            buckets["consider_cloud_browser"].append(target_id)
+        elif class_name == "partial_for_0":
+            buckets["improve_local_extraction"].append(target_id)
+        elif class_name == "blocked_by_policy":
+            buckets["review_policy"].append(target_id)
+    return {key: value for key, value in buckets.items() if value}
+
+
+def _zero_dollar_escalation_suggestions(target_results: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+    suggestions: list[dict[str, Any]] = []
+    for target_id, result in sorted(target_results.items()):
+        class_name = str(result.get("completion_class") or "")
+        if class_name == "complete_for_0":
+            continue
+        if class_name == "complete_with_local_browser":
+            suggestions.append(_local_browser_escalation(target_id, result))
+        elif class_name == "requires_provider":
+            suggestions.append(_provider_escalation(target_id, result))
+        elif class_name == "requires_cloud_browser":
+            suggestions.append(_cloud_browser_escalation(target_id, result))
+        elif class_name == "partial_for_0":
+            suggestions.append(_local_discovery_escalation(target_id, result))
+        elif class_name == "blocked_by_policy":
+            suggestions.append(_policy_escalation(target_id, result))
+    return suggestions
+
+
+def _local_browser_escalation(target_id: str, result: dict[str, Any]) -> dict[str, Any]:
+    url = _target_url(result)
+    return {
+        "target_id": target_id,
+        "action": "try_local_browser",
+        "summary": "Retry with local agent-browser rendering before using paid providers or cloud sandboxes.",
+        "commands": [
+            _command(
+                "docpull",
+                url,
+                "--single",
+                "--render",
+                "fallback",
+                "--budget",
+                "0",
+                "-o",
+                f"./packs/{target_id}-rendered",
+            )
+        ],
+        "estimated_paid_request_count": 0,
+        "estimated_paid_cost_usd": 0.0,
+        "paid_capable": False,
+    }
+
+
+def _local_discovery_escalation(target_id: str, result: dict[str, Any]) -> dict[str, Any]:
+    url = _target_url(result)
+    discovery_dir = f"./packs/{target_id}-discovery"
+    return {
+        "target_id": target_id,
+        "action": "improve_local_discovery",
+        "summary": "Scan provider-free site hints, then fetch selected candidates.",
+        "commands": [
+            _command("docpull", "discover", "scan", url, "--source", "all", "-o", discovery_dir),
+            _command(
+                "docpull",
+                "discover",
+                "fetch",
+                discovery_dir,
+                "--select",
+                "top:10",
+                "-o",
+                f"./packs/{target_id}-local",
+            ),
+        ],
+        "estimated_paid_request_count": 0,
+        "estimated_paid_cost_usd": 0.0,
+        "paid_capable": False,
+    }
+
+
+def _provider_escalation(target_id: str, result: dict[str, Any]) -> dict[str, Any]:
+    objective = _target_objective(result)
+    query = _target_query(result)
+    include_domains = [str(item) for item in result.get("include_domains") or [] if str(item).strip()]
+    dry_run_command = [
+        "docpull",
+        "providers",
+        "context-pack",
+        objective,
+        "--dry-run",
+        "--json",
+        "--max-estimated-cost",
+        f"{_provider_escalation_cost():.6f}",
+    ]
+    live_command = [
+        "docpull",
+        "providers",
+        "context-pack",
+        objective,
+        "--max-estimated-cost",
+        f"{_provider_escalation_cost():.6f}",
+        "-o",
+        f"./packs/{target_id}-provider",
+    ]
+    for provider in ESCALATION_PROVIDER_ORDER:
+        dry_run_command.extend(["--provider", provider])
+        live_command.extend(["--provider", provider])
+    if query:
+        dry_run_command.extend(["--query", query])
+        live_command.extend(["--query", query])
+    for domain in include_domains:
+        dry_run_command.extend(["--include-domain", domain])
+        live_command.extend(["--include-domain", domain])
+    return {
+        "target_id": target_id,
+        "action": "try_provider_discovery",
+        "summary": "Use BYOK providers only after reviewing a dry-run plan and cost guard.",
+        "commands": [_command(*dry_run_command), _command(*live_command)],
+        "estimated_paid_request_count": len(ESCALATION_PROVIDER_ORDER),
+        "estimated_paid_cost_usd": _provider_escalation_cost(),
+        "estimated_paid_cost_breakdown": _provider_escalation_cost_breakdown(),
+        "paid_capable": True,
+    }
+
+
+def _cloud_browser_escalation(target_id: str, result: dict[str, Any]) -> dict[str, Any]:
+    url = _target_url(result)
+    costs = _cloud_escalation_cost_breakdown()
+    vercel_cost = costs["vercel-sandbox"]
+    e2b_cost = costs["e2b-sandbox"]
+    return {
+        "target_id": target_id,
+        "action": "consider_cloud_browser",
+        "summary": "Use cloud rendering only after local render fails or local infrastructure is unsuitable.",
+        "commands": [
+            _command(
+                "docpull",
+                "render",
+                url,
+                "--runtime",
+                "local",
+                "--budget",
+                "0",
+                "-o",
+                f"./packs/{target_id}-local-render",
+            ),
+            _command(
+                "docpull",
+                "render",
+                url,
+                "--runtime",
+                "vercel",
+                "--cloud-max-estimated-cost",
+                f"{vercel_cost:.4f}",
+                "-o",
+                f"./packs/{target_id}-vercel-render",
+            ),
+            _command(
+                "docpull",
+                "render",
+                url,
+                "--runtime",
+                "e2b",
+                "--cloud-max-estimated-cost",
+                f"{e2b_cost:.4f}",
+                "-o",
+                f"./packs/{target_id}-e2b-render",
+            ),
+        ],
+        "estimated_paid_request_count": 1,
+        "estimated_paid_cost_usd": max(costs.values()),
+        "estimated_paid_cost_breakdown": costs,
+        "paid_capable": True,
+    }
+
+
+def _policy_escalation(target_id: str, _result: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "target_id": target_id,
+        "action": "review_policy",
+        "summary": "Review policy/robots/private-network constraints before retrying capture.",
+        "commands": [_command("docpull", "policy", "explain", "./docpull.policy.yml")],
+        "estimated_paid_request_count": 0,
+        "estimated_paid_cost_usd": 0.0,
+        "paid_capable": False,
+    }
+
+
+def _target_url(result: dict[str, Any]) -> str:
+    url = str(result.get("target_url") or "").strip()
+    return url or "https://example.com"
+
+
+def _target_objective(result: dict[str, Any]) -> str:
+    objective = str(result.get("objective") or "").strip()
+    if objective:
+        return objective
+    label = str(result.get("target_label") or result.get("target_id") or "target").strip()
+    return f"Build an evidence pack for {label}"
+
+
+def _target_query(result: dict[str, Any]) -> str:
+    queries = result.get("queries")
+    if isinstance(queries, list):
+        for query in queries:
+            clean = str(query).strip()
+            if clean:
+                return clean
+    return ""
+
+
+def _provider_escalation_cost_breakdown() -> dict[str, float]:
+    tavily_cost = APPROX_TAVILY_CREDIT_USD * (1 + ESCALATION_EXTRACT_LIMIT)
+    return {
+        "tavily": round(tavily_cost, 6),
+        "exa": APPROX_EXA_SEARCH_USD,
+        "parallel": estimate_context_pack_cost(
+            extract_limit=ESCALATION_EXTRACT_LIMIT,
+            max_search_results=ESCALATION_MAX_SEARCH_RESULTS,
+        ),
+    }
+
+
+def _provider_escalation_cost() -> float:
+    return round(sum(_provider_escalation_cost_breakdown().values()), 6)
+
+
+def _cloud_escalation_cost_breakdown() -> dict[str, float]:
+    vercel_config = RenderConfig(mode="agent-browser", backend="vercel-sandbox")
+    e2b_config = RenderConfig(mode="agent-browser", backend="e2b-sandbox")
+    return {
+        "vercel-sandbox": estimate_cloud_render_cost_usd("vercel-sandbox", vercel_config),
+        "e2b-sandbox": estimate_cloud_render_cost_usd("e2b-sandbox", e2b_config),
+    }
+
+
+def _command(*parts: str) -> str:
+    return " ".join(shlex.quote(str(part)) for part in parts)
 
 
 def _pass_at_k_summary(
@@ -3032,7 +3410,84 @@ def _markdown_report(report: dict[str, Any]) -> str:
         ]
     )
     lines.extend(_pass_at_k_lines(report))
+    lines.extend(_zero_dollar_completion_lines(report))
     return "\n".join(lines)
+
+
+def _zero_dollar_completion_lines(report: dict[str, Any]) -> list[str]:
+    completion = report.get("zero_dollar_completion")
+    if not isinstance(completion, dict):
+        return []
+    counts = completion.get("counts")
+    counts = counts if isinstance(counts, dict) else {}
+    rendered_counts = ", ".join(f"{key}={value}" for key, value in counts.items()) or "none"
+    lines = [
+        "",
+        "## Zero-Dollar Completion",
+        "",
+        f"- Targets classified: `{completion.get('target_count', 0)}`",
+        f"- Counts: `{rendered_counts}`",
+        f"- Direct local completion rate: `{completion.get('completion_rate')}`",
+        f"- Local-or-browser completion rate: `{completion.get('local_or_browser_rate')}`",
+    ]
+    next_actions = completion.get("next_actions")
+    if isinstance(next_actions, dict) and next_actions:
+        lines.extend(["", "Next actions:"])
+        for action, targets in sorted(next_actions.items()):
+            if isinstance(targets, list) and targets:
+                lines.append(f"- `{action}`: {', '.join(f'`{target}`' for target in targets)}")
+    suggestions = completion.get("escalation_suggestions")
+    if isinstance(suggestions, list) and suggestions:
+        lines.extend(
+            [
+                "",
+                "Escalation suggestions:",
+                "",
+                "| Target | Action | Paid requests | Estimated paid cost | First command |",
+                "| --- | --- | ---: | ---: | --- |",
+            ]
+        )
+        for suggestion in suggestions:
+            if not isinstance(suggestion, dict):
+                continue
+            commands = suggestion.get("commands")
+            first_command = commands[0] if isinstance(commands, list) and commands else ""
+            paid_cost = suggestion.get("estimated_paid_cost_usd")
+            paid_cost_text = f"${paid_cost:.6f}" if isinstance(paid_cost, int | float) else ""
+            lines.append(
+                "| "
+                f"`{suggestion.get('target_id', '')}` | "
+                f"`{suggestion.get('action', '')}` | "
+                f"{suggestion.get('estimated_paid_request_count', 0)} | "
+                f"{paid_cost_text} | "
+                f"`{_escape_markdown_table(str(first_command))}` |"
+            )
+    targets = completion.get("targets")
+    if isinstance(targets, list) and targets:
+        lines.extend(
+            [
+                "",
+                "| Target | Class | Route | Records | Score | Reason |",
+                "| --- | --- | --- | ---: | ---: | --- |",
+            ]
+        )
+        for target in targets:
+            if not isinstance(target, dict):
+                continue
+            lines.append(
+                "| "
+                f"`{target.get('target_id', '')}` | "
+                f"`{target.get('completion_class', '')}` | "
+                f"`{target.get('zero_dollar_route', '')}` | "
+                f"{target.get('record_count', '')}/{target.get('min_expected_records', '')} | "
+                f"{target.get('score') if target.get('score') is not None else ''} | "
+                f"{_escape_markdown_table(str(target.get('reason') or ''))} |"
+            )
+    return lines
+
+
+def _escape_markdown_table(value: str) -> str:
+    return value.replace("|", "\\|")
 
 
 def _pass_at_k_lines(report: dict[str, Any]) -> list[str]:

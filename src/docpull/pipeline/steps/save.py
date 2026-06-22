@@ -7,6 +7,7 @@ from pathlib import Path
 from ...models.document import DocumentRecord
 from ...models.events import EventType, FetchEvent, SkipReason
 from ...models.run import RunIdentity
+from ...skill_export import SkillAgent, export_agent_skill
 from ..base import EventEmitter, PageContext
 from ..manifest import CorpusManifest
 
@@ -36,6 +37,9 @@ class SaveStep:
         emit_chunks: bool = False,
         skill_name: str | None = None,
         skill_description: str | None = None,
+        skill_agents: list[SkillAgent] | None = None,
+        skill_root_dir: Path | None = None,
+        skill_install_targets: bool = False,
         run_identity: RunIdentity | None = None,
     ) -> None:
         """
@@ -46,17 +50,27 @@ class SaveStep:
                             If set, output paths must be within this directory.
             emit_chunks: When True and ``ctx.chunks`` is populated, write one
                 file per chunk (``<stem>.<NN>.md``) rather than the full doc.
-            skill_name: When set, ``finalize()`` writes a ``SKILL.md``
-                manifest into ``base_output_dir`` so the directory loads
-                as a Claude Code skill without manual editing.
+            skill_name: When set, ``finalize()`` writes agent skill/rule
+                files so the directory loads without manual editing.
             skill_description: Optional explicit ``description:`` field
                 for the SKILL manifest. If None, derived from the first
                 page's metadata.
+            skill_agents: Agent integrations to export. Claude Code and
+                Codex receive SKILL.md folders; Cursor receives an .mdc rule.
+            skill_root_dir: Root folder for SKILL.md and agent metadata.
+                Defaults to ``base_output_dir`` for backwards-compatible
+                programmatic use. CLI skill mode stores pages under
+                ``skill_root_dir / "references"``.
+            skill_install_targets: When True, also write requested agent
+                outputs to their default project locations.
         """
         self._base_output_dir = base_output_dir
         self._emit_chunks = emit_chunks
         self._skill_name = skill_name
         self._skill_description = skill_description
+        self._skill_agents = skill_agents or ["claude"]
+        self._skill_root_dir = skill_root_dir or base_output_dir
+        self._skill_install_targets = skill_install_targets
         self._first_metadata: dict[str, object] | None = None
         self._first_title: str | None = None
         self._run_identity = run_identity
@@ -236,11 +250,10 @@ class SaveStep:
             raise
 
     def finalize(self) -> None:
-        """Write SKILL.md if a skill name was configured.
+        """Write agent skill/rule files if a skill name was configured.
 
         Called from ``Fetcher.__aexit__`` so it runs after every page has
-        been saved. Idempotent: a second call is a no-op (the file is
-        re-written with the same content).
+        been saved. Idempotent: files are re-written with the same content.
         """
         if not self._skill_name or self._base_output_dir is None:
             if self._manifest is not None:
@@ -248,15 +261,21 @@ class SaveStep:
             return
         if self._manifest is not None:
             self._manifest.finalize()
-        manifest_path = self._base_output_dir / "SKILL.md"
+        skill_root = self._skill_root_dir or self._base_output_dir
         description = self._skill_description or self._derive_description()
-        body = self._render_skill_manifest(description)
         try:
-            self._base_output_dir.mkdir(parents=True, exist_ok=True)
-            manifest_path.write_text(body, encoding="utf-8")
-            logger.info("Wrote skill manifest: %s", manifest_path)
+            export_agent_skill(
+                skill_name=self._skill_name,
+                description=description,
+                skill_root_dir=skill_root,
+                references_dir=self._base_output_dir,
+                agents=self._skill_agents,
+                title=self._first_title,
+                install_targets=self._skill_install_targets,
+            )
+            logger.info("Wrote agent skill export: %s", skill_root)
         except OSError as e:
-            logger.error("Failed to write SKILL.md to %s: %s", manifest_path, e)
+            logger.error("Failed to write skill export to %s: %s", skill_root, e)
 
     def _derive_description(self) -> str:
         """Derive a description from the first page's metadata."""
@@ -268,21 +287,3 @@ class SaveStep:
         if self._first_title:
             return f"Web source snapshot from {self._first_title}."
         return f"Web source snapshot for the {self._skill_name} skill."
-
-    def _render_skill_manifest(self, description: str) -> str:
-        # Escape double-quotes in the description for safe YAML emission.
-        safe_desc = description.replace('"', '\\"')
-        # Truncate to 200 chars; Claude Code skill descriptions should be
-        # short and stable across re-fetches.
-        if len(safe_desc) > 200:
-            safe_desc = safe_desc[:197].rstrip() + "..."
-        return (
-            "---\n"
-            f"name: {self._skill_name}\n"
-            f'description: "{safe_desc}"\n'
-            "---\n\n"
-            f"# {self._skill_name}\n\n"
-            f"{description}\n\n"
-            "This skill was generated by [docpull](https://docpull.raintree.technology). "
-            "Source documents live alongside this manifest in this directory.\n"
-        )

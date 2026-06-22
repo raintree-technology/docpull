@@ -82,6 +82,7 @@ jobs:
 
       - name: Run release gates
         run: |
+          python scripts/sync_release_metadata.py --check
           python -m ruff check .
           python -m ruff format --check .
           python -m mypy src

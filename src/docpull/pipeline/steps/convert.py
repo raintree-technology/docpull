@@ -177,8 +177,8 @@ class ConvertStep:
                 markdown = self._trafilatura.extract(ctx.html, ctx.url)
                 ctx.extraction_info["method"] = "trafilatura"
             else:
-                assert self._extractor is not None
-                assert self._converter is not None
+                if self._extractor is None or self._converter is None:
+                    raise RuntimeError("Generic HTML converter is not initialized.")
                 extracted_html = self._extractor.extract(ctx.html, ctx.url)
                 ctx.extraction_info["method"] = "generic"
                 ctx.extraction_info["extracted_html_bytes"] = len(extracted_html.encode("utf-8"))

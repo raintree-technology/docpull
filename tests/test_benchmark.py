@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import sys
 import types
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -13,6 +15,7 @@ import pytest
 import docpull.benchmark as benchmark
 from docpull.benchmark import BenchmarkError, run_quick_benchmark
 from docpull.cli import main
+from docpull.models.events import EventType, SkipReason
 from tests.pack_fixtures import write_context_pack
 
 
@@ -149,6 +152,150 @@ def test_benchmark_quick_cli_runs_selected_provider_cases(
         "exa-search-contents",
     ]
     assert report["summary"]["total_estimated_live_cost_usd"] == 0.002
+
+
+def test_benchmark_zero_dollar_blocks_provider_cases(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(benchmark, "_run_core_case", _fake_core_case)
+    monkeypatch.setenv("TAVILY_API_KEY", "test-tavily-key")
+
+    def fail_tavily_case(**_kwargs: Any) -> dict[str, Any]:
+        raise AssertionError("provider benchmark should not run")
+
+    monkeypatch.setattr(benchmark, "_run_tavily_case", fail_tavily_case)
+
+    report = run_quick_benchmark(
+        target_url="https://docs.parallel.ai",
+        target_set="single",
+        output_dir=tmp_path / "bench",
+        max_pages=1,
+        max_depth=1,
+        max_concurrent=1,
+        per_host_concurrent=1,
+        cache_enabled=True,
+        cached_pass=False,
+        parallel=False,
+        parallel_objective=None,
+        parallel_queries=[],
+        include_domains=[],
+        mode="advanced",
+        max_search_results=8,
+        extract_limit=3,
+        max_estimated_cost=0.05,
+        tavily=True,
+        budget_limit=0,
+    )
+
+    assert report["zero_dollar"] is True
+    assert report["providers"] == ["core"]
+    assert report["skipped_providers"] == [{"provider": "tavily", "reason": "blocked_by_budget"}]
+    assert report["zero_dollar_completion"]["counts"] == {"complete_for_0": 1}
+    assert (tmp_path / "bench" / "run.accounting.json").exists()
+
+
+def test_benchmark_phase2_zero_dollar_target_set_classifies_routes(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(benchmark, "_run_core_case", _fake_core_case)
+
+    report = run_quick_benchmark(
+        target_url="https://docs.parallel.ai",
+        target_set="phase2",
+        output_dir=tmp_path / "bench",
+        max_pages=1,
+        max_depth=1,
+        max_concurrent=1,
+        per_host_concurrent=1,
+        cache_enabled=True,
+        cached_pass=False,
+        parallel=False,
+        parallel_objective=None,
+        parallel_queries=[],
+        include_domains=[],
+        mode="advanced",
+        max_search_results=8,
+        extract_limit=3,
+        max_estimated_cost=0.05,
+        zero_dollar=True,
+    )
+
+    assert report["target_set"] == "zero-dollar"
+    assert report["summary"]["target_count"] == 12
+    target_kinds = {target["kind"] for target in report["targets"]}
+    assert {"filing", "feed", "sitemap", "search_to_evidence"} <= target_kinds
+    completion = report["zero_dollar_completion"]
+    assert completion["target_count"] == 12
+    assert completion["counts"] == {
+        "complete_for_0": 4,
+        "complete_with_local_browser": 1,
+        "partial_for_0": 6,
+        "requires_provider": 1,
+    }
+    assert completion["next_actions"]["try_local_browser"] == ["nextjs_docs_spa"]
+    assert completion["next_actions"]["try_provider_discovery"] == ["packaging_search_to_evidence"]
+    suggestions = {item["target_id"]: item for item in completion["escalation_suggestions"]}
+    assert suggestions["nextjs_docs_spa"]["action"] == "try_local_browser"
+    assert suggestions["nextjs_docs_spa"]["estimated_paid_cost_usd"] == 0.0
+    assert "--render fallback" in suggestions["nextjs_docs_spa"]["commands"][0]
+    assert suggestions["packaging_search_to_evidence"]["action"] == "try_provider_discovery"
+    assert suggestions["packaging_search_to_evidence"]["estimated_paid_request_count"] == 3
+    assert suggestions["packaging_search_to_evidence"]["estimated_paid_cost_usd"] > 0
+    assert "--dry-run" in suggestions["packaging_search_to_evidence"]["commands"][0]
+    markdown = (tmp_path / "bench" / "benchmark.summary.md").read_text(encoding="utf-8")
+    assert "Zero-Dollar Completion" in markdown
+    assert "Escalation suggestions" in markdown
+
+
+def test_zero_dollar_completion_classifies_policy_and_cloud_browser() -> None:
+    cases = [
+        {
+            "name": "core",
+            "provider": "docpull",
+            "target_id": "policy_target",
+            "status": "failed",
+            "error": {"message": "blocked by policy"},
+            "target": {
+                "id": "policy_target",
+                "label": "Policy target",
+                "url": "https://example.com/private",
+                "kind": "policy",
+                "min_expected_records": 1,
+                "zero_dollar_route": "direct_http",
+            },
+        },
+        {
+            "name": "core",
+            "provider": "docpull",
+            "target_id": "cloud_target",
+            "pack_score": {"summary": {"record_count": 0}, "score": 0},
+            "target": {
+                "id": "cloud_target",
+                "label": "Cloud target",
+                "url": "https://example.com/app",
+                "kind": "cloud_browser",
+                "min_expected_records": 1,
+                "zero_dollar_route": "cloud_browser",
+            },
+        },
+    ]
+
+    completion = benchmark._zero_dollar_completion(cases)
+
+    by_id = {target["target_id"]: target for target in completion["targets"]}
+    assert by_id["policy_target"]["completion_class"] == "blocked_by_policy"
+    assert by_id["cloud_target"]["completion_class"] == "requires_cloud_browser"
+    assert completion["next_actions"]["review_policy"] == ["policy_target"]
+    assert completion["next_actions"]["consider_cloud_browser"] == ["cloud_target"]
+    suggestions = {item["target_id"]: item for item in completion["escalation_suggestions"]}
+    assert suggestions["policy_target"]["action"] == "review_policy"
+    assert suggestions["policy_target"]["estimated_paid_request_count"] == 0
+    assert suggestions["cloud_target"]["action"] == "consider_cloud_browser"
+    assert suggestions["cloud_target"]["estimated_paid_request_count"] == 1
+    assert suggestions["cloud_target"]["estimated_paid_cost_usd"] > 0
+    assert "--runtime vercel" in suggestions["cloud_target"]["commands"][1]
 
 
 def test_benchmark_matrix_runs_core_once_per_target(
@@ -353,6 +500,103 @@ def test_benchmark_all_providers_skips_missing_keys_and_runs_available(
     assert report["providers"] == ["core", "exa"]
     assert [case["name"] for case in report["cases"]] == ["core-llm", "exa-search-contents"]
     assert {item["provider"] for item in report["skipped_providers"]} == {"parallel", "tavily"}
+
+
+def test_core_and_parallel_case_runners_attach_pack_artifacts(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeStats:
+        pages_fetched = 1
+
+        def to_dict(self) -> dict[str, object]:
+            return {
+                "urls_discovered": 2,
+                "pages_fetched": 1,
+                "pages_skipped": 1,
+                "pages_failed": 0,
+                "duration_seconds": 0.1,
+                "success_rate": 100.0,
+            }
+
+    class FakeFetcher:
+        def __init__(self, _config: object) -> None:
+            self.stats = FakeStats()
+
+        async def __aenter__(self) -> FakeFetcher:
+            return self
+
+        async def __aexit__(self, *_exc: object) -> None:
+            return None
+
+        async def run(self):
+            yield SimpleNamespace(type=EventType.FETCH_SKIPPED, skip_reason=SkipReason.HTTP_ERROR)
+
+    def fake_search_pack(**kwargs: object) -> None:
+        write_context_pack(Path(str(kwargs["output_dir"])), provider="search")
+
+    def fake_context_pack(**kwargs: object) -> None:
+        write_context_pack(Path(str(kwargs["output_dir"])), provider="parallel")
+
+    monkeypatch.setattr(benchmark, "Fetcher", FakeFetcher)
+    monkeypatch.setattr(benchmark, "run_search_pack", fake_search_pack)
+    monkeypatch.setattr(benchmark, "run_live_context_pack", fake_context_pack)
+
+    target = benchmark._BenchmarkTarget(
+        id="parallel_docs",
+        label="Parallel docs",
+        url="https://docs.parallel.ai",
+        include_domains=("docs.parallel.ai",),
+        objective="Build a pack",
+        queries=("Parallel API docs",),
+    )
+    core = asyncio.run(
+        benchmark._run_core_case(
+            name="core-llm",
+            target_url="https://docs.parallel.ai",
+            output_dir=tmp_path / "core",
+            cache_dir=tmp_path / "cache",
+            cache_enabled=True,
+            max_pages=1,
+            max_depth=1,
+            max_concurrent=1,
+            per_host_concurrent=1,
+            include_domains=["docs.parallel.ai"],
+            target=target,
+        )
+    )
+    assert core["skip_counts"] == {"http_error": 1}
+    assert core["pack_score"] is None
+
+    search = benchmark._run_parallel_search_case(
+        objective="Build a pack",
+        queries=["Parallel API docs"],
+        output_dir=tmp_path / "search",
+        include_domains=["docs.parallel.ai"],
+        source_policy={"include_domains": ["docs.parallel.ai"]},
+        mode="advanced",
+        max_search_results=2,
+        estimated_cost=0.001,
+        target=target,
+    )
+    context = benchmark._run_parallel_context_case(
+        objective="Build a pack",
+        queries=["Parallel API docs"],
+        output_dir=tmp_path / "context",
+        include_domains=["docs.parallel.ai"],
+        source_policy={"include_domains": ["docs.parallel.ai"]},
+        mode="advanced",
+        max_search_results=2,
+        extract_limit=1,
+        estimated_cost=0.002,
+        target=target,
+    )
+
+    assert search["pack_metadata"]["workflow"] == "context-pack"
+    assert search["pack_intelligence"]["summary"]["search_query_count"] == 1
+    assert search["estimated_cost_usd"] == 0.001
+    assert context["pack_metadata"]["provider"] == "parallel"
+    assert context["benchmark_score"]["score"] > 0
 
 
 def test_tavily_case_writes_scored_provider_pack(

@@ -15,7 +15,7 @@ archives.
 | 1 | PyPI project metadata | https://pypi.org/project/docpull/ | Python | Python developers searching packages for scraping, docs, Markdown, CLI tools, and AI workflows | Publish/update release metadata, classifiers, keywords, project URLs, long description | Free | Low | Users, SEO, credibility | Already listed; optimize discovery rather than submit a new listing | `web-scraping`, `documentation`, `markdown`, `rag`, `llm`, `mcp`, `developer-tools` | Pull public web pages into clean, agent-ready Markdown from a Python CLI or SDK. | 5 | https://pypi.org/classifiers/ |
 | 2 | GitHub repo topics | https://github.com/raintree-technology/docpull | OSS | GitHub topic browsers, open-source users, AI-agent builders | Add up to 20 repo topics in GitHub repo metadata | Free | Low | Users, SEO, credibility | Topic names are public; keep them precise and non-spammy | `python`, `web-scraping`, `crawler`, `markdown`, `documentation`, `rag`, `llm`, `mcp-server`, `ai-agents`, `developer-tools`, `cli`, `openapi` | Browser-free Python crawler for turning public web pages into LLM-ready Markdown. | 5 | https://docs.github.com/articles/classifying-your-repository-with-topics |
 | 3 | GitHub release / README launch surface | https://github.com/raintree-technology/docpull | OSS | Developers evaluating the project after any external click | Create a tagged release with crisp notes, screenshots/GIF, examples, comparison links | Free | Medium | Conversion, credibility, feedback | This is the landing page all external submissions will send people to | `python`, `cli`, `mcp`, `agent-context`, `rag`, `docs` | Fast, auditable web-to-Markdown extraction for agents and RAG. | 5 | https://github.com/raintree-technology/docpull |
-| 4 | Hacker News Show HN | https://news.ycombinator.com/showhn.html | Community | High-signal developer feedback, Python/infra builders, LLM builders | Submit a story titled `Show HN: DocPull - turn public docs into Markdown, no browser required` | Free | Medium | Feedback, users, credibility | Must be something people can try; do not post a landing page only; be present in comments; do not ask for upvotes | `Show HN`, open source, Python, scraping, AI agents | Show HN: I built a browser-free Python tool that turns public docs into local Markdown. | 5 | https://news.ycombinator.com/showhn.html |
+| 4 | Hacker News Show HN | https://news.ycombinator.com/showhn.html | Community | High-signal developer feedback, Python/infra builders, LLM builders | Submit a story titled `Show HN: DocPull - turn public web pages into agent-ready Markdown` | Free | Medium | Feedback, users, credibility | Must be something people can try; do not post a landing page only; be present in comments; do not ask for upvotes | `Show HN`, open source, Python, scraping, AI agents | Show HN: I built a browser-free-by-default Python tool that turns public web pages into local Markdown. | 5 | https://news.ycombinator.com/showhn.html |
 | 5 | Product Hunt | https://www.producthunt.com/launch | Devtool launch | Broad tech launch audience; useful for backlinks/social proof more than deep Python feedback | Create product launch, schedule, upload logo/screenshots/GIF/video, add maker comment | Free core, paid promos optional | High | Backlinks, SEO, users, credibility | One-shot launch dynamic; prepare assets first; developer tools need clear demo | Developer Tools, Open Source, Artificial Intelligence, Productivity | Pull public web pages into clean, structured context for AI agents and RAG. | 4 | https://www.producthunt.com/launch/preparing-for-launch |
 | 6 | DevHunt | https://devhunt.org/ | Devtool launch | Developer-tool audience; more focused than Product Hunt | Submit/list through DevHunt site or GitHub-driven workflow | Free | Medium | Users, feedback, backlinks | Best for devtools; position as CLI/SDK/MCP, not generic AI app | Developer Tools, Open Source, AI, CLI | A Python web crawler that turns web pages into clean context for agents. | 5 | https://github.com/MarsX-dev/devhunt |
 | 7 | Official MCP Registry | https://registry.modelcontextprotocol.io/ | AI directory | MCP clients, agent builders, tool-discovery systems | Publish server metadata using official registry docs/server.json workflow | Free | High | Users, credibility, ecosystem distribution | Requires server metadata quality; local MCP install path must be clear | MCP Server, Documentation, Developer Tools, Web Scraping | Give MCP clients a local tool for fetching and searching public web pages. | 5 | https://modelcontextprotocol.io/registry/about |
@@ -25,13 +25,13 @@ archives.
 | 11 | awesome-python | https://github.com/vinta/awesome-python | Python | Python developers looking for high-quality libraries | PR to relevant category, likely `Web Crawling` or `Documentation` if accepted | Free | Medium | Users, credibility, backlinks | Very high bar and opinionated; wait until stars/downloads/assets support inclusion | Web Crawling, Documentation, Command-line Tools | Security-hardened Python crawler for converting public web pages to clean Markdown. | 4 | https://github.com/vinta/awesome-python/blob/master/CONTRIBUTING.md |
 | 12 | best-of-python-dev | https://github.com/ml-tooling/best-of-python-dev | Python | Python devtool discovery list with ranked project quality | Open issue/PR or edit `projects.yaml` | Free | Medium | Users, backlinks, credibility | Works best when GitHub/PyPI metadata is strong | Documentation, Developer Tools, CLI | Browser-free Python CLI for agent-ready web extraction. | 4 | https://github.com/ml-tooling/best-of-python-dev |
 | 13 | best-of-python | https://github.com/lukasmasuch/best-of-python | Python | Broad Python open-source discovery | Open issue/PR or edit `projects.yaml` | Free | Medium | Users, backlinks, credibility | Needs clear category fit and quality score; not immediate if project is too new | Web, Documentation, AI | Pull documentation from the web into structured Markdown and NDJSON. | 4 | https://github.com/lukasmasuch/best-of-python |
-| 14 | best-of-web-python | https://github.com/ml-tooling/best-of-web-python | Python | Python web tooling users | Open issue/PR or edit `projects.yaml` | Free | Medium | Users, backlinks, credibility | Fit is web extraction/HTTP/docs, not framework runtime | Web Scraping, HTTP, Documentation | Fast Python web-doc extraction without browser automation. | 4 | https://github.com/ml-tooling/best-of-web-python |
+| 14 | best-of-web-python | https://github.com/ml-tooling/best-of-web-python | Python | Python web tooling users | Open issue/PR or edit `projects.yaml` | Free | Medium | Users, backlinks, credibility | Fit is web extraction/HTTP/source ingestion, not framework runtime | Web Scraping, HTTP, Documentation | Fast Python web-to-Markdown extraction without browser automation. | 4 | https://github.com/ml-tooling/best-of-web-python |
 | 15 | PyCoder's Weekly | https://pycoders.com/submissions | Newsletter | Python developers who try libraries and CLI tools | Submit GitHub/docs link through submission form | Free | Low | Users, credibility | No guarantee of inclusion; stronger with article or release story | Python project, CLI, open source, AI | DocPull turns public web pages into Markdown context for Python agents and RAG. | 5 | https://pycoders.com/submissions |
-| 16 | Python Bytes | https://pythonbytes.fm/ | Newsletter | Python developers following new tools and packages | Email concise headline/story to `contact@pythonbytes.fm` | Free | Low | Users, credibility | Pitch the problem and a demo, not just a package announcement | Python CLI, open source, docs tooling | Browser-free Python web crawler for LLM-ready Markdown. | 4 | https://pythonbytes.fm/ |
+| 16 | Python Bytes | https://pythonbytes.fm/ | Newsletter | Python developers following new tools and packages | Email concise headline/story to `contact@pythonbytes.fm` | Free | Low | Users, credibility | Pitch the problem and a demo, not just a package announcement | Python CLI, open source, web tooling | Browser-free Python web crawler for LLM-ready Markdown. | 4 | https://pythonbytes.fm/ |
 | 17 | Python Weekly | https://www.pythonweekly.com/ | Newsletter | Broad Python news audience | Submit/contact via site/newsletter editor if available | Free/unclear | Low | Users, credibility | Current direct submission path is less explicit than PyCoder's; better with a blog/demo link | Python, open source, tooling | A Python tool for pulling public web into agent-ready context. | 3 | https://www.python.org/community/ |
 | 18 | Libraries.io | https://libraries.io/ | Python / OSS | Package discovery, dependency metadata users | Ensure PyPI and GitHub metadata are complete; index is mostly automatic | Free | Low | SEO, credibility | Not a normal manual launch; metadata freshness depends on package indexing | PyPI, Python, documentation, scraping | Python package for web-to-Markdown extraction. | 3 | https://libraries.io/ |
 | 19 | PePy | https://pepy.tech/project/docpull | Python | People checking PyPI download traction | Keep package name and README clean; use public stats in social proof | Free | Low | Credibility | Automatic stats surface, not a submission target | PyPI downloads | DocPull has public PyPI download history for package validation. | 3 | https://pepy.tech/project/docpull |
-| 20 | awesome-web-scraping | https://github.com/lorien/awesome-web-scraping | OSS | Scraping practitioners and data extraction users | Open PR adding DocPull in Python/tools section | Free | Medium | Users, backlinks | Make product boundary clear: static/server-rendered docs, not browser automation or anti-bot bypass | Web Scraping, Crawling, Data Extraction | Browser-free crawler for turning web and documentation sites into clean Markdown. | 4 | https://github.com/lorien/awesome-web-scraping |
+| 20 | awesome-web-scraping | https://github.com/lorien/awesome-web-scraping | OSS | Scraping practitioners and data extraction users | Open PR adding DocPull in Python/tools section | Free | Medium | Users, backlinks | Make product boundary clear: static/server-rendered pages, not browser automation or anti-bot bypass | Web Scraping, Crawling, Data Extraction | Browser-free-by-default crawler for turning public web pages into clean Markdown. | 4 | https://github.com/lorien/awesome-web-scraping |
 | 21 | awesome-web-scraper | https://github.com/duyet/awesome-web-scraper | OSS | Scraping/crawling library seekers | Open PR | Free | Medium | Backlinks, users | Check recent activity before spending much time | Python, Crawler, Markdown | Python crawler optimized for clean web extraction and LLM context. | 3 | https://github.com/duyet/awesome-web-scraper |
 | 22 | awesome-ai-web-scraping | https://github.com/h4ckf0r0day/awesome-ai-web-scraping | AI / OSS | LLM-friendly crawler and scraping-tool users | Open PR | Free | Low | Users, backlinks | Smaller list but highly specific fit | LLM-friendly Crawlers, MCP Servers, Web to Data | Turn public web pages and docs into clean, structured context for AI agents. | 4 | https://github.com/h4ckf0r0day/awesome-ai-web-scraping/pulls |
 | 23 | awesome-rag | https://github.com/coree/awesome-rag | AI / OSS | RAG builders evaluating ingestion tools | Open issue/PR if tools section accepts ingestion/context tools | Free | Medium | Backlinks, credibility | RAG lists often skew papers/frameworks; lead with ingestion quality | RAG Tools, Data Ingestion, Document Processing | Ingest public web pages into Markdown/NDJSON for RAG pipelines. | 3 | https://github.com/coree/awesome-rag |
@@ -80,7 +80,7 @@ archives.
 ## Top-15 Shortlist And Exact Next Action
 
 1. PyPI - update `pyproject.toml` keywords and project URLs; add docs/site, comparison page, and MCP plugin URL after they are ready.
-2. GitHub topics - add high-intent topics: `python`, `web-scraping`, `crawler`, `documentation`, `markdown`, `rag`, `llm`, `mcp-server`, `ai-agents`, `developer-tools`, `cli`, `openapi`, `docs-as-code`, `context-engineering`.
+2. GitHub topics - add high-intent topics: `python`, `web-scraping`, `crawler`, `web-extraction`, `web-to-markdown`, `source-packs`, `markdown`, `rag`, `llm`, `mcp-server`, `ai-agents`, `developer-tools`, `cli`, `openapi`, `documentation`, `context-engineering`.
 3. GitHub README/release - create a launch-ready release page with the GIF, 3 copy-paste examples, MCP install, and product boundary.
 4. Show HN - post after the README/demo page is strong; stay in comments for the first 6-8 hours.
 5. r/mcp - post a `showcase` with exact MCP install command and a short terminal demo.
@@ -118,8 +118,8 @@ archives.
 
 ### 1-line tagline
 
-DocPull turns public documentation sites into local Markdown, NDJSON, and
-agent-ready context packs.
+DocPull turns public web sources into local Markdown, NDJSON, and agent-ready
+context packs.
 
 ### 50-word description
 
@@ -127,35 +127,35 @@ DocPull is a Python CLI, SDK, and MCP server that fetches public static or serve
 
 ### 150-word description
 
-DocPull is a security-hardened Python tool for turning public static and server-rendered web pages into clean, structured context for developers, AI agents, and RAG systems. It fetches pages without Playwright, discovers links, extracts main content, preserves source metadata, and writes Markdown, NDJSON, Open Knowledge Format (OKF) bundles, SQLite, or local archives. Documentation sites, API references, OpenAPI specs, vendor pages, blogs, and other public websites fit when the useful content is available in HTML or embedded page data.
+DocPull is a security-hardened Python tool for turning public web sources into clean, structured context for developers, AI agents, and RAG systems. It fetches pages locally, discovers links and open site hints, extracts main content, preserves source metadata, and writes Markdown, NDJSON, Open Knowledge Format (OKF) bundles, SQLite, or local archives. Documentation sites, API references, OpenAPI specs, vendor pages, blogs, filings, feeds, pricing pages, and other public websites fit when the useful content is available in HTML, embedded page data, or explicit local rendering.
 
-Use it as a CLI, Python SDK, or MCP server. Agents can fetch one URL, crawl a site, stream chunked records, cache sources, grep local Markdown, and read exact files with attribution. SSRF, XXE, DNS-rebinding, and CRLF-injection protections are on by default, because AI agents often choose URLs dynamically. DocPull is not browser automation; it is the fast, auditable path for clean web context.
+Use it as a CLI, Python SDK, or MCP server. Agents can fetch one URL, crawl a site, stream chunked records, cache sources, grep local Markdown, and read exact files with attribution. SSRF, XXE, DNS-rebinding, and CRLF-injection protections are on by default, because AI agents often choose URLs dynamically. `--budget 0` blocks paid-capable provider and cloud routes before execution while still allowing local cache, HTTP, discovery, extraction, indexing, pack intelligence, monitors, and local rendering. DocPull is not browser automation or a hidden hosted crawler; it is the fast, auditable path for clean local web context.
 
 ### Product Hunt tagline
 
-Turn public docs into local Markdown and agent-ready context packs.
+Turn public web sources into local Markdown and agent-ready context packs.
 
 ### Show HN title
 
-Show HN: DocPull - turn public docs into Markdown, no browser required
+Show HN: DocPull - turn public web pages into agent-ready Markdown
 
 ### Show HN first comment
 
-Hi HN, I built DocPull, a Python CLI/SDK/MCP server for turning public static and server-rendered documentation/API pages into clean Markdown and NDJSON for coding agents, RAG indexes, and offline archives.
+Hi HN, I built DocPull, a Python CLI/SDK/MCP server for turning public static and server-rendered web pages into clean Markdown and NDJSON for coding agents, RAG indexes, and offline archives.
 
-The specific pain: agents often need current web context, but browser automation is heavy, hosted scraping APIs can be overkill, and raw HTML makes poor context. DocPull uses async HTTP, framework-aware extraction, source metadata, chunking, and local caching. It intentionally does not render JavaScript. For pages that are static or server-rendered, that tradeoff keeps it fast, inspectable, and easy to run in local agent workflows.
+The specific pain: agents often need current web context, but browser automation is heavy, hosted scraping APIs can be overkill, and raw HTML makes poor context. DocPull uses async HTTP, framework-aware extraction, source metadata, chunking, local caching, and explicit provider-free discovery packs. It stays browser-free by default, but can fall back to local agent-browser rendering when you ask. `--budget 0` blocks paid-capable provider and cloud calls before execution, so local-first runs are enforceable instead of just aspirational.
 
 Example:
 
 ```bash
 pip install docpull
 docpull https://docs.python.org/3/library/asyncio.html --single
-docpull https://docs.example.com --profile llm --stream
+docpull https://www.python.org/blogs/ --profile llm --stream
 pip install 'docpull[mcp]'
 docpull mcp
 ```
 
-I would especially like feedback from people building coding agents, RAG/search systems, docs tooling, and scraping pipelines. Where would you expect the boundary to be between a browser-free crawler like this and full browser automation?
+I would especially like feedback from people building coding agents, RAG/search systems, web-source tooling, and scraping pipelines. Where would you expect the boundary to be between a browser-free crawler like this and full browser automation?
 
 ### DevHunt listing copy
 
@@ -170,12 +170,12 @@ Add DocPull, a Python CLI/SDK for crawling public static and server-rendered sit
 ## Asset Checklist
 
 - Logo: square mark, horizontal lockup, light/dark SVG and PNG.
-- Screenshots: terminal crawl, output Markdown with source frontmatter, MCP tools in an agent client, sample generated docs tree.
+- Screenshots: terminal crawl, output Markdown with source frontmatter, MCP tools in an agent client, sample generated source tree.
 - Demo GIF/video: 30-60 seconds from `pip install docpull` to fetching a public site and asking an agent with local context.
 - README improvements: above-the-fold positioning, "when not to use DocPull", 3 copy-paste examples, comparison table, MCP install, sample output.
-- PyPI metadata: add keywords for `rag`, `llm`, `mcp`, `crawler`, `documentation`, `web-scraping`, `markdown`, `ai-agents`; add `Project-URL` entries for Docs, MCP plugin, comparison, changelog.
+- PyPI metadata: add keywords for `rag`, `llm`, `mcp`, `crawler`, `web-extraction`, `web-to-markdown`, `source-packs`, `web-scraping`, `markdown`, `ai-agents`; add `Project-URL` entries for Docs, MCP plugin, comparison, changelog.
 - GitHub topics: use the shortlist above, max 20.
-- Docs/demo examples: FastAPI, Python docs, OpenAI docs, Docusaurus sample, OpenAPI spec, chunked NDJSON.
+- Demo examples: Python blog, FastAPI, Python docs, OpenAI docs, Docusaurus sample, OpenAPI spec, chunked NDJSON.
 - Benchmark/comparison page: DocPull vs Scrapy, Crawlee, Playwright, trafilatura, Crawl4AI, Firecrawl, Jina Reader, hosted extraction APIs.
 - Launch proof: PyPI downloads chart, star-history chart, short testimonial/use case, "what changed in v4.3".
 - Community-ready post: technical article that teaches web ingestion, not a sales announcement.

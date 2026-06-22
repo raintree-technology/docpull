@@ -1,4 +1,4 @@
-.PHONY: clean clean-pyc clean-build clean-test help test benchmark benchmark-quick benchmark-parallel benchmark-compare benchmark-matrix benchmark-raindrop license-year metrics metrics-check lint format release-pr release-publish release-publish-replace-tag release-dispatch
+.PHONY: clean clean-pyc clean-build clean-test help test test-inventory test-all-local benchmark benchmark-quick benchmark-parallel benchmark-compare benchmark-matrix benchmark-raindrop license-year metrics metrics-check metadata-check metadata-sync lint format release-pr release-publish release-publish-replace-tag release-dispatch
 
 PYTHON ?= .venv/bin/python
 VERSION_ARG := $(if $(VERSION),--version $(VERSION),)
@@ -18,6 +18,8 @@ help:
 	@echo "clean-pyc - remove Python file artifacts"
 	@echo "clean-test - remove test and coverage artifacts"
 	@echo "test - run tests with pytest"
+	@echo "test-inventory - print default pytest count, fully gated pytest collection count, Bun MCP count, and coverage"
+	@echo "test-all-local - run PR-safe Python, coverage, benchmark, and Bun MCP gates"
 	@echo "benchmark - run gated synthetic 10k localhost benchmark"
 	@echo "benchmark-quick - run small real-site benchmark without live providers"
 	@echo "benchmark-parallel - run real-site benchmark with Parallel under cost guard"
@@ -27,6 +29,8 @@ help:
 	@echo "license-year - refresh license copyright years"
 	@echo "metrics - refresh METRICS.md and the downloads chart from live APIs"
 	@echo "metrics-check - fail if METRICS.md is older than METRICS_MAX_AGE_HOURS"
+	@echo "metadata-check - fail if generated release/plugin metadata is stale"
+	@echo "metadata-sync - refresh generated release/plugin metadata from source"
 	@echo "lint - check style with ruff"
 	@echo "format - format code with ruff"
 	@echo "release-pr - push current release branch and open a protected-main PR"
@@ -64,10 +68,27 @@ clean-test:
 	# clean it manually or pick a different -o.
 
 test:
-	pytest
+	$(PYTHON) -m pytest
+
+test-inventory:
+	@echo "Python default pytest:"
+	@$(PYTHON) -m pytest --collect-only -q | tail -n 1
+	@echo "Python fully gated pytest collection:"
+	@DOCPULL_BENCHMARKS=1 DOCPULL_BENCHMARK_10K=1 $(PYTHON) -m pytest --collect-only -q | tail -n 1
+	@echo "Bun MCP:"
+	@cd mcp && bun test 2>&1 | sed -n 's/^Ran \([0-9][0-9]* tests.*\)/\1/p'
+	@echo "Coverage:"
+	@COVERAGE_FILE=/tmp/docpull_inventory_coverage $(PYTHON) -m pytest -q --cov=docpull --cov-report=json:/tmp/docpull_inventory_coverage.json >/tmp/docpull_inventory_pytest.log
+	@$(PYTHON) -c 'import json; totals=json.load(open("/tmp/docpull_inventory_coverage.json"))["totals"]; print("{}% coverage ({} statements)".format(totals["percent_covered_display"], totals["num_statements"]))'
+
+test-all-local: metadata-check
+	COVERAGE_FILE=/tmp/docpull_coverage $(PYTHON) -m pytest -q --durations=25 --cov=docpull --cov-report=term-missing:skip-covered
+	DOCPULL_BENCHMARKS=1 $(PYTHON) -m pytest -q tests/benchmarks/test_performance.py
+	cd mcp && bun test
+	cd mcp && bun run typecheck
 
 benchmark:
-	DOCPULL_BENCHMARK_10K=1 pytest tests/benchmarks/test_10k_pages.py -v -s
+	DOCPULL_BENCHMARK_10K=1 $(PYTHON) -m pytest tests/benchmarks/test_10k_pages.py -v -s
 
 benchmark-quick:
 	$(PYTHON) -m docpull benchmark quick
@@ -100,11 +121,17 @@ metrics:
 metrics-check:
 	$(PYTHON) .github/scripts/check_metrics_fresh.py
 
-lint:
-	ruff check .
+metadata-check:
+	$(PYTHON) scripts/sync_release_metadata.py --check
 
-format: license-year
-	ruff format .
+metadata-sync:
+	$(PYTHON) scripts/sync_release_metadata.py --write
+
+lint: metadata-check
+	$(PYTHON) -m ruff check .
+
+format: license-year metadata-sync
+	$(PYTHON) -m ruff format .
 
 release-pr:
 	$(PYTHON) scripts/release.py prepare-pr $(VERSION_ARG) --auto-merge

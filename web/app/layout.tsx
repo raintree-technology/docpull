@@ -34,7 +34,10 @@ export const metadata: Metadata = {
   },
   keywords: [
     "web extraction",
+    "web to markdown",
+    "website to markdown",
     "source packs",
+    "web source packs",
     "documentation",
     "markdown",
     "AI",

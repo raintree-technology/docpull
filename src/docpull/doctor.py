@@ -6,6 +6,12 @@ import sys
 from importlib import import_module
 from pathlib import Path
 
+from .rendering import (
+    check_agent_browser_availability,
+    check_e2b_sandbox_availability,
+    check_vercel_sandbox_availability,
+)
+
 try:
     from rich.console import Console
     from rich.table import Table
@@ -123,6 +129,11 @@ def run_doctor(output_dir: Path | None = None, use_rich: bool = True) -> int:
         check_network(),
         check_output_dir(output_dir),
     ]
+    external_tool_results = [
+        check_agent_browser_availability(),
+        check_vercel_sandbox_availability(),
+        check_e2b_sandbox_availability(),
+    ]
 
     core_results = [check_dependency(mod, pkg) for mod, pkg in core_checks]
     optional_results = [check_dependency(mod, pkg, opt) for mod, pkg, opt in optional_checks]
@@ -130,6 +141,7 @@ def run_doctor(output_dir: Path | None = None, use_rich: bool = True) -> int:
     all_checks = {
         "Core Dependencies": core_results,
         "Optional Dependencies": optional_results,
+        "Optional External Tools": external_tool_results,
         "System": system_checks,
     }
 
@@ -141,7 +153,7 @@ def run_doctor(output_dir: Path | None = None, use_rich: bool = True) -> int:
             table.add_column("Status", style="bold")
 
             for success, message in results:
-                style = "green" if success else ("yellow" if "optional" in message else "red")
+                style = "green" if success else ("yellow" if "[WARN]" in message else "red")
                 table.add_row(message, style=style)
 
             console.print(table)
@@ -166,10 +178,16 @@ def run_doctor(output_dir: Path | None = None, use_rich: bool = True) -> int:
         print("\nAll core dependencies installed correctly!")
 
         optional_missing = [msg for success, msg in optional_results if not success]
-        if optional_missing:
+        external_missing = [msg for success, msg in external_tool_results if not success]
+        if optional_missing or external_missing:
             print("\nOptional features available:")
             print("  - Proxy support: pip install docpull[proxy]")
             print("  - URL normalization helpers: pip install docpull[normalize]")
+            print("  - Browser rendering: install an agent-browser compatible CLI")
+            print("    or set DOCPULL_AGENT_BROWSER_BIN to its executable path")
+            print("  - Cloud rendering: install the Vercel Sandbox CLI or `docpull[e2b]`")
+            print("    and configure Vercel auth or E2B_API_KEY")
+            print("    Optional: set DOCPULL_E2B_TEMPLATE for a prebuilt E2B renderer image")
             print("  - All optional features: pip install docpull[all]")
 
         return 0

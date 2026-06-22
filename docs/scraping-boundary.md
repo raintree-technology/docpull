@@ -1,6 +1,6 @@
 # Scraping Boundary
 
-docpull is a browser-free web scraper for turning public static and
+docpull is a browser-free-by-default web scraper for turning public static and
 server-rendered web pages into local, auditable context artifacts. Its sharpest
 workflow is public web-source ingestion for agents, retrieval-augmented
 generation (RAG) systems, offline archives, and source packs.
@@ -29,9 +29,11 @@ generation (RAG) systems, offline archives, and source packs.
 ## JavaScript boundary
 
 docpull detects JS-only pages and skips them with a clear reason, or fails loud
-when `--strict-js-required` is set. Optional rendering can be added later only
-behind a separate extra, explicit domain/budget controls, and tests proving the
-browser-free default remains unchanged.
+when `--strict-js-required` is set. Optional rendering is explicit: use
+`docpull render` or `--render fallback` with an external `agent-browser`,
+Vercel Sandbox, or E2B backend. Render backends have separate installation,
+domain, timeout, size, and cloud-cost controls so the browser-free crawler
+remains the default path.
 
 ## When to use another tool
 
@@ -44,6 +46,36 @@ browser-free default remains unchanged.
 - Use trafilatura directly when you only need article text extraction and do
   not need docpull's crawler, security posture, output manifests, or agent
   pack formats.
+
+## Escalation ladder
+
+When local capture is partial, keep escalation explicit and auditable:
+
+1. Improve provider-free discovery with `docpull discover scan`, URL files, or
+   sitemap inputs.
+2. Retry public JS-rendered pages with local `agent-browser` via
+   `--render fallback` or `docpull render --runtime local`.
+3. Use BYOK providers such as Tavily, Exa, or Parallel only after reviewing a
+   dry-run plan, estimated paid request count, and cost guard.
+4. Use Vercel Sandbox or E2B rendering only when local rendering or local
+   infrastructure is unsuitable.
+
+Cloud and provider escalations must never be automatic consequences of a local
+fetch. They require explicit flags, configured credentials, and local budget
+guards.
+
+## Hosted product boundary
+
+Open-source DocPull owns local fetching, rendering adapters, discovery
+adapters, extraction, indexing, packs, diffs, monitors, MCP, BYOK providers,
+budget policy, accounting, and benchmarks.
+
+A hosted product can sell managed execution rather than hidden scraping magic:
+always-on schedules, browser/proxy infrastructure, persistent auth profiles,
+queues, alerts, dashboards, collaboration, retention, SSO, audit logs, SLAs,
+and bundled provider billing. It should not imply CAPTCHA bypass, stealth
+scraping, automatic paid calls, or a proprietary web-scale index in the OSS
+tool.
 
 ## Worthwhile expansion
 

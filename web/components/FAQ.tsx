@@ -4,6 +4,7 @@ import { useState, type ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { faqs } from "./faq-content";
+import { GlassPanel, LandingSection } from "@/components/landing";
 
 function FaqItem({ q, a, index }: { q: string; a: ReactNode; index: number }) {
   const [open, setOpen] = useState(false);
@@ -20,7 +21,7 @@ function FaqItem({ q, a, index }: { q: string; a: ReactNode; index: number }) {
         aria-expanded={open}
         aria-controls={panelId}
       >
-        <span className="text-sm font-medium">{q}</span>
+        <span className="text-base font-semibold leading-6">{q}</span>
         <ChevronDown
           className={cn(
             "h-4 w-4 text-muted-foreground shrink-0 transition-transform",
@@ -33,7 +34,7 @@ function FaqItem({ q, a, index }: { q: string; a: ReactNode; index: number }) {
           id={panelId}
           role="region"
           aria-labelledby={buttonId}
-          className="pb-4 text-sm text-muted-foreground leading-relaxed pr-8"
+          className="pb-5 pr-8 text-[15px] leading-7 text-muted-foreground"
         >
           {a}
         </div>
@@ -44,23 +45,17 @@ function FaqItem({ q, a, index }: { q: string; a: ReactNode; index: number }) {
 
 export default function FAQ() {
   return (
-    <section id="faq" className="py-16 sm:py-24 border-t">
-      <div className="mx-auto max-w-3xl px-6">
-        <div className="mb-8 sm:mb-12 text-center sm:text-left">
-          <h2 className="text-xl sm:text-2xl font-medium mb-2 sm:mb-3">
-            <span>Why docpull?</span>
-          </h2>
-          <p className="text-sm sm:text-base text-muted-foreground">
-            Answers to questions people ask before installing.
-          </p>
-        </div>
-
-        <div className="rounded-xl glass px-5">
-          {faqs.map((faq, i) => (
-            <FaqItem key={i} q={faq.q} a={faq.a} index={i} />
-          ))}
-        </div>
-      </div>
-    </section>
+    <LandingSection
+      id="faq"
+      title="Why docpull?"
+      description="Answers to questions people ask before installing."
+      containerClassName="max-w-3xl"
+    >
+      <GlassPanel className="px-5">
+        {faqs.map((faq, i) => (
+          <FaqItem key={i} q={faq.q} a={faq.a} index={i} />
+        ))}
+      </GlassPanel>
+    </LandingSection>
   );
 }
