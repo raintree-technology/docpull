@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## [5.0.1] - 2026-06-23
+
+### Added
+- Expose non-secret run accounting receipts in MCP structured responses for
+  budget-blocked cloud/provider routes and local pack answers, including
+  `run.accounting.json` links when durable artifacts exist.
+
 ## [5.0.0] - 2026-06-22
 
 ### Added

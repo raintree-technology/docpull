@@ -48,6 +48,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import json
 import logging
 import sys
 from collections.abc import Awaitable, Callable
@@ -55,9 +56,14 @@ from pathlib import Path
 from typing import Any, Literal, cast
 
 from ..accounting import (
+    ACCOUNTING_ARTIFACT,
+    RunAccounting,
+    blocked_action,
     budget_block_payload,
+    default_route_steps,
     effective_budget_limit,
-    enforce_paid_budget,
+    maybe_write_run_accounting,
+    paid_action_blocked,
 )
 from ..discovery import (
     CandidateSourceRecord,
@@ -135,6 +141,43 @@ SERVER_INSTRUCTIONS = (
 # Output schemas — keep these next to the tool list so they stay in sync.
 # Tools that return free-form Markdown (fetch_url) intentionally omit a
 # schema; the rest expose structured payloads alongside the rendered text.
+
+_ACCOUNTING_OUTPUT_SCHEMA = {
+    "type": "object",
+    "description": (
+        "Non-secret run accounting receipt. Mirrors run.accounting.json when an "
+        "artifact was written."
+    ),
+    "properties": {
+        "schema_version": {"type": "integer"},
+        "generated_at": {"type": "string"},
+        "budget_limit_usd": {"type": ["number", "null"]},
+        "estimated_paid_cost_usd": {"type": "number"},
+        "actual_paid_cost_usd": {"type": ["number", "null"]},
+        "paid_request_count": {"type": "integer"},
+        "local_browser_seconds": {"type": "number"},
+        "http_request_count": {"type": "integer"},
+        "cache_hit_count": {"type": "integer"},
+        "blocked_actions": {"type": "array", "items": {"type": "object"}},
+        "route_steps": {"type": "array", "items": {"type": "object"}},
+        "command": {"type": "string"},
+        "metadata": {"type": "object"},
+        "artifact_path": {"type": "string"},
+    },
+    "required": [
+        "schema_version",
+        "generated_at",
+        "budget_limit_usd",
+        "estimated_paid_cost_usd",
+        "actual_paid_cost_usd",
+        "paid_request_count",
+        "local_browser_seconds",
+        "http_request_count",
+        "cache_hit_count",
+        "blocked_actions",
+        "route_steps",
+    ],
+}
 
 _LIST_SOURCES_OUTPUT_SCHEMA = {
     "type": "object",
@@ -274,6 +317,7 @@ _PARALLEL_PACK_OUTPUT_SCHEMA = {
         "output_dir": {"type": "string"},
         "dry_run": {"type": "boolean"},
         "estimated_cost_usd": {"type": "number"},
+        "accounting": _ACCOUNTING_OUTPUT_SCHEMA,
     },
     "required": ["workflow", "output_dir"],
 }
@@ -470,6 +514,7 @@ _ANSWER_PACK_OUTPUT_SCHEMA = {
         "search": {"type": "object"},
         "brief": {"type": "object"},
         "artifacts": {"type": "object"},
+        "accounting": _ACCOUNTING_OUTPUT_SCHEMA,
     },
     "required": ["question", "answer", "search", "artifacts"],
 }
@@ -494,8 +539,14 @@ _RENDER_URL_OUTPUT_SCHEMA = {
         "sidecar_path": {"type": "string"},
         "html_bytes": {"type": "integer"},
         "html_sha256": {"type": "string"},
+        "output_dir": {"type": "string"},
+        "dry_run": {"type": "boolean"},
+        "blocked_by_budget": {"type": "boolean"},
+        "budget_limit_usd": {"type": ["number", "null"]},
+        "blocked_action": {"type": "object"},
+        "accounting": _ACCOUNTING_OUTPUT_SCHEMA,
     },
-    "required": ["url", "backend", "html_path", "sidecar_path", "html_bytes", "html_sha256"],
+    "required": ["url", "backend"],
 }
 
 _DISCOVER_SOURCES_OUTPUT_SCHEMA = {
@@ -615,6 +666,43 @@ def _policy_arg(arguments: dict[str, Any]) -> PolicyConfig:
     return PolicyConfig.from_file(policy_path) if policy_path else PolicyConfig()
 
 
+def _read_accounting_payload(path: Path) -> dict[str, Any] | None:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    payload["artifact_path"] = str(path)
+    return payload
+
+
+def _mcp_accounting_payload(
+    accounting: RunAccounting,
+    *,
+    output_dir: Path | None = None,
+    budget_limit_usd: float | None,
+    paid_capable: bool,
+) -> dict[str, Any]:
+    path = None
+    if output_dir is not None:
+        path = maybe_write_run_accounting(
+            output_dir,
+            budget_limit_usd=budget_limit_usd,
+            paid_capable=paid_capable,
+            accounting=accounting,
+        )
+    if path is not None:
+        artifact_payload = _read_accounting_payload(path)
+        if artifact_payload is not None:
+            return artifact_payload
+    return accounting.to_dict()
+
+
+def _pack_accounting_payload(pack_dir: Path) -> dict[str, Any] | None:
+    return _read_accounting_payload(pack_dir / ACCOUNTING_ARTIFACT)
+
+
 async def _dispatch_tool(
     name: str,
     arguments: dict[str, Any],
@@ -669,6 +757,26 @@ async def _dispatch_tool(
             cloud_agent_browser_binary = arguments.get("cloud_agent_browser_binary", "agent-browser")
             if not isinstance(cloud_agent_browser_binary, str):
                 raise ValueError("'cloud_agent_browser_binary' must be a string")
+            output_dir = _path_arg(arguments, "output_dir", "rendered")
+            estimated = 0.0
+            paid_capable_render = backend in {"vercel-sandbox", "e2b-sandbox"}
+            accounting = RunAccounting(
+                budget_limit_usd=budget_limit,
+                estimated_paid_cost_usd=estimated,
+                route_steps=default_route_steps(
+                    include_local_render=True,
+                    include_cloud=paid_capable_render,
+                    budget_limit_usd=budget_limit,
+                ),
+                command="mcp render_url",
+                metadata={
+                    "mcp_tool": "render_url",
+                    "url": url,
+                    "runtime": runtime,
+                    "backend": backend,
+                },
+            )
+            render_blocked = False
             if backend in {"vercel-sandbox", "e2b-sandbox"}:
                 from ..models.config import RenderConfig
                 from ..rendering import estimate_cloud_render_cost_usd
@@ -682,40 +790,77 @@ async def _dispatch_tool(
                         timeout_seconds=float(timeout_arg),
                     ),
                 )
-                enforce_paid_budget(
-                    f"render:{backend}",
-                    budget_limit_usd=budget_limit,
-                    estimated_cost_usd=estimated,
-                    provider=backend,
+                accounting.estimated_paid_cost_usd = estimated
+                if paid_action_blocked(budget_limit, estimated_cost_usd=estimated):
+                    render_blocked = True
+                    accounting.blocked_actions.append(
+                        blocked_action(
+                            f"render:{backend}",
+                            budget_limit_usd=budget_limit,
+                            estimated_cost_usd=estimated,
+                            provider=backend,
+                        )
+                    )
+                    accounting_payload = _mcp_accounting_payload(
+                        accounting,
+                        output_dir=output_dir,
+                        budget_limit_usd=budget_limit,
+                        paid_capable=True,
+                    )
+                    result = ToolResult(
+                        f"Render blocked by budget before {backend}.",
+                        data={
+                            "url": url,
+                            "backend": backend,
+                            "output_dir": str(output_dir),
+                            "dry_run": False,
+                            **budget_block_payload(
+                                f"render:{backend}",
+                                budget_limit_usd=budget_limit,
+                                estimated_cost_usd=estimated,
+                                provider=backend,
+                            ),
+                            "accounting": accounting_payload,
+                        },
+                    )
+                else:
+                    accounting.paid_request_count = 1
+            if not render_blocked:
+                artifact = await render_url_to_directory(
+                    url,
+                    output_dir,
+                    config={
+                        "mode": "agent-browser",
+                        "backend": backend,
+                        "allowed_domains": _string_list_arg(arguments, "allowed_domains"),
+                        "timeout_seconds": float(timeout_arg),
+                        "wait_for": wait_for,
+                        "cloud_agent_browser_install": cloud_agent_browser_install,
+                        "cloud_result_transport": cloud_result_transport,
+                        "cloud_max_estimated_cost_usd": cloud_max_estimated_cost,
+                        "cloud_agent_browser_binary": cloud_agent_browser_binary,
+                        "e2b_template": template,
+                    },
                 )
-            artifact = await render_url_to_directory(
-                url,
-                _path_arg(arguments, "output_dir", "rendered"),
-                config={
-                    "mode": "agent-browser",
-                    "backend": backend,
-                    "allowed_domains": _string_list_arg(arguments, "allowed_domains"),
-                    "timeout_seconds": float(timeout_arg),
-                    "wait_for": wait_for,
-                    "cloud_agent_browser_install": cloud_agent_browser_install,
-                    "cloud_result_transport": cloud_result_transport,
-                    "cloud_max_estimated_cost_usd": cloud_max_estimated_cost,
-                    "cloud_agent_browser_binary": cloud_agent_browser_binary,
-                    "e2b_template": template,
-                },
-            )
-            payload = {
-                "url": artifact.page.url,
-                "backend": artifact.page.backend,
-                "html_path": str(artifact.html_path),
-                "sidecar_path": str(artifact.sidecar_path),
-                "html_bytes": artifact.page.html_bytes,
-                "html_sha256": artifact.page.html_sha256,
-            }
-            result = ToolResult(
-                f"Rendered {artifact.page.html_bytes} bytes: {artifact.html_path}",
-                data=payload,
-            )
+                accounting_payload = _mcp_accounting_payload(
+                    accounting,
+                    output_dir=output_dir,
+                    budget_limit_usd=budget_limit,
+                    paid_capable=paid_capable_render,
+                )
+                payload = {
+                    "url": artifact.page.url,
+                    "backend": artifact.page.backend,
+                    "html_path": str(artifact.html_path),
+                    "sidecar_path": str(artifact.sidecar_path),
+                    "html_bytes": artifact.page.html_bytes,
+                    "html_sha256": artifact.page.html_sha256,
+                    "accounting": accounting_payload,
+                }
+                result = ToolResult(
+                    f"Rendered {artifact.page.html_bytes} bytes: {artifact.html_path}",
+                    data=payload,
+                )
 
         elif name == "ensure_docs":
             source = _require_str(arguments, "source")
@@ -794,6 +939,7 @@ async def _dispatch_tool(
                 max_estimated_cost,
                 float(budget_arg) if budget_arg is not None else None,
             )
+            output_dir = _path_arg(arguments, "output_dir", "packs/parallel-context-pack")
             request_options = _build_request_options(
                 source_policy=source_policy,
                 fetch_policy=fetch_policy,
@@ -808,6 +954,32 @@ async def _dispatch_tool(
                 else None,
                 full_content=True,
             )
+            blocked_by_budget = paid_action_blocked(budget_limit, estimated_cost_usd=estimated_cost)
+            accounting = RunAccounting(
+                budget_limit_usd=budget_limit,
+                estimated_paid_cost_usd=estimated_cost,
+                route_steps=default_route_steps(
+                    include_provider=True,
+                    budget_limit_usd=budget_limit,
+                ),
+                command="mcp parallel_context_pack",
+                metadata={
+                    "mcp_tool": "parallel_context_pack",
+                    "objective": objective,
+                    "query_count": len(queries),
+                    "extract_limit": extract_limit,
+                    "max_search_results": max_search_results,
+                },
+            )
+            if blocked_by_budget:
+                accounting.blocked_actions.append(
+                    blocked_action(
+                        "parallel:context-pack",
+                        budget_limit_usd=budget_limit,
+                        estimated_cost_usd=estimated_cost,
+                        provider="parallel",
+                    )
+                )
             if bool(arguments.get("dry_run", False)):
                 blocked = (
                     budget_block_payload(
@@ -816,60 +988,95 @@ async def _dispatch_tool(
                         estimated_cost_usd=estimated_cost,
                         provider="parallel",
                     )
-                    if budget_limit is not None and budget_limit <= 0
+                    if blocked_by_budget
                     else {}
+                )
+                accounting_payload = _mcp_accounting_payload(
+                    accounting,
+                    output_dir=None,
+                    budget_limit_usd=budget_limit,
+                    paid_capable=True,
                 )
                 result = ToolResult(
                     "Parallel context pack dry run.",
                     data={
                         "workflow": "context-pack",
-                        "output_dir": str(_path_arg(arguments, "output_dir", "packs/parallel-context-pack")),
+                        "output_dir": str(output_dir),
                         "dry_run": True,
                         "estimated_cost_usd": estimated_cost,
                         "budget_limit_usd": budget_limit,
                         "request_options": request_options,
                         **blocked,
+                        "accounting": accounting_payload,
                     },
                 )
             else:
-                enforce_paid_budget(
-                    "parallel:context-pack",
-                    budget_limit_usd=budget_limit,
-                    estimated_cost_usd=estimated_cost,
-                    provider="parallel",
-                )
-                if estimated_cost > max_estimated_cost:
+                if blocked_by_budget:
+                    accounting_payload = _mcp_accounting_payload(
+                        accounting,
+                        output_dir=output_dir,
+                        budget_limit_usd=budget_limit,
+                        paid_capable=True,
+                    )
+                    result = ToolResult(
+                        "Parallel context pack blocked by budget before provider call.",
+                        data={
+                            "workflow": "context-pack",
+                            "output_dir": str(output_dir),
+                            "dry_run": False,
+                            "estimated_cost_usd": estimated_cost,
+                            "budget_limit_usd": budget_limit,
+                            "request_options": request_options,
+                            **budget_block_payload(
+                                "parallel:context-pack",
+                                budget_limit_usd=budget_limit,
+                                estimated_cost_usd=estimated_cost,
+                                provider="parallel",
+                            ),
+                            "accounting": accounting_payload,
+                        },
+                    )
+                elif estimated_cost > max_estimated_cost:
                     raise ValueError(
                         f"Estimated Parallel cost ${estimated_cost:.3f} exceeds max_estimated_cost "
                         f"${max_estimated_cost:.3f}"
                     )
-                output_dir = _path_arg(arguments, "output_dir", "packs/parallel-context-pack")
-                mode_arg = arguments.get("mode")
-                mode = mode_arg if isinstance(mode_arg, str) else "advanced"
-                pack_path = await asyncio.to_thread(
-                    run_live_context_pack,
-                    objective=objective,
-                    queries=queries,
-                    output_dir=output_dir,
-                    mode=mode,
-                    extract_limit=extract_limit,
-                    max_tokens_per_file=DEFAULT_MAX_TOKENS,
-                    source_policy=source_policy,
-                    max_search_results=max_search_results,
-                    client_model=arguments.get("client_model")
-                    if isinstance(arguments.get("client_model"), str)
-                    else None,
-                    estimated_cost_usd=estimated_cost,
-                )
-                result = ToolResult(
-                    f"Wrote Parallel context pack: {pack_path}",
-                    data={
-                        "workflow": "context-pack",
-                        "output_dir": str(pack_path),
-                        "dry_run": False,
-                        "estimated_cost_usd": estimated_cost,
-                    },
-                )
+                else:
+                    mode_arg = arguments.get("mode")
+                    mode = mode_arg if isinstance(mode_arg, str) else "advanced"
+                    accounting.paid_request_count = 1
+                    pack_path = await asyncio.to_thread(
+                        run_live_context_pack,
+                        objective=objective,
+                        queries=queries,
+                        output_dir=output_dir,
+                        mode=mode,
+                        extract_limit=extract_limit,
+                        max_tokens_per_file=DEFAULT_MAX_TOKENS,
+                        source_policy=source_policy,
+                        max_search_results=max_search_results,
+                        client_model=arguments.get("client_model")
+                        if isinstance(arguments.get("client_model"), str)
+                        else None,
+                        estimated_cost_usd=estimated_cost,
+                    )
+                    accounting.metadata["output_dir"] = str(pack_path)
+                    accounting_payload = _mcp_accounting_payload(
+                        accounting,
+                        output_dir=pack_path,
+                        budget_limit_usd=budget_limit,
+                        paid_capable=True,
+                    )
+                    result = ToolResult(
+                        f"Wrote Parallel context pack: {pack_path}",
+                        data={
+                            "workflow": "context-pack",
+                            "output_dir": str(pack_path),
+                            "dry_run": False,
+                            "estimated_cost_usd": estimated_cost,
+                            "accounting": accounting_payload,
+                        },
+                    )
 
         elif name == "parallel_api_pack":
             source = _require_str(arguments, "source")
@@ -1135,13 +1342,17 @@ async def _dispatch_tool(
             )
 
         elif name == "answer_pack":
+            answer_pack_dir = _path_arg(arguments, "pack_dir")
             answer_payload: dict[str, Any] = await asyncio.to_thread(
                 answer_pack,
-                _path_arg(arguments, "pack_dir"),
+                answer_pack_dir,
                 _require_str(arguments, "question"),
                 required_domains=_string_list_arg(arguments, "required_domains"),
                 limit=_coerce_int(arguments.get("limit"), name="limit", default=8),
             )
+            existing_accounting = _pack_accounting_payload(answer_pack_dir)
+            if existing_accounting is not None:
+                answer_payload["accounting"] = existing_accounting
             answer_raw = answer_payload.get("answer")
             answer_data: dict[str, Any] = answer_raw if isinstance(answer_raw, dict) else {}
             result = ToolResult(

@@ -17,6 +17,7 @@ pytest.importorskip("mcp.client.stdio")
 
 from mcp.client.stdio import stdio_client
 
+from docpull.accounting import RunAccounting, write_run_accounting
 from docpull.mcp import server as mcp_server
 from mcp import ClientSession, StdioServerParameters
 from tests.pack_fixtures import write_context_pack
@@ -155,6 +156,38 @@ async def test_mcp_dispatch_tool_handles_success_and_validation_errors(tmp_path)
     assert blocked_parallel.is_error is False
     assert blocked_parallel.data is not None
     assert blocked_parallel.data["blocked_by_budget"] is True
+    assert blocked_parallel.data["accounting"]["budget_limit_usd"] == 0
+    assert blocked_parallel.data["accounting"]["blocked_actions"][0]["provider"] == "parallel"
+
+    blocked_live_parallel = await mcp_server._dispatch_tool(
+        "parallel_context_pack",
+        {
+            "objective": "Parallel docs",
+            "budget": 0,
+            "output_dir": str(tmp_path / "blocked-parallel"),
+        },
+    )
+    assert blocked_live_parallel.is_error is False
+    assert blocked_live_parallel.data is not None
+    assert blocked_live_parallel.data["blocked_by_budget"] is True
+    parallel_accounting_path = tmp_path / "blocked-parallel" / "run.accounting.json"
+    assert blocked_live_parallel.data["accounting"]["artifact_path"] == str(parallel_accounting_path)
+    assert parallel_accounting_path.exists()
+
+    blocked_cloud_render = await mcp_server._dispatch_tool(
+        "render_url",
+        {
+            "url": "https://example.com",
+            "runtime": "vercel",
+            "budget": 0,
+            "output_dir": str(tmp_path / "blocked-render"),
+        },
+    )
+    assert blocked_cloud_render.is_error is False
+    assert blocked_cloud_render.data is not None
+    assert blocked_cloud_render.data["blocked_by_budget"] is True
+    assert blocked_cloud_render.data["accounting"]["blocked_actions"][0]["provider"] == "vercel-sandbox"
+    assert (tmp_path / "blocked-render" / "run.accounting.json").exists()
 
     unknown = await mcp_server._dispatch_tool("not_a_tool", {})
     assert unknown.is_error is True
@@ -172,6 +205,22 @@ async def test_mcp_dispatch_tool_handles_success_and_validation_errors(tmp_path)
     assert research.data is not None
     assert research.data["workflow"] == "research-pack"
     assert (tmp_path / "research" / "research.result.json").exists()
+
+    write_run_accounting(
+        pack_dir,
+        RunAccounting(
+            budget_limit_usd=0,
+            command="test context-pack",
+        ),
+    )
+    answer = await mcp_server._dispatch_tool(
+        "answer_pack",
+        {"pack_dir": str(pack_dir), "question": "What does Parallel Search return?"},
+    )
+    assert answer.is_error is False
+    assert answer.data is not None
+    assert answer.data["accounting"]["budget_limit_usd"] == 0
+    assert answer.data["accounting"]["artifact_path"] == str(pack_dir / "run.accounting.json")
 
 
 @pytest.mark.asyncio
@@ -268,6 +317,22 @@ async def test_stdio_server_lists_and_calls_tools(tmp_path):
         assert dry_run.isError is False
         assert dry_run.structuredContent is not None
         assert dry_run.structuredContent["dry_run"] is True
+
+        blocked_render = await session.call_tool(
+            "render_url",
+            {
+                "url": "https://example.com",
+                "runtime": "vercel",
+                "budget": 0,
+                "output_dir": str(tmp_path / "stdio-blocked-render"),
+            },
+        )
+        assert blocked_render.isError is False
+        assert blocked_render.structuredContent is not None
+        assert blocked_render.structuredContent["blocked_by_budget"] is True
+        assert blocked_render.structuredContent["accounting"]["blocked_actions"][0]["provider"] == (
+            "vercel-sandbox"
+        )
 
         prepared = await session.call_tool(
             "pack_prepare",
