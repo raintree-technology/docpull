@@ -438,11 +438,16 @@ def _markdown_to_html(markdown: str) -> str:
         ordered = _ORDERED_RE.match(line)
         if unordered or ordered:
             flush_paragraph()
-            next_kind = "ul" if unordered else "ol"
+            if unordered:
+                next_kind = "ul"
+                item = unordered.group(1)
+            else:
+                next_kind = "ol"
+                assert ordered is not None
+                item = ordered.group(1)
             if list_kind != next_kind:
                 flush_list()
                 list_kind = next_kind
-            item = unordered.group(1) if unordered else ordered.group(1)
             list_items.append(_inline_markdown(item))
             index += 1
             continue
