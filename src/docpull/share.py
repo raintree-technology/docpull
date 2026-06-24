@@ -394,7 +394,9 @@ def _markdown_to_html(markdown: str) -> str:
                 language_attr = (
                     f' class="language-{html.escape(code_language, quote=True)}"' if code_language else ""
                 )
-                blocks.append(f"<pre><code{language_attr}>{html.escape(chr(10).join(code_lines))}</code></pre>")
+                blocks.append(
+                    f"<pre><code{language_attr}>{html.escape(chr(10).join(code_lines))}</code></pre>"
+                )
                 code_lines = None
                 code_language = ""
             else:
@@ -465,9 +467,7 @@ def _markdown_to_html(markdown: str) -> str:
 
 def _is_table_start(lines: list[str], index: int) -> bool:
     return (
-        index + 1 < len(lines)
-        and "|" in lines[index]
-        and bool(_TABLE_SEPARATOR_RE.match(lines[index + 1]))
+        index + 1 < len(lines) and "|" in lines[index] and bool(_TABLE_SEPARATOR_RE.match(lines[index + 1]))
     )
 
 
@@ -479,9 +479,7 @@ def _render_table(table_lines: list[str]) -> str:
     html_lines = ["<table>", f"<thead><tr>{cells}</tr></thead>", "<tbody>"]
     for row in body_rows:
         row_cells = row + [""] * max(0, len(header) - len(row))
-        rendered_cells = "".join(
-            f"<td>{_inline_markdown(cell)}</td>" for cell in row_cells[: len(header)]
-        )
+        rendered_cells = "".join(f"<td>{_inline_markdown(cell)}</td>" for cell in row_cells[: len(header)])
         html_lines.append(f"<tr>{rendered_cells}</tr>")
     html_lines.append("</tbody></table>")
     return "\n".join(html_lines)
