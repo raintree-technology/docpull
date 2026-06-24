@@ -389,7 +389,7 @@ part of the package release contract.
   rendering, authenticated-source checks, and cron-friendly monitors:
   `docpull policy`, `docpull discover`, `docpull refresh`,
   `docpull pack audit`, `docpull answer-pack`, `docpull export`,
-  `docpull serve`, `docpull render`, `docpull auth check`, and
+  `docpull serve`, `docpull share`, `docpull render`, `docpull auth check`, and
   `docpull monitor`.
 - `docpull export` writes local files for OpenAI vector JSONL, LangChain,
   LlamaIndex, DSPy, Sheets CSV/TSV, n8n workflow JSON, Vercel AI SDK JSON,

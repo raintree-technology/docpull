@@ -42,7 +42,7 @@ operator-only workflows into every surface.
 
 Status: this document is a product spec and parity backlog. The current
 implemented local-first slice covers explicit rendering, local discovery pack
-normalization/selection/fetch, refresh/diff/audit/answer/export/serve workflows,
+normalization/selection/fetch, refresh/diff/audit/answer/export/serve/share workflows,
 policy validation/explanation, authenticated-source checks, and cron-friendly
 local monitor runs. Provider-neutral `extract-pack`, `map`, `crawl-pack`,
 `research-pack`, and `entities-pack` are implemented as local parity workflows;
@@ -56,7 +56,7 @@ delivery remain provider-backed or out of scope.
 | Optional local rendering | `docpull <url> --render ...`, `docpull render ...` | Renderer protocol and fetch config | `render_url`; `fetch_url` stays browser-free | Core-aligned |
 | Provider-neutral discovery packs | `docpull discover import/urls/sitemap/select/fetch` | Discovery adapters and record models | `discover_sources`; `fetch_discovered_sources` selects candidates | Core-aligned |
 | Local refresh and diff | `docpull refresh`, `docpull pack diff` | Pack refresh/diff helpers | `refresh_pack`, `pack_diff` | Core-aligned |
-| Local pack server | `docpull serve` | ASGI app factory | Optional status/introspection only | Adapted |
+| Local pack server and report sharing | `docpull serve`, `docpull share` | ASGI app factory; report HTTP server factory | Optional status/introspection only | Adapted |
 | Stronger MCP tools | Existing and new tool schemas | Shared helper modules | Primary surface | MCP-focused |
 | Better exports | `docpull export` | Exporter protocol | `export_pack` for agent-safe formats | Adapted |
 | Pack quality scoring | `docpull pack audit` | Audit helper module | `audit_pack` | Core-aligned |
@@ -357,21 +357,24 @@ MCP:
 - Markdown report golden tests.
 - MCP refresh tool tests with temporary pack fixtures.
 
-## 4. Local Pack Server
+## 4. Local Pack Server and Report Sharing
 
 ### Goal
 
 Expose generated packs over a localhost-only HTTP API so local apps, agents,
-and scripts can search, read, and cite pack content.
+and scripts can search, read, and cite pack content. Expose generated Markdown
+or HTML reports over a simple local URL for human review.
 
 ### Proposed Surface
 
 ```bash
 docpull serve ./pack --host 127.0.0.1 --port 8765
 docpull serve ./pack --readonly
+docpull share ./pack/research.report.md
+docpull share ./pack/PACK_AUDIT.md --open
 ```
 
-Endpoints:
+Pack server endpoints:
 
 - `GET /health`
 - `GET /manifest`
@@ -381,10 +384,18 @@ Endpoints:
 - `GET /citations`
 - `GET /sources`
 
+Report share endpoints:
+
+- `GET /`
+- `GET /report`
+- `GET /health`
+- `GET /source`
+
 Python SDK:
 
 ```python
 from docpull.server import create_pack_app
+from docpull.share import create_report_server, render_report_document
 ```
 
 ### Implementation

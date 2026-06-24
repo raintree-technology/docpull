@@ -206,6 +206,7 @@ Subcommands:
   answer-pack  Answer from local pack evidence with citations
   export       Export a pack for agent or RAG tools
   serve        Serve a local pack over localhost JSON routes
+  share        Serve a Markdown or HTML report at a local URL
   monitor      Run cron-friendly local pack monitors
   parallel     Build optional Parallel-backed context packs
   provider     Check provider keys and run provider-backed context packs
@@ -1369,6 +1370,10 @@ def main(argv: list[str] | None = None) -> int:
         from .server import run_serve_cli
 
         return run_serve_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "share":
+        from .share import run_share_cli
+
+        return run_share_cli(raw_argv[1:])
     if raw_argv and raw_argv[0] == "export":
         from .exports import run_export_cli
 

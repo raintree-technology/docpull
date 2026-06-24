@@ -225,10 +225,15 @@ docpull export ./packs/current-refresh --format crewai-json -o ./crewai.json
 docpull export ./packs/current-refresh --format warehouse-ndjson -o ./warehouse.ndjson
 docpull export ./packs/current-refresh --format parquet -o ./warehouse.parquet
 docpull serve ./packs/current-refresh --host 127.0.0.1 --port 8765
+docpull share ./packs/current-refresh/research.report.md
+docpull share ./packs/current-refresh/PACK_AUDIT.md --open
 ```
 
 Parquet export is optional; install `docpull[parquet]` or `pyarrow` before
 using `--format parquet`.
+
+`docpull share` serves one Markdown, HTML, or plain text report over loopback
+HTTP and prints the URL. Non-localhost binds require `--allow-network-bind`.
 
 Optional rendering remains explicit:
 

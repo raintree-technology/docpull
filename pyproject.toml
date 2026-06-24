@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "docpull"
-version = "5.0.1"
+version = "5.0.2"
 dynamic = []
 description = "Convert public web pages into clean Markdown for AI agents and RAG"
 readme = {file = "README.md", content-type = "text/markdown"}

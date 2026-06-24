@@ -14,7 +14,7 @@ Usage:
             print(event)
 """
 
-__version__ = "5.0.1"
+__version__ = "5.0.2"
 
 from .cache import CacheManager, StreamingDeduplicator
 from .conversion.chunking import Chunk, TokenCounter, chunk_markdown
@@ -94,6 +94,7 @@ from .scraper import (
     scrape_site,
 )
 from .server import PackASGIApp, PackServerError, create_pack_app
+from .share import ReportHTTPServer, ShareError, create_report_server, render_report_document
 
 __all__ = [
     "__version__",
@@ -134,6 +135,10 @@ __all__ = [
     "create_pack_app",
     "PackASGIApp",
     "PackServerError",
+    "create_report_server",
+    "render_report_document",
+    "ReportHTTPServer",
+    "ShareError",
     "ScrapeResult",
     "ScrapeRunResult",
     "Scraper",
