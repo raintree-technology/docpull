@@ -117,7 +117,8 @@ def create_report_server(
 def report_url(host: str, port: int) -> str:
     """Build the browser URL printed for a report server."""
     display_host = host.strip() or DEFAULT_SHARE_HOST
-    if display_host == "0.0.0.0":
+    # Display fallback only; socket binding is validated before server creation.
+    if display_host == "0.0.0.0":  # nosec B104
         display_host = DEFAULT_SHARE_HOST
     if ":" in display_host and not display_host.startswith("["):
         display_host = f"[{display_host}]"
