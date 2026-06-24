@@ -145,8 +145,7 @@ SERVER_INSTRUCTIONS = (
 _ACCOUNTING_OUTPUT_SCHEMA = {
     "type": "object",
     "description": (
-        "Non-secret run accounting receipt. Mirrors run.accounting.json when an "
-        "artifact was written."
+        "Non-secret run accounting receipt. Mirrors run.accounting.json when an artifact was written."
     ),
     "properties": {
         "schema_version": {"type": "integer"},
