@@ -677,15 +677,15 @@ def read_doc(
         return ToolResult(f"Path '{path}' escapes library '{library}'.", is_error=True)
     if not target.exists() or not target.is_file():
         return ToolResult(f"File not found: {library}/{path}", is_error=True)
-    if target.stat().st_size > MAX_READ_DOC_BYTES:
+    file_size = target.stat().st_size
+    if file_size > MAX_READ_DOC_BYTES and line_start is None and line_end is None:
         return ToolResult(
-            f"File too large ({target.stat().st_size} bytes > {MAX_READ_DOC_BYTES}). "
-            "Use line_start/line_end to slice.",
+            f"File too large ({file_size} bytes > {MAX_READ_DOC_BYTES}). Use line_start/line_end to slice.",
             is_error=True,
         )
-    text = target.read_text(errors="replace")
-    total_lines = text.count("\n") + 1 if text else 0
     if line_start is None and line_end is None:
+        text = target.read_text(errors="replace")
+        total_lines = text.count("\n") + 1 if text else 0
         return ToolResult(
             f"# {library}/{path}\n\n{text}",
             data={
@@ -697,16 +697,44 @@ def read_doc(
                 "text": text,
             },
         )
-    lines = text.splitlines()
     start = max(1, line_start or 1)
-    end = min(len(lines), line_end or len(lines))
+    if file_size > MAX_READ_DOC_BYTES and line_end is None:
+        return ToolResult(
+            f"File too large ({file_size} bytes > {MAX_READ_DOC_BYTES}). "
+            "Provide line_end to bound the slice.",
+            is_error=True,
+        )
+    if line_end is not None and start > line_end:
+        return ToolResult(
+            f"Empty slice: line_start={line_start} > line_end={line_end}.",
+            is_error=True,
+        )
+    lines: list[str] = []
+    slice_size = 0
+    total_lines = 0
+    with target.open(encoding="utf-8", errors="replace") as handle:
+        for total_lines, raw_line in enumerate(handle, start=1):
+            if total_lines < start:
+                continue
+            if line_end is not None and total_lines > line_end:
+                continue
+            line = raw_line.rstrip("\n")
+            slice_size += len(line) + 1
+            if slice_size > MAX_READ_DOC_BYTES:
+                return ToolResult(
+                    f"Requested slice is too large (> {MAX_READ_DOC_BYTES} bytes). "
+                    "Use a narrower line_start/line_end range.",
+                    is_error=True,
+                )
+            lines.append(line)
+    end = min(total_lines, line_end or total_lines)
     if start > end:
         return ToolResult(
             f"Empty slice: line_start={line_start} > line_end={line_end}.",
             is_error=True,
         )
-    sliced = "\n".join(lines[start - 1 : end])
-    header = f"# {library}/{path} (lines {start}–{end} of {len(lines)})\n\n"
+    sliced = "\n".join(lines)
+    header = f"# {library}/{path} (lines {start}–{end} of {total_lines})\n\n"
     return ToolResult(
         header + sliced,
         data={
@@ -714,7 +742,7 @@ def read_doc(
             "path": path,
             "line_start": start,
             "line_end": end,
-            "total_lines": len(lines),
+            "total_lines": total_lines,
             "text": sliced,
         },
     )
