@@ -369,6 +369,33 @@ def test_read_doc_slices_lines(tmp_path):
     assert "line7" not in result.text
 
 
+def test_read_doc_slices_large_file(tmp_path):
+    lib = tmp_path / "lib"
+    lib.mkdir()
+    large = lib / "large.md"
+    large.write_text("first line\n" + ("x" * 1024 + "\n") * 1100)
+
+    result = read_doc("lib", "large.md", docs_dir=tmp_path, line_start=1, line_end=1)
+
+    assert not result.is_error
+    assert result.data is not None
+    assert result.data["text"] == "first line"
+    assert result.data["line_start"] == 1
+    assert result.data["line_end"] == 1
+    assert result.data["total_lines"] == 1101
+
+
+def test_read_doc_large_file_requires_bounded_slice(tmp_path):
+    lib = tmp_path / "lib"
+    lib.mkdir()
+    (lib / "large.md").write_text("first line\n" + ("x" * 1024 + "\n") * 1100)
+
+    result = read_doc("lib", "large.md", docs_dir=tmp_path, line_start=1)
+
+    assert result.is_error
+    assert "Provide line_end" in result.text
+
+
 def test_read_doc_missing_file(tmp_path):
     lib = tmp_path / "lib"
     lib.mkdir()
