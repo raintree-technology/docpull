@@ -375,11 +375,121 @@ def _run_screenshot_command(
         text=True,
         timeout=45,
     )
+    legacy_error = ""
+    if result.returncode == 0:
+        try:
+            png = _png_from_agent_browser_stdout(result.stdout)
+        except ContextPackError as err:
+            legacy_error = str(err)
+        else:
+            output_path.write_bytes(png)
+            return _screenshot_payload(
+                url=url,
+                output_path=output_path,
+                viewport=viewport,
+                full_page=full_page,
+                png=png,
+                command=[part if part != url else public_url(url) for part in command],
+            )
+    else:
+        legacy_error = (result.stderr or result.stdout).strip()[:500]
+    try:
+        png, command = _run_agent_browser_batch_screenshot(
+            binary=binary,
+            url=url,
+            output_path=output_path,
+            viewport=viewport,
+            full_page=full_page,
+            wait_for=wait_for,
+        )
+    except ContextPackError as err:
+        detail = f"{legacy_error}; batch fallback: {err}" if legacy_error else str(err)
+        raise ContextPackError(
+            f"agent-browser screenshot failed with status {result.returncode}: {detail}"
+        ) from err
+    return _screenshot_payload(
+        url=url,
+        output_path=output_path,
+        viewport=viewport,
+        full_page=full_page,
+        png=png,
+        command=command,
+    )
+
+
+def _run_agent_browser_batch_screenshot(
+    *,
+    binary: str,
+    url: str,
+    output_path: Path,
+    viewport: str,
+    full_page: bool,
+    wait_for: str,
+) -> tuple[bytes, list[str]]:
+    width, height = _viewport_dimensions(viewport)
+    wait_ms = {"domcontentloaded": "500", "load": "1000", "networkidle": "2000"}[wait_for]
+    screenshot_command = ["screenshot", str(output_path)]
+    if full_page:
+        screenshot_command.append("--full")
+    batch = [
+        ["open", url],
+        ["set", "viewport", str(width), str(height)],
+        ["wait", wait_ms],
+        screenshot_command,
+    ]
+    batch_json = json.dumps(batch, separators=(",", ":"))
+    command = [binary, "batch", "--bail", "--json"]
+    result = subprocess.run(  # nosec B603
+        command,
+        input=batch_json,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=45,
+    )
     if result.returncode != 0:
         detail = (result.stderr or result.stdout).strip()[:500]
-        raise ContextPackError(f"agent-browser screenshot failed with status {result.returncode}: {detail}")
-    png = _png_from_agent_browser_stdout(result.stdout)
-    output_path.write_bytes(png)
+        raise ContextPackError(
+            f"agent-browser batch screenshot failed with status {result.returncode}: {detail}"
+        )
+    _validate_agent_browser_batch_stdout(result.stdout)
+    if not output_path.exists():
+        raise ContextPackError("agent-browser batch screenshot did not write the expected PNG path.")
+    png = output_path.read_bytes()
+    if not png.startswith(b"\x89PNG\r\n\x1a\n"):
+        raise ContextPackError("agent-browser batch screenshot did not write PNG data.")
+    public_batch = [[public_url(item) if item == url else item for item in step] for step in batch]
+    return png, [*command, json.dumps(public_batch, separators=(",", ":"))]
+
+
+def _viewport_dimensions(viewport: str) -> tuple[int, int]:
+    match = VIEWPORT_RE.fullmatch(viewport)
+    if not match:
+        raise ContextPackError("viewport must use WIDTHxHEIGHT with positive integer dimensions.")
+    return int(match.group("width")), int(match.group("height"))
+
+
+def _validate_agent_browser_batch_stdout(stdout: str) -> None:
+    try:
+        payload = json.loads(stdout)
+    except json.JSONDecodeError as err:
+        raise ContextPackError("agent-browser batch screenshot did not return JSON output.") from err
+    if not isinstance(payload, list):
+        raise ContextPackError("agent-browser batch screenshot JSON was not a command result array.")
+    for item in payload:
+        if not isinstance(item, dict) or item.get("success") is not True:
+            raise ContextPackError("agent-browser batch screenshot reported a failed command.")
+
+
+def _screenshot_payload(
+    *,
+    url: str,
+    output_path: Path,
+    viewport: str,
+    full_page: bool,
+    png: bytes,
+    command: list[str],
+) -> dict[str, Any]:
     return {
         "schema_version": CONTEXT_PACK_SCHEMA_VERSION,
         "url": url,
@@ -389,7 +499,7 @@ def _run_screenshot_command(
         "bytes": len(png),
         "sha256": hashlib.sha256(png).hexdigest(),
         "content_type": "image/png",
-        "command": [part if part != url else public_url(url) for part in command],
+        "command": command,
     }
 
 

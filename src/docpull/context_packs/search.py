@@ -95,6 +95,14 @@ def _build_local_search_pack(
     output_dir.mkdir(parents=True, exist_ok=True)
     local = search_local_pack(pack_dir, query, required_domains=required_domains, limit=max_results)
     results = _normalize_local_results(local)
+    replay_config = {
+        "query": query,
+        "provider": "local",
+        "pack_dir": str(pack_dir),
+        "include_domains": required_domains,
+        "max_results": max_results,
+        "scrape": scrape,
+    }
     result_path = output_dir / "search.result.json"
     results_path = output_dir / "search.results.ndjson"
     markdown_path = output_dir / "SEARCH.md"
@@ -120,6 +128,7 @@ def _build_local_search_pack(
         "output_dir": str(output_dir),
         "query": query,
         "input": {"pack_dir": str(pack_dir), "scrape": scrape},
+        "replay_config": replay_config,
         "summary": {
             "result_count": len(results),
             "max_results": max_results,
@@ -155,6 +164,7 @@ def _build_local_search_pack(
             "query": query,
             "summary": payload["summary"],
             "request_options": payload["request_options"],
+            "replay_config": replay_config,
             "artifacts": {**artifacts, "pack_metadata": artifact_ref(output_dir, pack_path)},
         },
     )
@@ -219,6 +229,17 @@ def _build_provider_search_pack(
         "max_results": max_results,
         "scrape": scrape,
     }
+    replay_config = {
+        "query": query,
+        "provider": provider,
+        "include_domains": include_domains,
+        "exclude_domains": exclude_domains,
+        "max_results": max_results,
+        "scrape": scrape,
+        "dry_run": dry_run,
+        "budget": budget,
+        "max_estimated_cost": max_estimated_cost,
+    }
     if dry_run or blocked:
         result_path = output_dir / "search.result.json"
         results_path = output_dir / "search.results.ndjson"
@@ -245,6 +266,7 @@ def _build_provider_search_pack(
             "status": "dry_run" if dry_run and not blocked else "blocked_by_budget",
             "output_dir": str(output_dir),
             "query": query,
+            "replay_config": replay_config,
             "summary": {
                 "result_count": 0,
                 "estimated_cost_usd": estimated,
@@ -283,6 +305,7 @@ def _build_provider_search_pack(
                 "query": query,
                 "summary": payload["summary"],
                 "request_options": request_options,
+                "replay_config": replay_config,
                 "artifacts": payload["artifacts"],
             },
         )
@@ -324,6 +347,7 @@ def _build_provider_search_pack(
         "status": "completed",
         "output_dir": str(output_dir),
         "query": query,
+        "replay_config": replay_config,
         "summary": {
             "result_count": _parallel_result_count(pack_path),
             "estimated_cost_usd": estimated,
