@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## [5.5.1] - 2026-06-29
+
+### Fixed
+- Restore `screenshot-pack` compatibility with the current `agent-browser`
+  command contract by falling back to batch JSON/file-output capture.
+- Write durable `search-pack` replay config metadata for local, dry-run,
+  budget-blocked, and provider-backed search paths.
+
 ## [5.5.0] - 2026-06-29
 
 ### Added
