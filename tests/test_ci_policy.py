@@ -124,6 +124,32 @@ def test_publish_workflow_builds_artifact_before_unlocked_release_gates() -> Non
     assert "needs: [build, release-gates]" in publish_section
 
 
+def test_publish_workflow_creates_github_release_after_pypi_publish() -> None:
+    publish = (WORKFLOW_DIR / "publish.yml").read_text()
+    _, publish_section = publish.split("\n  publish:\n", 1)
+
+    assert "contents: write" in publish_section
+    assert "id-token: write" in publish_section
+    assert "pypa/gh-action-pypi-publish@release/v1" in publish_section
+    assert "name: Create GitHub release" in publish_section
+    assert "if: github.event_name == 'push' && github.ref_type == 'tag'" in publish_section
+    assert "GH_TOKEN: ${{ github.token }}" in publish_section
+    assert 'NOTES_FILE="docs/release-post-v${MINOR_VERSION}.md"' in publish_section
+    assert (
+        'gh release edit "$TAG" --title "$RELEASE_TITLE" --latest --notes-file "$NOTES_FILE"'
+        in publish_section
+    )
+    assert 'gh release edit "$TAG" --title "$RELEASE_TITLE" --latest' in publish_section
+    assert (
+        'gh release create "$TAG" --title "$RELEASE_TITLE" --verify-tag --latest --notes-file "$NOTES_FILE"'
+        in publish_section
+    )
+    assert (
+        'gh release create "$TAG" --title "$RELEASE_TITLE" --verify-tag --latest --generate-notes'
+        in publish_section
+    )
+
+
 def test_security_and_publish_bandit_scan_scripts() -> None:
     security = (WORKFLOW_DIR / "security.yml").read_text()
     publish = (WORKFLOW_DIR / "publish.yml").read_text()
