@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "docpull"
-version = "5.5.0"
+version = "5.5.1"
 dynamic = []
 description = "Keep AI agents synced with changing public docs and web sources"
 readme = {file = "README.md", content-type = "text/markdown"}

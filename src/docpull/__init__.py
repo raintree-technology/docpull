@@ -14,7 +14,7 @@ Usage:
             print(event)
 """
 
-__version__ = "5.5.0"
+__version__ = "5.5.1"
 
 from .cache import CacheManager, StreamingDeduplicator
 from .context_packs import (

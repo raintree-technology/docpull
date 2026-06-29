@@ -1,5 +1,14 @@
 # DocPull v5.5: Typed Local Context Packs
 
+## v5.5.1 Hotfix
+
+DocPull v5.5.1 ships the post-release fixes from the real-data validation pass:
+`screenshot-pack` now works with the current `agent-browser` command contract,
+and `search-pack` now writes replay config metadata across local, dry-run,
+budget-blocked, and provider-backed paths.
+
+## v5.5.0
+
 DocPull v5.5 adds local-first context packs for brand, design, product,
 structured extraction, visual assets, screenshots, and search.
 
