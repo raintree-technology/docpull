@@ -56,7 +56,23 @@ make release-publish VERSION=5.0.0
 
 This verifies `origin/main` has the requested `pyproject.toml` version, puts
 `vX.Y.Z` on the merged `origin/main` commit, and pushes the tag to start the
-PyPI workflow. It refuses to move an existing remote tag by default.
+PyPI workflow. After the PyPI trusted-publish step succeeds on a tag push, the
+workflow creates or updates the GitHub Release for that tag and marks it as the
+latest release. It uses `docs/release-post-vX.Y.md` when present and otherwise
+falls back to generated notes.
+
+Verify both public release surfaces:
+
+```bash
+gh release view v5.0.0 --json tagName,name,publishedAt,url
+python - <<'PY'
+import json, urllib.request
+with urllib.request.urlopen("https://pypi.org/pypi/docpull/json", timeout=20) as r:
+    print(json.load(r)["info"]["version"])
+PY
+```
+
+The helper refuses to move an existing remote tag by default.
 
 If a tag was pushed early and the publish workflow did not complete, first
 confirm the version was not published on PyPI, then run:

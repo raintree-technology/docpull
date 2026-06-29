@@ -136,6 +136,7 @@ jobs:
       name: pypi
       url: https://pypi.org/project/docpull/
     permissions:
+      contents: write  # Required to create/update the GitHub Release after publish
       id-token: write  # Required for OIDC / trusted publishing
     steps:
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
@@ -147,3 +148,30 @@ jobs:
         with:
           packages-dir: dist/
           # No password: trusted publishing via OIDC
+
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        if: github.event_name == 'push' && github.ref_type == 'tag'
+
+      - name: Create GitHub release
+        if: github.event_name == 'push' && github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          RELEASE_TITLE="docpull ${VERSION}"
+          MINOR_VERSION="${VERSION%.*}"
+          NOTES_FILE="docs/release-post-v${MINOR_VERSION}.md"
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            if [ -f "$NOTES_FILE" ]; then
+              gh release edit "$TAG" --title "$RELEASE_TITLE" --latest --notes-file "$NOTES_FILE"
+            else
+              gh release edit "$TAG" --title "$RELEASE_TITLE" --latest
+            fi
+          elif [ -f "$NOTES_FILE" ]; then
+            gh release create "$TAG" --title "$RELEASE_TITLE" --verify-tag --latest --notes-file "$NOTES_FILE"
+          else
+            gh release create "$TAG" --title "$RELEASE_TITLE" --verify-tag --latest --generate-notes
+          fi
