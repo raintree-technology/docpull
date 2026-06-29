@@ -19,7 +19,6 @@ on:
       version:
         description: "Version to publish, matching pyproject.toml"
         required: true
-        type: string
   push:
     tags:
       - "v*.*.*"
