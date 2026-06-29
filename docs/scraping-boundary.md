@@ -33,7 +33,10 @@ when `--strict-js-required` is set. Optional rendering is explicit: use
 `docpull render` or `--render fallback` with an external `agent-browser`,
 Vercel Sandbox, or E2B backend. Render backends have separate installation,
 domain, timeout, size, and cloud-cost controls so the browser-free crawler
-remains the default path.
+remains the default path. Network browser rendering also requires an operator
+acknowledgement via `DOCPULL_RENDER_TRUSTED_BROWSER_TARGETS=1`, because the
+current `agent-browser` CLI contract cannot enforce redirect/subresource
+allow-lists after the initial target check.
 
 ## When to use another tool
 
@@ -54,7 +57,8 @@ When local capture is partial, keep escalation explicit and auditable:
 1. Improve provider-free discovery with `docpull discover scan`, URL files, or
    sitemap inputs.
 2. Retry public JS-rendered pages with local `agent-browser` via
-   `--render fallback` or `docpull render --runtime local`.
+   `--render fallback` or `docpull render --runtime local`, with
+   `DOCPULL_RENDER_TRUSTED_BROWSER_TARGETS=1` for trusted targets.
 3. Use BYOK providers such as Tavily, Exa, or Parallel only after reviewing a
    dry-run plan, estimated paid request count, and cost guard.
 4. Use Vercel Sandbox or E2B rendering only when local rendering or local

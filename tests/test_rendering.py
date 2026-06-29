@@ -32,6 +32,10 @@ from docpull.rendering import (
 )
 
 
+def _trust_browser_targets(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("DOCPULL_RENDER_TRUSTED_BROWSER_TARGETS", "1")
+
+
 def test_agent_browser_binary_prefers_explicit_value_and_env(monkeypatch):
     monkeypatch.setenv("DOCPULL_AGENT_BROWSER_BIN", "/opt/bin/custom-agent-browser")
 
@@ -185,7 +189,9 @@ def test_render_cli_budget_zero_blocks_cloud_runtime(tmp_path, capsys):
 
 
 @pytest.mark.asyncio
-async def test_agent_browser_missing_binary_error_is_actionable():
+async def test_agent_browser_missing_binary_error_is_actionable(monkeypatch):
+    _trust_browser_targets(monkeypatch)
+
     async def missing_runner(command, timeout):
         raise FileNotFoundError(command[0])
 
@@ -224,7 +230,62 @@ async def test_render_blocks_public_http_url():
 
 
 @pytest.mark.asyncio
-async def test_render_blocks_non_restrictive_action_policy():
+async def test_render_requires_trusted_browser_target_override():
+    async def runner(command, timeout):
+        raise AssertionError("renderer should not be called")
+
+    renderer = AgentBrowserRenderer(runner=runner)
+
+    with pytest.raises(RenderError, match="Browser rendering is disabled"):
+        await renderer.render("https://example.com/app", RenderConfig(mode="agent-browser"))
+
+
+@pytest.mark.asyncio
+async def test_render_blocks_private_and_local_targets():
+    async def runner(command, timeout):
+        raise AssertionError("renderer should not be called")
+
+    renderer = AgentBrowserRenderer(runner=runner)
+
+    for url in ("https://127.0.0.1/admin", "https://localhost/admin"):
+        with pytest.raises(RenderError, match="Render URL validation failed"):
+            await renderer.render(url, RenderConfig(mode="agent-browser"))
+
+
+@pytest.mark.asyncio
+async def test_render_requires_explicit_local_target_override(monkeypatch):
+    calls = []
+
+    async def runner(command, timeout):
+        calls.append(command)
+        return CommandResult(
+            returncode=0,
+            stdout=json.dumps({"html": "<html><body>local</body></html>"}),
+            stderr="",
+        )
+
+    renderer = AgentBrowserRenderer(runner=runner)
+
+    with pytest.raises(RenderError, match="Render URL validation failed"):
+        await renderer.render(
+            "http://127.0.0.1:8080/",
+            RenderConfig(mode="agent-browser", allowed_domains=["127.0.0.1"]),
+        )
+
+    monkeypatch.setenv("DOCPULL_RENDER_ALLOW_LOCAL_TARGETS", "1")
+    page = await renderer.render(
+        "http://127.0.0.1:8080/",
+        RenderConfig(mode="agent-browser", allowed_domains=["127.0.0.1"]),
+    )
+
+    assert calls
+    assert b"local" in page.html
+
+
+@pytest.mark.asyncio
+async def test_render_blocks_non_restrictive_action_policy(monkeypatch):
+    _trust_browser_targets(monkeypatch)
+
     async def runner(command, timeout):
         raise AssertionError("renderer should not be called")
 
@@ -241,7 +302,9 @@ async def test_render_blocks_non_restrictive_action_policy():
 
 
 @pytest.mark.asyncio
-async def test_render_url_to_directory_writes_html_and_sidecar(tmp_path):
+async def test_render_url_to_directory_writes_html_and_sidecar(tmp_path, monkeypatch):
+    _trust_browser_targets(monkeypatch)
+
     async def runner(command, timeout):
         return CommandResult(
             returncode=0,
@@ -265,7 +328,8 @@ async def test_render_url_to_directory_writes_html_and_sidecar(tmp_path):
         renderer=renderer,
     )
 
-    assert artifact.html_path.name == "app.html"
+    assert artifact.html_path.name.startswith("example.com_app_")
+    assert artifact.html_path.name.endswith(".html")
     assert artifact.html_path.read_text(encoding="utf-8") == "<html><body><h1>Rendered</h1></body></html>"
     records = [json.loads(line) for line in artifact.sidecar_path.read_text(encoding="utf-8").splitlines()]
     assert len(records) == 1
@@ -274,13 +338,50 @@ async def test_render_url_to_directory_writes_html_and_sidecar(tmp_path):
     assert record["url"] == "https://example.com/app"
     assert record["source"] == "docpull_render_cli"
     assert record["backend"] == "agent-browser"
-    assert record["artifact_path"] == "app.html"
+    assert record["artifact_path"] == artifact.html_path.name
     assert record["diagnostics"]["loaded"] is True
     assert record["allowed_domains"] == ["example.com"]
 
 
 @pytest.mark.asyncio
-async def test_vercel_sandbox_renderer_uses_cli_and_parses_payload():
+async def test_render_url_to_directory_keeps_distinct_urls_from_overwriting(tmp_path, monkeypatch):
+    _trust_browser_targets(monkeypatch)
+
+    counter = 0
+
+    async def runner(command, timeout):
+        nonlocal counter
+        counter += 1
+        return CommandResult(
+            returncode=0,
+            stdout=json.dumps({"html": f"<html><body>render {counter}</body></html>"}),
+            stderr="",
+        )
+
+    renderer = AgentBrowserRenderer(runner=runner)
+
+    first = await render_url_to_directory(
+        "https://93.184.216.34/",
+        tmp_path,
+        config=RenderConfig(mode="agent-browser"),
+        renderer=renderer,
+    )
+    second = await render_url_to_directory(
+        "https://1.1.1.1/",
+        tmp_path,
+        config=RenderConfig(mode="agent-browser"),
+        renderer=renderer,
+    )
+
+    assert first.html_path != second.html_path
+    assert first.html_path.read_text(encoding="utf-8") == "<html><body>render 1</body></html>"
+    assert second.html_path.read_text(encoding="utf-8") == "<html><body>render 2</body></html>"
+
+
+@pytest.mark.asyncio
+async def test_vercel_sandbox_renderer_uses_cli_and_parses_payload(monkeypatch):
+    _trust_browser_targets(monkeypatch)
+
     captured: dict[str, object] = {}
 
     async def runner(command, timeout):
@@ -310,7 +411,9 @@ async def test_vercel_sandbox_renderer_uses_cli_and_parses_payload():
 
 
 @pytest.mark.asyncio
-async def test_cloud_render_budget_cap_blocks_before_provider_call():
+async def test_cloud_render_budget_cap_blocks_before_provider_call(monkeypatch):
+    _trust_browser_targets(monkeypatch)
+
     async def runner(command, timeout):
         raise AssertionError("renderer should not be called")
 
@@ -328,7 +431,9 @@ async def test_cloud_render_budget_cap_blocks_before_provider_call():
 
 
 @pytest.mark.asyncio
-async def test_e2b_sandbox_renderer_runs_command_and_kills_sandbox():
+async def test_e2b_sandbox_renderer_runs_command_and_kills_sandbox(monkeypatch):
+    _trust_browser_targets(monkeypatch)
+
     class FakeResult:
         stdout = _cloud_stdout("<html><body><h1>E2B</h1></body></html>")
         stderr = ""
@@ -374,7 +479,9 @@ async def test_e2b_sandbox_renderer_runs_command_and_kills_sandbox():
 
 
 @pytest.mark.asyncio
-async def test_e2b_sandbox_renderer_prefers_file_transport():
+async def test_e2b_sandbox_renderer_prefers_file_transport(monkeypatch):
+    _trust_browser_targets(monkeypatch)
+
     class FakeResult:
         stdout = "no sentinel here"
         stderr = ""
@@ -443,6 +550,8 @@ def test_e2b_create_uses_template_and_seconds_timeout():
 async def test_live_cloud_render_backend_when_enabled(backend):
     if os.environ.get("DOCPULL_LIVE_CLOUD_RENDER") != "1":
         pytest.skip("Set DOCPULL_LIVE_CLOUD_RENDER=1 to run live cloud renderer smoke tests.")
+    if os.environ.get("DOCPULL_RENDER_TRUSTED_BROWSER_TARGETS") != "1":
+        pytest.skip("Set DOCPULL_RENDER_TRUSTED_BROWSER_TARGETS=1 for trusted live render targets.")
     available, message = check_render_backend_availability(backend)
     if not available:
         pytest.skip(message)
@@ -463,10 +572,11 @@ async def test_live_cloud_render_backend_when_enabled(backend):
 
 
 @pytest.mark.asyncio
-async def test_live_agent_browser_backend_executes_js_when_available():
+async def test_live_agent_browser_backend_executes_js_when_available(monkeypatch):
     available, message = check_agent_browser_availability()
     if not available:
         pytest.skip(message)
+    monkeypatch.setenv("DOCPULL_RENDER_ALLOW_LOCAL_TARGETS", "1")
 
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):

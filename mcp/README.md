@@ -27,6 +27,15 @@ bun run typecheck
 bun test
 ```
 
+OpenAI-backed semantic search and indexing also require an explicit local quota:
+
+```bash
+export DOCPULL_MCP_EMBEDDING_MAX_INPUT_TOKENS=100000
+```
+
+Leaving that value unset or zero blocks embedding calls even when
+`OPENAI_API_KEY` is present.
+
 Required services for the semantic-search path are intentionally not documented
 as an end-user install flow here. Promote this directory to a supported product
 only after its install path, release target, privacy copy, and package boundary

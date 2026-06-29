@@ -223,8 +223,8 @@ class RenderConfig(BaseModel):
     allowed_domains: list[str] = Field(
         default_factory=list,
         description=(
-            "Domains the renderer may visit. When omitted, docpull derives a "
-            "narrow one-host allow-list from the target URL."
+            "Target domains accepted before invoking the renderer. When omitted, "
+            "docpull derives a narrow one-host allow-list from the target URL."
         ),
     )
     action_policy: RenderActionPolicy = Field(default_factory=RenderActionPolicy)

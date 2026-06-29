@@ -75,9 +75,10 @@ sitemap indexes, and public GitHub docs trees, then writes the standard
 
 When a target is partial, the zero-dollar benchmark adds Phase 4 escalation
 suggestions to `benchmark.report.json` and `benchmark.summary.md`. The order is:
-retry local rendering with `--render fallback`, improve local discovery with
-`docpull discover scan`, review a BYOK provider dry run with estimated
-requests/cost, and reserve cloud rendering for local infrastructure gaps.
+retry trusted-target local rendering with `--render fallback`, improve local
+discovery with `docpull discover scan`, review a BYOK provider dry run with
+estimated requests/cost, and reserve cloud rendering for local infrastructure
+gaps.
 
 ## Output Formats
 
@@ -239,26 +240,26 @@ Optional rendering remains explicit:
 
 ```bash
 docpull render --check
-docpull https://example.com/app --single --render fallback -o ./packs/rendered
-docpull render https://example.com/app -o ./rendered
+DOCPULL_RENDER_TRUSTED_BROWSER_TARGETS=1 docpull https://example.com/app --single --render fallback -o ./packs/rendered
+DOCPULL_RENDER_TRUSTED_BROWSER_TARGETS=1 docpull render https://example.com/app -o ./rendered
 docpull render --check --runtime vercel
-docpull render https://example.com/app \
+DOCPULL_RENDER_TRUSTED_BROWSER_TARGETS=1 docpull render https://example.com/app \
   --runtime vercel \
   --cloud-max-estimated-cost 0.20 \
   -o ./rendered-vercel
 docpull render --check --runtime e2b
-docpull render https://example.com/app \
+DOCPULL_RENDER_TRUSTED_BROWSER_TARGETS=1 docpull render https://example.com/app \
   --runtime e2b \
   --cloud-result-transport file \
   --cloud-max-estimated-cost 0.20 \
   -o ./rendered-e2b
 
 # Explicit provider smoke checks; these may consume cloud quota.
-docpull render --live-smoke --runtime vercel --cloud-max-estimated-cost 0.20
-docpull render --live-smoke --runtime e2b --cloud-max-estimated-cost 0.20
+DOCPULL_RENDER_TRUSTED_BROWSER_TARGETS=1 docpull render --live-smoke --runtime vercel --cloud-max-estimated-cost 0.20
+DOCPULL_RENDER_TRUSTED_BROWSER_TARGETS=1 docpull render --live-smoke --runtime e2b --cloud-max-estimated-cost 0.20
 
 # Faster E2B cold starts when you have a template with agent-browser installed.
-docpull render https://example.com/app \
+DOCPULL_RENDER_TRUSTED_BROWSER_TARGETS=1 docpull render https://example.com/app \
   --runtime e2b \
   --template docpull-agent-browser \
   --cloud-agent-browser-install skip \
@@ -267,6 +268,8 @@ docpull render https://example.com/app \
 
 Rendering requires an external `agent-browser` compatible executable. Put it on
 `PATH`, set `DOCPULL_AGENT_BROWSER_BIN`, or pass `docpull render --agent-browser-bin`.
+Set `DOCPULL_RENDER_TRUSTED_BROWSER_TARGETS=1` only for trusted public render
+targets; the browser backend cannot enforce redirect or subresource allow-lists.
 Cloud rendering is opt-in: Vercel Sandbox requires the `sandbox` CLI plus Vercel
 auth, and E2B requires `pip install 'docpull[e2b]'` plus `E2B_API_KEY`.
 All cloud runtimes run `agent-browser --json`; use `docpull render init e2b` or
@@ -275,7 +278,7 @@ Provider live tests are gated in the test suite; run them only when credentials
 are configured:
 
 ```bash
-DOCPULL_LIVE_CLOUD_RENDER=1 .venv/bin/python -m pytest tests/test_rendering.py -q
+DOCPULL_RENDER_TRUSTED_BROWSER_TARGETS=1 DOCPULL_LIVE_CLOUD_RENDER=1 .venv/bin/python -m pytest tests/test_rendering.py -q
 ```
 
 Authenticated source checks do not write fetched content:

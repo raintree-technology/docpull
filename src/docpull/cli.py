@@ -191,6 +191,17 @@ Examples:
   docpull https://example.com --include-paths "/api/*" --exclude-paths "/changelog/*"
 
 Subcommands:
+  init         Create a persistent DocPull project
+  add          Add a source to a project
+  sync         Sync configured project sources
+  diff         Diff project runs
+  status       Show project status
+  history      Show project run history
+  review       Write a source-health/diff review for a run
+  release      Create versioned context-pack release artifacts
+  remote       Call a hosted DocPull API control plane
+  eval-set     Generate local eval cases from project runs
+  watch        Sync, diff, and export one source
   render       Render one public URL or check the optional agent-browser backend
   discover     Build/select/fetch provider-neutral discovery packs
   extract-pack Extract known URLs into a provider-neutral local pack
@@ -198,6 +209,13 @@ Subcommands:
   crawl-pack   Select mapped candidates and fetch a local pack
   research-pack Produce cited local research results from a pack
   entities-pack Build local entity/list packs from existing evidence
+  brand-pack   Build an evidence-backed local brand profile
+  styleguide-pack Extract local design tokens from a public site
+  product-pack Normalize product and pricing evidence
+  extract-schema Extract a JSON shape from local evidence
+  image-pack    Build a local visual asset manifest
+  screenshot-pack Capture an explicit browser-rendered screenshot
+  search-pack  Build a local-first search result pack
   policy       Validate or explain source policy files
   auth         Check authenticated source access without writing content
   refresh      Refresh an existing local pack and write change reports
@@ -1254,6 +1272,7 @@ def _run_render_doctor_cli() -> int:
             exit_code = 1
     console.print()
     console.print("Cloud runtimes execute the same agent-browser JSON contract inside a sandbox/template.")
+    console.print("Set DOCPULL_RENDER_TRUSTED_BROWSER_TARGETS=1 only for trusted render targets.")
     console.print("Use `docpull render init e2b` or `docpull render init vercel` for template recipes.")
     return exit_code
 
@@ -1287,10 +1306,13 @@ agent-browser install
 
 # Then render through the same DocPull contract:
 export E2B_API_KEY=<your-e2b-api-key>
+export DOCPULL_RENDER_TRUSTED_BROWSER_TARGETS=1
 docpull render https://example.com --runtime e2b --template {template}
 
 # For smoke tests that may consume provider quota:
-DOCPULL_LIVE_CLOUD_RENDER=1 .venv/bin/python -m pytest tests/test_rendering.py -q
+DOCPULL_RENDER_TRUSTED_BROWSER_TARGETS=1 \\
+  DOCPULL_LIVE_CLOUD_RENDER=1 \\
+  .venv/bin/python -m pytest tests/test_rendering.py -q
 """
 
 
@@ -1303,6 +1325,7 @@ npm install -g agent-browser
 agent-browser install
 
 # Then render through the same DocPull contract:
+export DOCPULL_RENDER_TRUSTED_BROWSER_TARGETS=1
 docpull render https://example.com --runtime vercel --cloud-agent-browser-install skip
 
 # If you intentionally want a cold runtime install and npm is available:
@@ -1350,6 +1373,50 @@ def main(argv: list[str] | None = None) -> int:
     raw_argv = list(argv) if argv is not None else sys.argv[1:]
     if raw_argv and raw_argv[0] == "render":
         return run_render_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "init":
+        from .project import run_init_cli
+
+        return run_init_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "add":
+        from .project import run_add_cli
+
+        return run_add_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "sync":
+        from .project import run_sync_cli
+
+        return run_sync_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "diff":
+        from .project import run_diff_cli
+
+        return run_diff_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "status":
+        from .project import run_status_cli
+
+        return run_status_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "history":
+        from .project import run_history_cli
+
+        return run_history_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "review":
+        from .project import run_review_cli
+
+        return run_review_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "release":
+        from .project import run_release_cli
+
+        return run_release_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "remote":
+        from .project import run_remote_cli
+
+        return run_remote_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "eval-set":
+        from .project import run_eval_set_cli
+
+        return run_eval_set_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "watch":
+        from .project import run_watch_cli
+
+        return run_watch_cli(raw_argv[1:])
     if raw_argv and raw_argv[0] == "mcp":
         from .mcp.server import run_mcp_server
 
@@ -1375,6 +1442,10 @@ def main(argv: list[str] | None = None) -> int:
 
         return run_share_cli(raw_argv[1:])
     if raw_argv and raw_argv[0] == "export":
+        if len(raw_argv) > 1 and raw_argv[1] == "context-pack":
+            from .project import run_project_export_cli
+
+            return run_project_export_cli(raw_argv[2:])
         from .exports import run_export_cli
 
         return run_export_cli(raw_argv[1:])
@@ -1430,6 +1501,34 @@ def main(argv: list[str] | None = None) -> int:
         from .parity_cli import run_entities_pack_cli
 
         return run_entities_pack_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "brand-pack":
+        from .context_packs.cli import run_brand_pack_cli
+
+        return run_brand_pack_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "styleguide-pack":
+        from .context_packs.cli import run_styleguide_pack_cli
+
+        return run_styleguide_pack_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "product-pack":
+        from .context_packs.cli import run_product_pack_cli
+
+        return run_product_pack_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "extract-schema":
+        from .context_packs.cli import run_extract_schema_cli
+
+        return run_extract_schema_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "image-pack":
+        from .context_packs.cli import run_image_pack_cli
+
+        return run_image_pack_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "screenshot-pack":
+        from .context_packs.cli import run_screenshot_pack_cli
+
+        return run_screenshot_pack_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "search-pack":
+        from .context_packs.cli import run_search_pack_cli
+
+        return run_search_pack_cli(raw_argv[1:])
     if raw_argv and raw_argv[0] in {"provider", "providers"}:
         from .provider_cli import run_provider_cli
 

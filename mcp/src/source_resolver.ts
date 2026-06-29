@@ -56,6 +56,8 @@ function isHttpsUrl(value: string): boolean {
 		return (
 			parsed.protocol === "https:" &&
 			parsed.hostname.length > 0 &&
+			parsed.username === "" &&
+			parsed.password === "" &&
 			!isBlockedHost(parsed.hostname)
 		);
 	} catch (_error) {

@@ -163,6 +163,7 @@ class AsyncHttpClient:
         self._request_proxy = None if self._socks_proxy_url is not None else self._proxy
         self._default_timeout = default_timeout
         self._auth_headers = auth_headers or {}
+        self._sensitive_headers = self.SENSITIVE_HEADERS | {name.lower() for name in self._auth_headers}
         self._url_validator = url_validator
         self._auth_scope_hosts = {host.lower() for host in auth_scope_hosts} if auth_scope_hosts else None
         self._download_policy = download_policy or SafeDownloadPolicy()
@@ -260,7 +261,7 @@ class AsyncHttpClient:
         if urlparse(current_url).netloc.lower() == urlparse(redirect_url).netloc.lower():
             return headers
 
-        return {key: value for key, value in headers.items() if key.lower() not in self.SENSITIVE_HEADERS}
+        return self._without_sensitive_headers(headers)
 
     def _headers_for_url(self, headers: dict[str, str], target_url: str) -> dict[str, str]:
         """Strip scoped auth state before off-origin requests."""
@@ -271,7 +272,10 @@ class AsyncHttpClient:
         if hostname and hostname.lower() in self._auth_scope_hosts:
             return headers
 
-        return {key: value for key, value in headers.items() if key.lower() not in self.SENSITIVE_HEADERS}
+        return self._without_sensitive_headers(headers)
+
+    def _without_sensitive_headers(self, headers: dict[str, str]) -> dict[str, str]:
+        return {key: value for key, value in headers.items() if key.lower() not in self._sensitive_headers}
 
     def _next_redirect(
         self,

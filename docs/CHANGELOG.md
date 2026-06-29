@@ -7,6 +7,78 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## [5.5.0] - 2026-06-29
+
+### Added
+- Add typed local context packs for brand profiles, styleguide/design tokens,
+  product/pricing extraction, schema-shaped extraction, image manifests,
+  explicit screenshot capture, and unified local/provider search packs.
+- Expose context packs across CLI, Python SDK, and MCP with durable artifacts:
+  result JSON, Markdown reports, source policies, citations or basis records,
+  replay config, pack metadata, and `run.accounting.json`.
+- Add docs comparing DocPull's local-first context-pack boundary with hosted
+  web intelligence APIs.
+
+### Changed
+- Keep async HTTP extraction as the default path for context packs and require
+  explicit trusted-target opt-in before screenshot/browser rendering.
+- Route context-pack CSS and asset downloads through DocPull's validated HTTP
+  transport with domain policy checks, DNS pinning, content-type checks, byte
+  limits, and non-secret accounting.
+- Update MCP plugin metadata to include the new context-pack tools.
+
+## [5.2.0] - 2026-06-24
+
+### Added
+- Add environment-reference source auth for project mode, resolving credentials
+  into existing `AuthConfig` only at sync time and masking auth details in
+  status, manifests, reviews, releases, and hosted payloads.
+- Add `docpull history`, `docpull review`, and
+  `docpull release context-pack` for local context-repo lifecycle review and
+  versioned release artifacts under `.docpull/releases/<tag>/`.
+- Add `docpull remote login` plus hosted remote commands for sync, status,
+  diff, export, and release calls against a DocPull `/v1` API.
+- Add `docpull.hosted`, a dependency-free Python ASGI control-plane MVP with
+  Bearer API keys, org/project isolation, project/source CRUD, sync jobs,
+  runs, latest diffs, context-pack export hooks, releases, webhooks, audit
+  events, and a Postgres-ready schema contract.
+
+### Changed
+- Extend the project SQLite index to track auth readiness, review summaries,
+  and context-pack releases.
+
+## [5.1.0] - 2026-06-24
+
+### Added
+- Add persistent project mode with `docpull init`, `add`, `sync`, `diff`,
+  `status`, `export context-pack`, `eval-set`, and `watch` while preserving the
+  legacy `docpull URL ...` and `docpull export PACK --format ...` flows.
+- Add durable project run artifacts under `.docpull/runs/<run_id>/`, including
+  `run.json`, `documents.jsonl`, `chunks.jsonl`, `manifest.json`,
+  `errors.jsonl`, `accounting.json`, `source-health.json`,
+  `documents.ndjson`, `corpus.manifest.json`, `sources.md`, and
+  `local.pack.json`.
+- Add the project SQLite index for sources, runs, documents, chunks, errors,
+  diffs, exports, and source health, with idempotent `PRAGMA user_version`
+  schema setup.
+- Add deterministic project diffs with added, removed, changed, unchanged,
+  title/path change, likely API behavior change, pricing change, and source
+  health signals. Optional BYOK semantic summaries skip cleanly when no model
+  key is configured.
+- Add agent context-pack exports for Cursor, Claude, Codex, OpenAI,
+  LlamaIndex, and LangChain, plus stable JSONL eval-set generation from changed
+  or latest documents.
+- Add project discovery persistence with `docpull add URL --discover` and
+  `docpull sync --update-discovery`, including exact discovered URL refreshes.
+- Add a project diff demo launch asset at
+  `docs/launch-assets/docpull-project-diff-demo.png`.
+
+### Changed
+- Reframe README and website copy around refreshable, cited, agent-ready
+  context packs for changing public docs.
+- Clean project titles and dedupe alias pages before indexing/exporting run
+  artifacts, reducing noisy duplicate source entries in real docs dogfood runs.
+
 ## [5.0.2] - 2026-06-24
 
 ### Added

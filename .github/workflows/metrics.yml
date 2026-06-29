@@ -40,9 +40,16 @@ concurrency:
 
 jobs:
   update:
+    # This job has contents:write and receives METRICS_TOKEN; manual runs must
+    # not execute code from an arbitrary dispatch ref.
+    if: >-
+      github.event_name == 'schedule' ||
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          ref: ${{ github.event.repository.default_branch }}
 
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
         with:
@@ -67,6 +74,8 @@ jobs:
         run: python .github/scripts/check_metrics_fresh.py
 
       - name: Commit metrics refresh
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -76,5 +85,5 @@ jobs:
             exit 0
           fi
           git commit -m "chore(metrics): refresh metrics"
-          git pull --rebase --autostash origin "$GITHUB_REF_NAME"
-          git push
+          git pull --rebase --autostash origin "$DEFAULT_BRANCH"
+          git push origin "HEAD:$DEFAULT_BRANCH"

@@ -16,6 +16,13 @@ EXPECTED_SDK_EXPORTS = {
     "refresh_pack",
     "audit_pack",
     "answer_pack",
+    "build_brand_pack",
+    "build_styleguide_pack",
+    "build_product_pack",
+    "extract_schema",
+    "build_image_pack",
+    "capture_screenshot_pack",
+    "build_search_pack",
     "export_pack",
     "ExportResult",
     "score_pack",
@@ -114,6 +121,13 @@ EXPECTED_MCP_TOOLS = {
     "crawl_pack",
     "research_pack",
     "entities_pack",
+    "brand_pack",
+    "styleguide_pack",
+    "product_pack",
+    "extract_schema",
+    "image_pack",
+    "screenshot_pack",
+    "search_pack",
     "pack_score",
     "pack_diff",
     "refresh_pack",
@@ -155,6 +169,13 @@ EXPECTED_CLI_WORKFLOWS = {
     "benchmark",
     "provider",
     "providers",
+    "brand-pack",
+    "styleguide-pack",
+    "product-pack",
+    "extract-schema",
+    "image-pack",
+    "screenshot-pack",
+    "search-pack",
 }
 
 
@@ -191,8 +212,9 @@ def test_surface_contract_states_non_1_to_1_policy() -> None:
     contract = (ROOT / "docs/surface-contract.md").read_text(encoding="utf-8")
 
     assert "DocPull exposes the same core workflows through CLI, Python SDK, and MCP" in contract
-    assert "API** means the Python SDK / library API" in contract
-    assert "DocPull does not currently ship a hosted HTTP API" in contract
+    assert "API** means the Python SDK / library API unless explicitly" in contract
+    assert "hosted HTTP API. The hosted HTTP" in contract
+    assert "Hosted HTTP API" in contract
     assert "Core-aligned" in contract
     assert "Adapted" in contract
     assert "Surface-specific" in contract

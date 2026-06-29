@@ -256,8 +256,31 @@ class TestRedirectValidation:
             auth_headers={
                 "Authorization": "Bearer top-secret",
                 "Cookie": "session=abc123",
-                "X-Trace": "keep-me",
             },
+            auth_scope_hosts={"docs.example.com"},
+        )
+        client._session = _FakeSession(
+            [
+                _FakeResponse(
+                    200,
+                    headers={"Content-Type": "text/html"},
+                    chunks=[b"ok"],
+                    url="https://evil.example/collect",
+                )
+            ]
+        )
+
+        await client.get("https://evil.example/collect", headers={"X-Trace": "keep-me"})
+
+        assert client._session is not None
+        _, kwargs = client._session.calls[0]
+        assert kwargs["headers"] == {"X-Trace": "keep-me"}
+
+    @pytest.mark.asyncio
+    async def test_http_client_strips_custom_auth_headers_for_off_scope_requests(self) -> None:
+        client = AsyncHttpClient(
+            rate_limiter=_DummyRateLimiter(),
+            auth_headers={"X-Api-Key": "top-secret"},
             auth_scope_hosts={"docs.example.com"},
         )
         client._session = _FakeSession(
@@ -275,7 +298,36 @@ class TestRedirectValidation:
 
         assert client._session is not None
         _, kwargs = client._session.calls[0]
-        assert kwargs["headers"] == {"X-Trace": "keep-me"}
+        assert kwargs["headers"] == {}
+
+    @pytest.mark.asyncio
+    async def test_http_client_strips_custom_auth_headers_on_cross_origin_redirect(self) -> None:
+        client = AsyncHttpClient(
+            rate_limiter=_DummyRateLimiter(),
+            auth_headers={"X-Api-Key": "top-secret"},
+            auth_scope_hosts={"docs.example.com"},
+        )
+        client._session = _FakeSession(
+            [
+                _FakeResponse(
+                    302,
+                    headers={"Location": "https://evil.example/collect"},
+                    url="https://docs.example.com/start",
+                ),
+                _FakeResponse(
+                    200,
+                    headers={"Content-Type": "text/html"},
+                    chunks=[b"ok"],
+                    url="https://evil.example/collect",
+                ),
+            ]
+        )
+
+        await client.get("https://docs.example.com/start")
+
+        assert client._session is not None
+        assert client._session.calls[0][1]["headers"] == {"X-Api-Key": "top-secret"}
+        assert client._session.calls[1][1]["headers"] == {}
 
     def test_http_client_rejects_insecure_tls_override(self) -> None:
         with pytest.raises(ValueError, match="Insecure TLS is not supported"):

@@ -10,7 +10,6 @@
 # Core package and shipped subprojects
 /src/docpull/   @raintree-technology
 /mcp/           @raintree-technology
-/web/           @raintree-technology
 /security/      @raintree-technology
 
 # Documentation

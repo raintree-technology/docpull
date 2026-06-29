@@ -9,6 +9,8 @@ const DEFAULT_OPENAI_TIMEOUT_MS = 30_000;
 const DEFAULT_OPENAI_MAX_RETRIES = 2;
 const DEFAULT_CIRCUIT_FAILURE_THRESHOLD = 5;
 const DEFAULT_CIRCUIT_RESET_MS = 60_000;
+const DEFAULT_EMBEDDING_MAX_INPUT_TOKENS = 0;
+const MAX_EMBEDDING_INPUT_TOKENS = 100_000_000;
 
 const OPENAI_TIMEOUT_MS = readIntegerEnv(
 	"OPENAI_TIMEOUT_MS",
@@ -30,6 +32,8 @@ const CIRCUIT_RESET_MS = readIntegerEnv(
 	DEFAULT_CIRCUIT_RESET_MS,
 	{ min: 1_000, max: 3_600_000 },
 );
+
+let embeddingInputTokensUsed = 0;
 
 class CircuitBreaker {
 	private failures = 0;
@@ -90,11 +94,45 @@ export function requireConfiguredOpenAIClient(): OpenAI {
 	return client;
 }
 
+export function estimateEmbeddingInputTokens(input: string | string[]): number {
+	const values = Array.isArray(input) ? input : [input];
+	return values.reduce((total, text) => total + Math.max(1, Math.ceil(text.length / 4)), 0);
+}
+
+export function resetEmbeddingQuotaForTests(): void {
+	embeddingInputTokensUsed = 0;
+}
+
+function readEmbeddingMaxInputTokens(): number {
+	return readIntegerEnv(
+		"DOCPULL_MCP_EMBEDDING_MAX_INPUT_TOKENS",
+		DEFAULT_EMBEDDING_MAX_INPUT_TOKENS,
+		{ min: 0, max: MAX_EMBEDDING_INPUT_TOKENS },
+	);
+}
+
+function reserveEmbeddingQuota(input: string | string[]): void {
+	const maxInputTokens = readEmbeddingMaxInputTokens();
+	if (maxInputTokens <= 0) {
+		throw new Error(
+			"OpenAI embedding quota is not configured; set DOCPULL_MCP_EMBEDDING_MAX_INPUT_TOKENS to a positive token budget",
+		);
+	}
+	const estimatedTokens = estimateEmbeddingInputTokens(input);
+	if (embeddingInputTokensUsed + estimatedTokens > maxInputTokens) {
+		throw new Error(
+			`OpenAI embedding quota exceeded: ${embeddingInputTokensUsed + estimatedTokens}/${maxInputTokens} estimated input tokens`,
+		);
+	}
+	embeddingInputTokensUsed += estimatedTokens;
+}
+
 export async function createEmbeddings(
 	client: OpenAI,
 	input: string | string[],
 ): Promise<number[][]> {
 	embeddingCircuit.beforeRequest();
+	reserveEmbeddingQuota(input);
 	try {
 		const response = await client.embeddings.create(
 			{

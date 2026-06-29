@@ -73,8 +73,8 @@ Partial local capture should produce a concrete ladder, not vague advice:
 
 - Local discovery gaps: suggest `docpull discover scan`, URL files, sitemap
   imports, and `discover fetch` before paid providers.
-- JS-rendered public pages: suggest local `--render fallback` before cloud
-  rendering.
+- JS-rendered public pages: suggest trusted-target local `--render fallback`
+  before cloud rendering.
 - Search-to-evidence gaps: suggest a BYOK provider dry run first, with provider
   names, estimated paid request count, and estimated cost guard.
 - Cloud rendering: suggest only after local rendering or local infrastructure is
@@ -184,14 +184,14 @@ static HTML, without changing the default browser-free posture.
 
 ```bash
 docpull URL --render off
-docpull URL --render agent-browser
-docpull URL --render fallback --render-runtime local
+DOCPULL_RENDER_TRUSTED_BROWSER_TARGETS=1 docpull URL --render agent-browser
+DOCPULL_RENDER_TRUSTED_BROWSER_TARGETS=1 docpull URL --render fallback --render-runtime local
 docpull render --check
 docpull render doctor
-docpull render URL --runtime local --output-dir ./rendered
-docpull render URL --runtime local --agent-browser-bin /path/to/agent-browser
-docpull render URL --runtime vercel --output-dir ./rendered-vercel
-docpull render URL --runtime e2b --template docpull-agent-browser --output-dir ./rendered-e2b
+DOCPULL_RENDER_TRUSTED_BROWSER_TARGETS=1 docpull render URL --runtime local --output-dir ./rendered
+DOCPULL_RENDER_TRUSTED_BROWSER_TARGETS=1 docpull render URL --runtime local --agent-browser-bin /path/to/agent-browser
+DOCPULL_RENDER_TRUSTED_BROWSER_TARGETS=1 docpull render URL --runtime vercel --output-dir ./rendered-vercel
+DOCPULL_RENDER_TRUSTED_BROWSER_TARGETS=1 docpull render URL --runtime e2b --template docpull-agent-browser --output-dir ./rendered-e2b
 ```
 
 Python SDK:

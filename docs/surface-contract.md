@@ -2,7 +2,11 @@
 
 DocPull exposes the same core workflows through CLI, Python SDK, and MCP, with each surface optimized for its user.
 
-In this project, **API** means the Python SDK / library API. DocPull does not currently ship a hosted HTTP API. If a hosted API is added later, it should get its own contract instead of being implied by the SDK contract.
+In this project, **API** means the Python SDK / library API unless explicitly
+qualified as the hosted HTTP API. The hosted HTTP
+API is a separate control-plane contract documented in
+[Hosted API Contract](hosted-api.md) and implemented by the `docpull.hosted`
+ASGI MVP.
 
 Hosted execution is a product boundary, not a hidden default. The OSS surfaces
 own local evidence production, BYOK provider escalation, budget/accounting
@@ -18,6 +22,7 @@ SLAs, or bundled provider billing.
 | CLI | Full human/operator workflow surface | Explicit commands, diagnostics, file outputs, provider setup, benchmark and release-adjacent workflows |
 | Python SDK/API | Stable programmatic core | Typed imports, fetch/scrape/config primitives, chunking and local search helpers |
 | MCP | Curated agent-safe tool surface | Structured schemas, safe fetch/cache/search/read flows, source aliases, bounded pack actions |
+| Hosted HTTP API | Managed control plane | Org-scoped projects, sync jobs, diffs, exports, releases, webhooks, audit events |
 
 ## Parity Classes
 
@@ -34,11 +39,12 @@ DocPull targets capability alignment, not 1:1 flag parity. MCP should not mirror
 | Capability | CLI | Python SDK/API | MCP | Contract |
 | --- | --- | --- | --- | --- |
 | Fetch one URL | `docpull <url> --single` or default crawl entry | `fetch_one`, `fetch_blocking`, `Fetcher` | `fetch_url` | Core-aligned |
-| Optional rendering | `docpull <url> --render ...`, `docpull render ... --runtime local\|vercel\|e2b`, cloud controls for live smoke, budget caps, prebuilt agent-browser templates, and E2B templates | `RenderConfig`, `Renderer`, `AgentBrowserRenderer`, `VercelSandboxRenderer`, `E2BSandboxRenderer`, `estimate_cloud_render_cost_usd`, `render_url`, `render_url_to_directory`, fetch config | `render_url` with runtime controls; `fetch_url` stays browser-free | Core-aligned |
+| Optional rendering | `docpull <url> --render ...`, `docpull render ... --runtime local\|vercel\|e2b`, trusted-target acknowledgement, cloud controls for live smoke, budget caps, prebuilt agent-browser templates, and E2B templates | `RenderConfig`, `Renderer`, `AgentBrowserRenderer`, `VercelSandboxRenderer`, `E2BSandboxRenderer`, `estimate_cloud_render_cost_usd`, `render_url`, `render_url_to_directory`, fetch config | `render_url` with runtime controls; `fetch_url` stays browser-free | Core-aligned |
 | Crawl public web/source | `docpull <url>` with crawl/output flags | `Fetcher`, `Scraper`, config models | `ensure_docs` for named aliases | Adapted |
 | Output Markdown / NDJSON / SQLite / OKF | CLI output flags | Pipeline/config primitives | Indirect through fetched Markdown and pack tools | Adapted |
 | List configured sources | Not a primary CLI command | `docpull.mcp.sources` internals, not public SDK | `list_sources` | MCP-focused |
 | List cached/indexed sources | Not a primary CLI command | Local filesystem/search helpers | `list_indexed` | MCP-focused |
+| Project lifecycle | `docpull init`, `add`, `sync`, `diff`, `status`, `history`, `review`, `release context-pack`, `remote ...` | `docpull.project` helpers | Not exposed yet | Hosted API mirrors project/source/job/run/diff/export/release routes |
 | Search cached sources | SQLite/local search helpers where applicable | `search_sqlite_documents` | `grep_docs` | Adapted |
 | Read cached source by path/range | Filesystem responsibility | Filesystem responsibility | `read_doc` | MCP-specific |
 | Add/remove source aliases | Plugin/MCP workflow, not core CLI | Source internals, not public SDK | `add_source`, `remove_source` | MCP-specific |
@@ -48,6 +54,8 @@ DocPull targets capability alignment, not 1:1 flag parity. MCP should not mirror
 | Build/query local source graphs | `docpull graph build`, `docpull graph status`, `docpull graph query`, `docpull graph neighbors`, `docpull graph refresh` | `build_graph`, `load_graph`, `graph_status`, `query_graph`, `graph_neighbors`, `refresh_graph` | `graph_build`, `graph_status`, `graph_query`, `graph_neighbors`, `graph_refresh` | Core-aligned |
 | Provider-neutral discovery packs | `docpull discover scan`, `docpull discover import`, `docpull discover urls`, `docpull discover sitemap`, `docpull discover select`, `docpull discover fetch` | `CandidateSourceRecord`, `records_from_site_scan`, discovery pack helpers in `docpull.discovery` | `discover_sources` creates candidate packs; `fetch_discovered_sources` selects candidates for the CLI/operator fetch path | Core-aligned |
 | Provider-neutral parity packs | `docpull extract-pack`, `docpull map`, `docpull crawl-pack`, `docpull research-pack`, `docpull entities-pack` | `extract_pack`, `map_sources`, `crawl_pack`, `research_pack`, `entities_pack`, `validate_structured_output` in `docpull.parity` | `extract_pack`, `map_sources`, `crawl_pack`, `research_pack`, `entities_pack` | Core-aligned |
+| Typed context packs | `docpull brand-pack`, `docpull styleguide-pack`, `docpull product-pack`, `docpull extract-schema`, `docpull image-pack`, `docpull screenshot-pack` | `build_brand_pack`, `build_styleguide_pack`, `build_product_pack`, `extract_schema`, `build_image_pack`, `capture_screenshot_pack` | `brand_pack`, `styleguide_pack`, `product_pack`, `extract_schema`, `image_pack`, `screenshot_pack` | Core-aligned |
+| Unified search packs | `docpull search-pack "query" --provider local\|parallel\|tavily\|exa\|context` | `build_search_pack` | `search_pack` with explicit provider/budget controls | Core-aligned |
 | Source policy files | `docpull policy validate`, `docpull policy explain`, `--policy` on discovery commands | `PolicyConfig` in `docpull.policy` | `validate_policy` over the same typed config | Core-aligned |
 | Budget/accounting policy | `--budget`, `--explain-route`, `run.accounting.json`, `docpull benchmark quick --zero-dollar --target-set zero-dollar`, policy `budget.maximum_paid_cost_usd` | `BudgetConfig`, accounting helpers, `PolicyConfig.budget`, zero-dollar benchmark classification | `budget` on paid-capable write tools | Core-aligned |
 | Exports, local pack server, and report sharing | `docpull export` for JSONL, Sheets CSV/TSV, n8n JSON, Vercel AI JSON, CrewAI JSON, warehouse NDJSON, Parquet, and agent references; `docpull serve`; `docpull share` for Markdown/HTML report URLs | `export_pack`, `create_pack_app`, `create_report_server`, `render_report_document`, `load_pack` | `export_pack`, `serve_pack_status` | Adapted |
@@ -63,5 +71,5 @@ DocPull targets capability alignment, not 1:1 flag parity. MCP should not mirror
 
 - Runtime behavior should not change only to make surfaces look symmetric.
 - New core workflows should first define the durable capability, then choose the right form for each surface.
-- Public docs should say "CLI, Python SDK/API, and MCP" when describing surfaces, and should not imply a hosted API.
+- Public docs should say "CLI, Python SDK/API, and MCP" when describing local OSS surfaces, and should explicitly name the hosted HTTP API when describing the managed control plane.
 - MCP tool additions should be agent-safe, schema-first, and narrower than the CLI unless there is a clear agent use case.

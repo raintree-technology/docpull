@@ -94,13 +94,24 @@ def test_ci_builds_checks_and_smoke_installs_distribution() -> None:
     assert ".pkg-smoke/bin/docpull --version" in ci
 
 
-def test_publish_workflow_smoke_installs_distribution_before_upload() -> None:
+def test_publish_workflow_builds_artifact_before_unlocked_release_gates() -> None:
     publish = (WORKFLOW_DIR / "publish.yml").read_text()
+    build_section, gate_and_publish = publish.split("\n  release-gates:\n", 1)
+    gate_section, publish_section = gate_and_publish.split("\n  publish:\n", 1)
 
+    assert "python -m build --no-isolation" in build_section
+    assert "actions/upload-artifact" in build_section
+    assert "if-no-files-found: error" in build_section
+    assert "retention-days: 7" in build_section
+    assert 'pip install --no-build-isolation -e ".[all,dev]"' not in build_section
+
+    assert 'pip install --no-build-isolation -e ".[all,dev]"' in gate_section
     assert "python scripts/sync_release_metadata.py --check" in publish
+    assert "actions/download-artifact" in gate_section
     assert "python -m venv .release-smoke" in publish
     assert ".release-smoke/bin/python -m pip install dist/*.whl" in publish
     assert ".release-smoke/bin/docpull --version" in publish
+    assert "needs: [build, release-gates]" in publish_section
 
 
 def test_security_and_publish_bandit_scan_scripts() -> None:

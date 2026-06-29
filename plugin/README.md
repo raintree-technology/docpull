@@ -9,9 +9,9 @@ for the boundary between the plugin's MCP tools and the broader CLI/SDK.
 ## What you get
 
 <!-- docpull:mcp-tools:start -->
-- **MCP server** (36 tools):
+- **MCP server** (43 tools):
   - Read: `fetch_url`, `list_sources`, `list_indexed`, `grep_docs`, `read_doc`, `pack_score`, `pack_diff`, `pack_citations`, `pack_entities`, `pack_search`, `pack_brief`, `graph_status`, `graph_query`, `graph_neighbors`, `validate_policy`, `serve_pack_status`
-  - Write: `render_url`, `ensure_docs`, `parallel_context_pack`, `discover_sources`, `fetch_discovered_sources`, `extract_pack`, `map_sources`, `crawl_pack`, `research_pack`, `entities_pack`, `parallel_api_pack`, `refresh_pack`, `audit_pack`, `answer_pack`, `pack_prepare`, `graph_build`, `graph_refresh`, `export_pack`, `add_source`, `remove_source`
+  - Write: `render_url`, `ensure_docs`, `parallel_context_pack`, `discover_sources`, `fetch_discovered_sources`, `extract_pack`, `map_sources`, `crawl_pack`, `research_pack`, `entities_pack`, `brand_pack`, `styleguide_pack`, `product_pack`, `extract_schema`, `image_pack`, `screenshot_pack`, `search_pack`, `parallel_api_pack`, `refresh_pack`, `audit_pack`, `answer_pack`, `pack_prepare`, `graph_build`, `graph_refresh`, `export_pack`, `add_source`, `remove_source`
   - All read tools advertise `readOnlyHint` so hosts that auto-approve safe tools won't prompt for them.
 <!-- docpull:mcp-tools:end -->
 - **Claude Code slash commands**:
@@ -31,7 +31,7 @@ MCP server is available:
 ```bash
 pip install 'docpull[mcp]'          # or: pipx install 'docpull[mcp]'
                                     #     uv tool install 'docpull[mcp]'
-docpull --version                   # should print 5.0.2 or newer
+docpull --version                   # should print 5.5.0 or newer
 docpull mcp --help                  # confirm the MCP subcommand is wired
 ```
 
