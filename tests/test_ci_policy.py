@@ -19,6 +19,12 @@ PYTHON_CLASSIFIER_RE = re.compile(r'"Programming Language :: Python :: (3\.\d+)"
 CI_MATRIX_RE = re.compile(r"python-version:\s*\[(?P<versions>[^\]]+)\]")
 SECTION_RE = re.compile(r"^\[[^\]]+]")
 PROJECT_VERSION_RE = re.compile(r'^version\s*=\s*"([^"]+)"(?:\s*#.*)?$')
+ACTION_PIN_EXCEPTIONS = {
+    # The PyPI trusted-publishing action failed workflow startup when pinned to
+    # the resolved commit SHA in this repository; release/v1 is the upstream
+    # supported stable entrypoint for the OIDC publish flow.
+    ("pypa/gh-action-pypi-publish", "release/v1"),
+}
 
 
 def project_version() -> str:
@@ -42,7 +48,11 @@ def test_github_actions_are_pinned_to_full_commit_shas() -> None:
     for path in sorted(WORKFLOW_DIR.glob("*.yml")):
         for lineno, line in enumerate(path.read_text().splitlines(), start=1):
             match = USE_RE.search(line)
-            if match and not FULL_SHA_RE.fullmatch(match.group(2)):
+            if (
+                match
+                and (match.group(1), match.group(2)) not in ACTION_PIN_EXCEPTIONS
+                and not FULL_SHA_RE.fullmatch(match.group(2))
+            ):
                 offenders.append(f"{path.relative_to(REPO_ROOT)}:{lineno}: {match.group(0)}")
 
     assert offenders == []
