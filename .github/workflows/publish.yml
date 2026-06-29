@@ -46,7 +46,7 @@ jobs:
       - name: Read pyproject.toml version (and verify tag match on tag push)
         id: meta
         env:
-          REQUESTED_VERSION: ${{ inputs.version || '' }}
+          REQUESTED_VERSION: ${{ github.event.inputs.version || '' }}
         run: |
           set -e
           PROJECT_VERSION=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
@@ -135,7 +135,7 @@ jobs:
     runs-on: ubuntu-24.04
     environment:
       name: pypi
-      url: https://pypi.org/project/docpull/${{ needs.build.outputs.version }}/
+      url: https://pypi.org/project/docpull/
     permissions:
       id-token: write  # Required for OIDC / trusted publishing
     steps:
