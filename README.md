@@ -1,6 +1,6 @@
 # docpull
 
-**Turn public web sources into local Markdown, NDJSON, and agent-ready context packs. Browser-free by default.**
+**Keep AI agents synced with changing public docs. Browser-free by default.**
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![PyPI version](https://badge.fury.io/py/docpull.svg)](https://badge.fury.io/py/docpull)
@@ -8,10 +8,15 @@
 [![GitHub stars](https://img.shields.io/github/stars/raintree-technology/docpull?style=social)](https://github.com/raintree-technology/docpull/stargazers)
 [![License: MIT](https://img.shields.io/github/license/raintree-technology/docpull)](https://github.com/raintree-technology/docpull/blob/main/LICENSE)
 
-docpull is a Python CLI, SDK, and MCP server that fetches public or explicitly
-authorized static/server-rendered web pages and converts them into clean,
-auditable local artifacts for LLMs, retrieval-augmented generation (RAG),
-offline research, and agent workflows.
+DocPull turns public docs and web sources into refreshable, cited, agent-ready
+context packs. Define source sets once, sync them over time, diff what changed,
+and export fresh context for Cursor, Claude, Codex, OpenAI, LlamaIndex,
+LangChain, MCP clients, and RAG pipelines.
+
+The original `docpull URL ...` workflow still works: fetch public or explicitly
+authorized static/server-rendered web pages and write clean Markdown, NDJSON,
+SQLite, or OKF outputs. Project mode adds the persistent evidence lifecycle on
+top: sources, runs, diffs, exports, evals, accounting, and local auditability.
 
 DocPull is local-first: direct fetching, sitemap/link discovery, extraction,
 indexing, pack intelligence, and local `agent-browser` rendering can run with no
@@ -40,6 +45,34 @@ reason unless you explicitly opt into the local `agent-browser` renderer. See
 pip install docpull
 ```
 
+## Project Quickstart
+
+```bash
+docpull init stripe-docs
+docpull add https://docs.stripe.com
+docpull sync
+docpull diff
+docpull export context-pack --target cursor
+```
+
+Example diff after a later sync:
+
+```text
+Project diff: +4 -2 ~18 api=2 pricing=1
+
+Changed pages:
+- /payments/payment-intents
+  likely API behavior change
+- /billing/subscriptions
+  pricing / billing change
+- /webhooks
+  likely API behavior change
+
+0 failed URLs
+0 robots blocked
+0 paid/cloud routes used
+```
+
 Install optional extras as needed:
 
 ```bash
@@ -58,7 +91,11 @@ install. Install an `agent-browser` compatible CLI separately, put it on
 `PATH`, or set `DOCPULL_AGENT_BROWSER_BIN=/path/to/agent-browser`. Verify the
 runtime with `docpull render --check`. Render targets must use HTTPS except for
 localhost/loopback HTTP during local testing, and DocPull keeps renderer action
-permissions locked down to HTML retrieval only.
+permissions locked down to HTML retrieval only. Because the current
+`agent-browser` CLI contract cannot enforce redirect, subresource, or
+connect-time DNS allow-lists, network browser rendering fails closed unless the
+operator sets `DOCPULL_RENDER_TRUSTED_BROWSER_TARGETS=1` for trusted targets.
+For localhost/loopback HTTP tests, set `DOCPULL_RENDER_ALLOW_LOCAL_TARGETS=1`.
 
 For stronger isolation, cloud runtimes are available explicitly:
 `docpull render URL --runtime vercel` uses the Vercel Sandbox CLI and Vercel
@@ -76,17 +113,17 @@ Use `--budget 0` when a run must not make paid-capable provider or cloud calls:
 ```bash
 docpull https://docs.example.com --budget 0 -o ./docs/example
 docpull discover scan https://docs.example.com -o ./packs/discovery
-docpull render https://example.com/app --runtime local --budget 0
+DOCPULL_RENDER_TRUSTED_BROWSER_TARGETS=1 docpull render https://example.com/app --runtime local --budget 0
 docpull providers context-pack "Find official docs" --provider all --dry-run --budget 0 --json
 docpull benchmark quick --zero-dollar --target-set zero-dollar --provider all
 ```
 
 Under a zero budget, local cache, direct HTTP, sitemap/static-link discovery,
 local extraction, local indexing, pack analysis, monitors, and local
-`agent-browser` rendering remain allowed. Live Tavily, Exa, Parallel, Vercel
-Sandbox, and E2B calls are blocked before execution. Runs involving a budget or
-paid-capable route write `run.accounting.json` with non-secret route, cost,
-HTTP/cache, browser, and blocked-action metadata.
+`agent-browser` rendering for trusted targets remain allowed. Live Tavily, Exa,
+Parallel, Vercel Sandbox, and E2B calls are blocked before execution. Runs
+involving a budget or paid-capable route write `run.accounting.json` with
+non-secret route, cost, HTTP/cache, browser, and blocked-action metadata.
 
 Use `docpull discover scan URL` to build a provider-free discovery pack from
 open site hints: `llms.txt`, RSS/Atom feeds, OpenAPI specs, sitemap indexes,
@@ -95,11 +132,11 @@ contract as provider imports and URL/sitemap files, so the next step is still
 `docpull discover select` or `docpull discover fetch`.
 
 When a zero-dollar benchmark or local run is partial, DocPull reports the
-lowest-friction escalation path before spending money: local `--render fallback`
-first, BYOK providers next, and cloud rendering only when local rendering or
-infrastructure is the blocker. Benchmark reports include suggested commands,
-estimated paid request counts, and estimated paid cost guards before any
-provider or cloud call is made.
+lowest-friction escalation path before spending money: trusted-target local
+`--render fallback` first, BYOK providers next, and cloud rendering only when
+local rendering or infrastructure is the blocker. Benchmark reports include
+suggested commands, estimated paid request counts, and estimated paid cost
+guards before any provider or cloud call is made.
 
 The `zero-dollar` benchmark target set is the Phase 2 measurement matrix. It
 keeps the existing docs/provider targets and adds JS-heavy docs, pricing,
@@ -119,6 +156,80 @@ alerts, dashboards, collaboration, retention, SSO, audit logs, SLAs, and
 bundled provider billing. The hosted boundary does not change the OSS default:
 no hidden paid calls, no CAPTCHA bypass, no stealth scraping, and no claim of a
 proprietary web-scale index.
+
+## Persistent Projects
+
+Use project mode when a source corpus needs to stay fresh over time. A project
+is a local `docpull.yaml` plus a `.docpull/` state directory containing run
+history, cache, manifests, context-pack exports, eval sets, and a SQLite index.
+
+```bash
+docpull init stripe-docs
+docpull add https://docs.stripe.com
+docpull sync
+docpull diff
+docpull export context-pack --target cursor
+```
+
+Each sync writes a normal local DocPull pack under `.docpull/runs/<run_id>/`,
+including `run.json`, `documents.jsonl`, `chunks.jsonl`, `manifest.json`,
+`documents.ndjson`, `corpus.manifest.json`, `sources.md`,
+`source-health.json`, `local.pack.json`, and accounting metadata.
+
+```bash
+# Inspect the latest project state
+docpull status
+
+# Show run history
+docpull history
+
+# Diff the latest two runs, with deterministic local categories by default
+docpull diff
+
+# Write a review summary for the latest run
+docpull review
+
+# Create a versioned context-pack release
+docpull release context-pack --target cursor --tag stripe-docs-v1
+
+# Generate eval cases from changed or latest documents
+docpull eval-set --limit 25
+
+# One-command project sync, diff, and export for one source
+docpull watch https://docs.stripe.com --export cursor --alert changes
+```
+
+`docpull diff` is hash-based and deterministic locally. Optional BYOK semantic
+summaries are advisory and skip cleanly when no model key is configured.
+Use `docpull add URL --discover` or `docpull sync --update-discovery` to
+refresh and persist discovered source URLs in `docpull.yaml`; sync then uses
+that stored URL set for repeatable exact refreshes.
+
+For authenticated sources, store only environment variable references in
+`docpull.yaml`; DocPull resolves values in memory at sync time and writes only
+masked auth type/readiness to status, manifests, reviews, releases, and
+webhooks:
+
+```yaml
+sources:
+  - name: internal-docs
+    url: https://docs.example.com
+    auth:
+      type: bearer_env
+      env: EXAMPLE_DOCS_TOKEN
+      policy: explicit-private
+```
+
+The commercial control-plane shape is API-led but not API-only: the local CLI
+remains the trust-building engine, while hosted DocPull manages projects, sync
+jobs, diffs, exports, releases, and signed webhooks through `/v1` JSON
+endpoints. The hosted ASGI MVP lives in `docpull.hosted`; `docpull remote ...`
+stores hosted API connection metadata and calls the same project lifecycle
+remotely. Remote bearer tokens are sent only to HTTPS API URLs by default;
+`--allow-insecure-local-http` is limited to localhost/loopback development.
+
+The launch screenshot for this flow lives at
+[`docs/launch-assets/docpull-project-diff-demo.png`](docs/launch-assets/docpull-project-diff-demo.png).
 
 ## 30-Second Usage
 
@@ -305,7 +416,8 @@ For those cases, use browser automation, such as Playwright, then pass rendered
 HTML or exported content into your pipeline. For simple public JS-rendered
 pages, `docpull render` and `--render fallback` provide an explicit local
 fallback without changing the default crawler behavior. The fallback requires
-the optional external `agent-browser` backend.
+the optional external `agent-browser` backend and
+`DOCPULL_RENDER_TRUSTED_BROWSER_TARGETS=1` for trusted network targets.
 
 ## How It Compares
 

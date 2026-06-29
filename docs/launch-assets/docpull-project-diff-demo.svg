@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="860" viewBox="0 0 1400 860" role="img" aria-labelledby="title desc">
+  <title id="title">DocPull project diff terminal demo</title>
+  <desc id="desc">A terminal-style screenshot of docpull diff showing changed documentation pages, likely API behavior changes, pricing changes, and source health.</desc>
+  <rect width="1400" height="860" fill="#0f1115"/>
+  <rect x="48" y="44" width="1304" height="772" rx="18" fill="#151922" stroke="#2a3140" stroke-width="2"/>
+  <circle cx="84" cy="82" r="9" fill="#ff5f57"/>
+  <circle cx="114" cy="82" r="9" fill="#ffbd2e"/>
+  <circle cx="144" cy="82" r="9" fill="#28c840"/>
+  <text x="700" y="89" fill="#8b95a7" font-family="Menlo, Consolas, monospace" font-size="19" text-anchor="middle">fintech-docs · docpull diff</text>
+
+  <g font-family="Menlo, Consolas, monospace" font-size="28">
+    <text x="84" y="148" fill="#8b95a7">$</text>
+    <text x="122" y="148" fill="#e6edf3">docpull diff</text>
+  </g>
+
+  <rect x="84" y="182" width="1232" height="92" rx="12" fill="#10141c" stroke="#273244"/>
+  <g font-family="Menlo, Consolas, monospace" font-size="28" font-weight="700">
+    <text x="118" y="239" fill="#e6edf3">Project diff:</text>
+    <text x="364" y="239" fill="#3fb950">+4 added</text>
+    <text x="548" y="239" fill="#f85149">-2 removed</text>
+    <text x="754" y="239" fill="#d29922">~18 changed</text>
+    <text x="990" y="239" fill="#58a6ff">api=2</text>
+    <text x="1110" y="239" fill="#bc8cff">pricing=1</text>
+  </g>
+
+  <g font-family="Menlo, Consolas, monospace" font-size="24">
+    <text x="84" y="332" fill="#e6edf3" font-weight="700">Changed pages</text>
+
+    <text x="112" y="384" fill="#d29922">~</text>
+    <text x="150" y="384" fill="#e6edf3">/payments/payment-intents</text>
+    <text x="150" y="421" fill="#58a6ff">likely API behavior change</text>
+    <text x="150" y="454" fill="#8b95a7">signals: required, parameter, webhook</text>
+
+    <text x="112" y="508" fill="#d29922">~</text>
+    <text x="150" y="508" fill="#e6edf3">/billing/subscriptions</text>
+    <text x="150" y="545" fill="#bc8cff">pricing / billing change</text>
+    <text x="150" y="578" fill="#8b95a7">signals: pricing, billing, plan</text>
+
+    <text x="112" y="632" fill="#d29922">~</text>
+    <text x="150" y="632" fill="#e6edf3">/webhooks</text>
+    <text x="150" y="669" fill="#58a6ff">likely API behavior change</text>
+    <text x="150" y="702" fill="#8b95a7">signals: webhook, retry, auth</text>
+
+    <text x="84" y="758" fill="#e6edf3" font-weight="700">Added / removed</text>
+    <text x="112" y="800" fill="#3fb950">+</text>
+    <text x="150" y="800" fill="#e6edf3">/checkout/embedded-components</text>
+    <text x="682" y="800" fill="#f85149">-</text>
+    <text x="720" y="800" fill="#e6edf3">/legacy/payment-methods</text>
+  </g>
+
+  <rect x="790" y="316" width="526" height="238" rx="12" fill="#10141c" stroke="#273244"/>
+  <g font-family="Menlo, Consolas, monospace">
+    <text x="826" y="364" fill="#e6edf3" font-size="24" font-weight="700">Source health</text>
+    <text x="826" y="415" fill="#3fb950" font-size="22">docs-stripe-com ok</text>
+    <text x="826" y="455" fill="#8b95a7" font-size="22">512 documents · 0 failed</text>
+    <text x="826" y="495" fill="#8b95a7" font-size="22">0 robots blocked</text>
+    <text x="826" y="535" fill="#8b95a7" font-size="22">0 paid/cloud routes used</text>
+  </g>
+</svg>

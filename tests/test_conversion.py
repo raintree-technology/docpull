@@ -547,8 +547,8 @@ _COOKIE_FIXTURES = [
 class TestCookieBannerStripping:
     """Vendor cookie/consent banner copy must not leak into Markdown body.
 
-    The FAQ at web/components/FAQ.tsx claims that 'common cookie/consent
-    banners' are stripped before conversion. These tests are the proof.
+    Public docs claim that common cookie/consent banners are stripped before
+    conversion. These tests are the proof.
     """
 
     def _convert(self, html: str) -> str:

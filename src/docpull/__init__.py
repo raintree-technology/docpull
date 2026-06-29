@@ -14,9 +14,18 @@ Usage:
             print(event)
 """
 
-__version__ = "5.0.2"
+__version__ = "5.5.0"
 
 from .cache import CacheManager, StreamingDeduplicator
+from .context_packs import (
+    build_brand_pack,
+    build_image_pack,
+    build_product_pack,
+    build_search_pack,
+    build_styleguide_pack,
+    capture_screenshot_pack,
+    extract_schema,
+)
 from .conversion.chunking import Chunk, TokenCounter, chunk_markdown
 from .core.fetcher import Fetcher, fetch_blocking, fetch_one
 from .exports import ExportResult, export_pack
@@ -104,6 +113,13 @@ __all__ = [
     "refresh_pack",
     "audit_pack",
     "answer_pack",
+    "build_brand_pack",
+    "build_styleguide_pack",
+    "build_product_pack",
+    "extract_schema",
+    "build_image_pack",
+    "capture_screenshot_pack",
+    "build_search_pack",
     "extract_pack",
     "map_sources",
     "crawl_pack",

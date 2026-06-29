@@ -16,11 +16,6 @@ eggs/
 .eggs/
 lib/
 lib64/
-# Exception: web/lib/ is Next.js app source, not Python build output. The bare
-# "lib/" rule above (from the Python template) matches any directory named lib,
-# which silently dropped web/lib/ source files (e.g. use-reduced-motion.ts) and
-# broke the Vercel build from a clean clone. Keep the web app's lib/ tracked.
-!web/lib/
 parts/
 sdist/
 var/

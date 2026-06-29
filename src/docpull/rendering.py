@@ -18,9 +18,12 @@ from typing import Any, Literal, Protocol
 from urllib.parse import urlparse
 
 from .models.config import RenderConfig
+from .security.url_validator import UrlValidator
 from .time_utils import utc_now_iso
 
 RENDERED_PAGE_SCHEMA_VERSION = 1
+_RENDER_LOCAL_TARGET_ENV = "DOCPULL_RENDER_ALLOW_LOCAL_TARGETS"
+_RENDER_TRUSTED_BROWSER_ENV = "DOCPULL_RENDER_TRUSTED_BROWSER_TARGETS"
 
 
 class RenderError(RuntimeError):
@@ -200,7 +203,7 @@ class AgentBrowserRenderer:
 
     async def render(self, url: str, config: RenderConfig) -> RenderedPage:
         allowed = effective_allowed_domains(url, config)
-        _ensure_url_allowed(url, allowed)
+        _validate_render_target(url, allowed)
         _ensure_action_policy_restrictive(config)
 
         command = build_agent_browser_command(url, config, binary=self._binary)
@@ -261,7 +264,7 @@ class VercelSandboxRenderer:
 
     async def render(self, url: str, config: RenderConfig) -> RenderedPage:
         allowed = effective_allowed_domains(url, config)
-        _ensure_url_allowed(url, allowed)
+        _validate_render_target(url, allowed)
         _ensure_action_policy_restrictive(config)
         _ensure_cloud_budget("vercel-sandbox", config)
 
@@ -313,7 +316,7 @@ class E2BSandboxRenderer:
 
     async def render(self, url: str, config: RenderConfig) -> RenderedPage:
         allowed = effective_allowed_domains(url, config)
-        _ensure_url_allowed(url, allowed)
+        _validate_render_target(url, allowed)
         _ensure_action_policy_restrictive(config)
         _ensure_cloud_budget("e2b-sandbox", config)
         return await asyncio.to_thread(self._render_sync, url, config)
@@ -832,6 +835,28 @@ def _ensure_url_allowed(url: str, allowed_domains: Sequence[str]) -> None:
     )
 
 
+def _validate_render_target(url: str, allowed_domains: Sequence[str]) -> None:
+    _ensure_url_allowed(url, allowed_domains)
+    parsed = urlparse(url)
+    host = parsed.hostname
+    if host and _local_render_override_enabled(parsed.scheme.lower(), host):
+        return
+
+    result = UrlValidator(allowed_schemes={"https"}).validate(url)
+    if not result.is_valid:
+        raise RenderError(f"Render URL validation failed for {url}: {result.rejection_reason}")
+    if os.environ.get(_RENDER_TRUSTED_BROWSER_ENV) != "1":
+        raise RenderError(
+            "Browser rendering is disabled for untrusted network targets because the current "
+            "agent-browser backend cannot enforce redirect, subresource, or connect-time DNS "
+            f"allow-lists. Set {_RENDER_TRUSTED_BROWSER_ENV}=1 only for trusted targets."
+        )
+
+
+def _local_render_override_enabled(scheme: str, host: str) -> bool:
+    return scheme == "http" and _is_loopback_host(host) and os.environ.get(_RENDER_LOCAL_TARGET_ENV) == "1"
+
+
 def _ensure_action_policy_restrictive(config: RenderConfig) -> None:
     enabled = [name for name, value in config.action_policy.model_dump().items() if value]
     if enabled:
@@ -934,6 +959,10 @@ _FILENAME_SAFE_RE = re.compile(r"[^\w\-.]+")
 
 def _url_to_html_filename(url: str) -> str:
     parsed = urlparse(url)
+    host = parsed.hostname or "url"
+    if parsed.port:
+        host = f"{host}-{parsed.port}"
+    host = _FILENAME_SAFE_RE.sub("_", host.lower().rstrip(".")).strip("._") or "url"
     path = parsed.path.strip("/")
     if not path:
         stem = "index"
@@ -941,4 +970,5 @@ def _url_to_html_filename(url: str) -> str:
         stem = "_".join(part for part in path.split("/") if part) or "index"
         stem = stem.rsplit(".", 1)[0] if stem.endswith((".html", ".htm")) else stem
     stem = _FILENAME_SAFE_RE.sub("_", stem).strip("._") or "index"
-    return f"{stem}.html"
+    digest = hashlib.sha256(url.encode("utf-8")).hexdigest()[:12]
+    return f"{host}_{stem[:80]}_{digest}.html"

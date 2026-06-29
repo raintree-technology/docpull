@@ -112,8 +112,8 @@ I would especially like feedback from people building coding agents, RAG/search 
 
 ## Existing Assets
 
-- Logo SVG: [`web/public/logo.svg`](../web/public/logo.svg)
-- Open Graph image: [`web/public/og-image.png`](../web/public/og-image.png)
+- Logo SVG: moved to the standalone `docpull-cloud` app at `public/logo.svg`.
+- Open Graph image: moved to the standalone `docpull-cloud` app at `public/og-image.png`.
 - README demo GIF: `https://pub-e85a1abca36f4fd8b4300a6ec2d6f45f.r2.dev/marketing/docpull/1768954147343-iaiziy-docpull-terminal-hero.gif`
 - Download chart: [`docs/cumulative-downloads-history.svg`](cumulative-downloads-history.svg)
 

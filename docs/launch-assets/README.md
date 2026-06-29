@@ -16,6 +16,10 @@ submissions.
 - `screenshot-examples-desktop-1280x720.png` - examples section.
 - `screenshot-hero-mobile-390x844.png` - mobile landing hero.
 - `screenshot-fullpage-desktop.png` - full-page desktop capture.
+- `docpull-project-diff-demo.png` - terminal-style project diff screenshot for
+  v5.1 launch/release posts.
+- `docpull-project-diff-demo.svg` - editable source for the project diff demo
+  screenshot.
 
 ## Video
 

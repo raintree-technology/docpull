@@ -91,6 +91,7 @@ describe("resolveConfiguredSource", () => {
 			"https://169.254.169.254.nip.io/latest/meta-data/", // wildcard rebinding
 			"https://10.0.0.1.sslip.io/admin",
 			"https://127.0.0.1.xip.io/",
+			"https://user:pass@docs.example.com/private",
 		]) {
 			expect(
 				normalizeSourceConfig("unsafe", {

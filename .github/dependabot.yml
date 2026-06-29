@@ -55,25 +55,6 @@ updates:
           - "twine"
           - "wheel"
 
-  # Web app npm dependencies
-  - package-ecosystem: "npm"
-    directory: "/web"
-    schedule:
-      interval: "daily"
-      time: "09:20"
-      timezone: "America/Los_Angeles"
-    open-pull-requests-limit: 10
-    labels:
-      - "dependencies"
-      - "web"
-    groups:
-      web-dependencies:
-        patterns:
-          - "*"
-        update-types:
-          - "minor"
-          - "patch"
-
   # MCP Bun dependencies
   - package-ecosystem: "bun"
     directory: "/mcp"

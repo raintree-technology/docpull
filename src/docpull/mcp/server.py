@@ -65,6 +65,15 @@ from ..accounting import (
     maybe_write_run_accounting,
     paid_action_blocked,
 )
+from ..context_packs import (
+    build_brand_pack,
+    build_image_pack,
+    build_product_pack,
+    build_search_pack,
+    build_styleguide_pack,
+    capture_screenshot_pack,
+    extract_schema,
+)
 from ..discovery import (
     CandidateSourceRecord,
     read_candidate_records,
@@ -607,6 +616,23 @@ _PARITY_WORKFLOW_OUTPUT_SCHEMA = {
         "local_first_limits": {"type": "array", "items": {"type": "string"}},
     },
     "required": ["workflow", "provider", "run_id", "status", "output_dir", "summary", "artifacts"],
+}
+
+_CONTEXT_PACK_OUTPUT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "schema_version": {"type": "integer"},
+        "generated_at": {"type": "string"},
+        "workflow": {"type": "string"},
+        "provider": {"type": "string"},
+        "status": {"type": "string"},
+        "input": {"type": "object"},
+        "summary": {"type": "object"},
+        "artifacts": {"type": "object"},
+        "warnings": {"type": "array", "items": {"type": "object"}},
+        "errors": {"type": "array", "items": {"type": "object"}},
+    },
+    "required": ["schema_version", "generated_at", "workflow", "provider", "status", "summary"],
 }
 
 
@@ -1239,6 +1265,146 @@ async def _dispatch_tool(
             entities_summary = entities_summary_raw if isinstance(entities_summary_raw, dict) else {}
             result = ToolResult(
                 f"Entities pack: {entities_summary.get('entity_count', 0)} entities",
+                data=payload,
+            )
+
+        elif name == "brand_pack":
+            brand_payload = await asyncio.to_thread(
+                build_brand_pack,
+                _require_str(arguments, "domain_or_url"),
+                email=arguments.get("email") if isinstance(arguments.get("email"), str) else None,
+                name=arguments.get("name") if isinstance(arguments.get("name"), str) else None,
+                ticker=arguments.get("ticker") if isinstance(arguments.get("ticker"), str) else None,
+                output_dir=_path_arg(arguments, "output_dir", "packs/brand"),
+                policy=_policy_arg(arguments),
+                allow_free_email=bool(arguments.get("allow_free_email", False)),
+                download_assets=bool(arguments.get("download_assets", False)),
+                max_pages=_coerce_int(arguments.get("max_pages"), name="max_pages", default=4),
+            )
+            summary_raw = brand_payload.get("summary")
+            summary = summary_raw if isinstance(summary_raw, dict) else {}
+            result = ToolResult(
+                f"Brand pack: {brand_payload['status']} -> {summary.get('domain', '')}",
+                data=brand_payload,
+            )
+
+        elif name == "styleguide_pack":
+            payload = await asyncio.to_thread(
+                build_styleguide_pack,
+                _require_str(arguments, "domain_or_url"),
+                output_dir=_path_arg(arguments, "output_dir", "packs/styleguide"),
+                policy=_policy_arg(arguments),
+                render=bool(arguments.get("render", False)),
+                max_stylesheets=_coerce_int(
+                    arguments.get("max_stylesheets"),
+                    name="max_stylesheets",
+                    default=8,
+                ),
+            )
+            result = ToolResult(
+                f"Styleguide pack: {payload['status']} -> {payload.get('summary', {})}",
+                data=payload,
+            )
+
+        elif name == "product_pack":
+            mode = arguments.get("mode", "page")
+            if mode not in {"page", "site"}:
+                raise ValueError("'mode' must be page or site")
+            payload = await asyncio.to_thread(
+                build_product_pack,
+                _require_str(arguments, "url_or_domain"),
+                mode=mode,
+                output_dir=_path_arg(arguments, "output_dir", "packs/products"),
+                policy=_policy_arg(arguments),
+                max_pages=_coerce_int(arguments.get("max_pages"), name="max_pages", default=6),
+            )
+            result = ToolResult(
+                f"Product pack: {payload['status']} -> {payload.get('summary', {})}",
+                data=payload,
+            )
+
+        elif name == "extract_schema":
+            payload = await asyncio.to_thread(
+                extract_schema,
+                _require_str(arguments, "url_or_pack"),
+                schema_path=_path_arg(arguments, "schema_path"),
+                output_dir=_path_arg(arguments, "output_dir", "packs/schema"),
+                policy=_policy_arg(arguments),
+                fact_check=bool(arguments.get("fact_check", False)),
+            )
+            result = ToolResult(
+                f"Extract schema: {payload['status']} -> {payload.get('summary', {})}",
+                data=payload,
+            )
+
+        elif name == "image_pack":
+            payload = await asyncio.to_thread(
+                build_image_pack,
+                _require_str(arguments, "url_or_pack"),
+                output_dir=_path_arg(arguments, "output_dir", "packs/images"),
+                policy=_policy_arg(arguments),
+                download_assets=bool(arguments.get("download_assets", False)),
+                max_assets=_coerce_int(arguments.get("max_assets"), name="max_assets", default=30),
+            )
+            result = ToolResult(
+                f"Image pack: {payload['status']} -> {payload.get('summary', {})}",
+                data=payload,
+            )
+
+        elif name == "screenshot_pack":
+            payload = await asyncio.to_thread(
+                capture_screenshot_pack,
+                _require_str(arguments, "url"),
+                output_dir=_path_arg(arguments, "output_dir", "packs/screenshot"),
+                policy=_policy_arg(arguments),
+                viewport=arguments.get("viewport", "1280x720")
+                if isinstance(arguments.get("viewport", "1280x720"), str)
+                else "1280x720",
+                full_page=bool(arguments.get("full_page", False)),
+                wait_for=arguments.get("wait_for", "load")
+                if isinstance(arguments.get("wait_for", "load"), str)
+                else "load",
+                agent_browser_binary=arguments.get("agent_browser_binary")
+                if isinstance(arguments.get("agent_browser_binary"), str)
+                else None,
+            )
+            result = ToolResult(
+                f"Screenshot pack: {payload['status']} -> {payload.get('summary', {})}",
+                data=payload,
+            )
+
+        elif name == "search_pack":
+            provider = arguments.get("provider", "local")
+            if provider not in {"local", "parallel", "tavily", "exa", "context"}:
+                raise ValueError("'provider' must be local, parallel, tavily, exa, or context")
+            budget_arg = arguments.get("budget")
+            if budget_arg is not None and not isinstance(budget_arg, int | float):
+                raise ValueError("'budget' must be a number")
+            search_max_estimated_cost_arg = arguments.get("max_estimated_cost")
+            if search_max_estimated_cost_arg is not None and not isinstance(
+                search_max_estimated_cost_arg,
+                int | float,
+            ):
+                raise ValueError("'max_estimated_cost' must be a number")
+            payload = await asyncio.to_thread(
+                build_search_pack,
+                _require_str(arguments, "query"),
+                provider=provider,
+                pack_dir=_optional_path_arg(arguments, "pack_dir"),
+                output_dir=_path_arg(arguments, "output_dir", "packs/search"),
+                policy=_policy_arg(arguments),
+                include_domains=_string_list_arg(arguments, "include_domains"),
+                exclude_domains=_string_list_arg(arguments, "exclude_domains"),
+                max_results=_coerce_int(arguments.get("max_results"), name="max_results", default=10),
+                scrape=bool(arguments.get("scrape", False)),
+                dry_run=bool(arguments.get("dry_run", False)),
+                budget=float(budget_arg) if budget_arg is not None else None,
+                max_estimated_cost=float(search_max_estimated_cost_arg)
+                if search_max_estimated_cost_arg is not None
+                else None,
+            )
+            result = ToolResult(
+                f"Search pack: {payload['status']} -> {payload.get('summary', {})}",
                 data=payload,
             )
 
@@ -2090,6 +2256,208 @@ async def _run_stdio() -> int:
                     "required": ["pack_dir"],
                 },
                 outputSchema=_PARITY_WORKFLOW_OUTPUT_SCHEMA,
+            ),
+            Tool(
+                name="brand_pack",
+                description=(
+                    "Build a local evidence-backed brand profile from a domain, URL, or work email. "
+                    "MCP defaults keep asset downloads off and page bounds tight."
+                ),
+                annotations=ToolAnnotations(
+                    title="Build brand pack",
+                    readOnlyHint=False,
+                    destructiveHint=False,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "domain_or_url": {"type": "string"},
+                        "email": {"type": "string"},
+                        "name": {"type": "string"},
+                        "ticker": {"type": "string"},
+                        "output_dir": {"type": "string", "default": "packs/brand"},
+                        "policy_path": {"type": "string"},
+                        "allow_free_email": {"type": "boolean", "default": False},
+                        "download_assets": {"type": "boolean", "default": False},
+                        "max_pages": {"type": "integer", "minimum": 1, "maximum": 8, "default": 4},
+                    },
+                    "required": ["domain_or_url"],
+                },
+                outputSchema=_CONTEXT_PACK_OUTPUT_SCHEMA,
+            ),
+            Tool(
+                name="styleguide_pack",
+                description=(
+                    "Extract local design tokens, font stacks, and component samples from static HTML/CSS. "
+                    "Rendering is off unless explicitly enabled and trusted."
+                ),
+                annotations=ToolAnnotations(
+                    title="Build styleguide pack",
+                    readOnlyHint=False,
+                    destructiveHint=False,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "domain_or_url": {"type": "string"},
+                        "output_dir": {"type": "string", "default": "packs/styleguide"},
+                        "policy_path": {"type": "string"},
+                        "render": {"type": "boolean", "default": False},
+                        "max_stylesheets": {"type": "integer", "minimum": 1, "maximum": 20, "default": 8},
+                    },
+                    "required": ["domain_or_url"],
+                },
+                outputSchema=_CONTEXT_PACK_OUTPUT_SCHEMA,
+            ),
+            Tool(
+                name="product_pack",
+                description=(
+                    "Extract cited product and pricing records from a URL or bounded same-domain site."
+                ),
+                annotations=ToolAnnotations(
+                    title="Build product pack",
+                    readOnlyHint=False,
+                    destructiveHint=False,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "url_or_domain": {"type": "string"},
+                        "mode": {"type": "string", "enum": ["page", "site"], "default": "page"},
+                        "output_dir": {"type": "string", "default": "packs/products"},
+                        "policy_path": {"type": "string"},
+                        "max_pages": {"type": "integer", "minimum": 1, "maximum": 12, "default": 6},
+                    },
+                    "required": ["url_or_domain"],
+                },
+                outputSchema=_CONTEXT_PACK_OUTPUT_SCHEMA,
+            ),
+            Tool(
+                name="extract_schema",
+                description=(
+                    "Fill a JSON Schema-shaped result from URL or existing-pack evidence and validate it. "
+                    "No model/provider call is made."
+                ),
+                annotations=ToolAnnotations(
+                    title="Extract schema",
+                    readOnlyHint=False,
+                    destructiveHint=False,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "url_or_pack": {"type": "string"},
+                        "schema_path": {"type": "string"},
+                        "output_dir": {"type": "string", "default": "packs/schema"},
+                        "policy_path": {"type": "string"},
+                        "fact_check": {"type": "boolean", "default": False},
+                    },
+                    "required": ["url_or_pack", "schema_path"],
+                },
+                outputSchema=_CONTEXT_PACK_OUTPUT_SCHEMA,
+            ),
+            Tool(
+                name="image_pack",
+                description=(
+                    "Extract image, icon, Open Graph, CSS background, and Markdown image references from "
+                    "a URL or existing pack. Asset downloads are off by default for MCP."
+                ),
+                annotations=ToolAnnotations(
+                    title="Build image pack",
+                    readOnlyHint=False,
+                    destructiveHint=False,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "url_or_pack": {"type": "string"},
+                        "output_dir": {"type": "string", "default": "packs/images"},
+                        "policy_path": {"type": "string"},
+                        "download_assets": {"type": "boolean", "default": False},
+                        "max_assets": {"type": "integer", "minimum": 1, "maximum": 100, "default": 30},
+                    },
+                    "required": ["url_or_pack"],
+                },
+                outputSchema=_CONTEXT_PACK_OUTPUT_SCHEMA,
+            ),
+            Tool(
+                name="screenshot_pack",
+                description=(
+                    "Capture a PNG screenshot pack through explicit local browser rendering. "
+                    "Requires DOCPULL_RENDER_TRUSTED_BROWSER_TARGETS=1."
+                ),
+                annotations=ToolAnnotations(
+                    title="Capture screenshot pack",
+                    readOnlyHint=False,
+                    destructiveHint=False,
+                    idempotentHint=False,
+                    openWorldHint=True,
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "url": {"type": "string"},
+                        "output_dir": {"type": "string", "default": "packs/screenshot"},
+                        "policy_path": {"type": "string"},
+                        "viewport": {"type": "string", "default": "1280x720"},
+                        "full_page": {"type": "boolean", "default": False},
+                        "wait_for": {
+                            "type": "string",
+                            "enum": ["load", "domcontentloaded", "networkidle"],
+                            "default": "load",
+                        },
+                        "agent_browser_binary": {"type": "string"},
+                    },
+                    "required": ["url"],
+                },
+                outputSchema=_CONTEXT_PACK_OUTPUT_SCHEMA,
+            ),
+            Tool(
+                name="search_pack",
+                description=(
+                    "Build a local-first search result pack. Local mode searches an existing pack; "
+                    "global provider mode requires explicit provider and budget controls."
+                ),
+                annotations=ToolAnnotations(
+                    title="Build search pack",
+                    readOnlyHint=False,
+                    destructiveHint=False,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "query": {"type": "string"},
+                        "provider": {
+                            "type": "string",
+                            "enum": ["local", "parallel", "tavily", "exa", "context"],
+                            "default": "local",
+                        },
+                        "pack_dir": {"type": "string"},
+                        "output_dir": {"type": "string", "default": "packs/search"},
+                        "policy_path": {"type": "string"},
+                        "include_domains": {"type": "array", "items": {"type": "string"}},
+                        "exclude_domains": {"type": "array", "items": {"type": "string"}},
+                        "max_results": {"type": "integer", "minimum": 1, "maximum": 100, "default": 10},
+                        "scrape": {"type": "boolean", "default": False},
+                        "dry_run": {"type": "boolean", "default": False},
+                        "budget": {"type": "number", "minimum": 0},
+                        "max_estimated_cost": {"type": "number", "minimum": 0},
+                    },
+                    "required": ["query"],
+                },
+                outputSchema=_CONTEXT_PACK_OUTPUT_SCHEMA,
             ),
             Tool(
                 name="parallel_api_pack",
