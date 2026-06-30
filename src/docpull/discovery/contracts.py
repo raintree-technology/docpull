@@ -503,7 +503,9 @@ def _append_site_scan_record(
     url = str(candidate.get("url") or "").strip()
     if not url:
         return
-    parsed = urlparse(url)
+    parsed = _safe_urlparse(url)
+    if parsed is None:
+        return
     if parsed.scheme not in {"http", "https"} or not parsed.netloc:
         return
     key = normalize_url(url)
@@ -577,8 +579,10 @@ def _site_origin(url: str) -> str:
 
 
 def _same_origin(left: str, right: str) -> bool:
-    left_parsed = urlparse(left)
-    right_parsed = urlparse(right)
+    left_parsed = _safe_urlparse(left)
+    right_parsed = _safe_urlparse(right)
+    if left_parsed is None or right_parsed is None:
+        return False
     return (
         left_parsed.scheme in {"http", "https"}
         and left_parsed.scheme == right_parsed.scheme
@@ -590,7 +594,10 @@ def _dedupe_urls(urls: Iterable[str]) -> list[str]:
     output: list[str] = []
     seen: set[str] = set()
     for url in urls:
-        key = normalize_url(url)
+        try:
+            key = normalize_url(url)
+        except ValueError:
+            continue
         if key in seen:
             continue
         seen.add(key)
@@ -649,31 +656,53 @@ def _extract_text_links(text: str, base_url: str) -> list[tuple[str, str | None]
         title = match.group(1).strip() or None
         href = match.group(2).strip()
         resolved = _resolve_candidate_url(href, base_url)
-        if resolved and normalize_url(resolved) not in seen:
-            seen.add(normalize_url(resolved))
+        key = _candidate_url_key(resolved)
+        if resolved and key and key not in seen:
+            seen.add(key)
             links.append((resolved, title))
 
     for match in _URL_RE.finditer(text):
-        href = match.group(0).rstrip(".,;)]}")
+        href = _clean_text_link_href(match.group(0))
         resolved = _resolve_candidate_url(href, base_url)
-        if resolved and normalize_url(resolved) not in seen:
-            seen.add(normalize_url(resolved))
+        key = _candidate_url_key(resolved)
+        if resolved and key and key not in seen:
+            seen.add(key)
             links.append((resolved, None))
 
     return links
 
 
 def _resolve_candidate_url(href: str, base_url: str) -> str | None:
+    href = _clean_text_link_href(href)
     if not href or href.startswith(("#", "mailto:", "tel:", "javascript:", "data:")):
         return None
-    resolved = urljoin(base_url, href)
-    parsed = urlparse(resolved)
+    try:
+        resolved = urljoin(base_url, href)
+        parsed = urlparse(resolved)
+    except ValueError:
+        return None
     if parsed.scheme not in {"http", "https"} or not parsed.netloc:
         return None
     clean = f"{parsed.scheme}://{parsed.netloc}{parsed.path or '/'}"
     if parsed.query:
         clean += f"?{parsed.query}"
     return clean
+
+
+def _clean_text_link_href(href: str) -> str:
+    clean = href.strip()
+    if "](" in clean:
+        clean = clean.split("](", 1)[0]
+    return clean.rstrip(".,;)]}")
+
+
+def _candidate_url_key(url: str | None) -> str | None:
+    if not url:
+        return None
+    try:
+        return normalize_url(url)
+    except ValueError:
+        return None
 
 
 async def _scan_feeds(
@@ -1078,7 +1107,9 @@ async def _scan_github_docs_tree(
 
 
 def _github_repo(url: str) -> tuple[str, str] | None:
-    parsed = urlparse(url)
+    parsed = _safe_urlparse(url)
+    if parsed is None:
+        return None
     if parsed.hostname not in {"github.com", "www.github.com"}:
         return None
     parts = [part for part in parsed.path.split("/") if part]
@@ -1108,6 +1139,13 @@ def _github_doc_file(path: str, *, root: bool) -> bool:
     if root:
         return name.startswith(("readme", "contributing", "security", "changelog"))
     return True
+
+
+def _safe_urlparse(url: str) -> Any | None:
+    try:
+        return urlparse(url)
+    except ValueError:
+        return None
 
 
 def _xml_local_name(tag: str) -> str:

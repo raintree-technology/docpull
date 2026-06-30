@@ -23,9 +23,13 @@ ALLOWED_DOCUMENT_CONTENT_TYPES = frozenset(
         "application/rss+xml",
         "application/json",
         "application/ld+json",
+        "application/yaml",
+        "application/x-yaml",
         "text/plain",
         "text/markdown",
         "text/x-markdown",
+        "text/yaml",
+        "text/x-yaml",
     }
 )
 
@@ -197,17 +201,46 @@ _SVG_PREFIX_RE = re.compile(
 _ALLOWED_TEXT_CONTROL_BYTES = {9, 10, 12, 13}
 
 
-def content_type_base(content_type: str | None) -> str:
-    """Return the lowercase media type without parameters."""
+_GENERIC_BINARY_CONTENT_TYPE = "application/octet-stream"
+
+
+def content_type_media_types(content_type: str | None) -> tuple[str, ...]:
+    """Return lowercase media types without parameters.
+
+    Some servers expose duplicate Content-Type headers as a comma-joined value
+    such as ``application/octet-stream, application/json``. Content-Type itself
+    is not a list-valued header, but accepting a later readable media type keeps
+    machine-readable specs fetchable while body sniffing still blocks binaries.
+    """
     if not content_type:
-        return ""
-    return content_type.lower().split(";", 1)[0].strip()
+        return ()
+    media_types: list[str] = []
+    seen: set[str] = set()
+    for value in content_type.split(","):
+        media_type = value.lower().split(";", 1)[0].strip()
+        if media_type and media_type not in seen:
+            media_types.append(media_type)
+            seen.add(media_type)
+    return tuple(media_types)
+
+
+def content_type_base(content_type: str | None) -> str:
+    """Return the first lowercase media type without parameters."""
+    media_types = content_type_media_types(content_type)
+    return media_types[0] if media_types else ""
 
 
 def is_allowed_document_content_type(content_type: str | None) -> bool:
     """Whether a Content-Type is compatible with docpull's document pipeline."""
-    base_type = content_type_base(content_type)
-    return not base_type or base_type in ALLOWED_DOCUMENT_CONTENT_TYPES
+    media_types = content_type_media_types(content_type)
+    if not media_types:
+        return True
+    if any(
+        media_type in _DANGEROUS_CONTENT_TYPES and media_type != _GENERIC_BINARY_CONTENT_TYPE
+        for media_type in media_types
+    ):
+        return False
+    return any(media_type in ALLOWED_DOCUMENT_CONTENT_TYPES for media_type in media_types)
 
 
 def _header_get(headers: dict[str, str], name: str) -> str | None:
@@ -313,10 +346,24 @@ class SafeDownloadPolicy:
                         f"uses disallowed extension '{extension}'."
                     )
 
-        base_type = content_type_base(content_type or _header_get(headers, "Content-Type"))
-        if base_type in _DANGEROUS_CONTENT_TYPES:
-            raise UnsafeDownloadError(f"Disallowed content type '{base_type}' for {url}.")
-        if base_type and base_type not in ALLOWED_DOCUMENT_CONTENT_TYPES:
+        media_types = content_type_media_types(content_type or _header_get(headers, "Content-Type"))
+        dangerous_type = next(
+            (
+                media_type
+                for media_type in media_types
+                if media_type in _DANGEROUS_CONTENT_TYPES
+                and media_type != _GENERIC_BINARY_CONTENT_TYPE
+            ),
+            None,
+        )
+        if dangerous_type is not None:
+            raise UnsafeDownloadError(f"Disallowed content type '{dangerous_type}' for {url}.")
+        if media_types and any(media_type in ALLOWED_DOCUMENT_CONTENT_TYPES for media_type in media_types):
+            return
+        if _GENERIC_BINARY_CONTENT_TYPE in media_types:
+            raise UnsafeDownloadError(f"Disallowed content type '{_GENERIC_BINARY_CONTENT_TYPE}' for {url}.")
+        base_type = media_types[0] if media_types else ""
+        if base_type:
             raise UnsafeDownloadError(
                 f"Unsupported content type '{base_type}' for {url}; "
                 "docpull only fetches readable web/text responses."

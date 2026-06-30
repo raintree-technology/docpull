@@ -49,7 +49,11 @@ def score_source(
         score += 10
         reasons.append("docs_path")
 
-    if path.endswith(("llms.txt", "openapi.json", "swagger.json", "openapi.yaml", "openapi.yml")):
+    filename = path.rsplit("/", 1)[-1]
+    if filename in {"llms.txt", "llms-full.txt"} or (
+        any(token in filename for token in ("openapi", "swagger"))
+        and filename.endswith((".json", ".yaml", ".yml"))
+    ):
         score += 15
         reasons.append("machine_readable_spec")
 

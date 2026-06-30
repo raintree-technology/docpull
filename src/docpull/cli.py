@@ -193,6 +193,7 @@ Examples:
 Subcommands:
   init         Create a persistent DocPull project
   add          Add a source to a project
+  plan         Plan a balanced project crawl frontier
   sync         Sync configured project sources
   diff         Diff project runs
   status       Show project status
@@ -1381,6 +1382,10 @@ def main(argv: list[str] | None = None) -> int:
         from .project import run_add_cli
 
         return run_add_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "plan":
+        from .project import run_plan_cli
+
+        return run_plan_cli(raw_argv[1:])
     if raw_argv and raw_argv[0] == "sync":
         from .project import run_sync_cli
 

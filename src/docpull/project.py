@@ -20,11 +20,12 @@ import sqlite3
 import time
 import urllib.error
 import urllib.request
+from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
 import yaml
 from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
@@ -34,7 +35,16 @@ from rich.markup import escape
 from .accounting import RunAccounting
 from .conversion.chunking import TokenCounter, chunk_markdown
 from .core.fetcher import Fetcher
+from .discovery.contracts import (
+    CANDIDATE_SOURCES_FILENAME,
+    SELECTED_SOURCES_FILENAME,
+    SELECTED_URLS_FILENAME,
+    CandidateSourceRecord,
+    records_from_site_scan,
+)
 from .exports import export_pack
+from .http.client import AsyncHttpClient
+from .http.rate_limiter import PerHostRateLimiter
 from .models.config import (
     AuthConfig,
     AuthType,
@@ -52,6 +62,8 @@ from .pack_tools import (
     build_citation_map,
     diff_packs,
 )
+from .security.url_validator import UrlValidator
+from .source_scoring import score_source
 from .time_utils import utc_now, utc_now_iso
 
 PROJECT_SCHEMA_VERSION = 1
@@ -72,10 +84,12 @@ OutputFormat = Literal["markdown", "ndjson", "sqlite", "context-pack"]
 SemanticMode = Literal["auto", "off", "on"]
 ContextTarget = Literal["cursor", "claude", "codex", "openai", "llamaindex", "langchain"]
 SourceAuthType = Literal["bearer_env", "basic_env", "cookie_env", "header_env"]
+ProjectPlanProfile = Literal["broad", "balanced", "api-docs", "rag-clean"]
 
 SOURCE_TYPES: tuple[str, ...] = ("auto", "html", "pdf", "markdown", "openapi", "github", "sitemap")
 CONTEXT_TARGETS: tuple[str, ...] = ("cursor", "claude", "codex", "openai", "llamaindex", "langchain")
 OUTPUT_FORMATS: tuple[str, ...] = ("markdown", "ndjson", "sqlite", "context-pack")
+PROJECT_PLAN_PROFILES: tuple[str, ...] = ("broad", "balanced", "api-docs", "rag-clean")
 
 SemanticClient = Callable[[str], str]
 
@@ -122,6 +136,7 @@ class ProjectSource(BaseModel):
     url: str
     type: SourceType = "auto"
     discover: bool = False
+    refresh_discovery_on_sync: bool = False
     discovered_urls: list[str] = Field(default_factory=list)
     discovered_at: str | None = None
     auth: ProjectSourceAuth | None = None
@@ -175,7 +190,10 @@ class ProjectCrawlConfig(BaseModel):
     rate_limit: float = Field(0.5, ge=0)
     include_paths: list[str] = Field(default_factory=list)
     exclude_paths: list[str] = Field(default_factory=list)
+    adaptive_rate_limit: bool = False
     streaming_discovery: bool = True
+    plan_profile: ProjectPlanProfile = "balanced"
+    max_pages_per_source: int | None = Field(None, ge=1)
 
     model_config = {"extra": "forbid"}
 
@@ -270,12 +288,22 @@ class ProjectPaths:
     runs: Path
     cache: Path
     manifests: Path
+    plans: Path
     exports: Path
     evals: Path
     releases: Path
     index: Path
     latest_run: Path
     remote_config: Path
+
+
+@dataclass(frozen=True)
+class ResolvedProjectPlan:
+    plan_id: str
+    plan_dir: Path
+    profile: ProjectPlanProfile
+    urls_by_source: dict[str, list[str]]
+    payload: dict[str, Any]
 
 
 def run_init_cli(argv: list[str] | None = None) -> int:
@@ -339,12 +367,17 @@ def run_sync_cli(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="docpull sync", description="Sync configured project sources")
     parser.add_argument("--source", help="Only sync one source name")
     parser.add_argument("--run-id", help="Explicit run ID")
+    parser.add_argument(
+        "--plan",
+        dest="plan_ref",
+        help="Use a project plan ID, plan directory, or 'latest' as the sync frontier",
+    )
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--json", action="store_true", dest="json_output")
     parser.add_argument(
         "--update-discovery",
         action="store_true",
-        help="Record that source discovery should be refreshed before future syncs",
+        help="Refresh and persist source discovery before this sync",
     )
     args = parser.parse_args(argv)
     console = Console()
@@ -352,6 +385,7 @@ def run_sync_cli(argv: list[str] | None = None) -> int:
         payload = sync_project(
             source_name=args.source,
             run_id=args.run_id,
+            plan=args.plan_ref,
             dry_run=args.dry_run,
             update_discovery=args.update_discovery,
         )
@@ -367,6 +401,50 @@ def run_sync_cli(argv: list[str] | None = None) -> int:
             f"{payload['run_id']} docs={summary['document_count']} "
             f"chunks={summary['chunk_count']} failed={summary['failed_count']}"
         )
+    return 0
+
+
+def run_plan_cli(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        prog="docpull plan",
+        description="Plan a balanced project crawl frontier without fetching page content",
+    )
+    parser.add_argument("--source", help="Only plan one source name")
+    parser.add_argument("--plan-id", help="Explicit plan ID")
+    parser.add_argument("--profile", choices=PROJECT_PLAN_PROFILES, help="Corpus profile")
+    parser.add_argument("--max-pages", type=int, help="Maximum selected URLs across all sources")
+    parser.add_argument("--max-pages-per-source", type=int, help="Maximum selected URLs per source")
+    parser.add_argument(
+        "--no-site-scan",
+        action="store_true",
+        help="Skip llms.txt, sitemap, feed, OpenAPI, and GitHub hint scans",
+    )
+    parser.add_argument("--json", action="store_true", dest="json_output")
+    args = parser.parse_args(argv)
+    console = Console()
+    try:
+        payload = plan_project(
+            source_name=args.source,
+            plan_id=args.plan_id,
+            profile=args.profile,
+            max_pages=args.max_pages,
+            max_pages_per_source=args.max_pages_per_source,
+            scan_site_hints=not args.no_site_scan,
+        )
+    except ProjectError as err:
+        console.print("[red]Project plan error:[/red] " + escape(str(err)))
+        return 1
+    if args.json_output:
+        console.print_json(data=payload)
+    else:
+        summary = payload["summary"]
+        console.print(
+            "[green]Project plan:[/green] "
+            f"{payload['plan_id']} profile={payload['profile']} "
+            f"selected={summary['selected_count']} rejected={summary['rejected_count']} "
+            f"warnings={len(payload['warnings'])}"
+        )
+        console.print(f"Plan: {payload['artifacts']['plan']}")
     return 0
 
 
@@ -668,6 +746,7 @@ def sync_project(
     *,
     source_name: str | None = None,
     run_id: str | None = None,
+    plan: str | Path | None = None,
     dry_run: bool = False,
     update_discovery: bool = False,
     root: Path | None = None,
@@ -677,7 +756,7 @@ def sync_project(
     if not config.sources:
         raise ProjectError("Project has no sources. Add one with `docpull add URL`.")
     selected = _selected_sources(config, source_name)
-    discovery_refresh_names = [source.name for source in selected if source.discover]
+    discovery_refresh_names = [source.name for source in selected if source.refresh_discovery_on_sync]
     if update_discovery or discovery_refresh_names:
         refresh_names = [source.name for source in selected] if update_discovery else discovery_refresh_names
         config = _refresh_project_discovery(project_root, config, source_names=refresh_names)
@@ -686,6 +765,7 @@ def sync_project(
     _validate_auth_ready(selected)
     paths = ensure_project_dirs(project_root)
     ensure_project_index(project_root, config)
+    resolved_plan = _resolve_project_plan(project_root, plan, selected) if plan else None
     current_run_id = _safe_run_id(run_id or _new_run_id())
     run_dir = paths.runs / current_run_id
     if run_dir.exists():
@@ -721,6 +801,7 @@ def sync_project(
             source_health=source_health,
             fetch_stats=fetch_stats,
             update_discovery=update_discovery,
+            plan=resolved_plan,
         )
 
     for source in selected:
@@ -733,6 +814,11 @@ def sync_project(
                     project_root=project_root,
                     config=config,
                     source=source,
+                    plan_urls=(
+                        resolved_plan.urls_by_source.get(source.name)
+                        if resolved_plan is not None
+                        else None
+                    ),
                     output_dir=source_output_dir,
                 )
             )
@@ -794,7 +880,142 @@ def sync_project(
         source_health=source_health,
         fetch_stats=fetch_stats,
         update_discovery=update_discovery,
+        plan=resolved_plan,
     )
+
+
+def plan_project(
+    *,
+    source_name: str | None = None,
+    plan_id: str | None = None,
+    profile: str | None = None,
+    max_pages: int | None = None,
+    max_pages_per_source: int | None = None,
+    scan_site_hints: bool = True,
+    root: Path | None = None,
+) -> dict[str, Any]:
+    """Write a project crawl-frontier plan without fetching page content."""
+    project_root = find_project_root(root or Path.cwd())
+    config = load_project_config(project_root)
+    if not config.sources:
+        raise ProjectError("Project has no sources. Add one with `docpull add URL`.")
+    selected_sources = _selected_sources(config, source_name)
+    plan_profile = _project_plan_profile(profile or config.crawl.plan_profile)
+    if max_pages is not None and max_pages < 1:
+        raise ProjectError("max_pages must be at least 1")
+    if max_pages_per_source is not None and max_pages_per_source < 1:
+        raise ProjectError("max_pages_per_source must be at least 1")
+
+    paths = ensure_project_dirs(project_root)
+    current_plan_id = _safe_run_id(plan_id or _new_plan_id())
+    plan_dir = paths.plans / current_plan_id
+    if plan_dir.exists():
+        raise ProjectError(f"Plan already exists: {current_plan_id}")
+    plan_dir.mkdir(parents=True)
+
+    effective_max_pages = max_pages if max_pages is not None else config.crawl.max_pages
+    per_source_limit = max_pages_per_source or config.crawl.max_pages_per_source
+    if per_source_limit is None:
+        per_source_limit = _default_plan_source_limit(
+            profile=plan_profile,
+            max_pages=effective_max_pages,
+            source_count=len(selected_sources),
+        )
+
+    generated_at = utc_now_iso()
+    all_candidates: list[dict[str, Any]] = []
+    selected_candidates: list[dict[str, Any]] = []
+    rejected_candidates: list[dict[str, Any]] = []
+    warnings: list[dict[str, Any]] = []
+
+    for source in selected_sources:
+        records = _stored_project_candidate_records(source, generated_at=generated_at)
+        if scan_site_hints:
+            try:
+                records.extend(
+                    asyncio.run(
+                        _scan_project_source_hints(
+                            config=config,
+                            source=source,
+                            max_results_per_source=per_source_limit,
+                        )
+                    )
+                )
+            except Exception as err:  # noqa: BLE001
+                warnings.append(
+                    {
+                        "source_name": source.name,
+                        "code": "site_scan_failed",
+                        "message": str(err),
+                    }
+                )
+
+        planned = _plan_source_candidates(
+            source=source,
+            records=records,
+            profile=plan_profile,
+            limit=per_source_limit,
+        )
+        all_candidates.extend(planned["candidates"])
+        selected_candidates.extend(planned["selected"])
+        rejected_candidates.extend(planned["rejected"])
+        warnings.extend(planned["warnings"])
+
+    if effective_max_pages is not None and len(selected_candidates) > effective_max_pages:
+        selected_candidates, overflow = _balance_project_plan_selection(
+            selected_candidates,
+            limit=effective_max_pages,
+            source_order=[source.name for source in selected_sources],
+        )
+        for item in overflow:
+            rejected_candidates.append(
+                {
+                    **item,
+                    "reject_reason": "global_max_pages",
+                }
+            )
+        warnings.append(
+            {
+                "code": "global_max_pages_applied",
+                "message": f"Selected frontier was capped at {effective_max_pages} URLs.",
+            }
+        )
+
+    candidate_records = [item["record"] for item in all_candidates]
+    selected_records = [item["record"] for item in selected_candidates]
+    rejected_records = [_rejected_plan_record(item) for item in rejected_candidates]
+    _write_jsonl(
+        plan_dir / CANDIDATE_SOURCES_FILENAME,
+        [record.model_dump(mode="json", exclude_none=True) for record in candidate_records],
+    )
+    _write_jsonl(
+        plan_dir / SELECTED_SOURCES_FILENAME,
+        [record.model_dump(mode="json", exclude_none=True) for record in selected_records],
+    )
+    (plan_dir / SELECTED_URLS_FILENAME).write_text(
+        "".join(f"{record.url}\n" for record in selected_records),
+        encoding="utf-8",
+    )
+    _write_jsonl(plan_dir / "rejected_sources.ndjson", rejected_records)
+
+    payload = _project_plan_payload(
+        config=config,
+        plan_id=current_plan_id,
+        plan_dir=plan_dir,
+        profile=plan_profile,
+        generated_at=generated_at,
+        selected=selected_candidates,
+        rejected=rejected_candidates,
+        all_candidates=all_candidates,
+        warnings=warnings,
+        max_pages=effective_max_pages,
+        max_pages_per_source=per_source_limit,
+        scan_site_hints=scan_site_hints,
+    )
+    _write_json(plan_dir / "frontier.plan.json", payload)
+    (plan_dir / "PLAN.md").write_text(_project_plan_markdown(payload), encoding="utf-8")
+    (paths.plans / "latest-plan").write_text(current_plan_id + "\n", encoding="utf-8")
+    return payload
 
 
 def diff_project(
@@ -1288,6 +1509,7 @@ async def _sync_source(
     project_root: Path,
     config: ProjectConfig,
     source: ProjectSource,
+    plan_urls: list[str] | None = None,
     output_dir: Path,
 ) -> dict[str, Any]:
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -1295,19 +1517,35 @@ async def _sync_source(
     errors: list[dict[str, Any]] = []
     skips: list[dict[str, Any]] = []
     robots_blocked = 0
+    quarantined_prefixes: set[str] = set()
     async with Fetcher(fetch_config) as fetcher:
-        if source.discovered_urls:
-            urls = _unique_urls([source.url, *source.discovered_urls])
+        if plan_urls is not None or source.discovered_urls:
+            urls = _unique_urls(plan_urls if plan_urls is not None else [source.url, *source.discovered_urls])
             if config.crawl.max_pages is not None:
                 urls = urls[: config.crawl.max_pages]
             for url in urls:
+                prefix = _rate_limit_prefix(url)
+                if prefix in quarantined_prefixes:
+                    skips.append(
+                        {
+                            "source_name": source.name,
+                            "url": url,
+                            "reason": "rate_limited_prefix_quarantine",
+                            "rate_limit_prefix": prefix,
+                            "type": "fetch_skipped",
+                        }
+                    )
+                    continue
                 ctx = await fetcher.fetch_one(url, save=True)
                 if ctx.error:
+                    if _looks_like_rate_limit_error(ctx.error):
+                        quarantined_prefixes.add(prefix)
                     errors.append(
                         {
                             "source_name": source.name,
                             "url": url,
                             "error": ctx.error,
+                            "rate_limit_prefix": prefix if prefix in quarantined_prefixes else None,
                             "type": "fetch_failed",
                         }
                     )
@@ -1408,6 +1646,656 @@ async def _discover_source_urls(
     return _unique_urls(urls)
 
 
+async def _scan_project_source_hints(
+    *,
+    config: ProjectConfig,
+    source: ProjectSource,
+    max_results_per_source: int,
+) -> list[CandidateSourceRecord]:
+    validator = UrlValidator()
+    validation = validator.validate(source.url)
+    if not validation.is_valid:
+        raise ProjectError(f"Source scan URL rejected: {validation.rejection_reason}")
+    expected_domains = _source_expected_domains(source)
+    async with AsyncHttpClient(
+        rate_limiter=PerHostRateLimiter(
+            default_delay=max(config.crawl.rate_limit, 0.2),
+            default_concurrent=min(config.crawl.per_host_concurrent, 2),
+        ),
+        url_validator=validator,
+        default_timeout=20.0,
+        max_retries=1,
+    ) as client:
+        records = await records_from_site_scan(
+            source.url,
+            client=client,
+            sources=None,
+            query=f"{config.name} {source.name} docs",
+            expected_domains=expected_domains,
+            max_results_per_source=max_results_per_source,
+            timeout_seconds=20.0,
+        )
+    return [
+        record.model_copy(
+            update={
+                "metadata": {
+                    **record.metadata,
+                    "docpull_project_source": source.name,
+                    "docpull_project_source_url": source.url,
+                    "candidate_origin": "site_scan",
+                }
+            }
+        )
+        for record in records
+    ]
+
+
+def _stored_project_candidate_records(
+    source: ProjectSource,
+    *,
+    generated_at: str,
+) -> list[CandidateSourceRecord]:
+    records: list[CandidateSourceRecord] = []
+    for index, url in enumerate(_unique_urls([source.url, *source.discovered_urls]), start=1):
+        local_score = score_source(url=url, expected_domains=_source_expected_domains(source))
+        records.append(
+            CandidateSourceRecord(
+                generated_at=generated_at,
+                url=url,
+                source=f"project-source:{source.name}",
+                provider="local",
+                score=float(local_score["score"]),
+                rank=index,
+                query=f"project:{source.name}",
+                discovered_at=source.discovered_at or generated_at,
+                raw_ref="docpull.yaml",
+                metadata={
+                    "docpull_project_source": source.name,
+                    "docpull_project_source_url": source.url,
+                    "candidate_origin": "stored_discovery" if url != source.url else "source_url",
+                    "local_score": local_score["score"],
+                    "score_grade": local_score["grade"],
+                    "score_reasons": local_score["reasons"],
+                },
+            )
+        )
+    return records
+
+
+def _plan_source_candidates(
+    *,
+    source: ProjectSource,
+    records: list[CandidateSourceRecord],
+    profile: ProjectPlanProfile,
+    limit: int,
+) -> dict[str, Any]:
+    seen: set[str] = set()
+    candidates: list[dict[str, Any]] = []
+    rejected: list[dict[str, Any]] = []
+    warnings: list[dict[str, Any]] = []
+    category_counts: Counter[str] = Counter()
+
+    for record in records:
+        key = _normalized_plan_url(record.url)
+        if key in seen:
+            continue
+        seen.add(key)
+        classification = _classify_project_plan_url(record.url)
+        category_counts[str(classification["category"])] += 1
+        score = _score_project_plan_candidate(record, classification, profile, source=source)
+        reject_reason = _project_plan_reject_reason(
+            record.url,
+            classification,
+            profile,
+            source=source,
+        )
+        planned_record = record.model_copy(
+            update={
+                "score": float(score),
+                "metadata": {
+                    **record.metadata,
+                    "docpull_project_source": source.name,
+                    "plan_profile": profile,
+                    "plan_score": score,
+                    "plan_category": classification["category"],
+                    "plan_tags": classification["tags"],
+                    "language_hint": classification["language"],
+                    "rate_limit_prefix": classification["rate_limit_prefix"],
+                    "reject_reason": reject_reason,
+                },
+            }
+        )
+        item = {
+            "source_name": source.name,
+            "url": record.url,
+            "record": planned_record,
+            "score": score,
+            "category": classification["category"],
+            "tags": classification["tags"],
+            "language": classification["language"],
+            "rate_limit_prefix": classification["rate_limit_prefix"],
+            "reject_reason": reject_reason,
+            "rank": record.rank or 1_000_000,
+        }
+        candidates.append(item)
+        if reject_reason:
+            rejected.append(item)
+
+    eligible = [item for item in candidates if not item["reject_reason"]]
+    eligible.sort(key=lambda item: (-int(item["score"]), int(item["rank"]), str(item["url"])))
+    selected = eligible[:limit]
+    for item in eligible[limit:]:
+        rejected.append({**item, "reject_reason": "max_pages_per_source"})
+
+    if not selected:
+        warnings.append(
+            {
+                "source_name": source.name,
+                "code": "no_selected_urls",
+                "message": f"No URLs selected for source {source.name}.",
+            }
+        )
+    if category_counts.get("generated_directory"):
+        warnings.append(
+            {
+                "source_name": source.name,
+                "code": "generated_directory_detected",
+                "message": f"{category_counts['generated_directory']} generated-directory URL(s) detected.",
+            }
+        )
+    if category_counts.get("localized"):
+        warnings.append(
+            {
+                "source_name": source.name,
+                "code": "localized_urls_detected",
+                "message": f"{category_counts['localized']} localized URL(s) detected.",
+            }
+        )
+    return {
+        "candidates": candidates,
+        "selected": selected,
+        "rejected": rejected,
+        "warnings": warnings,
+    }
+
+
+def _classify_project_plan_url(url: str) -> dict[str, Any]:
+    parsed = urlparse(url)
+    path = parsed.path.lower()
+    segments = [segment for segment in path.split("/") if segment]
+    filename = segments[-1] if segments else ""
+    tags: set[str] = set()
+    category = "marketing"
+    language: str | None = None
+
+    for segment in segments:
+        clean = segment.lower()
+        if clean in {
+            "es",
+            "fr",
+            "de",
+            "it",
+            "ja",
+            "jp",
+            "ko",
+            "pt",
+            "pt-br",
+            "zh",
+            "zh-cn",
+            "zh-tw",
+            "ru",
+            "pl",
+            "nl",
+            "tr",
+            "id",
+            "vi",
+            "ar",
+        }:
+            language = clean
+            tags.add("localized")
+            break
+
+    if filename in {"llms.txt", "llms-full.txt"}:
+        category = "llms"
+        tags.add("llms")
+    elif filename.endswith((".pdf",)):
+        category = "pdf"
+        tags.add("pdf")
+    elif _looks_like_openapi_spec_filename(filename):
+        category = "openapi"
+        tags.add("openapi")
+    elif any(segment in {"changelog", "changes", "release-notes", "releases"} for segment in segments):
+        category = "changelog"
+        tags.add("changelog")
+    elif any(segment in {"api", "reference", "api-reference"} for segment in segments):
+        category = "api_reference"
+        tags.add("api_reference")
+    elif any(
+        segment in {"docs", "documentation", "guide", "guides", "quickstart", "sdk", "sdks", "integrations"}
+        for segment in segments
+    ):
+        category = "docs"
+        tags.add("docs")
+    elif any(segment in {"pricing", "plans"} for segment in segments):
+        category = "pricing"
+        tags.add("pricing")
+    elif any(segment in {"blog", "news", "press", "articles"} for segment in segments):
+        category = "blog"
+        tags.add("blog")
+    elif any(segment in {"glossary", "learn", "resources"} for segment in segments):
+        category = "glossary"
+        tags.add("glossary")
+    elif any(segment in {"legal", "terms", "privacy", "security", "trust"} for segment in segments):
+        category = "legal"
+        tags.add("legal")
+
+    if tags.intersection({"localized"}) and category not in {"llms", "openapi"}:
+        category = "localized"
+    if _looks_like_generated_directory(segments):
+        category = "generated_directory"
+        tags.add("generated_directory")
+        tags.add("crawler_trap")
+
+    return {
+        "category": category,
+        "tags": sorted(tags),
+        "language": language,
+        "rate_limit_prefix": _rate_limit_prefix(url),
+    }
+
+
+def _looks_like_generated_directory(segments: list[str]) -> bool:
+    if len(segments) >= 2 and segments[0] == "websets" and segments[1] == "directory":
+        return True
+    return "directory" in segments and len(segments) >= 4
+
+
+def _looks_like_openapi_spec_filename(filename: str) -> bool:
+    return any(token in filename for token in ("openapi", "swagger")) and filename.endswith(
+        (".json", ".yaml", ".yml")
+    )
+
+
+def _score_project_plan_candidate(
+    record: CandidateSourceRecord,
+    classification: dict[str, Any],
+    profile: ProjectPlanProfile,
+    *,
+    source: ProjectSource,
+) -> int:
+    base = score_source(
+        url=record.url,
+        title=record.title or "",
+        expected_domains=_source_expected_domains(source),
+    )
+    score = int(base["score"])
+    category = str(classification["category"])
+    tags = set(classification["tags"])
+    category_weights = {
+        "llms": 35,
+        "openapi": 32,
+        "api_reference": 26,
+        "docs": 20,
+        "changelog": 16,
+        "pricing": 8,
+        "blog": -14,
+        "glossary": -16,
+        "marketing": -10,
+        "legal": -24,
+        "localized": -18,
+        "pdf": -35,
+        "generated_directory": -55,
+    }
+    score += category_weights.get(category, 0)
+    if profile in {"api-docs", "rag-clean"}:
+        if category in {"llms", "openapi", "api_reference", "docs", "changelog"}:
+            score += 12
+        if category in {"blog", "glossary", "marketing", "legal", "localized"}:
+            score -= 35
+    elif profile == "balanced":
+        if category in {"llms", "openapi", "api_reference", "docs", "changelog", "pricing"}:
+            score += 8
+    elif profile == "broad":
+        if "crawler_trap" not in tags:
+            score += 5
+    return max(0, min(100, score))
+
+
+def _project_plan_reject_reason(
+    url: str,
+    classification: dict[str, Any],
+    profile: ProjectPlanProfile,
+    *,
+    source: ProjectSource,
+) -> str | None:
+    category = str(classification["category"])
+    tags = set(classification["tags"])
+    if "pdf" in tags:
+        return "pdf_requires_opt_in"
+    if "generated_directory" in tags and profile != "broad":
+        return "generated_directory"
+    if "crawler_trap" in tags and profile != "broad":
+        return "crawler_trap"
+    if profile != "broad" and not _is_source_related_url(url, source):
+        if category in {"llms", "openapi"} and _url_mentions_source_domain(url, source):
+            return None
+        return "off_domain"
+    if category == "legal" and profile != "broad":
+        return "low_signal_category"
+    if category in {"blog", "glossary", "marketing"} and profile in {"api-docs", "rag-clean"}:
+        return "low_signal_category"
+    if "localized" in tags and profile in {"api-docs", "rag-clean"}:
+        return "localized_duplicate"
+    return None
+
+
+def _balance_project_plan_selection(
+    selected: list[dict[str, Any]],
+    *,
+    limit: int,
+    source_order: list[str],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    by_source: dict[str, list[dict[str, Any]]] = {name: [] for name in source_order}
+    for item in selected:
+        by_source.setdefault(str(item["source_name"]), []).append(item)
+    for items in by_source.values():
+        items.sort(key=lambda item: (-int(item["score"]), int(item["rank"]), str(item["url"])))
+
+    kept: list[dict[str, Any]] = []
+    while len(kept) < limit and any(by_source.values()):
+        for source_name in source_order:
+            items = by_source.get(source_name) or []
+            if not items:
+                continue
+            kept.append(items.pop(0))
+            if len(kept) >= limit:
+                break
+    overflow = [item for items in by_source.values() for item in items]
+    return kept, overflow
+
+
+def _project_plan_payload(
+    *,
+    config: ProjectConfig,
+    plan_id: str,
+    plan_dir: Path,
+    profile: ProjectPlanProfile,
+    generated_at: str,
+    selected: list[dict[str, Any]],
+    rejected: list[dict[str, Any]],
+    all_candidates: list[dict[str, Any]],
+    warnings: list[dict[str, Any]],
+    max_pages: int | None,
+    max_pages_per_source: int,
+    scan_site_hints: bool,
+) -> dict[str, Any]:
+    selected_sources = Counter(str(item["source_name"]) for item in selected)
+    selected_categories = Counter(str(item["category"]) for item in selected)
+    candidate_categories = Counter(str(item["category"]) for item in all_candidates)
+    rejected_reasons = Counter(str(item.get("reject_reason") or "unknown") for item in rejected)
+    selected_payload = [_plan_item_payload(item) for item in selected]
+    rejected_payload = [_plan_item_payload(item, include_reject_reason=True) for item in rejected]
+    return {
+        "schema_version": PROJECT_SCHEMA_VERSION,
+        "generated_at": generated_at,
+        "project": config.name,
+        "plan_id": plan_id,
+        "plan_dir": str(plan_dir),
+        "profile": profile,
+        "workflow": "project-frontier-plan",
+        "options": {
+            "max_pages": max_pages,
+            "max_pages_per_source": max_pages_per_source,
+            "scan_site_hints": scan_site_hints,
+        },
+        "summary": {
+            "candidate_count": len(all_candidates),
+            "selected_count": len(selected),
+            "rejected_count": len(rejected),
+            "source_count": len(selected_sources),
+            "category_counts": dict(selected_categories.most_common()),
+            "candidate_category_counts": dict(candidate_categories.most_common()),
+            "rejected_reason_counts": dict(rejected_reasons.most_common()),
+            "source_counts": dict(selected_sources.most_common()),
+        },
+        "selected": selected_payload,
+        "rejected": rejected_payload[:1000],
+        "warnings": warnings,
+        "artifacts": {
+            "candidate_sources": str(plan_dir / CANDIDATE_SOURCES_FILENAME),
+            "selected_sources": str(plan_dir / SELECTED_SOURCES_FILENAME),
+            "selected_urls": str(plan_dir / SELECTED_URLS_FILENAME),
+            "rejected_sources": str(plan_dir / "rejected_sources.ndjson"),
+            "plan": str(plan_dir / "frontier.plan.json"),
+            "markdown": str(plan_dir / "PLAN.md"),
+        },
+    }
+
+
+def _project_plan_markdown(payload: dict[str, Any]) -> str:
+    summary = payload["summary"]
+    lines = [
+        f"# Project Plan: {payload['plan_id']}",
+        "",
+        f"- Project: {payload['project']}",
+        f"- Profile: {payload['profile']}",
+        f"- Candidates: {summary['candidate_count']}",
+        f"- Selected: {summary['selected_count']}",
+        f"- Rejected: {summary['rejected_count']}",
+        "",
+        "## Sources",
+        "",
+    ]
+    for source_name, count in summary["source_counts"].items():
+        lines.append(f"- {source_name}: {count}")
+    lines.extend(["", "## Categories", ""])
+    for category, count in summary["category_counts"].items():
+        lines.append(f"- {category}: {count}")
+    if payload["warnings"]:
+        lines.extend(["", "## Warnings", ""])
+        for warning in payload["warnings"]:
+            label = warning.get("source_name") or "project"
+            lines.append(f"- {label}: {warning.get('code')} - {warning.get('message')}")
+    lines.extend(["", "## Selected URLs", ""])
+    for item in payload["selected"][:100]:
+        lines.append(f"- [{item['source_name']}] {item['url']} ({item['category']}, score={item['score']})")
+    if len(payload["selected"]) > 100:
+        lines.append(f"- ... {len(payload['selected']) - 100} more")
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def _plan_item_payload(item: dict[str, Any], *, include_reject_reason: bool = False) -> dict[str, Any]:
+    payload = {
+        "source_name": item["source_name"],
+        "url": item["url"],
+        "score": item["score"],
+        "category": item["category"],
+        "tags": item["tags"],
+        "language": item["language"],
+        "rate_limit_prefix": item["rate_limit_prefix"],
+    }
+    if include_reject_reason:
+        payload["reject_reason"] = item.get("reject_reason")
+    return payload
+
+
+def _rejected_plan_record(item: dict[str, Any]) -> dict[str, Any]:
+    candidate = item["record"]
+    if not isinstance(candidate, CandidateSourceRecord):
+        raise ProjectError("Invalid project plan candidate record")
+    record: dict[str, Any] = dict(candidate.model_dump(mode="json", exclude_none=True))
+    metadata = record.get("metadata")
+    if not isinstance(metadata, dict):
+        metadata = {}
+    record["metadata"] = {**metadata, "reject_reason": item.get("reject_reason")}
+    return record
+
+
+def _resolve_project_plan(
+    project_root: Path,
+    plan_ref: str | Path,
+    selected_sources: list[ProjectSource],
+) -> ResolvedProjectPlan:
+    paths = ensure_project_dirs(project_root)
+    plan_dir = _resolve_project_plan_dir(paths, plan_ref)
+    payload = _read_json(plan_dir / "frontier.plan.json")
+    plan_id = str(payload.get("plan_id") or plan_dir.name)
+    profile = _project_plan_profile(str(payload.get("profile") or "balanced"))
+    source_names = {source.name for source in selected_sources}
+    urls_by_source: dict[str, list[str]] = {source.name: [] for source in selected_sources}
+    selected = payload.get("selected")
+    if not isinstance(selected, list):
+        raise ProjectError(f"Invalid project plan: {plan_dir}")
+    for item in selected:
+        if not isinstance(item, dict):
+            continue
+        source_name = str(item.get("source_name") or "")
+        url = str(item.get("url") or "")
+        if source_name not in source_names or not url:
+            continue
+        urls_by_source[source_name].append(url)
+    urls_by_source = {key: _unique_urls(value) for key, value in urls_by_source.items()}
+    if not any(urls_by_source.values()):
+        raise ProjectError("Project plan has no selected URLs for the requested source(s).")
+    return ResolvedProjectPlan(
+        plan_id=plan_id,
+        plan_dir=plan_dir,
+        profile=profile,
+        urls_by_source=urls_by_source,
+        payload=payload,
+    )
+
+
+def _resolve_project_plan_dir(paths: ProjectPaths, plan_ref: str | Path) -> Path:
+    ref = str(plan_ref)
+    if ref == "latest":
+        latest_path = paths.plans / "latest-plan"
+        if not latest_path.exists():
+            raise ProjectError("No latest project plan exists. Run `docpull plan` first.")
+        ref = latest_path.read_text(encoding="utf-8").strip()
+    candidate = Path(ref)
+    plan_dir = candidate if candidate.is_absolute() or candidate.exists() else paths.plans / ref
+    if plan_dir.is_file():
+        plan_dir = plan_dir.parent
+    if not (plan_dir / "frontier.plan.json").exists():
+        raise ProjectError(f"Project plan does not exist: {plan_ref}")
+    return plan_dir.resolve()
+
+
+def _run_plan_payload(plan: ResolvedProjectPlan | None) -> dict[str, Any] | None:
+    if plan is None:
+        return None
+    selected_count = sum(len(urls) for urls in plan.urls_by_source.values())
+    return {
+        "plan_id": plan.plan_id,
+        "plan_dir": str(plan.plan_dir),
+        "profile": plan.profile,
+        "selected_count": selected_count,
+        "source_counts": {source: len(urls) for source, urls in plan.urls_by_source.items()},
+    }
+
+
+def _project_plan_profile(value: str) -> ProjectPlanProfile:
+    if value not in PROJECT_PLAN_PROFILES:
+        raise ProjectError(f"Unsupported plan profile: {value}")
+    return value  # type: ignore[return-value]
+
+
+def _new_plan_id() -> str:
+    return "plan_" + utc_now().strftime("%Y%m%dT%H%M%S%fZ")
+
+
+def _default_plan_source_limit(
+    *,
+    profile: ProjectPlanProfile,
+    max_pages: int | None,
+    source_count: int,
+) -> int:
+    profile_cap = {
+        "broad": 500,
+        "balanced": 150,
+        "api-docs": 200,
+        "rag-clean": 120,
+    }[profile]
+    if max_pages is None:
+        return profile_cap
+    per_source = max(1, (max_pages + max(source_count, 1) - 1) // max(source_count, 1))
+    return max(1, min(profile_cap, per_source))
+
+
+def _source_host(source: ProjectSource) -> str:
+    return (urlparse(source.url).hostname or "").lower().rstrip(".")
+
+
+def _source_expected_domains(source: ProjectSource) -> list[str]:
+    host = _source_host(source)
+    if not host:
+        return []
+    domains = [host]
+    family = _domain_family(host)
+    if family and family != host:
+        domains.append(family)
+    return domains
+
+
+def _domain_family(domain: str) -> str:
+    labels = [label for label in domain.lower().removeprefix("www.").split(".") if label]
+    if len(labels) < 2:
+        return ".".join(labels)
+    if len(labels) >= 3 and len(labels[-1]) == 2 and labels[-2] in {
+        "ac",
+        "co",
+        "com",
+        "edu",
+        "gov",
+        "net",
+        "org",
+    }:
+        return ".".join(labels[-3:])
+    return ".".join(labels[-2:])
+
+
+def _is_source_related_url(url: str, source: ProjectSource) -> bool:
+    hostname = (urlparse(url).hostname or "").lower().removeprefix("www.").rstrip(".")
+    if not hostname:
+        return False
+    return any(
+        hostname == expected or hostname.endswith(f".{expected}")
+        for expected in _source_expected_domains(source)
+    )
+
+
+def _url_mentions_source_domain(url: str, source: ProjectSource) -> bool:
+    normalized_url = unquote(url).lower()
+    return any(expected and expected in normalized_url for expected in _source_expected_domains(source))
+
+
+def _normalized_plan_url(url: str) -> str:
+    parsed = urlparse(url)
+    path = parsed.path
+    for suffix in (".md", ".mdx"):
+        if path.lower().endswith(suffix):
+            path = path[: -len(suffix)]
+            break
+    return parsed._replace(path=path, fragment="").geturl().rstrip("/")
+
+
+def _rate_limit_prefix(url: str) -> str:
+    parsed = urlparse(url)
+    segments = [segment for segment in parsed.path.split("/") if segment]
+    if len(segments) >= 2 and segments[0] == "websets" and segments[1] == "directory":
+        prefix_segments = segments[:2]
+    else:
+        prefix_segments = segments[:1]
+    path = "/" + "/".join(prefix_segments) if prefix_segments else ""
+    return f"{parsed.scheme}://{parsed.netloc}{path}"
+
+
+def _looks_like_rate_limit_error(error: Any) -> bool:
+    text = str(error).lower()
+    return "429" in text or "too many requests" in text or "rate limit" in text
+
+
 def _unique_urls(values: list[str]) -> list[str]:
     seen: set[str] = set()
     output: list[str] = []
@@ -1437,6 +2325,7 @@ def _fetch_config(
             rate_limit=config.crawl.rate_limit,
             include_paths=config.crawl.include_paths,
             exclude_paths=config.crawl.exclude_paths,
+            adaptive_rate_limit=config.crawl.adaptive_rate_limit,
             streaming_discovery=config.crawl.streaming_discovery,
         ),
         output=OutputConfig(
@@ -1469,6 +2358,7 @@ def _finalize_project_run(
     source_health: list[dict[str, Any]],
     fetch_stats: dict[str, int],
     update_discovery: bool,
+    plan: ResolvedProjectPlan | None = None,
 ) -> dict[str, Any]:
     paths = project_paths(project_root)
     finished_at = utc_now_iso()
@@ -1478,6 +2368,7 @@ def _finalize_project_run(
     _write_jsonl(run_dir / "documents.ndjson", records)
     _write_jsonl(run_dir / "chunks.jsonl", chunks)
     _write_jsonl(run_dir / "errors.jsonl", errors)
+    _write_jsonl(run_dir / "skips.jsonl", skips)
     _write_json(
         run_dir / "source-health.json",
         {"schema_version": PROJECT_SCHEMA_VERSION, "sources": source_health},
@@ -1492,6 +2383,7 @@ def _finalize_project_run(
         started_at=started_at,
         finished_at=finished_at,
         update_discovery=update_discovery,
+        plan=plan,
     )
     _write_json(run_dir / "manifest.json", manifest)
     _write_json(run_dir / "corpus.manifest.json", _corpus_manifest(manifest, records, source_entries))
@@ -1501,6 +2393,20 @@ def _finalize_project_run(
     _write_json(run_dir / "accounting.json", accounting)
     _write_json(paths.manifests / f"{run_id}.json", manifest)
 
+    artifacts: dict[str, str] = {
+        "run": "run.json",
+        "documents_jsonl": "documents.jsonl",
+        "chunks_jsonl": "chunks.jsonl",
+        "manifest": "manifest.json",
+        "errors": "errors.jsonl",
+        "skips": "skips.jsonl",
+        "accounting": "accounting.json",
+        "source_health": "source-health.json",
+        "documents_ndjson": "documents.ndjson",
+        "corpus_manifest": "corpus.manifest.json",
+        "sources": "sources.md",
+        "pack": "local.pack.json",
+    }
     run_payload = {
         "schema_version": PROJECT_SCHEMA_VERSION,
         "project": config.name,
@@ -1517,20 +2423,12 @@ def _finalize_project_run(
             "robots_blocked": sum(_safe_int(item.get("robots_blocked_count")) for item in source_health),
             "paid_cloud_routes_used": 0,
         },
-        "artifacts": {
-            "run": "run.json",
-            "documents_jsonl": "documents.jsonl",
-            "chunks_jsonl": "chunks.jsonl",
-            "manifest": "manifest.json",
-            "errors": "errors.jsonl",
-            "accounting": "accounting.json",
-            "source_health": "source-health.json",
-            "documents_ndjson": "documents.ndjson",
-            "corpus_manifest": "corpus.manifest.json",
-            "sources": "sources.md",
-            "pack": "local.pack.json",
-        },
+        "plan": _run_plan_payload(plan),
+        "artifacts": artifacts,
     }
+    if plan is not None:
+        _write_json(run_dir / "plan.json", _run_plan_payload(plan))
+        artifacts["plan"] = "plan.json"
     _write_json(run_dir / "run.json", run_payload)
     if status != "dry_run":
         paths.latest_run.write_text(run_id + "\n", encoding="utf-8")
@@ -1548,6 +2446,7 @@ def project_paths(root: Path) -> ProjectPaths:
         runs=state / "runs",
         cache=state / "cache",
         manifests=state / "manifests",
+        plans=state / "plans",
         exports=state / "exports",
         evals=state / "evals",
         releases=state / "releases",
@@ -1564,6 +2463,7 @@ def ensure_project_dirs(root: Path) -> ProjectPaths:
         paths.runs,
         paths.cache,
         paths.manifests,
+        paths.plans,
         paths.exports,
         paths.evals,
         paths.releases,
@@ -2423,6 +3323,7 @@ def _run_manifest(
     started_at: str,
     finished_at: str,
     update_discovery: bool,
+    plan: ResolvedProjectPlan | None = None,
 ) -> dict[str, Any]:
     return {
         "schema_version": PROJECT_SCHEMA_VERSION,
@@ -2433,6 +3334,7 @@ def _run_manifest(
         "started_at": started_at,
         "finished_at": finished_at,
         "update_discovery": update_discovery,
+        "plan": _run_plan_payload(plan),
         "sources": [_source_public_payload(source) for source in config.sources],
         "document_count": len(records),
         "chunk_count": len(chunks),

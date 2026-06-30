@@ -201,9 +201,23 @@ docpull watch https://docs.stripe.com --export cursor --alert changes
 
 `docpull diff` is hash-based and deterministic locally. Optional BYOK semantic
 summaries are advisory and skip cleanly when no model key is configured.
-Use `docpull add URL --discover` or `docpull sync --update-discovery` to
-refresh and persist discovered source URLs in `docpull.yaml`; sync then uses
-that stored URL set for repeatable exact refreshes.
+Use `docpull add URL --discover` to discover and persist source URLs once.
+Normal `docpull sync` uses that stored URL set without rediscovering; use
+`docpull sync --update-discovery` when you explicitly want to refresh it.
+
+For larger vendor-doc pulls, plan the crawl frontier before fetching:
+
+```bash
+# Build a balanced dry-run frontier under .docpull/plans/<plan_id>
+docpull plan --profile balanced
+
+# Fetch exactly the selected URLs from the latest plan
+docpull sync --plan latest
+```
+
+Profiles include `broad`, `balanced`, `api-docs`, and `rag-clean`. Plans record
+selected URLs, rejected URLs with reasons, category counts, source balance, and
+warnings such as generated-directory traps or localized duplicates.
 
 For authenticated sources, store only environment variable references in
 `docpull.yaml`; DocPull resolves values in memory at sync time and writes only
