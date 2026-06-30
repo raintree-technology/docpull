@@ -8,7 +8,7 @@ import re
 from collections import Counter
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
 from rich.console import Console
 from rich.markup import escape
@@ -401,7 +401,7 @@ def score_pack(pack_dir: Path, *, required_domains: list[str] | None = None) -> 
     domains = Counter(_domain(url) for url in urls if _domain(url))
     content_hashes = [str(record.get("content_hash", "")) for record in records if record.get("content_hash")]
     duplicate_chunks = len(content_hashes) - len(set(content_hashes))
-    token_counts = [int(record.get("token_count", 0) or 0) for record in records]
+    token_counts, token_source = _pack_token_counts(pack_dir, records)
     empty_records = [record for record in records if not str(record.get("content", "")).strip()]
 
     if record_count == 0:
@@ -440,6 +440,14 @@ def score_pack(pack_dir: Path, *, required_domains: list[str] | None = None) -> 
         score -= min(15, duplicate_chunks * 3)
         warnings.append(
             _issue("duplicate_chunks", f"{duplicate_chunks} records share duplicate content hashes.")
+        )
+    if record_count and not token_counts:
+        score -= 5
+        warnings.append(
+            _issue(
+                "missing_token_counts",
+                "Pack has records but no token_count metadata on documents or chunks.",
+            )
         )
     if not (pack_dir / "corpus.manifest.json").exists():
         score -= 15
@@ -509,6 +517,19 @@ def score_pack(pack_dir: Path, *, required_domains: list[str] | None = None) -> 
             )
         )
 
+    category_counts = _url_category_counts(unique_urls)
+    localized_count = category_counts.get("localized", 0)
+    largest_domain_share = 0.0
+    if urls and domains:
+        largest_domain_share = max(domains.values()) / len(urls)
+        if len(domains) > 1 and largest_domain_share >= 0.85:
+            warnings.append(
+                _issue(
+                    "source_imbalance",
+                    "One source domain accounts for at least 85% of pack records.",
+                )
+            )
+
     score = max(0, min(100, score))
     return {
         "schema_version": SCORE_SCHEMA_VERSION,
@@ -523,6 +544,10 @@ def score_pack(pack_dir: Path, *, required_domains: list[str] | None = None) -> 
             "domain_count": len(domains),
             "duplicate_chunk_count": duplicate_chunks,
             "total_tokens": sum(token_counts),
+            "token_count_source": token_source,
+            "largest_domain_share": round(largest_domain_share, 4),
+            "localized_url_count": localized_count,
+            "category_counts": dict(category_counts.most_common()),
         },
         "domains": dict(domains.most_common()),
         "expected_domains": expected,
@@ -546,6 +571,86 @@ def score_pack_sources(pack_dir: Path, *, required_domains: list[str] | None = N
         "source_count": len(scored),
         "sources": scored,
     }
+
+
+def _pack_token_counts(pack_dir: Path, records: list[dict[str, Any]]) -> tuple[list[int], str]:
+    document_counts = [_safe_int(record.get("token_count")) for record in records]
+    document_counts = [count for count in document_counts if count > 0]
+    if document_counts:
+        return document_counts, "documents"
+
+    chunk_path = pack_dir / "chunks.jsonl"
+    if not chunk_path.exists():
+        chunk_path = pack_dir / "chunks.ndjson"
+    if chunk_path.exists():
+        chunk_counts = [_safe_int(record.get("token_count")) for record in _read_ndjson(chunk_path)]
+        chunk_counts = [count for count in chunk_counts if count > 0]
+        if chunk_counts:
+            return chunk_counts, chunk_path.name
+    return [], "missing"
+
+
+def _url_category_counts(urls: list[str]) -> Counter[str]:
+    counts: Counter[str] = Counter()
+    for url in urls:
+        counts[_pack_url_category(url)] += 1
+    return counts
+
+
+def _pack_url_category(url: str) -> str:
+    parsed = urlparse(url)
+    path = parsed.path.lower()
+    segments = [segment for segment in path.split("/") if segment]
+    filename = segments[-1] if segments else ""
+    if any(
+        segment
+        in {
+            "es",
+            "fr",
+            "de",
+            "it",
+            "ja",
+            "ko",
+            "pt",
+            "pt-br",
+            "zh",
+            "zh-cn",
+            "zh-tw",
+            "ru",
+            "pl",
+            "nl",
+            "tr",
+            "id",
+            "vi",
+            "ar",
+        }
+        for segment in segments
+    ):
+        return "localized"
+    if filename in {"llms.txt", "llms-full.txt"}:
+        return "llms"
+    if filename.endswith(("openapi.json", "openapi.yaml", "openapi.yml", "swagger.json")):
+        return "openapi"
+    if filename.endswith(".pdf"):
+        return "pdf"
+    if any(segment in {"api", "reference", "api-reference"} for segment in segments):
+        return "api_reference"
+    if any(
+        segment in {"docs", "documentation", "guide", "guides", "quickstart", "sdk", "sdks"}
+        for segment in segments
+    ):
+        return "docs"
+    if any(segment in {"changelog", "changes", "release-notes", "releases"} for segment in segments):
+        return "changelog"
+    if any(segment in {"blog", "news", "press", "articles"} for segment in segments):
+        return "blog"
+    if any(segment in {"glossary", "learn", "resources"} for segment in segments):
+        return "glossary"
+    if any(segment in {"legal", "terms", "privacy"} for segment in segments):
+        return "legal"
+    if any(segment in {"pricing", "plans"} for segment in segments):
+        return "pricing"
+    return "marketing"
 
 
 def build_citation_map(
@@ -611,6 +716,7 @@ def build_research_brief(
     sources, citation_by_url, expected = _citation_sources(pack_dir, pack, records, required_domains)
     brief_objective = objective or str(pack.get("objective") or "Review local DocPull context pack")
     entities = _extract_entities(records, citation_by_url, limit=max(1, entity_limit)) if entity_limit else []
+    token_counts, token_source = _pack_token_counts(pack_dir, records)
     return {
         "schema_version": BRIEF_SCHEMA_VERSION,
         "generated_at": utc_now_iso(),
@@ -621,7 +727,8 @@ def build_research_brief(
             "source_count": len(sources),
             "record_count": len(records),
             "entity_count": len(entities),
-            "total_tokens": sum(_safe_int(record.get("token_count")) for record in records),
+            "total_tokens": sum(token_counts),
+            "token_count_source": token_source,
         },
         "load_plan": sources[: min(len(sources), 12)],
         "key_excerpts": _select_key_excerpts(
@@ -1764,9 +1871,66 @@ def _off_domain_urls(urls: list[str], expected_domains: list[str]) -> list[str]:
     off_domain: list[str] = []
     for url in urls:
         domain = _domain(url)
-        if not any(domain == expected or domain.endswith(f".{expected}") for expected in expected_domains):
+        if _domain_matches_expected(domain, expected_domains):
+            continue
+        if _is_machine_readable_doc_url(url) and _url_mentions_expected_domain(url, expected_domains):
+            continue
+        if domain:
             off_domain.append(url)
     return off_domain
+
+
+def _domain_matches_expected(domain: str, expected_domains: list[str]) -> bool:
+    if not domain:
+        return False
+    domain_family = _domain_family(domain)
+    for expected in expected_domains:
+        expected = expected.lower().removeprefix("www.").rstrip(".")
+        if domain == expected or domain.endswith(f".{expected}"):
+            return True
+        expected_family = _domain_family(expected)
+        if domain_family and expected_family and domain_family == expected_family:
+            return True
+    return False
+
+
+def _domain_family(domain: str) -> str:
+    labels = [label for label in domain.lower().removeprefix("www.").split(".") if label]
+    if len(labels) < 2:
+        return ".".join(labels)
+    if len(labels) >= 3 and len(labels[-1]) == 2 and labels[-2] in {
+        "ac",
+        "co",
+        "com",
+        "edu",
+        "gov",
+        "net",
+        "org",
+    }:
+        return ".".join(labels[-3:])
+    return ".".join(labels[-2:])
+
+
+def _is_machine_readable_doc_url(url: str) -> bool:
+    path = urlparse(url).path.lower()
+    filename = Path(path).name
+    if filename in {"llms.txt", "llms-full.txt"}:
+        return True
+    return any(token in filename for token in ("openapi", "swagger")) and filename.endswith(
+        (".json", ".yaml", ".yml")
+    )
+
+
+def _url_mentions_expected_domain(url: str, expected_domains: list[str]) -> bool:
+    normalized_url = unquote(url).lower()
+    for expected in expected_domains:
+        expected = expected.lower().removeprefix("www.").rstrip(".")
+        expected_family = _domain_family(expected)
+        if expected and expected in normalized_url:
+            return True
+        if expected_family and expected_family in normalized_url:
+            return True
+    return False
 
 
 def _issue(

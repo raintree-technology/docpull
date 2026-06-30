@@ -24,10 +24,12 @@ from .pack_tools import (
     _diff_markdown,
     _domain,
     _expected_domains,
+    _pack_token_counts,
     _read_ndjson,
     _read_pack_metadata,
     _safe_int,
     _search_markdown,
+    _url_category_counts,
     _write_json,
     build_citation_map,
     build_research_brief,
@@ -356,7 +358,7 @@ def audit_pack(
     records = _read_ndjson(pack_dir / "documents.ndjson")
     score_payload = score_pack(pack_dir, required_domains=required_domains)
     citation_payload = build_citation_map(pack_dir, required_domains=required_domains)
-    dimensions = _audit_dimensions(records, score_payload, citation_payload)
+    dimensions = _audit_dimensions(pack_dir, records, score_payload, citation_payload)
     weighted_score = _weighted_audit_score(dimensions, score_payload["score"])
     payload = {
         "schema_version": AUDIT_SCHEMA_VERSION,
@@ -512,6 +514,7 @@ def _sources_markdown(sources: list[dict[str, Any]]) -> str:
 
 
 def _audit_dimensions(
+    pack_dir: Path,
     records: list[dict[str, Any]],
     score_payload: dict[str, Any],
     citation_payload: dict[str, Any],
@@ -523,9 +526,11 @@ def _audit_dimensions(
     ]
     duplicate_count = len(content_hashes) - len(set(content_hashes))
     duplicate_rate = duplicate_count / len(content_hashes) if content_hashes else 0.0
-    token_counts = [
-        _safe_int(record.get("token_count")) for record in records if _safe_int(record.get("token_count"))
-    ]
+    token_counts, token_source = _pack_token_counts(pack_dir, records)
+    category_counts = _url_category_counts(sorted(set(urls)))
+    localized_count = category_counts.get("localized", 0)
+    largest_domain_share = max(domains.values()) / len(urls) if urls and domains else 0.0
+    balance_score = int(max(0, 100 - max(0.0, largest_domain_share - 0.5) * 120)) if urls else 0
     citation_urls = {
         str(source.get("url")) for source in citation_payload.get("sources", []) if source.get("url")
     }
@@ -563,8 +568,27 @@ def _audit_dimensions(
                 "count": len(token_counts),
                 "min": min(token_counts) if token_counts else None,
                 "max": max(token_counts) if token_counts else None,
+                "source": token_source,
             },
-            "summary": "Token counts are evaluated when chunk metadata exists.",
+            "summary": "Token counts are evaluated from document or chunk metadata.",
+        },
+        "source_balance": {
+            "score": balance_score,
+            "value": {
+                "largest_domain_share": round(largest_domain_share, 4),
+                "domains": dict(domains.most_common()),
+            },
+            "summary": "Flags packs dominated by one source domain.",
+        },
+        "localized_content": {
+            "score": max(0, 100 - localized_count * 10),
+            "value": localized_count,
+            "summary": f"{localized_count} localized URL(s)",
+        },
+        "content_categories": {
+            "score": 100,
+            "value": dict(category_counts.most_common()),
+            "summary": "URL-category mix for source planning review.",
         },
         "required_domain_coverage": {
             "score": 100 if not score_payload.get("issues") else max(0, score_payload["score"]),
@@ -599,7 +623,7 @@ def _freshness_score(records: list[dict[str, Any]]) -> int:
 
 def _chunk_size_score(token_counts: list[int]) -> int:
     if not token_counts:
-        return 85
+        return 70
     too_small = sum(1 for value in token_counts if value < 100)
     too_large = sum(1 for value in token_counts if value > 8000)
     penalty = (too_small + too_large) * 8
@@ -608,12 +632,15 @@ def _chunk_size_score(token_counts: list[int]) -> int:
 
 def _weighted_audit_score(dimensions: dict[str, Any], base_score: int) -> int:
     weights = {
-        "source_diversity": 0.12,
-        "freshness": 0.16,
-        "duplicate_rate": 0.18,
-        "citation_coverage": 0.20,
+        "source_diversity": 0.10,
+        "freshness": 0.14,
+        "duplicate_rate": 0.16,
+        "citation_coverage": 0.18,
         "chunk_size_distribution": 0.12,
-        "required_domain_coverage": 0.12,
+        "required_domain_coverage": 0.10,
+        "source_balance": 0.06,
+        "localized_content": 0.03,
+        "content_categories": 0.01,
     }
     dimension_score = sum(
         _safe_int(dimensions[name].get("score")) * weight for name, weight in weights.items()

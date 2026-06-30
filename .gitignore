@@ -185,6 +185,15 @@ downloads/
 /packs/
 run.accounting.json
 
+# Private planning / competitive strategy artifacts
+.agents/
+context-todo.txt
+docs/competitive-roadmap.md
+docs/competitive-*.md
+docs/*-competitive-*.md
+docs/*-competitor-*.md
+docs/*-roadmap.md
+
 # Generated reports and analysis files
 TEST_REPORT.md
 CODE_QUALITY_REPORT.md

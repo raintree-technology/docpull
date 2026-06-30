@@ -20,7 +20,7 @@ def write_context_pack(
     sources_dir = pack_dir / "sources"
     sources_dir.mkdir(exist_ok=True)
     domains = include_domains or ["docs.parallel.ai"]
-    pack_records = records or [
+    pack_records = [dict(record) for record in records] if records is not None else [
         {
             "document_id": "doc_1",
             "url": "https://docs.parallel.ai/api-reference/search/search",
@@ -28,8 +28,11 @@ def write_context_pack(
             "content": "Parallel Search API returns cited JSON results for live agent search.",
             "content_hash": "hash_1",
             "source_type": "parallel_extract",
+            "token_count": 250,
         }
     ]
+    for record in pack_records:
+        record.setdefault("token_count", 250)
 
     sources = []
     for index, record in enumerate(pack_records, start=1):

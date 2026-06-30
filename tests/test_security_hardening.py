@@ -15,6 +15,7 @@ from pydantic import ValidationError
 from docpull.http.client import AsyncHttpClient, _ValidatedResolver
 from docpull.pipeline.base import PageContext
 from docpull.pipeline.steps.save import SaveStep
+from docpull.security.download_policy import is_allowed_document_content_type
 from docpull.security.robots import RobotsChecker, _RobotsResponse
 from docpull.security.url_validator import UrlValidationResult, UrlValidator
 
@@ -639,6 +640,70 @@ class TestRedirectValidation:
 
         assert response.content == b"# Safe docs\n\nBody"
         assert response.content_type == "text/markdown; charset=utf-8"
+
+    @pytest.mark.asyncio
+    async def test_http_client_allows_combined_octet_stream_json_header(self) -> None:
+        client = AsyncHttpClient(
+            rate_limiter=_DummyRateLimiter(),
+            max_retries=0,
+        )
+        client._session = _FakeSession(
+            [
+                _FakeResponse(
+                    200,
+                    headers={"Content-Type": "application/octet-stream, application/json"},
+                    chunks=[b'{"openapi":"3.1.0","paths":{}}'],
+                    url="https://public.example/openapi.json",
+                )
+            ]
+        )
+
+        response = await client.get("https://public.example/openapi.json")
+
+        assert response.content == b'{"openapi":"3.1.0","paths":{}}'
+        assert response.content_type == "application/octet-stream, application/json"
+        assert is_allowed_document_content_type(response.content_type) is True
+
+    @pytest.mark.asyncio
+    async def test_http_client_allows_yaml_spec_content_type(self) -> None:
+        client = AsyncHttpClient(
+            rate_limiter=_DummyRateLimiter(),
+            max_retries=0,
+        )
+        client._session = _FakeSession(
+            [
+                _FakeResponse(
+                    200,
+                    headers={"Content-Type": "application/yaml"},
+                    chunks=[b"openapi: 3.1.0\npaths: {}\n"],
+                    url="https://public.example/openapi.yml",
+                )
+            ]
+        )
+
+        response = await client.get("https://public.example/openapi.yml")
+
+        assert response.content == b"openapi: 3.1.0\npaths: {}\n"
+        assert is_allowed_document_content_type(response.content_type) is True
+
+    @pytest.mark.asyncio
+    async def test_http_client_rejects_dangerous_type_in_combined_header(self) -> None:
+        response = _FakeResponse(
+            200,
+            headers={"Content-Type": "text/plain, application/x-msdownload"},
+            chunks=[b"plain text"],
+            url="https://public.example/download",
+        )
+        client = AsyncHttpClient(
+            rate_limiter=_DummyRateLimiter(),
+            max_retries=0,
+        )
+        client._session = _FakeSession([response])
+
+        with pytest.raises(ValueError, match="Disallowed content type 'application/x-msdownload'"):
+            await client.get("https://public.example/download")
+
+        assert response.content.iterated is False
 
     @pytest.mark.asyncio
     async def test_http_client_does_not_buffer_4xx_body(self) -> None:

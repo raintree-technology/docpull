@@ -375,6 +375,53 @@ def test_site_scan_collects_local_open_discovery_candidates() -> None:
     }
 
 
+def test_site_scan_skips_malformed_text_links_without_failing() -> None:
+    routes = {
+        "https://docs.example.com/llms.txt": (
+            "Bad absolute URL: https://[not-an-ipv6/docs\n[Guide](/guide)\n",
+            "text/plain",
+        ),
+    }
+
+    records = asyncio.run(
+        records_from_site_scan(
+            "https://docs.example.com",
+            client=_FakeHttpClient(routes),
+            sources=["llms"],
+            expected_domains=["docs.example.com"],
+        )
+    )
+
+    assert [record.url for record in records] == [
+        "https://docs.example.com/llms.txt",
+        "https://docs.example.com/guide",
+    ]
+
+
+def test_site_scan_trims_markdown_artifacts_from_bare_text_links() -> None:
+    routes = {
+        "https://docs.example.com/llms.txt": (
+            "Duplicated markdown artifact: "
+            "https://docs.example.com/guides/enrich](https://docs.example.com/guides/enrich)\n",
+            "text/plain",
+        ),
+    }
+
+    records = asyncio.run(
+        records_from_site_scan(
+            "https://docs.example.com",
+            client=_FakeHttpClient(routes),
+            sources=["llms"],
+            expected_domains=["docs.example.com"],
+        )
+    )
+
+    assert [record.url for record in records] == [
+        "https://docs.example.com/llms.txt",
+        "https://docs.example.com/guides/enrich",
+    ]
+
+
 def test_site_scan_collects_github_docs_tree_candidates() -> None:
     routes = {
         "https://api.github.com/repos/owner/project/contents?ref=HEAD": (

@@ -86,6 +86,7 @@ def _record(url: str, content_hash: str, content: str = "content") -> dict[str, 
         "content": content,
         "content_hash": content_hash,
         "source_type": "parallel_extract",
+        "token_count": 250,
     }
 
 
@@ -105,6 +106,36 @@ def test_pack_score_flags_off_domain_sources(tmp_path: Path) -> None:
     assert result["score"] < 100
     assert result["issues"][0]["code"] == "off_domain_sources"
     assert result["expected_domains"] == ["parallel.ai"]
+
+
+def test_pack_score_allows_related_api_subdomain(tmp_path: Path) -> None:
+    pack = tmp_path / "pack"
+    _write_pack(
+        pack,
+        [_record("https://api.parallel.ai/account/service/openapi.json", "aaa")],
+        include_domains=["docs.parallel.ai"],
+    )
+
+    result = score_pack(pack)
+
+    assert result["score"] == 100
+    assert result["issues"] == []
+
+
+def test_pack_score_allows_external_machine_readable_spec_with_expected_domain(
+    tmp_path: Path,
+) -> None:
+    pack = tmp_path / "pack"
+    _write_pack(
+        pack,
+        [_record("https://app.stainless.com/api/spec/documented/context.dev/openapi.documented.yml", "aaa")],
+        include_domains=["docs.context.dev"],
+    )
+
+    result = score_pack(pack)
+
+    assert result["score"] == 100
+    assert result["issues"] == []
 
 
 def test_pack_score_cli_writes_score_file(tmp_path: Path) -> None:
@@ -160,6 +191,32 @@ def test_pack_score_understands_search_pack_metadata(tmp_path: Path) -> None:
     assert result["score"] == 100
     assert result["expected_domains"] == ["docs.parallel.ai"]
     assert result["warnings"] == []
+    assert result["summary"]["total_tokens"] == 250
+    assert result["summary"]["token_count_source"] == "documents"
+
+
+def test_pack_score_warns_on_missing_token_counts_and_reads_chunks(tmp_path: Path) -> None:
+    pack = tmp_path / "pack"
+    record = _record("https://docs.parallel.ai/api-reference/search/search", "aaa")
+    record.pop("token_count")
+    _write_pack(pack, [record], include_domains=["docs.parallel.ai"])
+
+    missing = score_pack(pack)
+
+    assert missing["summary"]["token_count_source"] == "missing"
+    assert {warning["code"] for warning in missing["warnings"]} == {"missing_token_counts"}
+    assert missing["score"] == 95
+
+    (pack / "chunks.jsonl").write_text(
+        json.dumps({"chunk_id": "chunk_1", "document_id": "doc_aaa", "token_count": 321}) + "\n",
+        encoding="utf-8",
+    )
+
+    with_chunks = score_pack(pack)
+
+    assert with_chunks["summary"]["token_count_source"] == "chunks.jsonl"
+    assert with_chunks["summary"]["total_tokens"] == 321
+    assert with_chunks["warnings"] == []
 
 
 def test_pack_sources_ranks_expected_docs_sources(tmp_path: Path) -> None:

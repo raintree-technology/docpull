@@ -237,6 +237,30 @@ class TestOpenApiExtractor:
         html = json.dumps({"foo": "bar"}).encode()
         assert OpenApiExtractor().try_extract(html, "https://example.com/") is None
 
+    def test_renders_yaml_openapi_to_markdown(self):
+        spec = b"""
+openapi: 3.1.0
+info:
+  title: YAML API
+  description: YAML specs should render.
+paths:
+  /widgets:
+    get:
+      summary: List widgets
+      responses:
+        "200":
+          description: OK
+"""
+
+        result = OpenApiExtractor().try_extract(spec, "https://example.com/openapi.yml")
+
+        assert result is not None
+        assert result.source_type == "openapi"
+        assert result.title == "YAML API"
+        assert "# YAML API" in result.markdown
+        assert "_OpenAPI 3.1.0_" in result.markdown
+        assert "`GET /widgets`" in result.markdown
+
     def test_renders_request_body_properties_and_resolves_refs(self):
         spec = {
             "openapi": "3.0.0",

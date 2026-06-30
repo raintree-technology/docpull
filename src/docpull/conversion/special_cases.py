@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from typing import Any, Protocol
 from urllib.parse import urlparse
 
+import yaml
 from bs4 import BeautifulSoup, Tag
 
 logger = logging.getLogger(__name__)
@@ -512,7 +513,7 @@ def _schema_properties(
 
 
 class OpenApiExtractor:
-    """Render OpenAPI / Swagger JSON specs directly to Markdown.
+    """Render OpenAPI / Swagger JSON or YAML specs directly to Markdown.
 
     Triggers only when the body parses as an OpenAPI document. Renders each
     operation with description, parameters (grouped by location), request body
@@ -524,15 +525,10 @@ class OpenApiExtractor:
 
     def try_extract(self, html: bytes, url: str) -> SpecialCaseResult | None:
         text = _decode_html(html).lstrip()
-        if not text.startswith("{"):
+        data = self._parse_spec(text, url)
+        if data is None:
             return None
-        try:
-            data = json.loads(text)
-        except json.JSONDecodeError as err:
-            logger.debug("OpenAPI extractor skipped %s: JSON parse failed: %s", url, err)
-            return None
-        if not isinstance(data, dict):
-            return None
+
         version = data.get("openapi") or data.get("swagger")
         if not isinstance(version, str):
             return None
@@ -567,6 +563,34 @@ class OpenApiExtractor:
             source_type=self.name,
             extra={"framework": "openapi", "openapi_version": version},
         )
+
+    @staticmethod
+    def _parse_spec(text: str, url: str) -> dict[str, Any] | None:
+        if not text:
+            return None
+        if text.startswith("{"):
+            try:
+                data = json.loads(text)
+            except json.JSONDecodeError as err:
+                logger.debug("OpenAPI extractor skipped %s: JSON parse failed: %s", url, err)
+                return None
+            return data if isinstance(data, dict) else None
+        if not OpenApiExtractor._looks_like_yaml_spec(text, url):
+            return None
+        try:
+            data = yaml.safe_load(text)
+        except yaml.YAMLError as err:
+            logger.debug("OpenAPI extractor skipped %s: YAML parse failed: %s", url, err)
+            return None
+        return data if isinstance(data, dict) else None
+
+    @staticmethod
+    def _looks_like_yaml_spec(text: str, url: str) -> bool:
+        path = urlparse(url).path.lower()
+        if path.endswith((".yaml", ".yml")):
+            return True
+        head = text[:4000]
+        return re.search(r"(?m)^\s*(openapi|swagger)\s*:", head) is not None
 
     def _render_operation(
         self,

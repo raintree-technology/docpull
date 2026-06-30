@@ -8,6 +8,7 @@ import itertools
 import json
 import re
 from collections import Counter
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
@@ -22,6 +23,8 @@ GRAPH_SCHEMA_VERSION = 1
 DEFAULT_ENTITY_LIMIT = 500
 DEFAULT_QUERY_LIMIT = 10
 DEFAULT_NEIGHBOR_LIMIT = 20
+MAX_GRAPH_ENTITIES_PER_CHUNK = 24
+MAX_GRAPH_ENTITIES_PER_SENTENCE = 8
 
 _WORD_RE = re.compile(r"[a-z0-9][a-z0-9-]{1,}", re.IGNORECASE)
 _SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
@@ -515,6 +518,7 @@ def _build_nodes_and_edges(
         )
 
     entity_nodes = _entity_nodes(entities_payload)
+    entity_rank = {str(node.get("id")): index for index, node in enumerate(entity_nodes)}
     nodes.extend(entity_nodes)
     for record in pack.documents:
         chunk_id = record.chunk_id or _stable_id("chunk", record.document_id, record.content_hash)
@@ -538,10 +542,15 @@ def _build_nodes_and_edges(
 
     for record in pack.documents:
         chunk_id = record.chunk_id or _stable_id("chunk", record.document_id, record.content_hash)
-        entity_ids = sorted(set(chunk_entity_ids.get(chunk_id, [])))
+        entity_ids = _limited_entity_ids(
+            chunk_entity_ids.get(chunk_id, []),
+            entity_rank=entity_rank,
+            limit=MAX_GRAPH_ENTITIES_PER_CHUNK,
+        )
         if len(entity_ids) < 2:
             continue
         citation_id = pack.citation_by_url.get(record.url)
+        chunk_excerpt = _excerpt(record.content)
         for left, right in itertools.combinations(entity_ids, 2):
             edges.append(
                 _edge(
@@ -551,6 +560,7 @@ def _build_nodes_and_edges(
                     "co_occurs_in_chunk",
                     record=record,
                     citation_id=citation_id,
+                    excerpt=chunk_excerpt,
                 )
             )
         edges.extend(
@@ -558,6 +568,7 @@ def _build_nodes_and_edges(
                 record,
                 entity_nodes=entity_nodes,
                 entity_ids=entity_ids,
+                entity_rank=entity_rank,
                 citation_id=citation_id,
             )
         )
@@ -633,15 +644,20 @@ def _entity_relation_edges(
     *,
     entity_nodes: list[dict[str, Any]],
     entity_ids: list[str],
+    entity_rank: dict[str, int],
     citation_id: str | None,
 ) -> list[dict[str, Any]]:
     entity_nodes_by_id = {str(node["id"]): node for node in entity_nodes if node.get("id") in entity_ids}
     edges: list[dict[str, Any]] = []
     for sentence in _sentences(record.content):
-        sentence_entity_ids = sorted(
-            entity_id
-            for entity_id, entity_node in entity_nodes_by_id.items()
-            if _entity_in_content(entity_node, sentence)
+        sentence_entity_ids = _limited_entity_ids(
+            (
+                entity_id
+                for entity_id, entity_node in entity_nodes_by_id.items()
+                if _entity_in_content(entity_node, sentence)
+            ),
+            entity_rank=entity_rank,
+            limit=MAX_GRAPH_ENTITIES_PER_SENTENCE,
         )
         if len(sentence_entity_ids) < 2:
             continue
@@ -659,6 +675,18 @@ def _entity_relation_edges(
                 )
             )
     return edges
+
+
+def _limited_entity_ids(
+    entity_ids: Iterable[str],
+    *,
+    entity_rank: dict[str, int],
+    limit: int,
+) -> list[str]:
+    unique_ids = {entity_id for entity_id in entity_ids if entity_id}
+    return sorted(unique_ids, key=lambda entity_id: (entity_rank.get(entity_id, 1_000_000), entity_id))[
+        :limit
+    ]
 
 
 def _pack_fingerprint(pack: LocalPack) -> dict[str, Any]:

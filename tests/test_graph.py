@@ -6,7 +6,16 @@ import json
 from pathlib import Path
 
 from docpull.cli import main
-from docpull.graph import build_graph, graph_neighbors, graph_status, load_graph, query_graph, refresh_graph
+from docpull.graph import (
+    MAX_GRAPH_ENTITIES_PER_CHUNK,
+    MAX_GRAPH_ENTITIES_PER_SENTENCE,
+    build_graph,
+    graph_neighbors,
+    graph_status,
+    load_graph,
+    query_graph,
+    refresh_graph,
+)
 from tests.pack_fixtures import write_context_pack
 
 
@@ -92,6 +101,34 @@ def test_graph_query_and_neighbors_return_cited_evidence(tmp_path: Path) -> None
     assert neighbors["matched_entity_count"] == 1
     assert neighbors["neighbor_count"] >= 1
     assert any(item["type"] == "chunk" for item in neighbors["neighbors"])
+
+
+def test_build_graph_caps_dense_entity_pair_edges(tmp_path: Path) -> None:
+    pack_dir = tmp_path / "pack"
+    emails = " ".join(f"user{i}@example.com" for i in range(40))
+    records = [
+        {
+            "document_id": "doc_dense",
+            "chunk_id": "chunk_dense_1",
+            "url": "https://docs.parallel.ai/api-reference/search/search",
+            "title": "Dense entity page",
+            "content": f"Search API supports these contacts: {emails}.",
+            "content_hash": "hash_dense_1",
+            "source_type": "parallel_extract",
+            "chunk_index": 0,
+            "chunk_heading": "Dense",
+            "token_count": 100,
+        }
+    ]
+    write_context_pack(pack_dir, records=records)
+
+    build_graph(pack_dir)
+    edges = _graph_records(pack_dir, "graph.edges.ndjson")
+
+    cooccurs = [edge for edge in edges if edge["type"] == "entity_cooccurs"]
+    relations = [edge for edge in edges if edge["type"] == "entity_relation"]
+    assert len(cooccurs) <= MAX_GRAPH_ENTITIES_PER_CHUNK * (MAX_GRAPH_ENTITIES_PER_CHUNK - 1) // 2
+    assert len(relations) <= MAX_GRAPH_ENTITIES_PER_SENTENCE * (MAX_GRAPH_ENTITIES_PER_SENTENCE - 1) // 2
 
 
 def test_graph_status_detects_stale_pack_and_refresh_writes_diff(tmp_path: Path) -> None:

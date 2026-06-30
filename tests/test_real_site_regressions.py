@@ -166,6 +166,9 @@ class TestContentTypeAllowlist:
     def test_plain_text_allowed(self):
         assert "text/plain" in ALLOWED_CONTENT_TYPES
 
+    def test_yaml_allowed(self):
+        assert "application/yaml" in ALLOWED_CONTENT_TYPES
+
 
 class TestSpaOutputDetection:
     def test_loading_shell_flagged(self):

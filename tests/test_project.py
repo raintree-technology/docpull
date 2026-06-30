@@ -22,6 +22,7 @@ from docpull.project import (
     export_context_pack,
     generate_eval_set,
     init_project,
+    plan_project,
     project_history,
     project_status,
     release_context_pack,
@@ -320,6 +321,9 @@ def test_discovery_refresh_updates_config_and_syncs_exact_urls(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     class FakeFetcher:
+        discover_calls = 0
+        fetched_urls: list[str] = []
+
         def __init__(self, config: Any) -> None:
             self.config = config
             self.stats = SimpleNamespace(pages_fetched=0, pages_failed=0, pages_skipped=0)
@@ -331,6 +335,7 @@ def test_discovery_refresh_updates_config_and_syncs_exact_urls(
             return None
 
         async def discover(self) -> list[str]:
+            FakeFetcher.discover_calls += 1
             return [
                 "https://docs.example.com/api/a",
                 "https://docs.example.com/api/b",
@@ -338,6 +343,7 @@ def test_discovery_refresh_updates_config_and_syncs_exact_urls(
             ]
 
         async def fetch_one(self, url: str, *, save: bool = True) -> SimpleNamespace:
+            FakeFetcher.fetched_urls.append(url)
             self.stats.pages_fetched += 1
             if save:
                 output_dir = self.config.output.directory
@@ -362,6 +368,7 @@ def test_discovery_refresh_updates_config_and_syncs_exact_urls(
     added = add_source("https://docs.example.com/api", name="docs", discover=True, root=tmp_path)
 
     assert added["source"]["discover"] is True
+    assert added["source"]["refresh_discovery_on_sync"] is False
     assert added["source"]["discovered_urls"] == [
         "https://docs.example.com/api/a",
         "https://docs.example.com/api/b",
@@ -377,8 +384,210 @@ def test_discovery_refresh_updates_config_and_syncs_exact_urls(
         "https://docs.example.com/api/a",
         "https://docs.example.com/api/b",
     ]
+    assert FakeFetcher.discover_calls == 1
     health = json.loads((run_dir / "source-health.json").read_text(encoding="utf-8"))
     assert health["sources"][0]["discovered_url_count"] == 2
+
+    sync_project(root=tmp_path, run_id="run_refresh", update_discovery=True)
+    assert FakeFetcher.discover_calls == 2
+
+
+def test_project_plan_filters_profiles_and_sync_uses_latest_plan(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    init_project(name="demo", source="https://exa.ai/docs", root=tmp_path)
+    config = project_module.load_project_config(tmp_path)
+    source = config.sources[0].model_copy(
+        update={
+            "discover": True,
+            "discovered_urls": [
+                "https://exa.ai/docs/api-reference/search",
+                "https://api.exa.ai/openapi.json",
+                "https://app.stainless.com/api/spec/documented/exa.ai/openapi.documented.yml",
+                "https://exa.ai/openapi.json",
+                "https://exa.ai/llms.txt",
+                "https://developer.monday.com/api-reference/reference/webhooks",
+                "https://exa.ai/blog/product",
+                "https://exa.ai/es/docs/api-reference/search",
+                "https://exa.ai/websets/directory/company/foo",
+                "https://exa.ai/legal/terms.pdf",
+            ],
+            "discovered_at": "2026-06-29T00:00:00+00:00",
+        }
+    )
+    project_module.save_project_config(tmp_path, config.model_copy(update={"sources": [source]}))
+
+    payload = plan_project(
+        root=tmp_path,
+        plan_id="plan_api",
+        profile="api-docs",
+        scan_site_hints=False,
+        max_pages_per_source=10,
+    )
+
+    selected_urls = {item["url"] for item in payload["selected"]}
+    rejected_urls = {item["url"] for item in payload["rejected"]}
+    plan_dir = tmp_path / ".docpull" / "plans" / "plan_api"
+
+    assert "https://exa.ai/docs/api-reference/search" in selected_urls
+    assert "https://api.exa.ai/openapi.json" in selected_urls
+    assert "https://app.stainless.com/api/spec/documented/exa.ai/openapi.documented.yml" in selected_urls
+    assert "https://exa.ai/openapi.json" in selected_urls
+    assert "https://exa.ai/llms.txt" in selected_urls
+    assert "https://developer.monday.com/api-reference/reference/webhooks" in rejected_urls
+    assert "https://exa.ai/websets/directory/company/foo" in rejected_urls
+    assert "https://exa.ai/es/docs/api-reference/search" in rejected_urls
+    assert "https://exa.ai/blog/product" in rejected_urls
+    assert (plan_dir / "frontier.plan.json").exists()
+    assert (plan_dir / "selected_urls.txt").exists()
+    assert (plan_dir / "rejected_sources.ndjson").exists()
+    assert (tmp_path / ".docpull" / "plans" / "latest-plan").read_text(encoding="utf-8").strip() == "plan_api"
+
+    class FakeFetcher:
+        fetched_urls: list[str] = []
+
+        def __init__(self, config: Any) -> None:
+            self.config = config
+            self.stats = SimpleNamespace(pages_fetched=0, pages_failed=0, pages_skipped=0)
+
+        async def __aenter__(self) -> FakeFetcher:
+            return self
+
+        async def __aexit__(self, *_exc: object) -> None:
+            return None
+
+        async def fetch_one(self, url: str, *, save: bool = True) -> SimpleNamespace:
+            FakeFetcher.fetched_urls.append(url)
+            self.stats.pages_fetched += 1
+            if save:
+                output_dir = self.config.output.directory
+                output_dir.mkdir(parents=True, exist_ok=True)
+                content = f"Fetched {url}"
+                record = {
+                    "document_id": f"doc_{self.stats.pages_fetched}",
+                    "url": url,
+                    "title": url,
+                    "content": content,
+                    "content_hash": _hash(content),
+                    "source_type": "test",
+                    "metadata": {},
+                    "extraction": {},
+                }
+                with (output_dir / "documents.ndjson").open("a", encoding="utf-8") as fp:
+                    fp.write(json.dumps(record) + "\n")
+            return SimpleNamespace(error=None, should_skip=False, skip_code=None, skip_reason=None)
+
+    monkeypatch.setattr(project_module, "Fetcher", FakeFetcher)
+    sync_payload = sync_project(root=tmp_path, run_id="run_plan", plan="latest")
+    run_dir = tmp_path / ".docpull" / "runs" / "run_plan"
+
+    assert sync_payload["plan"]["plan_id"] == "plan_api"
+    assert set(FakeFetcher.fetched_urls) == selected_urls
+    assert "https://exa.ai/websets/directory/company/foo" not in FakeFetcher.fetched_urls
+    manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["plan"]["plan_id"] == "plan_api"
+
+
+def test_project_plan_dedupes_markdown_mirror_urls(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    init_project(name="demo", source="https://docs.example.com", root=tmp_path)
+    config = project_module.load_project_config(tmp_path)
+    source = config.sources[0].model_copy(
+        update={
+            "discovered_urls": ["https://docs.example.com/documentation/about"],
+            "discovered_at": "2026-06-29T00:00:00+00:00",
+        }
+    )
+    project_module.save_project_config(tmp_path, config.model_copy(update={"sources": [source]}))
+
+    async def fake_scan(**_kwargs: Any) -> list[Any]:
+        return [
+            project_module.CandidateSourceRecord(
+                url="https://docs.example.com/documentation/about.md",
+                source="local-site-scan:llms",
+                provider="local",
+                rank=1,
+                metadata={"candidate_origin": "site_scan"},
+            )
+        ]
+
+    monkeypatch.setattr(project_module, "_scan_project_source_hints", fake_scan)
+
+    payload = plan_project(
+        root=tmp_path,
+        plan_id="plan_dedupe",
+        profile="api-docs",
+        scan_site_hints=True,
+        max_pages_per_source=10,
+    )
+
+    selected_urls = [item["url"] for item in payload["selected"]]
+    assert selected_urls.count("https://docs.example.com/documentation/about") == 1
+    assert "https://docs.example.com/documentation/about.md" not in selected_urls
+
+
+def test_sync_quarantines_repeated_rate_limited_prefixes(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeFetcher:
+        fetched_urls: list[str] = []
+
+        def __init__(self, config: Any) -> None:
+            self.config = config
+            self.stats = SimpleNamespace(pages_fetched=0, pages_failed=0, pages_skipped=0)
+
+        async def __aenter__(self) -> FakeFetcher:
+            return self
+
+        async def __aexit__(self, *_exc: object) -> None:
+            return None
+
+        async def fetch_one(self, url: str, *, save: bool = True) -> SimpleNamespace:
+            FakeFetcher.fetched_urls.append(url)
+            if url.endswith("/api/a"):
+                self.stats.pages_failed += 1
+                return SimpleNamespace(error="HTTP 429 Too Many Requests", should_skip=False)
+            self.stats.pages_fetched += 1
+            if save:
+                output_dir = self.config.output.directory
+                output_dir.mkdir(parents=True, exist_ok=True)
+                content = f"Fetched {url}"
+                record = {
+                    "document_id": f"doc_{self.stats.pages_fetched}",
+                    "url": url,
+                    "title": url,
+                    "content": content,
+                    "content_hash": _hash(content),
+                    "source_type": "test",
+                    "metadata": {},
+                    "extraction": {},
+                }
+                with (output_dir / "documents.ndjson").open("a", encoding="utf-8") as fp:
+                    fp.write(json.dumps(record) + "\n")
+            return SimpleNamespace(error=None, should_skip=False, skip_code=None, skip_reason=None)
+
+    monkeypatch.setattr(project_module, "Fetcher", FakeFetcher)
+    init_project(name="demo", source="https://docs.example.com/root", root=tmp_path)
+    config = project_module.load_project_config(tmp_path)
+    source = config.sources[0].model_copy(
+        update={
+            "discovered_urls": [
+                "https://docs.example.com/api/a",
+                "https://docs.example.com/api/b",
+            ]
+        }
+    )
+    project_module.save_project_config(tmp_path, config.model_copy(update={"sources": [source]}))
+
+    sync_project(root=tmp_path, run_id="run_429")
+    skips = _jsonl(tmp_path / ".docpull" / "runs" / "run_429" / "skips.jsonl")
+
+    assert "https://docs.example.com/api/b" not in FakeFetcher.fetched_urls
+    assert skips[0]["reason"] == "rate_limited_prefix_quarantine"
 
 
 def test_diff_status_export_and_eval_set(
