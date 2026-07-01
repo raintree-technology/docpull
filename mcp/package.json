@@ -20,7 +20,7 @@
 		"@modelcontextprotocol/sdk": "^1.29.0",
 		"hono": "4.12.27",
 		"ip-address": "^10.2.0",
-		"openai": "^6.44.0",
+		"openai": "^6.45.0",
 		"pg": "^8.22.0",
 		"yaml": "^2.9.0",
 		"zod": "^4.4.3"
