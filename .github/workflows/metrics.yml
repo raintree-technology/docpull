@@ -31,7 +31,9 @@ on:
   workflow_dispatch:
 
 permissions:
+  actions: write
   contents: write
+  pull-requests: write
 
 # Avoid overlapping runs piling up if a previous run is still committing.
 concurrency:
@@ -74,17 +76,54 @@ jobs:
       - name: Check generated metrics freshness
         run: python .github/scripts/check_metrics_fresh.py
 
-      - name: Commit metrics refresh
+      - name: Open metrics refresh pull request
         env:
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          GH_TOKEN: ${{ github.token }}
+          GIT_AUTH_TOKEN: ${{ github.token }}
+          METRICS_BRANCH: automation/metrics-refresh
         run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add METRICS.md docs/cumulative-downloads-history.svg
           if git diff --cached --quiet; then
-            echo "No metrics changes to commit."
+            echo "No metrics changes to publish."
             exit 0
           fi
+
+          git checkout -B "$METRICS_BRANCH"
           git commit -m "chore(metrics): refresh metrics"
-          git pull --rebase --autostash origin "$DEFAULT_BRANCH"
-          git push origin "HEAD:$DEFAULT_BRANCH"
+
+          git fetch origin "refs/heads/${METRICS_BRANCH}:refs/remotes/origin/${METRICS_BRANCH}" || true
+          git -c http.https://github.com/.extraheader="AUTHORIZATION: bearer ${GIT_AUTH_TOKEN}" \
+            push --force-with-lease origin "HEAD:${METRICS_BRANCH}"
+
+          body_file="$(mktemp)"
+          cat > "$body_file" <<'EOF'
+          Refreshes `METRICS.md` and the committed download chart from the scheduled metrics workflow.
+
+          This workflow opens a pull request because protected `main` requires changes to pass review and status checks.
+          EOF
+
+          pr_number="$(gh pr list \
+            --head "$METRICS_BRANCH" \
+            --base "$DEFAULT_BRANCH" \
+            --state open \
+            --json number \
+            --jq '.[0].number // empty')"
+          if [ -n "$pr_number" ]; then
+            gh pr edit "$pr_number" \
+              --title "chore(metrics): refresh metrics" \
+              --body-file "$body_file"
+          else
+            gh pr create \
+              --base "$DEFAULT_BRANCH" \
+              --head "$METRICS_BRANCH" \
+              --title "chore(metrics): refresh metrics" \
+              --body-file "$body_file"
+          fi
+
+          for workflow in ci.yml security.yml codeql.yml; do
+            gh workflow run "$workflow" --ref "$METRICS_BRANCH"
+          done
