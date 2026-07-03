@@ -10,7 +10,7 @@ import secrets
 import socket
 from types import TracebackType
 from typing import cast
-from urllib.parse import urljoin, urlparse
+from urllib.parse import parse_qsl, urlencode, urljoin, urlparse
 
 import aiohttp
 from aiohttp.abc import AbstractResolver, ResolveResult
@@ -115,6 +115,9 @@ class AsyncHttpClient:
     RETRYABLE_STATUS_CODES = frozenset({429, 500, 502, 503, 504})
     REDIRECT_STATUS_CODES = frozenset({301, 302, 303, 307, 308})
     SENSITIVE_HEADERS = frozenset({"authorization", "cookie", "proxy-authorization"})
+    SENSITIVE_QUERY_KEY_PARTS = frozenset(
+        {"api_key", "apikey", "auth", "authorization", "credential", "key", "password", "secret", "token"}
+    )
 
     # Exceptions that warrant a retry
     RETRYABLE_EXCEPTIONS = (
@@ -235,6 +238,36 @@ class AsyncHttpClient:
         """Reject HTTP headers containing CR, LF, or null bytes."""
         if AsyncHttpClient._CRLF_RE.search(name) or AsyncHttpClient._CRLF_RE.search(value):
             raise ValueError(f"HTTP header injection blocked: header '{name}' contains CR, LF, or null")
+
+    @classmethod
+    def _url_for_log(cls, url: str) -> str:
+        """Return a URL safe to write to logs."""
+        parsed = urlparse(url)
+        if not parsed.scheme or not parsed.netloc:
+            return "[invalid-url]"
+
+        hostname = parsed.hostname or ""
+        host = f"[{hostname}]" if ":" in hostname and not hostname.startswith("[") else hostname
+        try:
+            port = f":{parsed.port}" if parsed.port is not None else ""
+        except ValueError:
+            port = ""
+        netloc = f"{host}{port}"
+        if parsed.username or parsed.password:
+            netloc = f"[redacted]@{netloc}"
+
+        query = parsed.query
+        if query:
+            redacted_pairs = []
+            for key, value in parse_qsl(query, keep_blank_values=True):
+                normalized_key = key.lower().replace("-", "_")
+                if any(part in normalized_key for part in cls.SENSITIVE_QUERY_KEY_PARTS):
+                    redacted_pairs.append((key, "[redacted]"))
+                else:
+                    redacted_pairs.append((key, value))
+            query = urlencode(redacted_pairs, doseq=True)
+
+        return parsed._replace(netloc=netloc, query=query).geturl()
 
     def _validate_request_headers(self, headers: dict[str, str]) -> None:
         """Validate caller-supplied headers before sending a request."""
@@ -513,8 +546,12 @@ class AsyncHttpClient:
                                 delay = self._calculate_retry_delay(attempt)
                                 if self._log_retry_warnings:
                                     logger.warning(
-                                        f"Got {response.status} for {current_url}, retrying in {delay:.1f}s "
-                                        f"(attempt {attempt + 1}/{self._max_retries + 1})"
+                                        "Got %s for %s, retrying in %.1fs (attempt %s/%s)",
+                                        response.status,
+                                        self._url_for_log(current_url),
+                                        delay,
+                                        attempt + 1,
+                                        self._max_retries + 1,
                                     )
                                 await asyncio.sleep(delay)
                                 break
@@ -586,21 +623,28 @@ class AsyncHttpClient:
                     delay = self._calculate_retry_delay(attempt)
                     if self._log_retry_warnings:
                         logger.warning(
-                            f"Error fetching {url}: {e}, retrying in {delay:.1f}s "
-                            f"(attempt {attempt + 1}/{self._max_retries + 1})"
+                            "Error fetching %s: %s, retrying in %.1fs (attempt %s/%s)",
+                            self._url_for_log(url),
+                            type(e).__name__,
+                            delay,
+                            attempt + 1,
+                            self._max_retries + 1,
                         )
                     await asyncio.sleep(delay)
                 else:
                     if self._log_retry_warnings:
                         logger.error(
-                            f"HTTP fetch error for {url} after {self._max_retries + 1} attempts: {e}"
+                            "HTTP fetch error for %s after %s attempts: %s",
+                            self._url_for_log(url),
+                            self._max_retries + 1,
+                            type(e).__name__,
                         )
                     raise
 
         # Should not reach here, but just in case
         if last_error:
             raise last_error
-        raise RuntimeError(f"Unexpected error fetching {url}")
+        raise RuntimeError(f"Unexpected error fetching {self._url_for_log(url)}")
 
     async def head(
         self,

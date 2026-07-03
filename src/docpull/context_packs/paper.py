@@ -35,6 +35,9 @@ DEFAULT_PAPER_OUTPUT_DIR = Path("packs/papers")
 MAX_PAPER_TEXT_BYTES = 5_000_000
 MAX_ARXIV_PDF_BYTES = 25_000_000
 ARXIV_API_DELAY_SECONDS = 3.0
+_ARXIV_HOSTS = frozenset({"arxiv.org", "www.arxiv.org"})
+_DOI_HOSTS = frozenset({"doi.org", "dx.doi.org", "www.doi.org"})
+_PUBMED_HOSTS = frozenset({"pubmed.ncbi.nlm.nih.gov"})
 
 
 def build_paper_pack(
@@ -119,11 +122,12 @@ def _paper_from_source(source: str | Path, *, include_full_text: bool) -> dict[s
         return _paper_from_pmid(value.split(":", 1)[1])
     if value.startswith(("http://", "https://")):
         parsed = urlparse(value)
-        if parsed.netloc.endswith("arxiv.org") and "/abs/" in parsed.path:
+        hostname = (parsed.hostname or "").lower().rstrip(".")
+        if hostname in _ARXIV_HOSTS and parsed.path.startswith("/abs/"):
             return _paper_from_arxiv(parsed.path.rsplit("/", 1)[-1], include_full_text=include_full_text)
-        if parsed.netloc.endswith("doi.org"):
+        if hostname in _DOI_HOSTS:
             return _paper_from_doi(parsed.path.strip("/"))
-        if parsed.netloc.endswith("pubmed.ncbi.nlm.nih.gov"):
+        if hostname in _PUBMED_HOSTS:
             pmid = parsed.path.strip("/").split("/", 1)[0]
             return _paper_from_pmid(pmid)
         return _paper_from_metadata_url(value)

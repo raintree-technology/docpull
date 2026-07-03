@@ -7,7 +7,7 @@ import json
 import re
 from pathlib import Path
 from typing import Any
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 
 from .common import ContextPackError, write_json
 from .repo import repo_items_from_github
@@ -362,11 +362,16 @@ def _github_repo_source(value: Any) -> str | None:
     text = str(value).strip()
     text = re.sub(r"^git\+", "", text)
     text = re.sub(r"\.git$", "", text)
-    if text.startswith("git://github.com/"):
-        text = "https://github.com/" + text.removeprefix("git://github.com/")
-    if text.startswith("https://github.com/"):
-        return text
-    return None
+    parsed = urlparse(text)
+    hostname = (parsed.hostname or "").lower().rstrip(".")
+    if parsed.scheme not in {"git", "https"} or hostname != "github.com":
+        return None
+    if parsed.username or parsed.password:
+        return None
+    path = parsed.path.strip("/")
+    if "/" not in path:
+        return None
+    return f"https://github.com/{path}"
 
 
 __all__ = ["DEFAULT_PACKAGE_OUTPUT_DIR", "async_build_package_pack", "build_package_pack"]

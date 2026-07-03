@@ -395,6 +395,49 @@ def test_paper_pack_include_full_text_parses_arxiv_pdf(
     assert pack.documents[0].metadata["parse_backend"] == "markitdown"
 
 
+def test_paper_url_routing_requires_exact_known_hosts(monkeypatch: pytest.MonkeyPatch) -> None:
+    from docpull.context_packs import paper as paper_module
+
+    monkeypatch.setattr(
+        paper_module,
+        "_paper_from_arxiv",
+        lambda arxiv_id, *, include_full_text: {"route": "arxiv", "id": arxiv_id},
+    )
+    monkeypatch.setattr(paper_module, "_paper_from_doi", lambda doi: {"route": "doi", "id": doi})
+    monkeypatch.setattr(paper_module, "_paper_from_pmid", lambda pmid: {"route": "pmid", "id": pmid})
+    monkeypatch.setattr(
+        paper_module,
+        "_paper_from_metadata_url",
+        lambda url: {"route": "metadata", "url": url},
+    )
+
+    assert paper_module._paper_from_source("https://arxiv.org/abs/1234.5678", include_full_text=False) == {
+        "route": "arxiv",
+        "id": "1234.5678",
+    }
+    assert paper_module._paper_from_source("https://doi.org/10.1000/example", include_full_text=False) == {
+        "route": "doi",
+        "id": "10.1000/example",
+    }
+    assert paper_module._paper_from_source(
+        "https://pubmed.ncbi.nlm.nih.gov/12345/",
+        include_full_text=False,
+    ) == {
+        "route": "pmid",
+        "id": "12345",
+    }
+
+    for url in (
+        "https://arxiv.org.evil.example/abs/1234.5678",
+        "https://doi.org.evil.example/10.1000/example",
+        "https://pubmed.ncbi.nlm.nih.gov.evil.example/12345/",
+    ):
+        assert paper_module._paper_from_source(url, include_full_text=False) == {
+            "route": "metadata",
+            "url": url,
+        }
+
+
 def test_repo_pack_roundtrips_mocked_github_api(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _install_repo_mock(monkeypatch)
     pack_dir = tmp_path / "repo-pack"
@@ -529,6 +572,15 @@ def test_package_pack_roundtrips_mocked_npm_registry(tmp_path: Path, monkeypatch
         pack_file="package.pack.json",
         expected_source_types={"package_metadata", "package_document", "package_version"},
     )
+
+
+def test_package_github_repo_source_requires_exact_github_host() -> None:
+    from docpull.context_packs.package import _github_repo_source
+
+    assert _github_repo_source("git://github.com/acme/widgets.git") == "https://github.com/acme/widgets"
+    assert _github_repo_source("git+https://github.com/acme/widgets.git") == "https://github.com/acme/widgets"
+    assert _github_repo_source("https://github.com.evil.example/acme/widgets") is None
+    assert _github_repo_source("https://github.com@evil.example/acme/widgets") is None
 
 
 def test_standards_pack_roundtrips_mocked_rfc_source(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
