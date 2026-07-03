@@ -25,7 +25,14 @@ jobs:
       - name: Check metrics freshness
         env:
           METRICS_MAX_AGE_HOURS: "168"
-        run: python .github/scripts/check_metrics_fresh.py
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            python .github/scripts/check_metrics_fresh.py || {
+              echo "::warning::Metrics are stale; run the scheduled Update metrics workflow after merge."
+            }
+          else
+            python .github/scripts/check_metrics_fresh.py
+          fi
 
   test:
     runs-on: ubuntu-24.04
