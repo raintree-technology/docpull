@@ -14,6 +14,7 @@ from typing import Any
 import pytest
 
 from docpull import auth_cli
+from docpull import cli as cli_module
 from docpull import project as project_module
 from docpull.cli import main
 from docpull.exports import EXPORT_FORMATS
@@ -432,6 +433,11 @@ auth:
         encoding="utf-8",
     )
     _run_cli(["feed-pack", str(feed_path), "-o", str(tmp_path / "feed-pack"), "--json"])
+    monkeypatch.setattr(
+        cli_module,
+        "check_render_backend_availability",
+        lambda backend, binary=None: (True, f"[OK] {backend}: checked"),
+    )
     _run_cli(["render", "--check"])
     _run_cli(["mcp", "--help"])
     _run_cli(["serve", "--help"])

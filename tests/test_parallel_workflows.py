@@ -22,7 +22,9 @@ from docpull.security.url_validator import UrlValidator
 
 pytestmark = pytest.mark.internal_legacy
 
-EXAMPLE_FIXTURE = Path(__file__).resolve().parents[1] / "docs/internal/parallel-search-extract.json"
+EXAMPLE_FIXTURE = Path(
+    str(importlib.resources.files("docpull.fixtures").joinpath("parallel-search-extract.json"))
+)
 
 
 def main(argv: list[str]) -> int:
@@ -165,15 +167,12 @@ def test_parallel_demo_uses_packaged_fixture(tmp_path: Path) -> None:
     assert pack["artifacts"]["agent_context"] == "AGENT_CONTEXT.md"
 
 
-def test_parallel_repo_fixture_matches_packaged_fixture() -> None:
-    repo_fixture = json.loads(EXAMPLE_FIXTURE.read_text(encoding="utf-8"))
-    packaged_fixture = json.loads(
-        importlib.resources.files("docpull.fixtures")
-        .joinpath("parallel-search-extract.json")
-        .read_text(encoding="utf-8")
-    )
+def test_parallel_packaged_fixture_matches_expected_contract() -> None:
+    fixture = json.loads(EXAMPLE_FIXTURE.read_text(encoding="utf-8"))
 
-    assert packaged_fixture == repo_fixture
+    assert fixture["session_id"] == "session_example_parallel_context_pack"
+    assert fixture["extract"]["results"][0]["url"] == "https://parallel.ai/"
+    assert fixture["task"]["basis"][0]["citations"][0]["url"] == "https://parallel.ai/"
 
 
 def test_parallel_import_handles_symlinked_output_dir(tmp_path: Path) -> None:
