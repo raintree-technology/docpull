@@ -135,14 +135,14 @@ jobs:
             --strict-ci \
             --auth-matrix \
             --monitor-soak-minutes 10 \
-            --base-dir release-readiness/real-feature-smoke
+            --base-dir "$RUNNER_TEMP/release-readiness/real-feature-smoke"
 
       - name: Run A+ release scorecard
         run: |
           python scripts/release_a_plus_check.py \
             --strict \
-            --output-dir release-readiness \
-            --smoke-report release-readiness/real-feature-smoke/real_feature_smoke.report.json
+            --output-dir "$RUNNER_TEMP/release-readiness" \
+            --smoke-report "$RUNNER_TEMP/release-readiness/real-feature-smoke/real_feature_smoke.report.json"
 
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
@@ -161,7 +161,7 @@ jobs:
         if: always()
         with:
           name: release-readiness
-          path: release-readiness/
+          path: ${{ runner.temp }}/release-readiness/
           if-no-files-found: warn
           retention-days: 14
 
