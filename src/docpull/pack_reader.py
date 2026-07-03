@@ -58,6 +58,7 @@ class PackSource:
     record_count: int
     document_ids: tuple[str, ...]
     content_hashes: tuple[str, ...]
+    record_citations: tuple[dict[str, Any], ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -69,6 +70,7 @@ class PackSource:
             "record_count": self.record_count,
             "document_ids": list(self.document_ids),
             "content_hashes": list(self.content_hashes),
+            "record_citations": list(self.record_citations),
         }
 
 
@@ -92,6 +94,16 @@ class LocalPack:
     @property
     def source_by_url(self) -> dict[str, PackSource]:
         return {source.url: source for source in self.sources}
+
+    def record_citation_id(self, record: DocumentRecord) -> str | None:
+        source = self.source_by_url.get(record.url)
+        if source is None:
+            return None
+        key = record.chunk_id or record.document_id
+        for item in source.record_citations:
+            if item.get("record_key") == key:
+                return str(item.get("record_citation_id") or "")
+        return source.citation_id
 
     def health_payload(self) -> dict[str, Any]:
         return {
@@ -131,12 +143,18 @@ class LocalPack:
             "title": record.title,
             "content_hash": record.content_hash,
             "citation_id": source.citation_id if source else None,
+            "record_citation_id": self.record_citation_id(record),
             "source_path": source.path if source else None,
             "source_type": record.source_type,
             "fetched_at": record.fetched_at,
+            "rendered_at": record.rendered_at,
+            "content_type": record.content_type,
+            "mime_type": record.mime_type,
             "chunk_index": record.chunk_index,
             "chunk_heading": record.chunk_heading,
             "token_count": record.token_count,
+            "route": sanitize_metadata(record.route),
+            "rights": sanitize_metadata(record.rights),
             "metadata": sanitize_metadata(record.metadata),
             "extraction": sanitize_metadata(record.extraction),
         }
@@ -369,11 +387,24 @@ def _read_sqlite(path: Path) -> list[dict[str, Any]]:
             raise PackReadError(f"SQLite pack is missing required columns in {path}")
         selected = [
             "schema_version",
+            "record_key",
+            "document_id",
+            "chunk_id",
+            "chunk_index",
+            "chunk_heading",
+            "token_count",
             "url",
             "title",
             "content",
             "content_hash",
             "source_type",
+            "content_type",
+            "mime_type",
+            "rendered_at",
+            "route",
+            "rights",
+            "source_citation_id",
+            "record_citation_id",
             "metadata",
             "extraction",
             "fetched_at",
@@ -391,7 +422,7 @@ def _read_sqlite(path: Path) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
     for row in rows:
         data = dict(zip(present, row, strict=True))
-        for key in ("metadata", "extraction"):
+        for key in ("metadata", "extraction", "route", "rights"):
             if isinstance(data.get(key), str) and data[key]:
                 try:
                     parsed = json.loads(str(data[key]))
@@ -426,6 +457,10 @@ def _coerce_record(record: dict[str, Any]) -> DocumentRecord:
         data["metadata"] = {}
     if not isinstance(data.get("extraction"), dict):
         data["extraction"] = {}
+    if not isinstance(data.get("route"), dict):
+        data["route"] = {}
+    if not isinstance(data.get("rights"), dict):
+        data["rights"] = {}
     return DocumentRecord.model_validate(data)
 
 
@@ -482,6 +517,18 @@ def _build_sources(
         entry = entry_by_url[url]
         path = _source_path(pack_dir, entry.get("path")) or output_path_by_url.get(url)
         title = str(entry.get("title") or "").strip() or (url_docs[0].title if url_docs else url)
+        record_citations = tuple(
+            {
+                "record_citation_id": f"S{index}.{record_index}",
+                "source_citation_id": f"S{index}",
+                "record_key": record.chunk_id or record.document_id,
+                "document_id": record.document_id,
+                "chunk_id": record.chunk_id,
+                "content_hash": record.content_hash,
+                "title": record.title or title,
+            }
+            for record_index, record in enumerate(url_docs, start=1)
+        )
         sources.append(
             PackSource(
                 citation_id=f"S{index}",
@@ -493,6 +540,7 @@ def _build_sources(
                 content_hashes=tuple(
                     sorted({record.content_hash for record in url_docs if record.content_hash})
                 ),
+                record_citations=record_citations,
             )
         )
     return sources
@@ -551,10 +599,11 @@ def _search_with_sqlite(
         hits = search_sqlite_documents(pack.sqlite_path, query, limit=limit)
     except Exception:
         return None, "scan"
+    documents_by_key = _documents_by_record_key(pack.documents)
     documents_by_url = _documents_by_url(pack.documents)
     results: list[dict[str, Any]] = []
     for rank, hit in enumerate(hits, start=1):
-        record = documents_by_url.get(hit.url)
+        record = documents_by_key.get(hit.record_key or "") or documents_by_url.get(hit.url)
         source = pack.source_by_url.get(hit.url)
         results.append(
             {
@@ -564,6 +613,7 @@ def _search_with_sqlite(
                 "document_id": record.document_id if record else None,
                 "chunk_id": record.chunk_id if record else None,
                 "citation_id": source.citation_id if source else None,
+                "record_citation_id": pack.record_citation_id(record) if record else None,
                 "url": hit.url,
                 "title": hit.title or (record.title if record else hit.url),
                 "content_hash": record.content_hash if record else None,
@@ -597,6 +647,7 @@ def _search_by_scan(pack: LocalPack, query: str, limit: int) -> list[dict[str, A
                 "document_id": record.document_id,
                 "chunk_id": record.chunk_id,
                 "citation_id": source.citation_id if source else None,
+                "record_citation_id": pack.record_citation_id(record),
                 "url": record.url,
                 "title": title,
                 "content_hash": record.content_hash,
@@ -671,6 +722,13 @@ def _documents_by_url(documents: tuple[DocumentRecord, ...]) -> dict[str, Docume
     for record in documents:
         by_url.setdefault(record.url, record)
     return by_url
+
+
+def _documents_by_record_key(documents: tuple[DocumentRecord, ...]) -> dict[str, DocumentRecord]:
+    by_key: dict[str, DocumentRecord] = {}
+    for record in documents:
+        by_key.setdefault(record.chunk_id or record.document_id, record)
+    return by_key
 
 
 def _is_secret_key(key: str) -> bool:

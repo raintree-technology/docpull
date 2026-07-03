@@ -1,0 +1,76 @@
+name: Live Typed Pack Smoke
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 11 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: live-typed-packs
+  cancel-in-progress: false
+
+jobs:
+  live-typed-packs:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run free live typed-pack smokes
+        env:
+          DOCPULL_LIVE_TYPED_PACKS: "1"
+        run: |
+          set +e
+          mkdir -p live-reports
+          python -m pytest tests/test_typed_knowledge_packs.py::test_live_typed_pack_smokes -q \
+            | tee live-reports/live-typed-packs.log
+          status=${PIPESTATUS[0]}
+          python - "$status" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          status = int(sys.argv[1])
+          log = Path("live-reports/live-typed-packs.log").read_text(encoding="utf-8")
+          payload = {
+              "schema_version": 1,
+              "workflow": "live-typed-packs",
+              "status": "pass" if status == 0 else "fail",
+              "classification": "pass" if status == 0 else "source_drift_or_product_failure",
+              "covered_lanes": ["openapi", "feed", "paper:arxiv", "paper:doi", "paper:pubmed", "repo", "npm", "pypi", "rfc", "wiki"],
+              "diagnostic": "Network/source drift is possible for this scheduled live job; deterministic mocked typed-pack tests remain the product failure source of truth.",
+              "log_tail": log[-4000:],
+          }
+          Path("live-reports/live-typed-packs.report.json").write_text(
+              json.dumps(payload, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+          exit "$status"
+
+      - name: Upload live typed-pack report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: live-typed-packs-report
+          path: live-reports/
+          if-no-files-found: error
+          retention-days: 14

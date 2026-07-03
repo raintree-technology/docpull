@@ -11,6 +11,7 @@ from pathlib import Path
 from ...models.document import DocumentRecord
 from ...models.events import EventType, FetchEvent
 from ...models.run import RunIdentity
+from ...output_contract import document_context_fields, record_key
 from ..base import EventEmitter, PageContext
 from ..manifest import CorpusManifest
 
@@ -25,6 +26,7 @@ class SqliteSearchResult:
     title: str | None
     snippet: str
     rank: float
+    record_key: str | None = None
 
 
 class SqliteSaveStep:
@@ -55,6 +57,7 @@ class SqliteSaveStep:
         base_output_dir: Path,
         filename: str = "documents.db",
         run_identity: RunIdentity | None = None,
+        emit_chunks: bool = False,
     ) -> None:
         """
         Initialize the SQLite save step.
@@ -65,6 +68,7 @@ class SqliteSaveStep:
         """
         self._base_dir = base_output_dir.resolve()
         self._db_path = self._base_dir / filename
+        self._emit_chunks = emit_chunks
         self._conn: sqlite3.Connection | None = None
         self._document_count = 0
         self._pending_count = 0  # Track uncommitted documents
@@ -84,12 +88,25 @@ class SqliteSaveStep:
             self._conn.execute("""
                 CREATE TABLE IF NOT EXISTS documents (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    schema_version INTEGER NOT NULL DEFAULT 1,
-                    url TEXT UNIQUE NOT NULL,
+                    schema_version INTEGER NOT NULL DEFAULT 3,
+                    record_key TEXT UNIQUE,
+                    document_id TEXT,
+                    chunk_id TEXT,
+                    chunk_index INTEGER,
+                    chunk_heading TEXT,
+                    token_count INTEGER,
+                    url TEXT NOT NULL,
                     title TEXT,
                     content TEXT,
                     content_hash TEXT,
                     source_type TEXT,
+                    content_type TEXT,
+                    mime_type TEXT,
+                    rendered_at TEXT,
+                    route TEXT,
+                    rights TEXT,
+                    source_citation_id TEXT,
+                    record_citation_id TEXT,
                     metadata TEXT,
                     extraction TEXT,
                     fetched_at TEXT
@@ -105,12 +122,27 @@ class SqliteSaveStep:
                 self._conn,
                 "documents",
                 {
-                    "schema_version": "INTEGER NOT NULL DEFAULT 1",
+                    "schema_version": "INTEGER NOT NULL DEFAULT 3",
+                    "record_key": "TEXT",
+                    "document_id": "TEXT",
+                    "chunk_id": "TEXT",
+                    "chunk_index": "INTEGER",
+                    "chunk_heading": "TEXT",
+                    "token_count": "INTEGER",  # nosec B105
                     "content_hash": "TEXT",
                     "source_type": "TEXT",
+                    "content_type": "TEXT",
+                    "mime_type": "TEXT",
+                    "rendered_at": "TEXT",
+                    "route": "TEXT",
+                    "rights": "TEXT",
+                    "source_citation_id": "TEXT",
+                    "record_citation_id": "TEXT",
                     "extraction": "TEXT",
                 },
             )
+            self._conn.execute("UPDATE documents SET document_id = record_key WHERE document_id IS NULL")
+            self._conn.execute("UPDATE documents SET record_key = document_id WHERE record_key IS NULL")
             self._ensure_fts(self._conn)
             if self._run_identity:
                 self._conn.execute(
@@ -118,6 +150,9 @@ class SqliteSaveStep:
                     ("run", json.dumps(self._run_identity.model_dump(mode="json"), ensure_ascii=False)),
                 )
             self._conn.execute("CREATE INDEX IF NOT EXISTS idx_url ON documents(url)")
+            self._conn.execute(
+                "CREATE UNIQUE INDEX IF NOT EXISTS idx_documents_record_key ON documents(record_key)"
+            )
             self._conn.commit()
 
             logger.info(f"Initialized SQLite database at {self._db_path}")
@@ -135,8 +170,12 @@ class SqliteSaveStep:
     @staticmethod
     def _ensure_fts(conn: sqlite3.Connection) -> None:
         """Create and backfill the local full-text search index."""
+        existing = {row[1] for row in conn.execute("PRAGMA table_info(documents_fts)")}
+        if existing and "record_key" not in existing:
+            conn.execute("DROP TABLE documents_fts")
         conn.execute("""
             CREATE VIRTUAL TABLE IF NOT EXISTS documents_fts USING fts5(
+                record_key UNINDEXED,
                 url UNINDEXED,
                 title,
                 content,
@@ -144,12 +183,14 @@ class SqliteSaveStep:
             )
         """)
         conn.execute("""
-            INSERT INTO documents_fts (url, title, content, content_hash)
-            SELECT d.url, d.title, d.content, d.content_hash
+            INSERT INTO documents_fts (record_key, url, title, content, content_hash)
+            SELECT d.record_key, d.url, d.title, d.content, d.content_hash
             FROM documents d
             WHERE d.content IS NOT NULL
               AND NOT EXISTS (
-                  SELECT 1 FROM documents_fts f WHERE f.url = d.url
+                  SELECT 1 FROM documents_fts f
+                  WHERE f.record_key = d.record_key
+                     OR (f.record_key IS NULL AND f.url = d.url)
               )
         """)
 
@@ -172,46 +213,57 @@ class SqliteSaveStep:
             return ctx
 
         conn = self._ensure_db()
-        record = DocumentRecord.from_page(
-            url=ctx.url,
-            title=ctx.title,
-            content=ctx.markdown,
-            metadata=ctx.metadata,
-            extraction=ctx.extraction_info,
-            source_type=ctx.source_type,
-            run_identity=self._run_identity,
-        )
+        records = self._records_from_context(ctx)
 
         try:
-            cursor = conn.execute(
-                """INSERT OR IGNORE INTO documents
-                   (schema_version, url, title, content, content_hash,
-                    source_type, metadata, extraction, fetched_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (
-                    record.schema_version,
-                    record.url,
-                    record.title,
-                    record.content,
-                    record.content_hash,
-                    record.source_type,
-                    json.dumps(record.metadata, ensure_ascii=False),
-                    json.dumps(record.extraction, ensure_ascii=False),
-                    record.fetched_at,
-                ),
-            )
-            # Only count if a row was actually inserted (not ignored)
-            if cursor.rowcount > 0:
-                self._document_count += 1
-                self._pending_count += 1
-                self._manifest.add_record(record, self._db_path)
-                conn.execute(
-                    """
-                    INSERT INTO documents_fts (url, title, content, content_hash)
-                    VALUES (?, ?, ?, ?)
-                    """,
-                    (record.url, record.title, record.content, record.content_hash),
+            inserted = 0
+            for record in records:
+                row_key = record_key(record)
+                cursor = conn.execute(
+                    """INSERT OR IGNORE INTO documents
+                       (schema_version, record_key, document_id, chunk_id, chunk_index,
+                        chunk_heading, token_count, url, title, content, content_hash,
+                        source_type, content_type, mime_type, rendered_at, route, rights,
+                        source_citation_id, record_citation_id, metadata, extraction, fetched_at)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (
+                        record.schema_version,
+                        row_key,
+                        record.document_id,
+                        record.chunk_id,
+                        record.chunk_index,
+                        record.chunk_heading,
+                        record.token_count,
+                        record.url,
+                        record.title,
+                        record.content,
+                        record.content_hash,
+                        record.source_type,
+                        record.content_type,
+                        record.mime_type,
+                        record.rendered_at,
+                        json.dumps(record.route, ensure_ascii=False),
+                        json.dumps(record.rights, ensure_ascii=False),
+                        record.source_citation_id,
+                        record.record_citation_id,
+                        json.dumps(record.metadata, ensure_ascii=False),
+                        json.dumps(record.extraction, ensure_ascii=False),
+                        record.fetched_at,
+                    ),
                 )
+                # Only count if a row was actually inserted (not ignored)
+                if cursor.rowcount > 0:
+                    inserted += 1
+                    self._pending_count += 1
+                    self._manifest.add_record(record, self._db_path)
+                    conn.execute(
+                        """
+                        INSERT INTO documents_fts (record_key, url, title, content, content_hash)
+                        VALUES (?, ?, ?, ?, ?)
+                        """,
+                        (row_key, record.url, record.title, record.content, record.content_hash),
+                    )
+            self._document_count += inserted
 
             # Batch commits for performance
             if self._pending_count >= self.BATCH_SIZE:
@@ -223,7 +275,7 @@ class SqliteSaveStep:
                     FetchEvent(
                         type=EventType.PAGE_SAVED,
                         url=ctx.url,
-                        message=f"Saved to SQLite ({self._document_count} docs)",
+                        message=f"Saved to SQLite ({self._document_count} records)",
                     )
                 )
             ctx.persisted_path = self._db_path
@@ -243,6 +295,39 @@ class SqliteSaveStep:
                 )
 
         return ctx
+
+    def _records_from_context(self, ctx: PageContext) -> list[DocumentRecord]:
+        if self._emit_chunks and ctx.chunks:
+            records: list[DocumentRecord] = []
+            for chunk in ctx.chunks:
+                records.append(
+                    DocumentRecord.from_page(
+                        url=ctx.url,
+                        title=ctx.title,
+                        content=str(getattr(chunk, "text", "")),
+                        metadata=ctx.metadata,
+                        extraction=ctx.extraction_info,
+                        source_type=ctx.source_type,
+                        run_identity=self._run_identity,
+                        **document_context_fields(ctx, output_format="sqlite"),
+                        chunk_index=getattr(chunk, "index", 0),
+                        chunk_heading=getattr(chunk, "heading", None),
+                        token_count=getattr(chunk, "token_count", None),
+                    )
+                )
+            return records
+        return [
+            DocumentRecord.from_page(
+                url=ctx.url,
+                title=ctx.title,
+                content=ctx.markdown or "",
+                metadata=ctx.metadata,
+                extraction=ctx.extraction_info,
+                source_type=ctx.source_type,
+                run_identity=self._run_identity,
+                **document_context_fields(ctx, output_format="sqlite"),
+            )
+        ]
 
     def close(self) -> None:
         """Close the database connection, committing any pending changes."""
@@ -294,9 +379,10 @@ def search_sqlite_documents(
         rows = conn.execute(
             """
             SELECT
+                record_key,
                 url,
                 title,
-                snippet(documents_fts, 2, '[', ']', ' ... ', 24) AS snippet,
+                snippet(documents_fts, 3, '[', ']', ' ... ', 24) AS snippet,
                 bm25(documents_fts) AS rank
             FROM documents_fts
             WHERE documents_fts MATCH ?
@@ -309,10 +395,11 @@ def search_sqlite_documents(
         conn.close()
     return [
         SqliteSearchResult(
-            url=str(row[0]),
-            title=str(row[1]) if row[1] is not None else None,
-            snippet=str(row[2] or ""),
-            rank=float(row[3] or 0.0),
+            record_key=str(row[0]) if row[0] is not None else None,
+            url=str(row[1]),
+            title=str(row[2]) if row[2] is not None else None,
+            snippet=str(row[3] or ""),
+            rank=float(row[4] or 0.0),
         )
         for row in rows
     ]

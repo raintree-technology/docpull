@@ -138,6 +138,7 @@ class AsyncHttpClient:
         auth_scope_hosts: set[str] | None = None,
         require_pinned_dns: bool = False,
         download_policy: SafeDownloadPolicy | None = None,
+        log_retry_warnings: bool = True,
     ) -> None:
         """
         Initialize the HTTP client.
@@ -153,6 +154,9 @@ class AsyncHttpClient:
             auth_headers: Authentication headers to include in all requests
             download_policy: Policy that rejects file-like responses before
                 they can be buffered, converted, or saved
+            log_retry_warnings: Whether retryable failures are written to the
+                module logger. Disable for best-effort discovery probes where
+                missing guessed resources are expected.
         """
         self._rate_limiter = rate_limiter
         self._max_retries = max_retries
@@ -167,6 +171,7 @@ class AsyncHttpClient:
         self._url_validator = url_validator
         self._auth_scope_hosts = {host.lower() for host in auth_scope_hosts} if auth_scope_hosts else None
         self._download_policy = download_policy or SafeDownloadPolicy()
+        self._log_retry_warnings = log_retry_warnings
 
         if allow_insecure_tls:
             raise ValueError("Insecure TLS is not supported; certificate verification is always enforced")
@@ -506,10 +511,11 @@ class AsyncHttpClient:
 
                             if attempt < self._max_retries:
                                 delay = self._calculate_retry_delay(attempt)
-                                logger.warning(
-                                    f"Got {response.status} for {current_url}, retrying in {delay:.1f}s "
-                                    f"(attempt {attempt + 1}/{self._max_retries + 1})"
-                                )
+                                if self._log_retry_warnings:
+                                    logger.warning(
+                                        f"Got {response.status} for {current_url}, retrying in {delay:.1f}s "
+                                        f"(attempt {attempt + 1}/{self._max_retries + 1})"
+                                    )
                                 await asyncio.sleep(delay)
                                 break
                             response.raise_for_status()
@@ -578,13 +584,17 @@ class AsyncHttpClient:
                 last_error = e
                 if attempt < self._max_retries:
                     delay = self._calculate_retry_delay(attempt)
-                    logger.warning(
-                        f"Error fetching {url}: {e}, retrying in {delay:.1f}s "
-                        f"(attempt {attempt + 1}/{self._max_retries + 1})"
-                    )
+                    if self._log_retry_warnings:
+                        logger.warning(
+                            f"Error fetching {url}: {e}, retrying in {delay:.1f}s "
+                            f"(attempt {attempt + 1}/{self._max_retries + 1})"
+                        )
                     await asyncio.sleep(delay)
                 else:
-                    logger.error(f"HTTP fetch error for {url} after {self._max_retries + 1} attempts: {e}")
+                    if self._log_retry_warnings:
+                        logger.error(
+                            f"HTTP fetch error for {url} after {self._max_retries + 1} attempts: {e}"
+                        )
                     raise
 
         # Should not reach here, but just in case

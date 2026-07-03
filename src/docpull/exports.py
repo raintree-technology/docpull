@@ -121,6 +121,7 @@ class JsonlExporter:
                 "chunk_id": record.chunk_id,
                 "content_hash": record.content_hash,
                 "citation_id": metadata.get("citation_id"),
+                "record_citation_id": metadata.get("record_citation_id"),
                 "metadata": metadata,
             }
         raise ExportError(f"Unsupported JSONL export format: {self.format_name}")
@@ -168,15 +169,13 @@ class AgentSkillExporter:
             artifacts=tuple(artifact.resolve() for artifact in artifacts),
         )
 
-    def _export_cursor_rule(self, pack: LocalPack, output_file: Path) -> ExportResult:
-        if output_file.suffix != ".mdc":
-            raise ExportError("cursor-rules output must be a .mdc file")
+    def _export_cursor_rule(self, pack: LocalPack, output: Path) -> ExportResult:
+        output_file, skill_name = self._cursor_rule_output(output)
         refs_dir = output_file.with_suffix(".references")
         _ensure_not_nested(pack.pack_dir, output_file)
         _ensure_not_nested(pack.pack_dir, refs_dir)
         output_file.parent.mkdir(parents=True, exist_ok=True)
         _copy_pack(pack.pack_dir, refs_dir)
-        skill_name = _derive_skill_name(output_file, self._skill_name)
         output_file.write_text(
             _render_cursor_rule(
                 pack=pack,
@@ -193,6 +192,14 @@ class AgentSkillExporter:
             record_count=len(pack.documents),
             artifacts=(output_file.resolve(), refs_dir.resolve()),
         )
+
+    def _cursor_rule_output(self, output: Path) -> tuple[Path, str]:
+        if output.suffix == ".mdc":
+            return output, _derive_skill_name(output, self._skill_name)
+        if output.exists() and output.is_file():
+            raise ExportError("cursor-rules output file must use a .mdc extension")
+        skill_name = _derive_skill_name(output, self._skill_name)
+        return output / f"{skill_name}.mdc", skill_name
 
 
 class TableExporter:
@@ -372,12 +379,18 @@ def _record_metadata(pack: LocalPack, record: DocumentRecord) -> dict[str, Any]:
         "chunk_id": record.chunk_id,
         "content_hash": record.content_hash,
         "citation_id": source.citation_id if source else None,
+        "record_citation_id": pack.record_citation_id(record),
         "source_path": source.path if source else None,
         "source_type": record.source_type,
         "fetched_at": record.fetched_at,
+        "rendered_at": record.rendered_at,
+        "content_type": record.content_type,
+        "mime_type": record.mime_type,
         "chunk_index": record.chunk_index,
         "chunk_heading": record.chunk_heading,
         "token_count": record.token_count,
+        "rights": sanitize_metadata(record.rights),
+        "route": sanitize_metadata(record.route),
     }
     cleaned = {key: value for key, value in metadata.items() if value is not None}
     if record.metadata:
@@ -391,12 +404,16 @@ _TABLE_COLUMNS = (
     "document_id",
     "chunk_id",
     "citation_id",
+    "record_citation_id",
     "title",
     "url",
     "source_path",
     "source_type",
     "content_hash",
     "fetched_at",
+    "rendered_at",
+    "content_type",
+    "mime_type",
     "chunk_index",
     "chunk_heading",
     "token_count",
@@ -414,12 +431,16 @@ def _table_rows(pack: LocalPack) -> list[dict[str, Any]]:
                 "document_id": record.document_id,
                 "chunk_id": record.chunk_id,
                 "citation_id": metadata.get("citation_id"),
+                "record_citation_id": metadata.get("record_citation_id"),
                 "title": record.title,
                 "url": record.url,
                 "source_path": metadata.get("source_path"),
                 "source_type": record.source_type,
                 "content_hash": record.content_hash,
                 "fetched_at": record.fetched_at,
+                "rendered_at": record.rendered_at,
+                "content_type": record.content_type,
+                "mime_type": record.mime_type,
                 "chunk_index": record.chunk_index,
                 "chunk_heading": record.chunk_heading,
                 "token_count": record.token_count,
@@ -454,7 +475,11 @@ def _warehouse_record(pack: LocalPack, record: DocumentRecord) -> dict[str, Any]
             "source_type": record.source_type,
             "content_hash": record.content_hash,
             "citation_id": metadata.get("citation_id"),
+            "record_citation_id": metadata.get("record_citation_id"),
             "fetched_at": record.fetched_at,
+            "rendered_at": record.rendered_at,
+            "content_type": record.content_type,
+            "mime_type": record.mime_type,
             "chunk_index": record.chunk_index,
             "chunk_heading": record.chunk_heading,
             "token_count": record.token_count,
@@ -569,6 +594,7 @@ def _crewai_payload(pack: LocalPack) -> dict[str, Any]:
                 "id": document["id"],
                 "source_url": metadata.get("source_url"),
                 "citation_id": metadata.get("citation_id"),
+                "record_citation_id": metadata.get("record_citation_id"),
                 "content_hash": metadata.get("content_hash"),
             }
         )

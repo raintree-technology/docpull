@@ -336,6 +336,17 @@ def same_policy_domain(url: str, base_domain: str) -> bool:
     return bool(host) and policy_domain_matches(host, base_domain)
 
 
+def asset_allowed_domains_for_domain(domain: str) -> list[str]:
+    """Allow a brand site's exact host and common same-site static host siblings."""
+    normalized = domain.lower().rstrip(".")
+    if not normalized:
+        return []
+    domains = [normalized]
+    if normalized.startswith("www."):
+        domains.append(normalized.removeprefix("www."))
+    return domains
+
+
 def ensure_policy_for_domain(policy: PolicyConfig | None, domain: str) -> PolicyConfig:
     if policy is not None and policy.allowed_domains:
         return policy
@@ -371,6 +382,7 @@ async def fetch_pages(
         return []
 
     config = DocpullConfig(url=selected[0], profile=ProfileName.CUSTOM)
+    config.network.log_retry_warnings = False
     snapshots: list[PageSnapshot] = []
     async with Fetcher(config) as fetcher:
         for url in selected:

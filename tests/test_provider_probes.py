@@ -9,8 +9,18 @@ from typing import Any
 import pytest
 
 from docpull import parallel_workflows, provider_cli, provider_probes
-from docpull.cli import main
 from docpull.provider_probes import ProbeHttpResponse
+
+pytestmark = pytest.mark.internal_legacy
+
+
+def main(argv: list[str]) -> int:
+    command, *rest = argv
+    if command == "providers":
+        return provider_cli.run_provider_cli(rest)
+    if command in {"tavily", "exa"}:
+        return provider_cli.run_provider_extension_cli(command, rest)
+    raise AssertionError(f"Unexpected provider CLI command: {command}")
 
 
 @pytest.fixture

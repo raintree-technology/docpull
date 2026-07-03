@@ -1,0 +1,21 @@
+name: Context CI
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  context:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - run: pip install docpull
+
+      # Project mode: validates docpull.yaml, .docpull/context.lock.json,
+      # and the latest run under .docpull/runs/<run_id>/.
+      - run: docpull ci --prepare

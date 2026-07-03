@@ -12,7 +12,6 @@ from types import SimpleNamespace
 import pytest
 
 import docpull.parallel_workflows as parallel_workflows
-from docpull.cli import main
 from docpull.parallel_workflows import (
     ParallelWorkflowError,
     _require_parallel_sdk,
@@ -21,7 +20,16 @@ from docpull.parallel_workflows import (
 )
 from docpull.security.url_validator import UrlValidator
 
-EXAMPLE_FIXTURE = Path(__file__).resolve().parents[1] / "docs/examples/parallel-search-extract.json"
+pytestmark = pytest.mark.internal_legacy
+
+EXAMPLE_FIXTURE = Path(__file__).resolve().parents[1] / "docs/internal/parallel-search-extract.json"
+
+
+def main(argv: list[str]) -> int:
+    command, *rest = argv
+    if command == "parallel":
+        return run_parallel_cli(rest)
+    raise AssertionError(f"Unexpected Parallel CLI command: {command}")
 
 
 @pytest.fixture(autouse=True)
@@ -484,7 +492,7 @@ def test_parallel_auth_json_reports_missing_sdk(
     payload = json.loads(output)
     assert payload["ready"] is False
     assert payload["sdk_installed"] is False
-    assert "pip install 'docpull[parallel]'" in payload["next_steps"][0]
+    assert "pip install parallel-web" in payload["next_steps"][0]
 
 
 def test_parallel_context_pack_rejects_blank_api_key(
@@ -2243,7 +2251,7 @@ def test_parallel_missing_sdk_error_is_clear(monkeypatch: pytest.MonkeyPatch) ->
     with pytest.raises(ParallelWorkflowError) as exc:
         _require_parallel_sdk()
 
-    assert "pip install 'docpull[parallel]'" in str(exc.value)
+    assert "pip install parallel-web" in str(exc.value)
 
 
 def test_parallel_help_commands(capsys: pytest.CaptureFixture[str]) -> None:

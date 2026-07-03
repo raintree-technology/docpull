@@ -180,7 +180,7 @@ def test_answer_pack_cli_returns_two_for_missing_evidence(tmp_path: Path) -> Non
     pack_dir = tmp_path / "pack"
     write_context_pack(pack_dir)
 
-    assert main(["answer-pack", str(pack_dir), "unrelated zyzzyva query"]) == 2
+    assert local_workflows.run_answer_cli([str(pack_dir), "unrelated zyzzyva query"]) == 2
 
     payload = json.loads((pack_dir / "answer.result.json").read_text(encoding="utf-8"))
     assert payload["answer"]["status"] == "insufficient_evidence"

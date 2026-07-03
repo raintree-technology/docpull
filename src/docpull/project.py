@@ -32,6 +32,7 @@ from rich.console import Console
 from rich.markup import escape
 
 from .accounting import RunAccounting
+from .context_aliases import context_alias_for_url, get_context_alias, list_context_aliases
 from .conversion.chunking import TokenCounter, chunk_markdown
 from .core.fetcher import Fetcher
 from .exports import export_pack
@@ -58,7 +59,10 @@ PROJECT_SCHEMA_VERSION = 1
 PROJECT_INDEX_USER_VERSION = 3
 PROJECT_CONFIG_FILENAME = "docpull.yaml"
 PROJECT_DIRNAME = ".docpull"
+CONTEXT_LOCK_FILENAME = "context.lock.json"
 DEFAULT_CHUNK_TOKENS = 4000
+WATCH_AD_HOC_MAX_PAGES = 1
+WATCH_AD_HOC_MAX_DEPTH = 1
 SEMANTIC_MODEL_ENV = "DOCPULL_SEMANTIC_DIFF_MODEL"
 SEMANTIC_ENABLE_ENV = "DOCPULL_SEMANTIC_DIFF"
 ANTHROPIC_API_KEY_ENV = "ANTHROPIC_API_KEY"
@@ -67,13 +71,41 @@ ANTHROPIC_API_VERSION = "2023-06-01"
 SEMANTIC_REQUEST_TIMEOUT_S = 60.0
 _RUN_ID_RE = re.compile(r"^[0-9A-Za-z_.-]+$")
 
-SourceType = Literal["auto", "html", "pdf", "markdown", "openapi", "github", "sitemap"]
+SourceType = Literal[
+    "auto",
+    "html",
+    "pdf",
+    "markdown",
+    "github",
+    "sitemap",
+    "openapi",
+    "feed",
+    "paper",
+    "repo",
+    "package",
+    "standards",
+    "dataset",
+    "transcript",
+    "wiki",
+]
 OutputFormat = Literal["markdown", "ndjson", "sqlite", "context-pack"]
 SemanticMode = Literal["auto", "off", "on"]
 ContextTarget = Literal["cursor", "claude", "codex", "openai", "llamaindex", "langchain"]
 SourceAuthType = Literal["bearer_env", "basic_env", "cookie_env", "header_env"]
 
-SOURCE_TYPES: tuple[str, ...] = ("auto", "html", "pdf", "markdown", "openapi", "github", "sitemap")
+CRAWL_SOURCE_TYPES: tuple[str, ...] = ("auto", "html", "pdf", "markdown", "github", "sitemap")
+TYPED_PROJECT_SOURCE_TYPES: tuple[str, ...] = (
+    "openapi",
+    "feed",
+    "paper",
+    "repo",
+    "package",
+    "standards",
+    "dataset",
+    "transcript",
+    "wiki",
+)
+SOURCE_TYPES: tuple[str, ...] = (*CRAWL_SOURCE_TYPES, *TYPED_PROJECT_SOURCE_TYPES)
 CONTEXT_TARGETS: tuple[str, ...] = ("cursor", "claude", "codex", "openai", "llamaindex", "langchain")
 OUTPUT_FORMATS: tuple[str, ...] = ("markdown", "ndjson", "sqlite", "context-pack")
 
@@ -140,12 +172,27 @@ class ProjectSource(BaseModel):
     @classmethod
     def _validate_url(cls, value: str) -> str:
         url = value.strip()
+        if not url:
+            raise ValueError("source url must not be empty")
         parsed = urlparse(url)
-        if parsed.scheme not in {"https"} or not parsed.netloc:
-            raise ValueError("source url must be an absolute https URL")
         if parsed.username or parsed.password:
             raise ValueError("source url must not contain embedded credentials")
         return url
+
+    @model_validator(mode="after")
+    def _validate_source_spec(self) -> ProjectSource:
+        parsed = urlparse(self.url)
+        if self.type in CRAWL_SOURCE_TYPES:
+            if parsed.scheme != "https" or not parsed.netloc:
+                raise ValueError("crawl source url must be an absolute https URL")
+            return self
+        if self.type not in TYPED_PROJECT_SOURCE_TYPES:
+            raise ValueError(f"unsupported source type: {self.type}")
+        if not _typed_project_source_spec_allowed(self.type, self.url):
+            raise ValueError(f"{self.type} source is not a supported typed source spec")
+        if self.auth is not None:
+            raise ValueError("typed project sources do not support auth credentials yet")
+        return self
 
     @field_validator("discovered_urls")
     @classmethod
@@ -205,6 +252,34 @@ class ProjectRefreshConfig(BaseModel):
     model_config = {"extra": "forbid"}
 
 
+class ProjectCIConfig(BaseModel):
+    """Context CI thresholds for project runs."""
+
+    min_pack_score: int = Field(80, ge=0, le=100)
+    min_audit_score: int = Field(80, ge=0, le=100)
+    min_citation_coverage: float = Field(0.90, ge=0, le=1)
+    min_context_pass_rate: float = Field(0.80, ge=0, le=1)
+    min_freshdocs_pass_rate: float | None = Field(None, ge=0, le=1)
+    fail_on_medium_coverage: bool = False
+    max_age_days: int | None = Field(None, ge=1)
+    require_rights: list[Literal["eval_generation", "redistribution", "model_training"]] = Field(
+        default_factory=list
+    )
+
+    model_config = {"extra": "forbid"}
+
+    @field_validator("require_rights")
+    @classmethod
+    def _dedupe_rights(cls, value: list[str]) -> list[str]:
+        seen: set[str] = set()
+        deduped: list[str] = []
+        for item in value:
+            if item not in seen:
+                deduped.append(item)
+                seen.add(item)
+        return deduped
+
+
 def _default_output_formats() -> list[OutputFormat]:
     return ["markdown", "ndjson", "sqlite", "context-pack"]
 
@@ -237,6 +312,7 @@ class ProjectConfig(BaseModel):
     policy: ProjectPolicyConfig = Field(default_factory=ProjectPolicyConfig)
     budget: ProjectBudgetConfig = Field(default_factory=ProjectBudgetConfig)
     refresh: ProjectRefreshConfig = Field(default_factory=ProjectRefreshConfig)
+    ci: ProjectCIConfig = Field(default_factory=ProjectCIConfig)
     outputs: ProjectOutputsConfig = Field(default_factory=ProjectOutputsConfig)
 
     model_config = {"extra": "forbid"}
@@ -276,6 +352,7 @@ class ProjectPaths:
     index: Path
     latest_run: Path
     remote_config: Path
+    context_lock: Path
 
 
 def run_init_cli(argv: list[str] | None = None) -> int:
@@ -296,7 +373,7 @@ def run_init_cli(argv: list[str] | None = None) -> int:
 
 def run_add_cli(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="docpull add", description="Add a source to a DocPull project")
-    parser.add_argument("url", help="HTTPS source URL")
+    parser.add_argument("sources", nargs="+", help="HTTPS URL, bundled alias, or typed source spec")
     parser.add_argument("--name", help="Source name")
     parser.add_argument("--type", choices=SOURCE_TYPES, default="auto")
     parser.add_argument("--discover", action="store_true", help="Discover and store source URLs now")
@@ -321,8 +398,8 @@ def run_add_cli(argv: list[str] | None = None) -> int:
             policy=args.auth_policy,
             header_name=args.auth_header_name,
         )
-        payload = add_source(
-            args.url,
+        payload = add_sources(
+            args.sources,
             name=args.name,
             source_type=args.type,
             discover=args.discover,
@@ -331,7 +408,100 @@ def run_add_cli(argv: list[str] | None = None) -> int:
     except ProjectError as err:
         console.print("[red]Project error:[/red] " + escape(str(err)))
         return 1
-    console.print(f"[green]Source added:[/green] {payload['source']['name']} -> {payload['source']['url']}")
+    if len(payload["sources"]) == 1:
+        source = payload["sources"][0]
+        console.print(f"[green]Source added:[/green] {source['name']} -> {source['url']}")
+    else:
+        console.print(f"[green]Sources added:[/green] {len(payload['sources'])}")
+    return 0
+
+
+def run_install_cli(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        prog="docpull install",
+        description="Validate context dependencies and write a reproducibility lockfile",
+    )
+    parser.add_argument(
+        "--sync",
+        action="store_true",
+        help="Run `docpull sync` after validating dependencies",
+    )
+    parser.add_argument("--json", action="store_true", dest="json_output")
+    args = parser.parse_args(argv)
+    console = Console()
+    try:
+        payload = install_project(sync=args.sync)
+    except ProjectError as err:
+        console.print("[red]Project install error:[/red] " + escape(str(err)))
+        return 1
+    if args.json_output:
+        console.print_json(data=payload)
+    else:
+        console.print(
+            "[green]Context dependencies installed:[/green] "
+            f"{payload['source_count']} sources -> {payload['lockfile']}"
+        )
+        for source in payload["sources"]:
+            alias = source.get("alias")
+            label = f"{source['name']} ({alias})" if alias else source["name"]
+            console.print(f"- {escape(label)}: {escape(source['url'])}")
+    return 0
+
+
+def run_deps_cli(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        prog="docpull deps",
+        description="Show context dependency and lockfile status",
+    )
+    parser.add_argument("--json", action="store_true", dest="json_output")
+    args = parser.parse_args(argv)
+    console = Console()
+    try:
+        payload = context_dependency_status()
+    except ProjectError as err:
+        console.print("[red]Project deps error:[/red] " + escape(str(err)))
+        return 1
+    if args.json_output:
+        console.print_json(data=payload)
+    else:
+        console.print(f"Project: {escape(payload['project'])}")
+        console.print(f"Lockfile: {escape(payload['lock_status'])}")
+        console.print(f"Last run: {escape(str(payload.get('last_run_id') or 'none'))}")
+        console.print(f"Sources: {payload['source_count']}")
+        for source in payload["sources"]:
+            alias = source.get("alias")
+            label = f"{source['name']} ({alias})" if alias else source["name"]
+            lock_marker = "locked" if source.get("locked") else "unlocked"
+            console.print(f"- {escape(label)} [{lock_marker}] {escape(source['url'])}")
+        exports = payload.get("exports") or []
+        if exports:
+            console.print("Exports:")
+            for item in exports:
+                console.print(f"- {escape(str(item.get('target')))} -> {escape(str(item.get('output_dir')))}")
+    return 0
+
+
+def run_sources_cli(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        prog="docpull sources",
+        description="List bundled context source aliases",
+    )
+    subparsers = parser.add_subparsers(dest="command", required=True)
+    list_parser = subparsers.add_parser("list", help="List bundled aliases")
+    list_parser.add_argument("--json", action="store_true", dest="json_output")
+    args = parser.parse_args(argv)
+    console = Console()
+    if args.command != "list":  # pragma: no cover - guarded by argparse
+        parser.error(f"Unknown sources command: {args.command}")
+    payload = list_context_sources()
+    if args.json_output:
+        console.print_json(data=payload)
+    else:
+        for item in payload["sources"]:
+            console.print(
+                f"[bold]{escape(item['name'])}[/bold]  {escape(item['title'])}  "
+                f"{escape(item['url'])}\n  {escape(item['description'])}"
+            )
     return 0
 
 
@@ -573,6 +743,16 @@ def run_watch_cli(argv: list[str] | None = None) -> int:
     parser.add_argument("--export", required=True, choices=CONTEXT_TARGETS, dest="export_target")
     parser.add_argument("--alert", choices=["changes"], default="changes")
     parser.add_argument("--interval", type=float, help="Repeat locally every N seconds")
+    parser.add_argument(
+        "--max-pages",
+        type=int,
+        help="Bound pages fetched per watch sync. Defaults to 1 for ad hoc watch projects.",
+    )
+    parser.add_argument(
+        "--max-depth",
+        type=int,
+        help="Bound crawl depth per watch sync. Defaults to 1 for ad hoc watch projects.",
+    )
     args = parser.parse_args(argv)
     console = Console()
     try:
@@ -581,6 +761,8 @@ def run_watch_cli(argv: list[str] | None = None) -> int:
             export_target=args.export_target,
             alert=args.alert,
             interval_seconds=args.interval,
+            max_pages=args.max_pages,
+            max_depth=args.max_depth,
         )
     except (ProjectError, PackToolError) as err:
         console.print("[red]Project watch error:[/red] " + escape(str(err)))
@@ -647,6 +829,8 @@ def add_source(
         )
     except ValidationError as err:
         raise ProjectError(f"Invalid source: {err}") from err
+    if discover and source.type in TYPED_PROJECT_SOURCE_TYPES:
+        raise ProjectError("Typed project sources do not support discovery; sync reads the source directly.")
     if any(existing.name == source.name for existing in config.sources):
         raise ProjectError(f"Source name already exists: {source.name}")
     if any(existing.url == source.url for existing in config.sources):
@@ -661,6 +845,151 @@ def add_source(
         "schema_version": PROJECT_SCHEMA_VERSION,
         "project": updated.name,
         "source": final_source.model_dump(mode="json"),
+    }
+
+
+def add_sources(
+    values: list[str],
+    *,
+    name: str | None = None,
+    source_type: str = "auto",
+    discover: bool = False,
+    auth: ProjectSourceAuth | dict[str, Any] | None = None,
+    root: Path | None = None,
+) -> dict[str, Any]:
+    """Add one or more URL or alias sources to a project."""
+
+    if not values:
+        raise ProjectError("At least one source or alias is required")
+    if len(values) > 1 and name:
+        raise ProjectError("--name can only be used when adding one source")
+    if len(values) > 1 and auth:
+        raise ProjectError("--auth can only be used when adding one source")
+    project_root = find_project_root(root or Path.cwd())
+    added: list[dict[str, Any]] = []
+    for value in values:
+        spec = _resolve_source_input(value, source_type=source_type)
+        if discover and spec["type"] in TYPED_PROJECT_SOURCE_TYPES:
+            raise ProjectError(
+                "Typed project sources do not support --discover; sync reads the source directly."
+            )
+        if spec["alias"] and auth:
+            raise ProjectError("Bundled aliases cannot define auth; add the resolved URL explicitly")
+        payload = add_source(
+            str(spec["url"]),
+            name=name or str(spec["name"]),
+            source_type=source_type if source_type != "auto" or not spec["type"] else str(spec["type"]),
+            discover=(discover if not spec["alias"] else False),
+            auth=auth,
+            root=project_root,
+        )
+        if spec["alias"] and (discover or bool(spec["discover"])):
+            config = load_project_config(project_root)
+            updated_sources = [
+                source.model_copy(update={"discover": True})
+                if source.name == payload["source"]["name"]
+                else source
+                for source in config.sources
+            ]
+            updated_config = config.model_copy(update={"sources": updated_sources})
+            save_project_config(project_root, updated_config)
+            ensure_project_index(project_root, updated_config)
+        source_payload = dict(payload["source"])
+        if spec["alias"] and (discover or bool(spec["discover"])):
+            source_payload["discover"] = True
+        if spec["alias"]:
+            source_payload["alias"] = spec["alias"]
+            source_payload["alias_title"] = spec["title"]
+        added.append(source_payload)
+    return {
+        "schema_version": PROJECT_SCHEMA_VERSION,
+        "project": load_project_config(project_root).name,
+        "sources": added,
+    }
+
+
+def list_context_sources() -> dict[str, Any]:
+    """Return bundled context source aliases."""
+
+    return {
+        "schema_version": PROJECT_SCHEMA_VERSION,
+        "sources": [alias.to_dict() for alias in list_context_aliases()],
+    }
+
+
+def install_project(
+    *,
+    sync: bool = False,
+    root: Path | None = None,
+) -> dict[str, Any]:
+    """Validate context dependencies and write or verify the lockfile."""
+
+    project_root = find_project_root(root or Path.cwd())
+    config = load_project_config(project_root)
+    paths = ensure_project_dirs(project_root)
+    ensure_project_index(project_root, config)
+    existing_lock = _read_context_lock(paths.context_lock)
+    if existing_lock:
+        _validate_context_lock(config, existing_lock)
+    payload = _write_context_lock(
+        project_root=project_root,
+        config=config,
+        run_id=_latest_run_id(project_root),
+    )
+    sync_payload: dict[str, Any] | None = None
+    if sync:
+        sync_payload = sync_project(root=project_root)
+        payload = _read_context_lock(paths.context_lock) or payload
+    result = {
+        "schema_version": PROJECT_SCHEMA_VERSION,
+        "project": config.name,
+        "source_count": len(config.sources),
+        "sources": [_context_dependency_payload(source) for source in config.sources],
+        "lockfile": str(paths.context_lock),
+        "validated_existing_lock": bool(existing_lock),
+    }
+    if sync_payload:
+        result["sync"] = sync_payload
+    if payload.get("run_id"):
+        result["run_id"] = payload["run_id"]
+    return result
+
+
+def context_dependency_status(*, root: Path | None = None) -> dict[str, Any]:
+    """Return project dependency, lockfile, and latest run status."""
+
+    project_root = find_project_root(root or Path.cwd())
+    config = load_project_config(project_root)
+    paths = project_paths(project_root)
+    lock = _read_context_lock(paths.context_lock)
+    latest = _latest_run_id(project_root)
+    latest_run = _run_payload(_run_dir_for_id(paths, latest)[1]) if latest else None
+    locked_by_url: dict[str, dict[str, Any]] = {}
+    if isinstance(lock, dict):
+        for item in lock.get("sources", []):
+            if isinstance(item, dict) and item.get("url"):
+                locked_by_url[str(item["url"])] = item
+    sources = []
+    for source in config.sources:
+        payload = _context_dependency_payload(source)
+        locked = locked_by_url.get(source.url)
+        payload["locked"] = bool(locked)
+        if locked and locked.get("discovered_urls") != source.discovered_urls:
+            payload["lock_drift"] = "discovered_urls"
+        sources.append(payload)
+    return {
+        "schema_version": PROJECT_SCHEMA_VERSION,
+        "project": config.name,
+        "project_root": str(project_root),
+        "source_count": len(config.sources),
+        "sources": sources,
+        "lockfile": str(paths.context_lock),
+        "lock_status": _context_lock_status(config, lock),
+        "lock_hash": lock.get("lock_hash") if isinstance(lock, dict) else None,
+        "last_run_id": latest,
+        "last_run_status": latest_run.get("status") if latest_run else None,
+        "content_hash_summary": lock.get("content_hash_summary") if isinstance(lock, dict) else None,
+        "exports": lock.get("exports", []) if isinstance(lock, dict) else [],
     }
 
 
@@ -852,7 +1181,11 @@ def diff_project(
         "semantic": semantic_payload,
     }
     diff_path = new_run_dir / "project.diff.json"
+    semantic_diff_path = new_run_dir / "semantic.diff.json"
     markdown_path = new_run_dir / "PROJECT_DIFF.md"
+    semantic_diff_payload = base.get("semantic_diff")
+    if isinstance(semantic_diff_payload, dict):
+        _write_json(semantic_diff_path, semantic_diff_payload)
     _write_json(diff_path, payload)
     markdown_path.write_text(_project_diff_markdown(payload), encoding="utf-8")
     _index_diff(project_root, payload)
@@ -958,14 +1291,25 @@ def export_context_pack(
         target=target_name,
         project_name=config.name,
     )
+    aliases = [
+        alias.name for source in config.sources if (alias := context_alias_for_url(source.url)) is not None
+    ]
+    content_summary = _content_hash_summary(records)
+    lock_path = project_paths(project_root).context_lock
     manifest = {
         "schema_version": PROJECT_SCHEMA_VERSION,
         "generated_at": utc_now_iso(),
         "project": config.name,
+        "pack_name": config.name,
+        "pack_version": selected_run_id,
         "run_id": selected_run_id,
         "target": target_name,
+        "source_count": len(config.sources),
+        "source_aliases": aliases,
         "document_count": len(records),
         "chunk_count": len(chunks),
+        "content_hash_summary": content_summary,
+        "context_lock": str(lock_path.relative_to(project_root)) if lock_path.exists() else None,
         "artifacts": {
             "context": context_path.name,
             "sources": sources_path.name,
@@ -980,6 +1324,18 @@ def export_context_pack(
         "output_dir": str(out),
         "manifest_path": str(manifest_path),
     }
+    _write_context_lock(
+        project_root=project_root,
+        config=config,
+        run_id=selected_run_id,
+        export={
+            "target": target_name,
+            "run_id": selected_run_id,
+            "output_dir": str(out),
+            "manifest_path": str(manifest_path),
+            "generated_at": manifest["generated_at"],
+        },
+    )
     _index_export(project_root, payload)
     return payload
 
@@ -1229,19 +1585,38 @@ def watch_project(
     export_target: str,
     alert: str = "changes",
     interval_seconds: float | None = None,
+    max_pages: int | None = None,
+    max_depth: int | None = None,
     root: Path | None = None,
 ) -> dict[str, Any]:
     if alert != "changes":
         raise ProjectError("Only --alert changes is supported")
     if interval_seconds is not None and interval_seconds <= 0:
         raise ProjectError("--interval must be greater than 0")
+    if max_pages is not None and max_pages <= 0:
+        raise ProjectError("--max-pages must be greater than 0")
+    if max_depth is not None and max_depth <= 0:
+        raise ProjectError("--max-depth must be greater than 0")
     project_root = (root or Path.cwd()).resolve()
     if not (project_root / PROJECT_CONFIG_FILENAME).exists():
         init_project(name=_source_name_from_url(url), source=url, root=project_root)
+        _configure_watch_project(
+            project_root,
+            max_pages=max_pages or WATCH_AD_HOC_MAX_PAGES,
+            max_depth=max_depth or WATCH_AD_HOC_MAX_DEPTH,
+            disable_discovery=True,
+        )
     else:
         config = load_project_config(project_root)
         if not any(source.url == url for source in config.sources):
             add_source(url, root=project_root)
+        if max_pages is not None or max_depth is not None:
+            _configure_watch_project(
+                project_root,
+                max_pages=max_pages,
+                max_depth=max_depth,
+                disable_discovery=False,
+            )
 
     latest_payload: dict[str, Any] | None = None
     while True:
@@ -1283,6 +1658,33 @@ def watch_project(
         time.sleep(interval_seconds)
 
 
+def _configure_watch_project(
+    project_root: Path,
+    *,
+    max_pages: int | None,
+    max_depth: int | None,
+    disable_discovery: bool,
+) -> None:
+    """Persist explicit watch bounds before the sync loop starts."""
+    config = load_project_config(project_root)
+    crawl_updates: dict[str, int] = {}
+    if max_pages is not None:
+        crawl_updates["max_pages"] = max_pages
+    if max_depth is not None:
+        crawl_updates["max_depth"] = max_depth
+    bounded_crawl = config.crawl.model_copy(update=crawl_updates)
+    sources = (
+        [source.model_copy(update={"discover": False}) for source in config.sources]
+        if disable_discovery
+        else config.sources
+    )
+    save_project_config(
+        project_root,
+        config.model_copy(update={"crawl": bounded_crawl, "sources": sources}),
+    )
+    ensure_project_index(project_root)
+
+
 async def _sync_source(
     *,
     project_root: Path,
@@ -1290,6 +1692,14 @@ async def _sync_source(
     source: ProjectSource,
     output_dir: Path,
 ) -> dict[str, Any]:
+    if source.type in TYPED_PROJECT_SOURCE_TYPES:
+        return await asyncio.to_thread(
+            _sync_typed_project_source,
+            project_root=project_root,
+            config=config,
+            source=source,
+            output_dir=output_dir,
+        )
     output_dir.mkdir(parents=True, exist_ok=True)
     fetch_config = _fetch_config(project_root, config, source, output_dir)
     errors: list[dict[str, Any]] = []
@@ -1365,6 +1775,120 @@ async def _sync_source(
     }
 
 
+def _sync_typed_project_source(
+    *,
+    project_root: Path,
+    config: ProjectConfig,
+    source: ProjectSource,
+    output_dir: Path,
+) -> dict[str, Any]:
+    output_dir.mkdir(parents=True, exist_ok=True)
+    max_items = config.crawl.max_pages or 50
+    cache_dir = project_paths(project_root).cache / source.name / "typed"
+    source_spec = source.url
+
+    if source.type == "openapi":
+        from .context_packs.openapi import build_openapi_pack
+
+        build_openapi_pack(source_spec, output_dir=output_dir, chunk_tokens=DEFAULT_CHUNK_TOKENS)
+    elif source.type == "feed":
+        from .context_packs.feed import build_feed_pack
+
+        build_feed_pack(
+            source_spec,
+            output_dir=output_dir,
+            max_items=max_items,
+            chunk_tokens=DEFAULT_CHUNK_TOKENS,
+        )
+    elif source.type == "paper":
+        from .context_packs.paper import build_paper_pack
+
+        build_paper_pack(
+            [source_spec],
+            output_dir=output_dir,
+            max_items=max_items,
+            chunk_tokens=DEFAULT_CHUNK_TOKENS,
+            cache_dir=cache_dir,
+        )
+    elif source.type == "repo":
+        from .context_packs.repo import build_repo_pack
+
+        build_repo_pack(
+            source_spec,
+            output_dir=output_dir,
+            max_items=max_items,
+            chunk_tokens=DEFAULT_CHUNK_TOKENS,
+            cache_dir=cache_dir,
+        )
+    elif source.type == "package":
+        from .context_packs.package import build_package_pack
+
+        build_package_pack(
+            source_spec,
+            output_dir=output_dir,
+            max_items=max_items,
+            chunk_tokens=DEFAULT_CHUNK_TOKENS,
+            cache_dir=cache_dir,
+        )
+    elif source.type == "standards":
+        from .context_packs.standards import build_standards_pack
+
+        build_standards_pack(
+            [source_spec],
+            output_dir=output_dir,
+            max_items=max_items,
+            chunk_tokens=DEFAULT_CHUNK_TOKENS,
+            cache_dir=cache_dir,
+        )
+    elif source.type == "dataset":
+        from .context_packs.dataset import build_dataset_pack
+
+        build_dataset_pack(
+            [source_spec],
+            output_dir=output_dir,
+            max_items=max_items,
+            chunk_tokens=DEFAULT_CHUNK_TOKENS,
+        )
+    elif source.type == "transcript":
+        from .context_packs.transcript import build_transcript_pack
+
+        build_transcript_pack(
+            [source_spec],
+            output_dir=output_dir,
+            max_items=max_items,
+            chunk_tokens=DEFAULT_CHUNK_TOKENS,
+        )
+    elif source.type == "wiki":
+        from .context_packs.wiki import build_wiki_pack
+
+        build_wiki_pack(
+            [source_spec],
+            output_dir=output_dir,
+            max_items=max_items,
+            chunk_tokens=DEFAULT_CHUNK_TOKENS,
+            cache_dir=cache_dir,
+        )
+    else:
+        raise ProjectError(f"Unsupported typed project source type: {source.type}")
+
+    records_path = output_dir / "documents.ndjson"
+    records = _read_jsonl(records_path) if records_path.exists() else []
+    normalized = [_normalize_project_record(record, source) for record in records]
+    stats = {
+        "pages_fetched": len(normalized),
+        "pages_failed": 0,
+        "pages_skipped": 0,
+        "robots_blocked": 0,
+        "http_request_count": 0,
+    }
+    return {
+        "records": normalized,
+        "errors": [],
+        "skips": [],
+        "stats": stats,
+    }
+
+
 def _refresh_project_discovery(
     project_root: Path,
     config: ProjectConfig,
@@ -1378,6 +1902,17 @@ def _refresh_project_discovery(
     for source in config.sources:
         if source.name not in requested:
             updated_sources.append(source)
+            continue
+        if source.type in TYPED_PROJECT_SOURCE_TYPES:
+            updated_sources.append(
+                source.model_copy(
+                    update={
+                        "discover": False,
+                        "discovered_urls": [],
+                        "discovered_at": None,
+                    }
+                )
+            )
             continue
         urls = asyncio.run(_discover_source_urls(project_root=project_root, config=config, source=source))
         updated_sources.append(
@@ -1500,6 +2035,12 @@ def _finalize_project_run(
     accounting = _run_accounting(config, fetch_stats)
     _write_json(run_dir / "accounting.json", accounting)
     _write_json(paths.manifests / f"{run_id}.json", manifest)
+    lock_payload = _write_context_lock(
+        project_root=project_root,
+        config=config,
+        run_id=run_id if status != "dry_run" else None,
+        records=records,
+    )
 
     run_payload = {
         "schema_version": PROJECT_SCHEMA_VERSION,
@@ -1529,8 +2070,24 @@ def _finalize_project_run(
             "corpus_manifest": "corpus.manifest.json",
             "sources": "sources.md",
             "pack": "local.pack.json",
+            "context_lock": str(paths.context_lock.relative_to(project_root)),
         },
     }
+    run_payload["context_lock"] = str(paths.context_lock)
+    run_payload["context_lock_hash"] = lock_payload.get("lock_hash")
+    if status != "dry_run":
+        from .agent_publish import AgentPublishError, publish_agent_docs
+        from .pack_tools import PackToolError
+
+        try:
+            publish_payload = publish_agent_docs(run_dir)
+        except (AgentPublishError, PackToolError) as err:
+            run_payload["agent_publish"] = {"status": "error", "error": str(err)}
+        else:
+            run_payload["agent_publish"] = {
+                "status": "completed",
+                "artifacts": publish_payload.get("artifacts", {}),
+            }
     _write_json(run_dir / "run.json", run_payload)
     if status != "dry_run":
         paths.latest_run.write_text(run_id + "\n", encoding="utf-8")
@@ -1554,6 +2111,7 @@ def project_paths(root: Path) -> ProjectPaths:
         index=state / "index.sqlite",
         latest_run=state / "latest-run",
         remote_config=state / "remote.json",
+        context_lock=state / CONTEXT_LOCK_FILENAME,
     )
 
 
@@ -2187,9 +2745,287 @@ def _resolve_source_auth(source: ProjectSource) -> AuthConfig:
         raise ProjectError(f"Invalid resolved source auth for {source.name}: {err}") from err
 
 
+def _resolve_source_input(value: str, *, source_type: str = "auto") -> dict[str, Any]:
+    text = value.strip()
+    requested_type = _source_type(source_type)
+    inferred_type = _infer_typed_source_type(text)
+    if requested_type in TYPED_PROJECT_SOURCE_TYPES or (
+        requested_type == "auto" and inferred_type is not None
+    ):
+        resolved_type = requested_type if requested_type != "auto" else inferred_type
+        return {
+            "alias": None,
+            "title": None,
+            "name": _source_name_from_url(text),
+            "url": text,
+            "type": resolved_type,
+            "discover": False,
+        }
+    parsed = urlparse(text)
+    if parsed.scheme or parsed.netloc:
+        if parsed.scheme != "https" or not parsed.netloc:
+            raise ProjectError("Sources must be bundled aliases or absolute https URLs")
+        return {
+            "alias": None,
+            "title": None,
+            "name": _source_name_from_url(text),
+            "url": text,
+            "type": requested_type,
+            "discover": False,
+        }
+    alias = get_context_alias(_slug(text))
+    if not alias:
+        raise ProjectError(f"Unknown context alias: {value}. Run `docpull sources list`.")
+    return {
+        "alias": alias.name,
+        "title": alias.title,
+        "name": alias.name,
+        "url": alias.url,
+        "type": alias.source_type,
+        "discover": alias.discover,
+    }
+
+
+def _infer_typed_source_type(value: str) -> str | None:
+    text = value.strip()
+    lowered = text.lower()
+    parsed = urlparse(text)
+    if lowered.startswith(("wiki:", "wikipedia:")):
+        return "wiki"
+    if lowered.startswith(("npm:", "pypi:")):
+        return "package"
+    if lowered.startswith(("arxiv:", "doi:", "pmid:")):
+        return "paper"
+    if lowered.startswith(("rfc:", "ietf:", "w3c:", "whatwg:")):
+        return "standards"
+    if parsed.scheme and parsed.netloc:
+        if _is_github_repo_url(parsed):
+            return "repo"
+        if _is_wiki_page_url(parsed):
+            return "wiki"
+        return None
+    suffix = Path(text).suffix.lower()
+    if suffix in {".csv", ".tsv", ".db", ".sqlite", ".sqlite3", ".parquet"}:
+        return "dataset"
+    if suffix in {".vtt", ".srt"}:
+        return "transcript"
+    if re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:@\S+)?", text):
+        return "repo"
+    return None
+
+
+def _typed_project_source_spec_allowed(source_type: str, value: str) -> bool:
+    text = value.strip()
+    lowered = text.lower()
+    parsed = urlparse(text)
+    is_https = parsed.scheme == "https" and bool(parsed.netloc)
+    if source_type in {"openapi", "feed", "transcript"}:
+        return is_https or bool(text)
+    if source_type == "paper":
+        return is_https or lowered.startswith(("arxiv:", "doi:", "pmid:")) or bool(Path(text).suffix)
+    if source_type == "repo":
+        return _is_github_repo_url(parsed) or bool(
+            re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:@\S+)?", text)
+        )
+    if source_type == "package":
+        return lowered.startswith(("npm:", "pypi:"))
+    if source_type == "standards":
+        return is_https or lowered.startswith(("rfc:", "ietf:", "w3c:", "whatwg:"))
+    if source_type == "dataset":
+        return not parsed.scheme
+    if source_type == "wiki":
+        return _is_wiki_page_url(parsed) or lowered.startswith(("wiki:", "wikipedia:"))
+    return False
+
+
+def _is_github_repo_url(parsed: Any) -> bool:
+    if parsed.scheme != "https" or parsed.netloc.lower() not in {"github.com", "www.github.com"}:
+        return False
+    parts = [part for part in parsed.path.split("/") if part]
+    return len(parts) >= 2
+
+
+def _is_wiki_page_url(parsed: Any) -> bool:
+    if parsed.scheme != "https" or not parsed.netloc:
+        return False
+    host = parsed.netloc.lower()
+    if not (
+        host == "www.mediawiki.org"
+        or host == "mediawiki.org"
+        or host.endswith(".wikipedia.org")
+        or host.endswith(".wikimedia.org")
+        or host.endswith(".wiktionary.org")
+        or host.endswith(".wikibooks.org")
+        or host.endswith(".wikiquote.org")
+        or host.endswith(".wikivoyage.org")
+        or host.endswith(".wikiversity.org")
+        or host.endswith(".wikisource.org")
+        or host.endswith(".wikinews.org")
+    ):
+        return False
+    return bool(re.match(r"^/(wiki|w/rest\.php/v1/page)/", parsed.path))
+
+
+def _context_dependency_payload(source: ProjectSource) -> dict[str, Any]:
+    alias = context_alias_for_url(source.url)
+    payload = {
+        "name": source.name,
+        "url": source.url,
+        "type": source.type,
+        "discover": source.discover,
+        "discovered_urls": list(source.discovered_urls),
+        "discovered_at": source.discovered_at,
+        "auth": _source_auth_public_payload(source),
+    }
+    if alias:
+        payload["alias"] = alias.name
+        payload["alias_title"] = alias.title
+        payload["alias_homepage"] = alias.homepage
+    return payload
+
+
+def _content_hash_summary(records: list[dict[str, Any]]) -> dict[str, Any]:
+    hashes = sorted(str(record.get("content_hash")) for record in records if record.get("content_hash"))
+    digest = hashlib.sha256("\n".join(hashes).encode("utf-8")).hexdigest() if hashes else None
+    return {
+        "algorithm": "sha256",
+        "hash": digest,
+        "record_count": len(records),
+        "content_hash_count": len(hashes),
+    }
+
+
+def _read_run_records_for_lock(project_root: Path, run_id: str | None) -> list[dict[str, Any]]:
+    if not run_id:
+        return []
+    paths = project_paths(project_root)
+    try:
+        _selected_run_id, run_dir = _run_dir_for_id(paths, run_id)
+    except ProjectError:
+        return []
+    records_path = run_dir / "documents.jsonl"
+    return _read_jsonl(records_path) if records_path.exists() else []
+
+
+def _write_context_lock(
+    *,
+    project_root: Path,
+    config: ProjectConfig,
+    run_id: str | None,
+    records: list[dict[str, Any]] | None = None,
+    export: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    from . import __version__
+
+    paths = ensure_project_dirs(project_root)
+    previous = _read_context_lock(paths.context_lock)
+    current_records = records if records is not None else _read_run_records_for_lock(project_root, run_id)
+    exports: list[dict[str, Any]] = []
+    if isinstance(previous, dict) and isinstance(previous.get("exports"), list):
+        exports = [item for item in previous["exports"] if isinstance(item, dict)]
+    if export:
+        exports = [
+            item
+            for item in exports
+            if item.get("target") != export.get("target") or item.get("run_id") != export.get("run_id")
+        ]
+        exports.append(export)
+        exports.sort(key=lambda item: (str(item.get("target") or ""), str(item.get("run_id") or "")))
+    source_urls: list[str] = []
+    source_specs: list[str] = []
+    for source in config.sources:
+        source_specs.append(source.url)
+        parsed = urlparse(source.url)
+        if parsed.scheme == "https" and parsed.netloc:
+            source_urls.append(source.url)
+            source_urls.extend(source.discovered_urls)
+    payload: dict[str, Any] = {
+        "schema_version": PROJECT_SCHEMA_VERSION,
+        "generated_at": utc_now_iso(),
+        "docpull_version": __version__,
+        "project": config.name,
+        "run_id": run_id,
+        "sources": [_context_dependency_payload(source) for source in config.sources],
+        "source_urls": _unique_urls(source_urls),
+        "source_specs": _unique_urls(source_specs),
+        "content_hashes": sorted(
+            str(record.get("content_hash")) for record in current_records if record.get("content_hash")
+        ),
+        "content_hash_summary": _content_hash_summary(current_records),
+        "exports": exports,
+    }
+    lock_hash_payload = dict(payload)
+    lock_hash_payload.pop("generated_at", None)
+    lock_hash_payload.pop("docpull_version", None)
+    payload["lock_hash"] = hashlib.sha256(
+        json.dumps(lock_hash_payload, sort_keys=True, ensure_ascii=False).encode("utf-8")
+    ).hexdigest()
+    _write_json(paths.context_lock, payload)
+    return payload
+
+
+def _read_context_lock(path: Path) -> dict[str, Any] | None:
+    value = _read_json(path, default=None)
+    return value if isinstance(value, dict) else None
+
+
+def _validate_context_lock(config: ProjectConfig, lock: dict[str, Any]) -> None:
+    locked_sources = lock.get("sources")
+    if not isinstance(locked_sources, list):
+        raise ProjectError("Invalid context lockfile: sources must be a list")
+    current = []
+    for source in config.sources:
+        alias = context_alias_for_url(source.url)
+        current.append(
+            {
+                "name": source.name,
+                "url": source.url,
+                "type": source.type,
+                "discover": source.discover,
+                "discovered_urls": list(source.discovered_urls),
+                "alias": alias.name if alias else None,
+            }
+        )
+    locked = [
+        {
+            "name": str(item.get("name")),
+            "url": str(item.get("url")),
+            "type": str(item.get("type")),
+            "discover": bool(item.get("discover")),
+            "discovered_urls": list(item.get("discovered_urls") or []),
+            "alias": item.get("alias"),
+        }
+        for item in locked_sources
+        if isinstance(item, dict)
+    ]
+    if current != locked:
+        raise ProjectError(
+            "docpull.yaml diverges from .docpull/context.lock.json; run `docpull sync` "
+            "or update dependencies intentionally"
+        )
+    for item in locked:
+        alias_name = item.get("alias")
+        if alias_name and get_context_alias(str(alias_name)) is None:
+            raise ProjectError(f"Context lockfile references unknown alias: {alias_name}")
+
+
+def _context_lock_status(config: ProjectConfig, lock: dict[str, Any] | None) -> str:
+    if not lock:
+        return "missing"
+    try:
+        _validate_context_lock(config, lock)
+    except ProjectError:
+        return "drifted"
+    return "locked"
+
+
 def _source_public_payload(source: ProjectSource) -> dict[str, Any]:
     payload = source.model_dump(mode="json", exclude={"auth"})
     payload["auth"] = _source_auth_public_payload(source)
+    alias = context_alias_for_url(source.url)
+    if alias:
+        payload["alias"] = alias.name
+        payload["alias_title"] = alias.title
     return payload
 
 
@@ -3304,6 +4140,8 @@ def _slug(value: str) -> str:
 
 def _source_name_from_url(url: str) -> str:
     parsed = urlparse(url)
+    if not parsed.hostname:
+        return _slug(url.replace(":", "-").replace("@", "-")) or "source"
     host = (parsed.hostname or "source").removeprefix("www.")
     path_bits = [part for part in parsed.path.split("/") if part][:2]
     base = "-".join([host.replace(".", "-"), *path_bits])

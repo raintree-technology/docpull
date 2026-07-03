@@ -1,4 +1,0 @@
-workflow: api-pack
-source: https://docs.parallel.ai/public-openapi.json
-kind: openapi
-output_dir: packs/parallel-openapi

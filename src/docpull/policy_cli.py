@@ -28,6 +28,12 @@ def create_policy_parser() -> argparse.ArgumentParser:
     explain.add_argument("policy", type=Path)
     explain.add_argument("--json", action="store_true", dest="json_output")
 
+    redaction = subparsers.add_parser("redaction", help="Manage redaction policy helpers")
+    redaction_subparsers = redaction.add_subparsers(dest="redaction_command", required=True)
+    redaction_init = redaction_subparsers.add_parser("init", help="Write a default redaction policy")
+    redaction_init.add_argument("--output", "-o", type=Path, default=Path("redaction.yml"))
+    redaction_init.add_argument("--json", action="store_true", dest="json_output")
+
     return parser
 
 
@@ -36,6 +42,20 @@ def run_policy_cli(argv: list[str] | None = None) -> int:
     parser = create_policy_parser()
     args = parser.parse_args(argv)
     console = Console()
+
+    if args.command == "redaction":
+        from .redaction import RedactionError, write_default_redaction_policy
+
+        try:
+            payload = write_default_redaction_policy(args.output)
+        except RedactionError as err:
+            console.print("[red]Policy error:[/red] " + escape(str(err)))
+            return 1
+        if args.json_output:
+            console.print_json(data=payload)
+        else:
+            console.print(f"[green]Redaction policy written:[/green] {payload['path']}")
+        return 0
 
     try:
         policy = PolicyConfig.from_file(args.policy)

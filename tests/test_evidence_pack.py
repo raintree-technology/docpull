@@ -14,9 +14,31 @@ from docpull.evidence_pack import (
     _targets_sec,
     build_evidence_pack,
     load_evidence_rules,
+    run_evidence_pack_cli,
 )
 from docpull.security.robots import RobotsChecker
 from docpull.security.url_validator import UrlValidator
+
+pytestmark = pytest.mark.internal_legacy
+
+
+def test_evidence_pack_help_exits_cleanly(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        run_evidence_pack_cli(["--help"])
+
+    assert exc_info.value.code == 0
+    captured = capsys.readouterr()
+    assert "docpull evidence-pack" in captured.out
+    assert "--sec-user-agent" in captured.out
+
+
+def test_evidence_pack_dispatch_reports_user_error(capsys: pytest.CaptureFixture[str]) -> None:
+    result = run_evidence_pack_cli(["missing.ndjson", "--rules", "missing.yml"])
+
+    assert result == 1
+    captured = capsys.readouterr()
+    assert "Evidence pack error:" in captured.out
+    assert "Input filing NDJSON does not exist" in captured.out
 
 
 @pytest.fixture

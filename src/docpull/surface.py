@@ -1,0 +1,339 @@
+"""Public surface registry for DocPull v3.
+
+This module is intentionally data-only. CLI help, SDK exports, MCP surface
+checks, and docs/tests should read from here instead of duplicating command
+lists in separate files.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class CliCommand:
+    """One public root-level CLI workflow."""
+
+    name: str
+    description: str
+
+
+PUBLIC_CLI_COMMANDS: tuple[CliCommand, ...] = (
+    CliCommand("init", "Create a persistent DocPull project"),
+    CliCommand("add", "Add URL, alias, or typed sources to a project"),
+    CliCommand("install", "Validate context dependencies and write a lockfile"),
+    CliCommand("deps", "Show context dependency and lockfile status"),
+    CliCommand("sources", "List bundled context source aliases"),
+    CliCommand("sync", "Sync configured project sources"),
+    CliCommand("diff", "Diff project runs"),
+    CliCommand("status", "Show project status"),
+    CliCommand("history", "Show project run history"),
+    CliCommand("review", "Write a source-health/diff review for a run"),
+    CliCommand("release", "Create versioned context-pack release artifacts"),
+    CliCommand("ci", "Run Context CI checks for project or pack context"),
+    CliCommand("watch", "Sync, diff, and export one source"),
+    CliCommand("parse", "Parse local PDF/DOCX/text files into a v3 pack"),
+    CliCommand("render", "Render one public URL or check optional browser backends"),
+    CliCommand("openapi-pack", "Build a local v3 pack from an OpenAPI spec"),
+    CliCommand("feed-pack", "Build a local v3 pack from an RSS, Atom, JSON Feed, or feed page"),
+    CliCommand("paper-pack", "Build a local v3 pack from papers and scholarly metadata"),
+    CliCommand("repo-pack", "Build a local v3 pack from a public GitHub repository"),
+    CliCommand("package-pack", "Build a local v3 pack from npm or PyPI package metadata"),
+    CliCommand("standards-pack", "Build a local v3 pack from RFC, IETF, W3C, or WHATWG standards"),
+    CliCommand("dataset-pack", "Build a local v3 pack from local dataset files"),
+    CliCommand("transcript-pack", "Build a local v3 pack from transcript files or URLs"),
+    CliCommand("wiki-pack", "Build a local v3 pack from Wikimedia/MediaWiki REST page content"),
+    CliCommand("mcp", "Run the stdio MCP server"),
+    CliCommand("policy", "Validate or explain source policy files"),
+    CliCommand("auth", "Check authenticated source access without writing content"),
+    CliCommand("refresh", "Refresh an existing local pack and write change reports"),
+    CliCommand("pack", "Score, diff, audit, search, cite, and prepare context packs"),
+    CliCommand("graph", "Build and query local cited source graphs for context packs"),
+    CliCommand("export", "Export a pack for agent or RAG tools"),
+    CliCommand("serve", "Serve a local pack over localhost JSON routes"),
+    CliCommand("share", "Serve a Markdown or HTML report at a local URL"),
+    CliCommand("monitor", "Run cron-friendly local pack monitors"),
+)
+PUBLIC_CLI_COMMAND_NAMES = tuple(command.name for command in PUBLIC_CLI_COMMANDS)
+
+PRUNED_CLI_COMMANDS = frozenset(
+    {
+        "remote",
+        "eval-set",
+        "evalgen",
+        "freshdocs",
+        "scrape",
+        "batch",
+        "crawl",
+        "search",
+        "extract",
+        "research",
+        "answer",
+        "entities",
+        "brief",
+        "images",
+        "screenshot",
+        "free-core-smoke",
+        "parallel",
+        "providers",
+        "provider",
+        "tavily",
+        "exa",
+        "benchmark",
+        "discover",
+        "answer-pack",
+        "evidence-pack",
+        "extract-pack",
+        "map",
+        "crawl-pack",
+        "research-pack",
+        "entities-pack",
+        "brand-pack",
+        "styleguide-pack",
+        "product-pack",
+        "extract-schema",
+        "image-pack",
+        "screenshot-pack",
+        "search-pack",
+    }
+)
+
+PUBLIC_SDK_EXPORTS = (
+    "__version__",
+    "async_build_dataset_pack",
+    "async_build_package_pack",
+    "async_build_paper_pack",
+    "async_build_repo_pack",
+    "async_build_standards_pack",
+    "async_build_transcript_pack",
+    "async_build_wiki_pack",
+    "Fetcher",
+    "fetch_blocking",
+    "fetch_one",
+    "refresh_pack",
+    "audit_pack",
+    "build_dataset_pack",
+    "build_feed_pack",
+    "build_openapi_pack",
+    "build_package_pack",
+    "build_paper_pack",
+    "build_repo_pack",
+    "build_standards_pack",
+    "build_transcript_pack",
+    "build_wiki_pack",
+    "parse_documents",
+    "parse_one_document",
+    "DocumentParseError",
+    "ParsedDocument",
+    "score_pack",
+    "score_pack_sources",
+    "diff_packs",
+    "build_citation_map",
+    "extract_pack_entities",
+    "search_pack",
+    "build_research_brief",
+    "prepare_pack",
+    "validate_pack_contract",
+    "run_context_ci",
+    "ContextCIError",
+    "CIThresholds",
+    "export_pack",
+    "ExportResult",
+    "GraphError",
+    "build_graph",
+    "load_graph",
+    "graph_status",
+    "query_graph",
+    "graph_neighbors",
+    "refresh_graph",
+    "load_pack",
+    "LocalPack",
+    "PackReadError",
+    "PackSource",
+    "create_pack_app",
+    "PackASGIApp",
+    "PackServerError",
+    "create_report_server",
+    "render_report_document",
+    "ReportHTTPServer",
+    "ShareError",
+    "PageContext",
+    "PolicyConfig",
+    "DocpullConfig",
+    "ProfileName",
+    "CrawlConfig",
+    "ContentFilterConfig",
+    "OutputConfig",
+    "NetworkConfig",
+    "PerformanceConfig",
+    "CacheConfig",
+    "BudgetConfig",
+    "RenderActionPolicy",
+    "RenderConfig",
+    "RenderViewport",
+    "Renderer",
+    "RenderedPage",
+    "AgentBrowserRenderer",
+    "VercelSandboxRenderer",
+    "E2BSandboxRenderer",
+    "RenderError",
+    "RendererUnavailableError",
+    "agent_browser_binary",
+    "check_agent_browser_availability",
+    "check_vercel_sandbox_availability",
+    "check_e2b_sandbox_availability",
+    "check_render_backend_availability",
+    "estimate_cloud_render_cost_usd",
+    "render_url",
+    "render_url_to_directory",
+    "EventType",
+    "FetchEvent",
+    "FetchStats",
+    "SqliteSearchResult",
+    "search_sqlite_documents",
+    "CacheManager",
+    "StreamingDeduplicator",
+    "Chunk",
+    "TokenCounter",
+    "chunk_markdown",
+)
+
+PUBLIC_CONTEXT_PACK_EXPORTS = (
+    "async_build_dataset_pack",
+    "async_build_package_pack",
+    "async_build_paper_pack",
+    "async_build_repo_pack",
+    "async_build_standards_pack",
+    "async_build_transcript_pack",
+    "async_build_wiki_pack",
+    "build_dataset_pack",
+    "build_feed_pack",
+    "build_openapi_pack",
+    "build_package_pack",
+    "build_paper_pack",
+    "build_repo_pack",
+    "build_standards_pack",
+    "build_transcript_pack",
+    "build_wiki_pack",
+)
+
+PRUNED_SDK_EXPORTS = frozenset(
+    {
+        "answer_pack",
+        "build_brand_pack",
+        "build_styleguide_pack",
+        "build_product_pack",
+        "extract_schema",
+        "build_image_pack",
+        "capture_screenshot_pack",
+        "build_search_pack",
+        "extract_pack",
+        "map_sources",
+        "crawl_pack",
+        "research_pack",
+        "entities_pack",
+        "validate_structured_output",
+        "ParityWorkflowError",
+        "ScrapeResult",
+        "ScrapeRunResult",
+        "Scraper",
+        "scrape_one",
+        "scrape_one_blocking",
+        "scrape_site",
+    }
+)
+
+PRUNED_CONTEXT_PACK_EXPORTS = frozenset(
+    {
+        "build_brand_pack",
+        "build_styleguide_pack",
+        "build_product_pack",
+        "extract_schema",
+        "build_image_pack",
+        "capture_screenshot_pack",
+        "build_search_pack",
+    }
+)
+
+PUBLIC_MCP_TOOLS = frozenset(
+    {
+        "fetch_url",
+        "render_url",
+        "ensure_docs",
+        "list_sources",
+        "list_indexed",
+        "grep_docs",
+        "read_doc",
+        "pack_score",
+        "pack_diff",
+        "refresh_pack",
+        "audit_pack",
+        "pack_citations",
+        "pack_entities",
+        "pack_search",
+        "pack_brief",
+        "pack_prepare",
+        "graph_build",
+        "graph_status",
+        "graph_query",
+        "graph_neighbors",
+        "graph_refresh",
+        "validate_policy",
+        "export_pack",
+        "serve_pack_status",
+        "add_source",
+        "remove_source",
+    }
+)
+
+PRUNED_MCP_TOOLS = frozenset(
+    {
+        "parallel_context_pack",
+        "parallel_api_pack",
+        "discover_sources",
+        "fetch_discovered_sources",
+        "extract_pack",
+        "map_sources",
+        "crawl_pack",
+        "research_pack",
+        "entities_pack",
+        "brand_pack",
+        "styleguide_pack",
+        "product_pack",
+        "extract_schema",
+        "image_pack",
+        "screenshot_pack",
+        "search_pack",
+        "answer_pack",
+    }
+)
+
+PUBLIC_PACK_SUBCOMMANDS = frozenset(
+    {
+        "validate",
+        "score",
+        "audit",
+        "publish",
+        "basis",
+        "redact",
+        "diff",
+        "sources",
+        "citations",
+        "entities",
+        "search",
+        "brief",
+        "prepare",
+    }
+)
+PRUNED_PACK_SUBCOMMANDS = frozenset({"company-brain"})
+PRUNED_PACKAGE_EXTRAS = frozenset({"playwright", "parallel", "observability"})
+PRUNED_BUILTIN_SOURCE_ALIASES = frozenset({"parallel"})
+
+
+def format_cli_subcommands(*, indent: int = 2) -> str:
+    """Return the root help subcommand block from the registry."""
+    pad = " " * indent
+    width = max(len(command.name) for command in PUBLIC_CLI_COMMANDS) + 1
+    lines = ["Subcommands:"]
+    lines.extend(f"{pad}{command.name.ljust(width)} {command.description}" for command in PUBLIC_CLI_COMMANDS)
+    return "\n".join(lines)

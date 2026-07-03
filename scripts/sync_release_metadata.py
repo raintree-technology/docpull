@@ -169,15 +169,15 @@ def relative(path: Path) -> str:
 
 
 def check() -> int:
-    drifted = []
-    for path, expected in expected_files().items():
-        if path.read_text(encoding="utf-8") != expected:
-            drifted.append(relative(path))
+    drifted: list[str] = []
+    for source_path, expected in expected_files().items():
+        if source_path.read_text(encoding="utf-8") != expected:
+            drifted.append(relative(source_path))
 
     if drifted:
         print("Generated release metadata is stale:", file=sys.stderr)
-        for path in drifted:
-            print(f"  - {path}", file=sys.stderr)
+        for drifted_path in drifted:
+            print(f"  - {drifted_path}", file=sys.stderr)
         print("Run `make metadata-sync` and commit the result.", file=sys.stderr)
         return 1
 
@@ -188,16 +188,16 @@ def check() -> int:
 
 
 def write() -> int:
-    changed = []
-    for path, expected in expected_files().items():
-        if path.read_text(encoding="utf-8") != expected:
-            path.write_text(expected, encoding="utf-8")
-            changed.append(relative(path))
+    changed: list[str] = []
+    for source_path, expected in expected_files().items():
+        if source_path.read_text(encoding="utf-8") != expected:
+            source_path.write_text(expected, encoding="utf-8")
+            changed.append(relative(source_path))
 
     if changed:
         print("Updated generated release metadata:")
-        for path in changed:
-            print(f"  - {path}")
+        for changed_path in changed:
+            print(f"  - {changed_path}")
     else:
         print("Generated release metadata already synchronized.")
     return 0

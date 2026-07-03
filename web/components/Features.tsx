@@ -1,8 +1,8 @@
 import {
   Bot,
-  Compass,
   Database,
   FileText,
+  GitBranch,
   RefreshCcw,
   ShieldCheck,
   Terminal,
@@ -22,17 +22,31 @@ type FeatureGroup = {
 
 const featureGroups = [
   {
-    title: "Fetch, crawl, and render",
+    title: "Declare context dependencies",
+    eyebrow: "Lockfile",
+    description:
+      "Put source dependencies in a project file, lock them, and diff changes before agents rely on them.",
+    command: "docpull init && docpull add stripe react && docpull sync",
+    Icon: GitBranch,
+    features: [
+      "docpull.yaml plus lockfile workflow for repeatable source sets",
+      "Sync, diff, status, history, review, release, watch, and refresh commands",
+      "Changed-source review artifacts for pull requests and Context CI",
+      "No external account or hosted registry required for the local workflow",
+    ],
+  },
+  {
+    title: "Fetch and render explicitly",
     eyebrow: "Capture",
     description:
-      "Start from one public URL, a site section, or an explicit source list.",
-    command: "docpull URL --profile rag --render fallback",
+      "Start from one public URL, a site section, a stored source list, or an explicit render request.",
+    command: "docpull URL --profile rag",
     Icon: FileText,
     features: [
       "Static and server-rendered HTML to Markdown, NDJSON, SQLite, or OKF",
       "Profiles for RAG, mirrors, quick samples, LLM chunks, OKF, and SEC filings",
       "Depth, page, path, concurrency, per-host, proxy, retry, and tokenizer controls",
-      "Optional agent-browser rendering with domain, viewport, timeout, and HTML-size limits",
+      "Optional agent-browser rendering with local, Vercel, and E2B runtimes",
     ],
   },
   {
@@ -45,50 +59,50 @@ const featureGroups = [
     features: [
       "HTTPS and SSRF validation, robots.txt handling, pinned-DNS checks, and strict TLS defaults",
       "Auth policy labels plus bearer, basic, cookie, and custom-header checks",
-      "Cache, resume, conditional fetches, dry runs, and changed-only refreshes",
-      "Doctor diagnostics, benchmark reports, and CI-friendly regression tests",
+      "Cache, resume, conditional fetches, dry runs, and rerun controls",
+      "Doctor diagnostics, policy checks, and CI-friendly regression tests",
     ],
   },
   {
-    title: "Local context packs",
-    eyebrow: "Pack intelligence",
+    title: "Validate v3 packs",
+    eyebrow: "Contract",
     description:
-      "Turn saved sources into a local evidence set an agent can inspect before it writes.",
-    command: "docpull pack prepare ./pack",
+      "Prepare raw outputs into agent-ready or eval-grade packs with required sidecars.",
+    command: "docpull pack validate ./pack --level eval",
     Icon: Database,
     features: [
-      "Refresh, score, diff, audit, and source-inventory reports",
-      "Citation maps, entity extraction, pack search, and research briefs",
-      "answer-pack responses grounded in local Markdown with cited source files",
-      "Monitor init, run, list, and report flows for scheduled pack updates",
+      "Raw, agent, and eval validation levels with text and JSON output",
+      "Context locks, coverage reports, citation indexes, pack scores, and audits",
+      "Rights manifests, provenance graphs, basis artifacts, and PACK_CARD.md",
+      "Precise source-level and chunk-level citation IDs for downstream use",
+    ],
+  },
+  {
+    title: "Export and enforce in CI",
+    eyebrow: "Delivery",
+    description:
+      "Send validated packs to agent frameworks, data warehouses, local servers, or CI checks.",
+    command: "docpull export ./pack --format openai-vector-jsonl",
+    Icon: RefreshCcw,
+    features: [
+      "OpenAI, LangChain, LlamaIndex, DSPy, n8n, Vercel AI, CrewAI, Sheets, and warehouse exports",
+      "Claude skill, Codex skill, and Cursor rules exports",
+      "Context CI reports for stale, missing, or weak evidence before release",
+      "Optional Parquet lane documented as docpull[parquet]",
     ],
   },
   {
     title: "Agent and developer surfaces",
     eyebrow: "Interfaces",
     description:
-      "The same core workflows are available to humans, Python code, and MCP clients.",
+      "Aligned core workflows are available to humans, Python code, and MCP clients.",
     command: "docpull mcp",
     Icon: Bot,
     features: [
       "CLI commands for full operator workflows and file outputs",
-      "Python SDK exports for fetch, scrape, render, chunk, search, refresh, audit, answer, export, and serve",
+      "Python SDK exports for fetch, render, chunk, refresh, audit, export, and serve",
       "MCP tools for fetch, render, ensure, list, search, read, packs, policy, and exports",
       "Local pack server plus JSONL, agent skill, and rule exports",
-    ],
-  },
-  {
-    title: "Discovery and provider research",
-    eyebrow: "Source finding",
-    description:
-      "Use local discovery first, then add provider-backed research when the agent needs to find sources.",
-    command: "docpull discover sitemap URL ./candidates",
-    Icon: Compass,
-    features: [
-      "Import URLs, read sitemaps, normalize candidates, select sources, and fetch chosen URLs",
-      "Source policy explain and validate flows before a pack is built",
-      "Optional Parallel context, API, discovery, extract, fallback, diff, and entity packs",
-      "Provider auth, init, status, and batch workflows for larger research jobs",
     ],
   },
 ] as const satisfies readonly FeatureGroup[];
@@ -100,14 +114,14 @@ const surfaceRows = [
     items: [
       "fetch",
       "render",
-      "discover",
       "refresh",
       "pack",
-      "answer",
+      "ci",
       "export",
       "serve",
       "monitor",
-      "provider",
+      "openapi-pack",
+      "typed packs",
     ],
   },
   {
@@ -115,13 +129,12 @@ const surfaceRows = [
     Icon: FileText,
     items: [
       "Fetcher",
-      "Scraper",
       "RenderConfig",
       "PolicyConfig",
       "refresh_pack",
       "audit_pack",
-      "answer_pack",
       "export_pack",
+      "build_paper_pack",
       "load_pack",
       "create_pack_app",
     ],
@@ -138,7 +151,6 @@ const surfaceRows = [
       "source aliases",
       "pack_diff",
       "audit_pack",
-      "answer_pack",
       "validate_policy",
       "export_pack",
     ],
@@ -154,7 +166,7 @@ const surfaceRows = [
       "OKF",
       "chunks",
       "citations",
-      "entities",
+      "sidecars",
       "skills",
       "server routes",
     ],
@@ -166,7 +178,7 @@ export default function Features() {
     <LandingSection
       id="features"
       title="Capability map"
-      description="DocPull is more than a crawler: it is a local-first source pipeline for capture, policy, pack intelligence, exports, and agent tools."
+      description="DocPull is a local-first context dependency pipeline for capture, policy, v3 pack validation, exports, CI, and agent tools."
       headerClassName="mb-10"
       containerClassName="max-w-6xl"
     >

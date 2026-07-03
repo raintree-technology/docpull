@@ -8,9 +8,10 @@ import { CommandCopy, LandingSection } from "@/components/landing";
 const altMethods = [
   { label: "pipx", command: "pipx install docpull" },
   { label: "uv", command: "uv pip install docpull" },
-  { label: "+parallel", command: "pip install 'docpull[parallel]'" },
+  { label: "+mcp", command: "pip install 'docpull[mcp]'" },
+  { label: "+serve", command: "pip install 'docpull[serve]'" },
+  { label: "+parse", command: "pip install 'docpull[parse]'" },
   { label: "+proxy", command: "pip install 'docpull[proxy]'" },
-  { label: "+all", command: "pip install 'docpull[all]'" },
 ] as const;
 
 export default function Install() {
@@ -20,7 +21,7 @@ export default function Install() {
     <LandingSection
       id="install"
       title="Install"
-      description="Install once, then crawl from your terminal, scripts, or agent workflow. Requires Python 3.10 or newer."
+      description="Install once, then sync sources from your terminal, scripts, or agent workflow. Requires Python 3.10 or newer."
       align="center"
       containerClassName="max-w-2xl text-center"
       headerClassName="mb-6"

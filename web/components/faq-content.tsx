@@ -31,24 +31,22 @@ function Src({
 
 export const faqs: { q: string; a: ReactNode; aText: string }[] = [
   {
-    q: "How does docpull compare to Firecrawl, Jina Reader, or Crawl4AI?",
+    q: "How does docpull compare to browser automation or hosted extraction APIs?",
     a: (
       <>
-        Firecrawl and Jina Reader are hosted APIs — your URLs route through their
-        infrastructure and pricing scales past their free tiers. Base docpull
-        runs locally with no API key, and <code>--budget 0</code> blocks
-        paid-capable provider and cloud calls before execution. Crawl4AI is the
-        closest OSS peer, but it&apos;s a general-purpose agent toolkit;
-        docpull is narrower — YAML-frontmatter Markdown and context packs tuned
-        for public web-source ingestion, with{" "}
+        Browser automation is the right layer for interaction-heavy pages,
+        sessions, clicks, and private apps. Hosted extraction APIs are useful
+        when you want someone else to operate rendering or source discovery.
+        docpull is narrower: it runs locally, starts from selected URLs or
+        files, and writes auditable context artifacts with{" "}
         <Src path="src/docpull/models/profiles.py">
           rag / mirror / quick profiles
         </Src>{" "}
-        baked in.
+        and v3 pack validation.
       </>
     ),
     aText:
-      "Firecrawl and Jina Reader are hosted APIs — your URLs route through their infrastructure and pricing scales past their free tiers. Base docpull runs locally with no API key, and --budget 0 blocks paid-capable provider and cloud calls before execution. Crawl4AI is the closest open-source peer, but it's a general-purpose agent toolkit; docpull is narrower — YAML-frontmatter Markdown and context packs tuned for public web-source ingestion, with rag, mirror, and quick profiles baked in.",
+      "Browser automation is the right layer for interaction-heavy pages, sessions, clicks, and private apps. Hosted extraction APIs are useful when you want someone else to operate rendering or source discovery. docpull is narrower: it runs locally, starts from selected URLs or files, and writes auditable context artifacts with rag, mirror, quick profiles, and v3 pack validation.",
   },
   {
     q: "How clean is the Markdown? Does it preserve code blocks, tables, and images?",
@@ -58,8 +56,8 @@ export const faqs: { q: string; a: ReactNode; aText: string }[] = [
         <Src path="src/docpull/conversion/extractor.py" line={110}>
           Fenced code blocks
         </Src>{" "}
-        keep their language hints (Prism, highlight.js, Shiki, GitHub
-        conventions all normalized),{" "}
+        keep language hints from common Prism, highlight.js, Shiki, and GitHub
+        class conventions,{" "}
         <Src path="src/docpull/conversion/markdown.py" line={32}>
           tables
         </Src>{" "}
@@ -77,13 +75,13 @@ export const faqs: { q: string; a: ReactNode; aText: string }[] = [
       </>
     ),
     aText:
-      "Yes. Fenced code blocks keep their language hints (Prism, highlight.js, Shiki, and GitHub conventions are all normalized), tables convert to Markdown pipes, and images keep their alt text. Nav bars, footers, sidebars, and common cookie/consent banners (OneTrust, Osano, GDPR walls, Cookiebot, Iubenda) are stripped before conversion via the extractor's remove-selector list.",
+      "Yes. Fenced code blocks keep language hints from common Prism, highlight.js, Shiki, and GitHub class conventions, tables convert to Markdown pipes, and images keep their alt text. Nav bars, footers, sidebars, and common cookie/consent banners (OneTrust, Osano, GDPR walls, Cookiebot, Iubenda) are stripped before conversion via the extractor's remove-selector list.",
   },
   {
     q: "Does it render JavaScript?",
     a: (
       <>
-        Not by default. The normal crawler runs without a browser. Pages that
+        Not by default. The default fetch path runs without a browser. Pages that
         require JS to render content are detected and skipped (or hard-failed
         with{" "}
         <code className="px-1 py-0.5 rounded bg-foreground/5 font-mono text-[13px] leading-5">
@@ -102,29 +100,22 @@ export const faqs: { q: string; a: ReactNode; aText: string }[] = [
       </>
     ),
     aText:
-      "Not by default. The normal crawler runs without a browser. Pages that require JavaScript to render content are detected and skipped, or hard-failed with --strict-js-required, so an agent can route elsewhere. For simple JavaScript-rendered public pages, use --render fallback or docpull render. For interaction-heavy pages, use a browser automation tool.",
+      "Not by default. The default fetch path runs without a browser. Pages that require JavaScript to render content are detected and skipped, or hard-failed with --strict-js-required, so an agent can route elsewhere. For simple JavaScript-rendered public pages, use --render fallback or docpull render. For interaction-heavy pages, use a browser automation tool.",
   },
   {
-    q: "Will it scale to a 10,000-page site, and can I re-run it on a schedule?",
+    q: "Will it scale to large sites, and can I re-run it on a schedule?",
     a: (
       <>
-        Yes — measured against a synthetic 10,000-page site:{" "}
-        <strong>~309&nbsp;s wall time</strong>,{" "}
-        <strong>~93&nbsp;MB peak RSS delta</strong>,{" "}
-        <strong>0 failed pages</strong>. See{" "}
-        <Src path="tests/benchmarks/test_10k_pages.py">
-          tests/benchmarks/test_10k_pages.py
-        </Src>{" "}
-        for the workload.{" "}
+        Yes. DocPull streams page records and uses{" "}
         <Src path="src/docpull/pipeline/steps/dedup.py">
           Streaming deduplication
         </Src>{" "}
-        keeps memory constant per page; the cache sends{" "}
+        keeps memory constant per page; when a cached response has validators,
+        the fetch path sends{" "}
         <Src path="src/docpull/pipeline/steps/fetch.py">
           If-None-Match / If-Modified-Since
         </Src>{" "}
-        on every cached URL so scheduled re-runs only transfer changed
-        pages, and{" "}
+        so unchanged pages can 304-skip without re-downloading, and{" "}
         <Src path="src/docpull/cache/manager.py" line={45}>
           fetched and failed URL sets persist on disk
         </Src>{" "}
@@ -133,7 +124,7 @@ export const faqs: { q: string; a: ReactNode; aText: string }[] = [
       </>
     ),
     aText:
-      "Yes — measured against a synthetic 10,000-page site: about 309 s wall time, about 93 MB peak RSS delta, and 0 failed pages. Streaming deduplication keeps memory constant per page; the cache sends If-None-Match / If-Modified-Since on every cached URL so scheduled re-runs only transfer changed pages, and fetched and failed URL sets persist on disk so a crash resumes from the discovered-URL list instead of restarting.",
+      "Yes. DocPull streams page records and uses streaming deduplication to keep memory bounded per page. When a cached response has validators, the fetch path sends If-None-Match / If-Modified-Since so unchanged pages can 304-skip without re-downloading, and fetched and failed URL sets persist on disk so a crash resumes from the discovered-URL list instead of restarting.",
   },
   {
     q: "Does it handle auth-gated pages?",
@@ -143,46 +134,33 @@ export const faqs: { q: string; a: ReactNode; aText: string }[] = [
         <Src path="src/docpull/cli.py" line={202}>
           --auth-bearer, --auth-basic, --auth-cookie, or --auth-header
         </Src>
-        . They ride with every request, so internal docs, subscriber-only
-        pages, customer portals, and corporate wikis all work.
+        . DocPull attaches them to its HTTP fetches, so HTTP-reachable static or
+        server-rendered internal docs, subscriber pages, and wikis can use the
+        same fetch path. SSO/MFA, JS-only portals, and interaction-heavy apps
+        may require a browser workflow.
       </>
     ),
     aText:
-      "Yes. Pass credentials with --auth-bearer, --auth-basic, --auth-cookie, or --auth-header. They ride with every request, so internal docs, subscriber-only pages, customer portals, and corporate wikis all work.",
+      "Yes. Pass credentials with --auth-bearer, --auth-basic, --auth-cookie, or --auth-header. DocPull attaches them to its HTTP fetches, so HTTP-reachable static or server-rendered internal docs, subscriber pages, and wikis can use the same fetch path. SSO/MFA, JS-only portals, and interaction-heavy apps may require a browser workflow.",
   },
   {
-    q: "Do Parallel workflows require an API key?",
+    q: "What makes a v3 pack agent-ready?",
     a: (
       <>
-        Base crawling, offline demo/import packs, and pack scoring do not. Live
-        Parallel API workflows read the key from{" "}
+        A raw fetch is not automatically an agent contract. Run{" "}
         <code className="px-1 py-0.5 rounded bg-foreground/5 font-mono text-[13px] leading-5">
-          PARALLEL_API_KEY
-        </code>
-        , user config, or project{" "}
-        <code className="px-1 py-0.5 rounded bg-foreground/5 font-mono text-[13px] leading-5">
-          .env.local
+          docpull pack prepare
         </code>{" "}
-        after{" "}
+        to add a context lock, coverage report, citation index, score, and
+        audit. Eval-grade packs add rights and provenance sidecars. Then use{" "}
         <code className="px-1 py-0.5 rounded bg-foreground/5 font-mono text-[13px] leading-5">
-          docpull parallel init
+          docpull pack validate --level raw|agent|eval
         </code>{" "}
-        or{" "}
-        <code className="px-1 py-0.5 rounded bg-foreground/5 font-mono text-[13px] leading-5">
-          docpull parallel auth
-        </code>{" "}
-        checks local SDK/key presence. It does not make a live key-validation
-        call. docpull never writes the key into pack artifacts, but the
-        artifacts can include source content, workflow inputs/outputs, selected
-        URLs, and metadata. Every generated pack also includes{" "}
-        <code className="px-1 py-0.5 rounded bg-foreground/5 font-mono text-[13px] leading-5">
-          AGENT_CONTEXT.md
-        </code>{" "}
-        so agents have a local load plan before inspecting deeper metadata.
+        as the public contract checker.
       </>
     ),
     aText:
-      "Base crawling, offline demo/import packs, and pack scoring do not require a Parallel API key. Live Parallel API workflows read the key from PARALLEL_API_KEY, user config, or project .env.local after docpull parallel init or docpull parallel auth checks local SDK and key presence. The auth check does not make a live key-validation call. docpull never writes the key into pack artifacts, but the artifacts can include source content, workflow inputs and outputs, selected URLs, and metadata. Every generated pack also includes AGENT_CONTEXT.md so agents have a local load plan before inspecting deeper metadata.",
+      "A raw fetch is not automatically an agent contract. Run docpull pack prepare to add a context lock, coverage report, citation index, score, and audit. Eval-grade packs add rights and provenance sidecars. Then use docpull pack validate --level raw|agent|eval as the public contract checker.",
   },
   {
     q: "Does the output drop straight into a Claude Code skill?",
@@ -192,7 +170,7 @@ export const faqs: { q: string; a: ReactNode; aText: string }[] = [
         <code className="px-1 py-0.5 rounded bg-foreground/5 font-mono text-[13px] leading-5">
           docpull URL --skill name
         </code>{" "}
-        and docpull writes a complete skill directory to{" "}
+        and docpull writes a Claude Code skill directory to{" "}
         <code className="px-1 py-0.5 rounded bg-foreground/5 font-mono text-[13px] leading-5">
           .claude/skills/name/
         </code>
@@ -204,13 +182,16 @@ export const faqs: { q: string; a: ReactNode; aText: string }[] = [
         <Src path="src/docpull/pipeline/steps/save.py">
           name and description fields
         </Src>{" "}
-        derived from the source&apos;s OpenGraph metadata, plus
-        hierarchically-named pages alongside it. No hand-editing
-        required.
+        derived from extracted page metadata when available, plus
+        hierarchically-named pages alongside it. Use{" "}
+        <code className="px-1 py-0.5 rounded bg-foreground/5 font-mono text-[13px] leading-5">
+          --skill-description
+        </code>{" "}
+        when you want to override the generated description.
       </>
     ),
     aText:
-      "Yes. Run `docpull URL --skill name` and docpull writes a complete skill directory to .claude/skills/name/: a generated SKILL.md manifest with name and description fields derived from the source's OpenGraph metadata, plus hierarchically-named pages alongside it. No hand-editing required.",
+      "Yes. Run `docpull URL --skill name` and docpull writes a Claude Code skill directory to .claude/skills/name/: a generated SKILL.md manifest with name and description fields derived from extracted page metadata when available, plus hierarchically-named pages alongside it. Use --skill-description when you want to override the generated description.",
   },
   {
     q: "Can I use it as a Python library?",

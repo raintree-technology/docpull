@@ -112,6 +112,59 @@ def test_auth_check_returns_non_secret_preflight_payload(
     assert "pass" not in json.dumps(payload)
 
 
+def test_local_http_auth_check_is_loopback_only() -> None:
+    assert auth_cli._is_loopback_http_url("http://127.0.0.1:8080/private")
+    assert auth_cli._is_loopback_http_url("http://localhost:8080/private")
+    assert not auth_cli._is_loopback_http_url("https://127.0.0.1/private")
+    assert not auth_cli._is_loopback_http_url("http://example.com/private")
+
+
+def test_auth_cli_hidden_loopback_flag_is_forwarded(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def fake_auth_check(*_args: Any, **kwargs: Any) -> dict[str, object]:
+        assert kwargs["allow_insecure_local_http"] is True
+        return {
+            "schema_version": 1,
+            "generated_at": "2026-06-19T00:00:00+00:00",
+            "url": "http://127.0.0.1:1234/private",
+            "host": "127.0.0.1",
+            "ok": True,
+            "auth_policy": "public-token-only",
+            "auth_type": "header",
+            "status_code": 200,
+            "content_type": "text/plain",
+            "bytes_downloaded": 2,
+            "skip_reason": None,
+            "error": None,
+            "secret_handling": "Credential values are never included in this report.",
+        }
+
+    monkeypatch.setattr(auth_cli, "auth_check", fake_auth_check)
+    output_path = tmp_path / "auth-check.json"
+
+    assert (
+        auth_cli.run_auth_cli(
+            [
+                "check",
+                "http://127.0.0.1:1234/private",
+                "--auth-policy",
+                "public-token-only",
+                "--auth-header",
+                "X-DocPull-Smoke",
+                "secret-value",
+                "--allow-insecure-local-http",
+                "--json",
+                "--output",
+                str(output_path),
+            ]
+        )
+        == 0
+    )
+    assert json.loads(output_path.read_text(encoding="utf-8"))["ok"] is True
+
+
 def test_auth_cli_writes_json_without_printing_secret(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

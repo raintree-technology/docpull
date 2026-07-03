@@ -17,7 +17,6 @@ pytest.importorskip("mcp.client.stdio")
 
 from mcp.client.stdio import stdio_client
 
-from docpull.accounting import RunAccounting, write_run_accounting
 from docpull.mcp import server as mcp_server
 from mcp import ClientSession, StdioServerParameters
 from tests.pack_fixtures import write_context_pack
@@ -142,37 +141,10 @@ async def test_mcp_dispatch_tool_handles_success_and_validation_errors(tmp_path)
     assert missing_query.is_error is True
     assert "Missing required argument: 'query'" in missing_query.text
 
-    bad_limit = await mcp_server._dispatch_tool(
-        "parallel_context_pack",
-        {"objective": "Parallel docs", "extract_limit": True, "dry_run": True},
-    )
-    assert bad_limit.is_error is True
-    assert "'extract_limit' must be an integer, got bool" in bad_limit.text
-
-    blocked_parallel = await mcp_server._dispatch_tool(
-        "parallel_context_pack",
-        {"objective": "Parallel docs", "dry_run": True, "budget": 0},
-    )
-    assert blocked_parallel.is_error is False
-    assert blocked_parallel.data is not None
-    assert blocked_parallel.data["blocked_by_budget"] is True
-    assert blocked_parallel.data["accounting"]["budget_limit_usd"] == 0
-    assert blocked_parallel.data["accounting"]["blocked_actions"][0]["provider"] == "parallel"
-
-    blocked_live_parallel = await mcp_server._dispatch_tool(
-        "parallel_context_pack",
-        {
-            "objective": "Parallel docs",
-            "budget": 0,
-            "output_dir": str(tmp_path / "blocked-parallel"),
-        },
-    )
-    assert blocked_live_parallel.is_error is False
-    assert blocked_live_parallel.data is not None
-    assert blocked_live_parallel.data["blocked_by_budget"] is True
-    parallel_accounting_path = tmp_path / "blocked-parallel" / "run.accounting.json"
-    assert blocked_live_parallel.data["accounting"]["artifact_path"] == str(parallel_accounting_path)
-    assert parallel_accounting_path.exists()
+    for pruned_tool in mcp_server.PRUNED_MCP_TOOLS:
+        pruned = await mcp_server._dispatch_tool(pruned_tool, {})
+        assert pruned.is_error is True
+        assert pruned.text == f"Unknown tool: {pruned_tool}"
 
     blocked_cloud_render = await mcp_server._dispatch_tool(
         "render_url",
@@ -193,34 +165,10 @@ async def test_mcp_dispatch_tool_handles_success_and_validation_errors(tmp_path)
     assert unknown.is_error is True
     assert unknown.text == "Unknown tool: not_a_tool"
 
-    research = await mcp_server._dispatch_tool(
-        "research_pack",
-        {
-            "pack_dir": str(pack_dir),
-            "objective": "What does Parallel Search return?",
-            "output_dir": str(tmp_path / "research"),
-        },
-    )
-    assert research.is_error is False
-    assert research.data is not None
-    assert research.data["workflow"] == "research-pack"
-    assert (tmp_path / "research" / "research.result.json").exists()
-
-    write_run_accounting(
-        pack_dir,
-        RunAccounting(
-            budget_limit_usd=0,
-            command="test context-pack",
-        ),
-    )
-    answer = await mcp_server._dispatch_tool(
-        "answer_pack",
-        {"pack_dir": str(pack_dir), "question": "What does Parallel Search return?"},
-    )
-    assert answer.is_error is False
-    assert answer.data is not None
-    assert answer.data["accounting"]["budget_limit_usd"] == 0
-    assert answer.data["accounting"]["artifact_path"] == str(pack_dir / "run.accounting.json")
+    audit = await mcp_server._dispatch_tool("audit_pack", {"pack_dir": str(pack_dir)})
+    assert audit.is_error is False
+    assert audit.data is not None
+    assert audit.data["score"] >= 50
 
 
 @pytest.mark.asyncio
@@ -263,8 +211,6 @@ async def test_stdio_server_lists_and_calls_tools(tmp_path):
             "file",
         ]
         assert render_tool.inputSchema["properties"]["budget"]["minimum"] == 0
-        parallel_tool = next(tool for tool in tools.tools if tool.name == "parallel_context_pack")
-        assert parallel_tool.inputSchema["properties"]["budget"]["minimum"] == 0
         assert {
             "fetch_url",
             "render_url",
@@ -273,15 +219,6 @@ async def test_stdio_server_lists_and_calls_tools(tmp_path):
             "list_indexed",
             "grep_docs",
             "read_doc",
-            "parallel_context_pack",
-            "parallel_api_pack",
-            "discover_sources",
-            "fetch_discovered_sources",
-            "extract_pack",
-            "map_sources",
-            "crawl_pack",
-            "research_pack",
-            "entities_pack",
             "pack_score",
             "pack_diff",
             "refresh_pack",
@@ -289,7 +226,6 @@ async def test_stdio_server_lists_and_calls_tools(tmp_path):
             "pack_citations",
             "pack_entities",
             "pack_search",
-            "answer_pack",
             "pack_brief",
             "pack_prepare",
             "graph_build",
@@ -303,20 +239,13 @@ async def test_stdio_server_lists_and_calls_tools(tmp_path):
             "add_source",
             "remove_source",
         }.issubset(names)
+        assert names.isdisjoint(mcp_server.PRUNED_MCP_TOOLS)
 
         result = await session.call_tool("list_sources", {})
         assert result.isError is False
         assert result.structuredContent is not None
         assert any(source["name"] == "react" for source in result.structuredContent["sources"])
-        assert any(source["name"] == "parallel" for source in result.structuredContent["sources"])
-
-        dry_run = await session.call_tool(
-            "parallel_context_pack",
-            {"objective": "Parallel docs", "queries": ["Parallel API"], "dry_run": True},
-        )
-        assert dry_run.isError is False
-        assert dry_run.structuredContent is not None
-        assert dry_run.structuredContent["dry_run"] is True
+        assert any(source["name"] == "langchain" for source in result.structuredContent["sources"])
 
         blocked_render = await session.call_tool(
             "render_url",
@@ -413,41 +342,12 @@ async def test_stdio_server_lists_and_calls_tools(tmp_path):
         assert search.structuredContent is not None
         assert search.structuredContent["result_count"] == 1
 
-        answer = await session.call_tool(
-            "answer_pack",
-            {"pack_dir": str(pack_dir), "question": "What does Parallel Search return?"},
-        )
-        assert answer.isError is False
-        assert answer.structuredContent is not None
-        assert answer.structuredContent["answer"]["status"] == "answered_from_local_pack"
-
         policy_path = tmp_path / "policy.yml"
         policy_path.write_text("schema_version: 1\nallowed_domains:\n  - docs.parallel.ai\n")
         policy = await session.call_tool("validate_policy", {"policy_path": str(policy_path)})
         assert policy.isError is False
         assert policy.structuredContent is not None
         assert policy.structuredContent["valid"] is True
-
-        discovery_dir = tmp_path / "discovery"
-        discovery = await session.call_tool(
-            "discover_sources",
-            {
-                "urls": ["https://docs.parallel.ai/api-reference/search/search"],
-                "include_domains": ["docs.parallel.ai"],
-                "output_dir": str(discovery_dir),
-            },
-        )
-        assert discovery.isError is False
-        assert discovery.structuredContent is not None
-        assert discovery.structuredContent["candidate_count"] == 1
-
-        selected = await session.call_tool(
-            "fetch_discovered_sources",
-            {"discovery_pack_dir": str(discovery_dir), "output_dir": str(tmp_path / "selected")},
-        )
-        assert selected.isError is False
-        assert selected.structuredContent is not None
-        assert selected.structuredContent["selected_count"] == 1
 
         exported = await session.call_tool(
             "export_pack",
@@ -511,19 +411,9 @@ async def test_stdio_server_lists_and_calls_tools(tmp_path):
         assert bad_line.isError is True
         assert "validation error" in bad_line.content[0].text.lower()
 
-        bad_extract_limit = await session.call_tool(
-            "parallel_context_pack",
-            {"objective": "Parallel docs", "extract_limit": 21, "dry_run": True},
-        )
-        assert bad_extract_limit.isError is True
-        assert "validation error" in bad_extract_limit.content[0].text.lower()
-
-        bad_kind = await session.call_tool(
-            "parallel_api_pack",
-            {"source": str(pack_dir / "documents.ndjson"), "kind": "graphql"},
-        )
-        assert bad_kind.isError is True
-        assert "validation error" in bad_kind.content[0].text.lower()
+        pruned = await session.call_tool("parallel_context_pack", {"objective": "Parallel docs"})
+        assert pruned.isError is True
+        assert "Unknown tool: parallel_context_pack" in pruned.content[0].text
 
         bad_prepare = await session.call_tool(
             "pack_prepare",

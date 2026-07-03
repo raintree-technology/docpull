@@ -1,4 +1,0 @@
-workflow: api-pack
-source: https://docs.parallel.ai/llms.txt
-kind: llms
-output_dir: packs/parallel-docs-index

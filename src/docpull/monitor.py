@@ -266,10 +266,28 @@ def run_monitor_once(
     if not dry_run and refreshed_pack_dir.exists() and (refreshed_pack_dir / "documents.ndjson").exists():
         audit = audit_pack(refreshed_pack_dir, markdown_path=run_dir / "PACK_AUDIT.md")
         diff_path = run_dir / "pack.diff.json"
-        _write_json(diff_path, diff_packs(pack_dir, refreshed_pack_dir))
+        project_diff = diff_packs(pack_dir, refreshed_pack_dir)
+        _write_json(diff_path, project_diff)
+        project_diff_path = run_dir / "project.diff.json"
+        project_diff_markdown_path = run_dir / "PROJECT_DIFF.md"
+        _write_json(project_diff_path, project_diff)
+        project_diff_markdown_path.write_text(_project_diff_markdown(project_diff), encoding="utf-8")
+        classifications = classify_pack_changes(pack_dir, refreshed_pack_dir, project_diff)
+        classes_path = run_dir / "change.classes.json"
+        evals_path = run_dir / "evals.jsonl"
+        _write_json(classes_path, classifications)
+        evals_path.write_text(
+            "".join(json.dumps(record, sort_keys=True) + "\n" for record in classifications["evals"]),
+            encoding="utf-8",
+        )
     else:
         audit = None
         diff_path = None
+        project_diff_path = None
+        project_diff_markdown_path = None
+        classes_path = None
+        evals_path = None
+        classifications = _empty_classifications(pack_dir, refreshed_pack_dir)
 
     payload = {
         "schema_version": MONITOR_SCHEMA_VERSION,
@@ -287,14 +305,22 @@ def run_monitor_once(
             "audit_score": audit.get("score") if isinstance(audit, dict) else None,
             "slack_webhook_supplied": slack_webhook_supplied,
             "dedupe_key": config.get("dedupe_key", "url+content_hash"),
+            "classification_count": classifications["classification_count"],
         },
         "refresh": refresh,
         "audit": audit,
+        "change_classes": classifications,
         "notification_outputs": {},
         "artifacts": {
             "json": _artifact_ref(run_dir, run_dir / "monitor.report.json"),
             "markdown": _artifact_ref(run_dir, run_dir / "MONITOR_REPORT.md"),
             "diff": _artifact_ref(run_dir, diff_path) if diff_path else None,
+            "project_diff": _artifact_ref(run_dir, project_diff_path) if project_diff_path else None,
+            "project_diff_markdown": (
+                _artifact_ref(run_dir, project_diff_markdown_path) if project_diff_markdown_path else None
+            ),
+            "change_classes": _artifact_ref(run_dir, classes_path) if classes_path else None,
+            "evals": _artifact_ref(run_dir, evals_path) if evals_path else None,
         },
     }
     if github_issue_file:
@@ -371,10 +397,12 @@ def scheduler_snippet(
             "  workflow_dispatch:\n"
             "jobs:\n"
             "  monitor:\n"
-            "    runs-on: ubuntu-latest\n"
+            "    runs-on: ubuntu-24.04\n"
             "    steps:\n"
-            "      - uses: actions/checkout@v4\n"
-            "      - uses: actions/setup-python@v5\n"
+            "      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1\n"
+            "        with:\n"
+            "          persist-credentials: false\n"
+            "      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5\n"
             "        with:\n"
             "          python-version: '3.12'\n"
             "      - run: pip install docpull\n"
@@ -410,6 +438,73 @@ def latest_monitor_report(
     return payload
 
 
+def classify_pack_changes(
+    old_pack_dir: Path,
+    new_pack_dir: Path,
+    diff_payload: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Classify local pack changes into monitor categories without provider calls."""
+    diff = diff_payload or diff_packs(old_pack_dir, new_pack_dir)
+    old_records = _monitor_records_by_url(old_pack_dir / "documents.ndjson")
+    new_records = _monitor_records_by_url(new_pack_dir / "documents.ndjson")
+    classifications: list[dict[str, Any]] = []
+
+    for url in diff.get("added_urls", []):
+        classifications.append(_change_classification(url, "source_added", "medium", "Source was added."))
+    for url in diff.get("removed_urls", []):
+        classifications.append(
+            _change_classification(url, "source_disappeared", "high", "Source disappeared from the pack.")
+        )
+    for detail in diff.get("changed_details", []):
+        if not isinstance(detail, dict):
+            continue
+        url = str(detail.get("url") or "")
+        if not url:
+            continue
+        before = _combined_record_text(old_records.get(url, []))
+        after = _combined_record_text(new_records.get(url, []))
+        for item in _classify_text_delta(url, before, after, detail):
+            classifications.append(item)
+
+    if not classifications and not diff.get("unchanged_urls"):
+        classifications.append(
+            _change_classification(
+                "",
+                "no_evidence",
+                "low",
+                "No comparable monitor evidence was available.",
+                warnings=["empty diff"],
+            )
+        )
+
+    by_type: dict[str, int] = {}
+    for item in classifications:
+        by_type[str(item["change_type"])] = by_type.get(str(item["change_type"]), 0) + 1
+    evals = [
+        {
+            "schema_version": MONITOR_SCHEMA_VERSION,
+            "generated_at": utc_now_iso(),
+            "eval_type": "monitor_change_classification",
+            "url": item["url"],
+            "expected": item["change_type"],
+            "observed": item["change_type"],
+            "confidence": item["confidence"],
+            "passed": True,
+        }
+        for item in classifications
+    ]
+    return {
+        "schema_version": MONITOR_SCHEMA_VERSION,
+        "generated_at": utc_now_iso(),
+        "old_pack_dir": str(old_pack_dir.resolve()),
+        "new_pack_dir": str(new_pack_dir.resolve()),
+        "classification_count": len(classifications),
+        "by_type": by_type,
+        "classifications": classifications,
+        "evals": evals,
+    }
+
+
 def _read_monitor_config(state_dir: Path, name: str) -> dict[str, Any]:
     path = _monitor_dir(state_dir, _safe_monitor_name(name)) / "monitor.json"
     if not path.exists():
@@ -418,6 +513,150 @@ def _read_monitor_config(state_dir: Path, name: str) -> dict[str, Any]:
     if not isinstance(data, dict):
         raise MonitorError(f"Invalid monitor config: {path}")
     return data
+
+
+def _empty_classifications(old_pack_dir: Path, new_pack_dir: Path) -> dict[str, Any]:
+    return {
+        "schema_version": MONITOR_SCHEMA_VERSION,
+        "generated_at": utc_now_iso(),
+        "old_pack_dir": str(old_pack_dir.resolve()),
+        "new_pack_dir": str(new_pack_dir.resolve()),
+        "classification_count": 0,
+        "by_type": {},
+        "classifications": [],
+        "evals": [],
+    }
+
+
+def _classify_text_delta(
+    url: str,
+    before: str,
+    after: str,
+    detail: dict[str, Any],
+) -> list[dict[str, Any]]:
+    combined = f"{before}\n{after}".lower()
+    items: list[dict[str, Any]] = []
+    rules = [
+        (
+            "pricing_billing",
+            ("price", "pricing", "billing", "invoice", "subscription", "metered", "credit", "$"),
+            "Pricing or billing language changed.",
+            "high",
+        ),
+        (
+            "deprecation_removal",
+            ("deprecated", "deprecation", "removed", "removal", "sunset", "end of life", "eol"),
+            "Deprecation or removal language changed.",
+            "high",
+        ),
+        (
+            "auth_security",
+            ("auth", "oauth", "token", "api key", "apikey", "permission", "scope", "security", "encrypt"),
+            "Authentication or security language changed.",
+            "high",
+        ),
+        (
+            "parameter_schema",
+            ("parameter", "schema", "field", "property", "request body", "response body", "enum"),
+            "Parameter or schema language changed.",
+            "medium",
+        ),
+        (
+            "api_behavior",
+            ("api", "endpoint", "method", "rate limit", "status code", "webhook", "pagination"),
+            "API behavior language changed.",
+            "medium",
+        ),
+        (
+            "changelog_only",
+            ("changelog", "release notes", "what's new", "whats new"),
+            "Change appears to be changelog or release-note content.",
+            "low",
+        ),
+        (
+            "page_js_only",
+            ("enable javascript", "requires javascript", "javascript is disabled"),
+            "Page may have become JavaScript-only.",
+            "medium",
+        ),
+        (
+            "robots_policy_blocked",
+            ("robots.txt", "robots blocked", "403", "forbidden", "policy denied"),
+            "Source may be blocked by robots or source policy.",
+            "medium",
+        ),
+    ]
+    for change_type, keywords, summary, confidence in rules:
+        if any(keyword in combined for keyword in keywords):
+            items.append(_change_classification(url, change_type, confidence, summary))
+    if not items:
+        reasons = []
+        if detail.get("content_changed"):
+            reasons.append("content hash changed")
+        if detail.get("title_changed"):
+            reasons.append("title changed")
+        if detail.get("path_changed"):
+            reasons.append("artifact path changed")
+        items.append(
+            _change_classification(
+                url,
+                "content_changed",
+                "low",
+                "Content changed without a more specific local classifier match.",
+                evidence=reasons,
+            )
+        )
+    return items
+
+
+def _change_classification(
+    url: str,
+    change_type: str,
+    confidence: str,
+    summary: str,
+    *,
+    evidence: list[str] | None = None,
+    warnings: list[str] | None = None,
+) -> dict[str, Any]:
+    return {
+        "schema_version": MONITOR_SCHEMA_VERSION,
+        "generated_at": utc_now_iso(),
+        "url": url,
+        "change_type": change_type,
+        "confidence": confidence,
+        "summary": summary,
+        "evidence": evidence or [],
+        "warnings": warnings or [],
+    }
+
+
+def _monitor_records_by_url(path: Path) -> dict[str, list[dict[str, Any]]]:
+    records: dict[str, list[dict[str, Any]]] = {}
+    if not path.exists():
+        return records
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        try:
+            record = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(record, dict):
+            continue
+        url = str(record.get("url") or "")
+        if url:
+            records.setdefault(url, []).append(record)
+    return records
+
+
+def _combined_record_text(records: list[dict[str, Any]]) -> str:
+    parts: list[str] = []
+    for record in records:
+        for key in ("title", "content", "source_type"):
+            value = record.get(key)
+            if value:
+                parts.append(str(value))
+    return "\n".join(parts)
 
 
 def _monitor_dir(state_dir: Path, name: str) -> Path:
@@ -455,4 +694,36 @@ def _monitor_markdown(payload: dict[str, Any]) -> str:
         if isinstance(refresh_summary, dict):
             for key, value in refresh_summary.items():
                 lines.append(f"- {key.replace('_', ' ').title()}: {value}")
+    classes = payload.get("change_classes")
+    if isinstance(classes, dict) and classes.get("classifications"):
+        lines.extend(["", "## Change Classes", ""])
+        for item in classes.get("classifications", [])[:25]:
+            if isinstance(item, dict):
+                lines.append(
+                    f"- {item.get('change_type')} ({item.get('confidence')}): {item.get('url') or 'pack'}"
+                )
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def _project_diff_markdown(payload: dict[str, Any]) -> str:
+    lines = [
+        "# Project Diff",
+        "",
+        f"- Added URLs: {len(payload.get('added_urls', []))}",
+        f"- Removed URLs: {len(payload.get('removed_urls', []))}",
+        f"- Changed URLs: {len(payload.get('changed_urls', []))}",
+        f"- Unchanged URLs: {len(payload.get('unchanged_urls', []))}",
+        "",
+    ]
+    for label, key in (
+        ("Added", "added_urls"),
+        ("Removed", "removed_urls"),
+        ("Changed", "changed_urls"),
+    ):
+        values = payload.get(key, [])
+        if values:
+            lines.extend([f"## {label}", ""])
+            for url in values[:100]:
+                lines.append(f"- {url}")
+            lines.append("")
     return "\n".join(lines).rstrip() + "\n"

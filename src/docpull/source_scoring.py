@@ -5,6 +5,86 @@ from __future__ import annotations
 from typing import Any
 from urllib.parse import urlparse
 
+LOWER_PRIORITY_PATH_PARTS = (
+    "/blog",
+    "/news",
+    "/newsletter",
+    "/press",
+    "/legal",
+    "/privacy",
+    "/terms",
+    "/login",
+    "/signup",
+    "/sign-in",
+    "/sign-up",
+    "/account",
+    "/sponsor",
+    "/sponsors",
+)
+DOC_PATH_TOKENS = (
+    "docs",
+    "api",
+    "reference",
+    "developers",
+    "tutorial",
+    "guide",
+    "guides",
+    "learn",
+    "how-to",
+    "manual",
+    "examples",
+    "quickstart",
+)
+DOC_TITLE_TERMS = (
+    "docs",
+    "documentation",
+    "api",
+    "reference",
+    "changelog",
+    "tutorial",
+    "guide",
+    "quickstart",
+    "manual",
+)
+LOCALE_SEGMENTS = {
+    "ar",
+    "bg",
+    "bn",
+    "ca",
+    "cs",
+    "da",
+    "de",
+    "el",
+    "en",
+    "es",
+    "fa",
+    "fi",
+    "fr",
+    "he",
+    "hi",
+    "id",
+    "it",
+    "ja",
+    "ko",
+    "nl",
+    "no",
+    "pl",
+    "pt",
+    "pt-br",
+    "ro",
+    "ru",
+    "sv",
+    "th",
+    "tr",
+    "uk",
+    "vi",
+    "zh",
+    "zh-cn",
+    "zh-hans",
+    "zh-hant",
+    "zh-tw",
+}
+
 
 def score_source(
     *,
@@ -40,11 +120,10 @@ def score_source(
     # Match a doc token as a whole path segment or a hyphen/underscore-prefixed
     # one (so "/api-reference" and "/api/v2" score, but "/apiary" does not).
     path_segments = [segment for segment in path.split("/") if segment]
-    doc_path_tokens = ("docs", "api", "reference", "developers")
     if any(
         segment == token or segment.startswith((f"{token}-", f"{token}_"))
         for segment in path_segments
-        for token in doc_path_tokens
+        for token in DOC_PATH_TOKENS
     ):
         score += 10
         reasons.append("docs_path")
@@ -53,11 +132,15 @@ def score_source(
         score += 15
         reasons.append("machine_readable_spec")
 
-    if any(term in title_l for term in ("docs", "documentation", "api", "reference", "changelog")):
+    if any(term in title_l for term in DOC_TITLE_TERMS):
         score += 8
         reasons.append("source_title")
 
-    if any(part in path for part in ("/blog", "/news", "/press", "/legal")):
+    if _is_locale_home_path(path_segments):
+        score -= 18
+        reasons.append("locale_home_path")
+
+    if any(part in path for part in LOWER_PRIORITY_PATH_PARTS):
         score -= 8
         reasons.append("lower_priority_path")
 
@@ -94,6 +177,10 @@ def score_source_entries(
             payload["index"] = entry["index"]
         scored.append(payload)
     return sorted(scored, key=lambda item: (-int(item["score"]), str(item["url"])))
+
+
+def _is_locale_home_path(path_segments: list[str]) -> bool:
+    return len(path_segments) == 1 and path_segments[0].lower() in LOCALE_SEGMENTS
 
 
 def _source_grade(score: int) -> str:

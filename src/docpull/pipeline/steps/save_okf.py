@@ -13,6 +13,7 @@ from ...conversion.special_cases import _split_markdown_frontmatter
 from ...models.document import DocumentRecord
 from ...models.events import EventType, FetchEvent, SkipReason
 from ...models.run import RunIdentity
+from ...output_contract import document_context_fields
 from ..base import EventEmitter, PageContext
 from ..manifest import CorpusManifest
 from .convert import _extract_headings
@@ -108,6 +109,7 @@ class OkfSaveStep:
                     extraction=ctx.extraction_info,
                     source_type=ctx.source_type,
                     run_identity=self._run_identity,
+                    **document_context_fields(ctx, output_format="okf"),
                 )
                 self._manifest.add_record(record, validated_path)
                 self._add_index_entry(validated_path, self._entry_title(ctx), self._description(ctx.metadata))
@@ -186,6 +188,7 @@ class OkfSaveStep:
                 extraction=ctx.extraction_info,
                 source_type=ctx.source_type,
                 run_identity=self._run_identity,
+                **document_context_fields(ctx, output_format="okf"),
                 chunk_index=idx,
                 chunk_heading=heading,
                 token_count=getattr(chunk, "token_count", None),

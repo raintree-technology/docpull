@@ -18,10 +18,14 @@ from docpull.models.events import EventType
 from docpull.project import (
     ProjectError,
     add_source,
+    add_sources,
+    context_dependency_status,
     diff_project,
     export_context_pack,
     generate_eval_set,
     init_project,
+    install_project,
+    list_context_sources,
     project_history,
     project_status,
     release_context_pack,
@@ -128,6 +132,29 @@ def test_add_normalizes_sources_and_rejects_duplicates(tmp_path: Path) -> None:
         add_source("https://docs.example.com/api", root=tmp_path)
 
 
+def test_context_alias_catalog_and_multi_add_write_project_sources(tmp_path: Path) -> None:
+    init_project(name="demo", root=tmp_path)
+
+    catalog = list_context_sources()
+    payload = add_sources(["stripe", "react", "https://docs.example.com/api"], root=tmp_path)
+
+    assert any(source["name"] == "stripe" for source in catalog["sources"])
+    assert [source["name"] for source in payload["sources"]] == [
+        "stripe",
+        "react",
+        "docs-example-com-api",
+    ]
+    assert payload["sources"][0]["alias"] == "stripe"
+    data = yaml.safe_load((tmp_path / "docpull.yaml").read_text(encoding="utf-8"))
+    assert data["sources"][0]["url"] == "https://docs.stripe.com"
+    assert data["sources"][0]["discover"] is True
+    assert data["sources"][1]["url"] == "https://react.dev"
+    assert data["sources"][2]["url"] == "https://docs.example.com/api"
+
+    with pytest.raises(ProjectError, match="Unknown context alias"):
+        add_sources(["not-a-real-alias"], root=tmp_path)
+
+
 def test_project_source_rejects_embedded_url_credentials(tmp_path: Path) -> None:
     init_project(name="demo", root=tmp_path)
 
@@ -213,8 +240,10 @@ def test_sync_writes_run_artifacts_and_indexes_records(
 
     payload = sync_project(root=tmp_path, run_id="run_a")
     run_dir = tmp_path / ".docpull" / "runs" / "run_a"
+    lock_path = tmp_path / ".docpull" / "context.lock.json"
 
     assert payload["summary"]["document_count"] == 1
+    assert lock_path.exists()
     assert payload["summary"]["chunk_count"] >= 1
     for name in (
         "run.json",
@@ -228,8 +257,13 @@ def test_sync_writes_run_artifacts_and_indexes_records(
         "corpus.manifest.json",
         "sources.md",
         "local.pack.json",
+        "AGENT_CONTEXT.md",
+        "llms.txt",
+        "SOURCE_INDEX.md",
     ):
         assert (run_dir / name).exists(), name
+    run_payload = json.loads((run_dir / "run.json").read_text(encoding="utf-8"))
+    assert run_payload["agent_publish"]["status"] == "completed"
 
     record = _jsonl(run_dir / "documents.jsonl")[0]
     assert record["metadata"]["docpull_project_source"] == "docs"
@@ -249,6 +283,14 @@ def test_sync_writes_run_artifacts_and_indexes_records(
     assert doc_count == 1
     assert chunk_count >= 1
     assert indexed_doc == ("https://docs.example.com/api", None)
+
+    lock = json.loads(lock_path.read_text(encoding="utf-8"))
+    assert lock["project"] == "demo"
+    assert lock["run_id"] == "run_a"
+    assert lock["sources"][0]["url"] == "https://docs.example.com/api"
+    assert lock["content_hashes"] == [_hash("API pricing is $10 and retry behavior is optional.")]
+    assert lock["content_hash_summary"]["record_count"] == 1
+    assert "lock_hash" in lock
 
 
 def test_sync_cleans_titles_and_dedupes_host_alias_pages(
@@ -381,6 +423,33 @@ def test_discovery_refresh_updates_config_and_syncs_exact_urls(
     assert health["sources"][0]["discovered_url_count"] == 2
 
 
+def test_install_writes_skeleton_lock_and_rejects_drift(tmp_path: Path) -> None:
+    init_project(name="demo", root=tmp_path)
+    add_sources(["stripe"], root=tmp_path)
+
+    installed = install_project(root=tmp_path)
+    lock_path = tmp_path / ".docpull" / "context.lock.json"
+    lock = json.loads(lock_path.read_text(encoding="utf-8"))
+    deps = context_dependency_status(root=tmp_path)
+
+    assert installed["source_count"] == 1
+    assert installed["sources"][0]["alias"] == "stripe"
+    assert installed["lockfile"] == str(lock_path)
+    assert lock["run_id"] is None
+    assert lock["sources"][0]["alias"] == "stripe"
+    assert lock["content_hashes"] == []
+    assert deps["lock_status"] == "locked"
+    assert deps["sources"][0]["locked"] is True
+
+    data = yaml.safe_load((tmp_path / "docpull.yaml").read_text(encoding="utf-8"))
+    data["sources"][0]["url"] = "https://docs.example.com/changed"
+    (tmp_path / "docpull.yaml").write_text(yaml.safe_dump(data), encoding="utf-8")
+
+    assert context_dependency_status(root=tmp_path)["lock_status"] == "drifted"
+    with pytest.raises(ProjectError, match="diverges"):
+        install_project(root=tmp_path)
+
+
 def test_diff_status_export_and_eval_set(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -406,6 +475,10 @@ def test_diff_status_export_and_eval_set(
     assert diff["summary"]["changed_count"] == 1
     assert diff["summary"]["likely_api_behavior_change_count"] == 1
     assert diff["summary"]["pricing_change_count"] == 1
+    semantic_diff_path = tmp_path / ".docpull" / "runs" / "run_b" / "semantic.diff.json"
+    assert semantic_diff_path.exists()
+    semantic_diff = json.loads(semantic_diff_path.read_text(encoding="utf-8"))
+    assert semantic_diff["summary"]["pricing_or_limit_change"] == 1
     assert diff["semantic"]["skipped"] is True
 
     semantic = diff_project(
@@ -441,6 +514,13 @@ def test_diff_status_export_and_eval_set(
     assert Path(export["output_dir"], "citations.json").exists()
     assert Path(export["output_dir"], "manifest.json").exists()
     assert Path(export["output_dir"], "openai-vector.jsonl").exists()
+    export_manifest = json.loads(Path(export["output_dir"], "manifest.json").read_text(encoding="utf-8"))
+    assert export_manifest["pack_name"] == "demo"
+    assert export_manifest["pack_version"] == "run_b"
+    assert export_manifest["source_count"] == 1
+    assert export_manifest["content_hash_summary"]["record_count"] == 1
+    lock_after_export = json.loads((tmp_path / ".docpull" / "context.lock.json").read_text(encoding="utf-8"))
+    assert lock_after_export["exports"][0]["target"] == "openai"
 
     eval_payload = generate_eval_set(run_id="run_b", limit=10, root=tmp_path)
     cases = _jsonl(Path(eval_payload["path"]))
@@ -523,11 +603,15 @@ def test_project_cli_and_export_context_pack_preserves_legacy_export(
     monkeypatch.chdir(tmp_path)
 
     assert main(["init", "demo"]) == 0
+    assert main(["sources", "list", "--json"]) == 0
     assert main(["add", "https://docs.example.com/api", "--name", "docs"]) == 0
+    assert main(["install", "--json"]) == 0
+    assert main(["deps", "--json"]) == 0
     assert main(["sync", "--run-id", "run_a", "--json"]) == 0
     assert main(["status", "--json"]) == 0
     assert main(["export", "context-pack", "--target", "langchain", "-o", str(tmp_path / "ctx")]) == 0
     assert (tmp_path / "ctx" / "langchain.jsonl").exists()
+    assert (tmp_path / ".docpull" / "context.lock.json").exists()
 
     assert (
         main(
@@ -543,6 +627,45 @@ def test_project_cli_and_export_context_pack_preserves_legacy_export(
         == 0
     )
     assert _jsonl(tmp_path / "legacy.jsonl")[0]["document_id"] == "doc_0"
+
+
+def test_project_sync_accepts_typed_dataset_source(tmp_path: Path) -> None:
+    dataset = tmp_path / "metrics.csv"
+    dataset.write_text("name,count\nalpha,2\nbeta,3\n", encoding="utf-8")
+
+    init_project(name="typed", root=tmp_path)
+    add_sources([str(dataset)], source_type="dataset", root=tmp_path)
+
+    payload = sync_project(run_id="typed_dataset", root=tmp_path)
+    records = _jsonl(tmp_path / ".docpull" / "runs" / "typed_dataset" / "documents.ndjson")
+    lock = json.loads((tmp_path / ".docpull" / "context.lock.json").read_text(encoding="utf-8"))
+
+    assert payload["summary"]["document_count"] >= 1
+    assert records[0]["metadata"]["docpull_source_type"] == "dataset"
+    assert lock["sources"][0]["type"] == "dataset"
+    assert lock["source_specs"] == [str(dataset)]
+
+
+def test_project_typed_source_inference_handles_repo_refs_and_https_files(tmp_path: Path) -> None:
+    init_project(name="typed", root=tmp_path)
+
+    payload = add_sources(
+        [
+            "acme/widgets@release-candidates",
+            "https://example.com/data.csv",
+        ],
+        root=tmp_path,
+    )
+
+    assert [source["type"] for source in payload["sources"]] == ["repo", "auto"]
+    data = yaml.safe_load((tmp_path / "docpull.yaml").read_text(encoding="utf-8"))
+    assert data["sources"][0]["url"] == "acme/widgets@release-candidates"
+    assert data["sources"][0]["type"] == "repo"
+    assert data["sources"][1]["url"] == "https://example.com/data.csv"
+    assert data["sources"][1]["type"] == "auto"
+
+    with pytest.raises(ProjectError, match="repo source is not a supported typed source spec"):
+        add_sources(["https://gitlab.com/acme/widgets"], source_type="repo", root=tmp_path)
 
 
 def test_watch_composes_project_sync_diff_and_export(
@@ -561,3 +684,28 @@ def test_watch_composes_project_sync_diff_and_export(
     assert payload["changed"] == 0
     assert Path(payload["export"]["output_dir"], "langchain.jsonl").exists()
     assert (tmp_path / "docpull.yaml").exists()
+    data = yaml.safe_load((tmp_path / "docpull.yaml").read_text(encoding="utf-8"))
+    assert data["crawl"]["max_pages"] == 1
+    assert data["crawl"]["max_depth"] == 1
+    assert data["sources"][0]["discover"] is False
+
+
+def test_watch_accepts_explicit_bounds_for_existing_project(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _install_fake_fetcher(monkeypatch, ["Watch context pack content."])
+    init_project(name="demo", source="https://docs.example.com/watch", root=tmp_path)
+
+    payload = watch_project(
+        "https://docs.example.com/watch",
+        export_target="openai",
+        max_pages=2,
+        max_depth=1,
+        root=tmp_path,
+    )
+
+    assert payload["run_id"]
+    data = yaml.safe_load((tmp_path / "docpull.yaml").read_text(encoding="utf-8"))
+    assert data["crawl"]["max_pages"] == 2
+    assert data["crawl"]["max_depth"] == 1

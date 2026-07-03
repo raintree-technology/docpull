@@ -1,40 +1,93 @@
 # Context Packs
 
-DocPull context packs turn a public site or existing local pack into typed,
-file-backed context. They stay local-first: direct async HTTP extraction is the
-default, rendering is explicit, and provider-backed search is budgeted.
+DocPull context packs are file-backed context dependencies for agents. The
+public release path is deliberately small: fetch or parse sources, prepare a v3
+pack, validate the contract, then export or gate it in CI.
 
-## Commands
+## Core Path
 
 ```bash
-docpull brand-pack example.com -o packs/brand
-docpull styleguide-pack https://example.com -o packs/styleguide
-docpull product-pack https://example.com/pricing --mode page -o packs/products
-docpull extract-schema packs/products --schema schema.json -o packs/schema
-docpull image-pack https://example.com -o packs/images
-DOCPULL_RENDER_TRUSTED_BROWSER_TARGETS=1 docpull screenshot-pack https://example.com -o packs/screenshot
-docpull search-pack "pricing" --provider local --pack-dir packs/products -o packs/search
-docpull search-pack "current docs" --provider parallel --dry-run --budget 0
+docpull https://docs.example.com --max-pages 25 -o packs/example
+docpull parse ./docs --output-dir packs/local-docs
+docpull openapi-pack ./openapi.json --output-dir packs/api
+docpull feed-pack https://example.com/news --output-dir packs/news
+docpull paper-pack arxiv:1706.03762 --output-dir packs/papers
+docpull repo-pack psf/requests --output-dir packs/repo
+docpull package-pack pypi:requests --output-dir packs/package
+docpull standards-pack rfc:9110 --output-dir packs/standard
+docpull dataset-pack ./metrics.csv --output-dir packs/dataset
+docpull transcript-pack ./meeting.vtt --output-dir packs/transcript
+docpull wiki-pack wiki:Web_scraping --output-dir packs/wiki
+
+docpull pack prepare packs/example --eval-grade
+docpull pack validate packs/example --level eval
+docpull export packs/example --format openai-vector-jsonl --output exports/example.jsonl
+docpull export packs/example --format cursor-rules --output .cursor/rules --skill-name example
+docpull ci packs/example --prepare
 ```
 
-## Artifacts
+Browser-free HTTP extraction is the default. Explicit rendering uses
+`agent-browser` through one of the supported runtimes:
 
-Each workflow writes a result JSON, Markdown report, `source_policy.json`,
-citations or basis records where relevant, replay config, and pack metadata.
-Each pack also writes `run.accounting.json`; local workflows record zero paid
-cost with HTTP/cache counts, while paid-capable provider routes include budget
-and blocked-action metadata.
+```bash
+docpull render https://example.com --runtime local --output-dir rendered/example
+docpull https://example.com --render fallback --render-runtime e2b
+```
 
-- `brand-pack`: `brand.result.json`, `BRAND.md`, `brand.assets.json`
-- `styleguide-pack`: `styleguide.result.json`, `STYLEGUIDE.md`, `tokens.json`, `tokens.css`
-- `product-pack`: `products.result.json`, `PRODUCTS.md`, `products.ndjson`, `pricing.matrix.json`
-- `extract-schema`: `structured.result.json`, `STRUCTURED.md`, `basis.ndjson`
-- `image-pack`: `image.result.json`, `VISUALS.md`, `images.ndjson`, `image.assets.json`
-- `screenshot-pack`: `screenshot.result.json`, `SCREENSHOT.md`, `screenshots/*.png`
-- `search-pack`: `search.result.json`, `SEARCH.md`, `search.results.ndjson`
+## Contract Levels
+
+| Level | Use | Required sidecars |
+| --- | --- | --- |
+| `raw` | Loadable extraction output | `corpus.manifest.json`, `sources.md`, `acquisition.routes.json` |
+| `agent` | Agent-ready local context | raw sidecars plus `context.lock.json`, `coverage.report.json`, `citation.index.json`, `pack.score.json`, `pack.audit.json` |
+| `eval` | CI/eval-grade dependency | agent sidecars plus `rights.manifest.json`, `provenance.graph.json`, basis/eval artifacts, `PACK_CARD.md` |
+
+Use the validator as the source of truth:
+
+```bash
+docpull pack validate packs/example --level raw
+docpull pack validate packs/example --level agent --format json
+docpull pack validate packs/example --level eval
+```
+
+## Typed Knowledge Lanes
+
+Typed lanes are narrow pack builders for high-value agent context dependencies.
+They are not discovery, search, or browser-automation commands; each lane turns
+known sources into the same v3 raw contract and can then be prepared, validated,
+exported, or checked in Context CI.
+
+| Lane | Inputs | Default output |
+| --- | --- | --- |
+| `paper-pack` | local papers, `arxiv:<id>`, `doi:<doi>`, `pmid:<id>`, HTTPS metadata URLs | paper metadata, abstracts/content, arXiv PDF text when explicitly requested, references |
+| `repo-pack` | public GitHub URL or `owner/repo[@ref]` | repo metadata, selected docs/manifests, releases |
+| `package-pack` | `npm:<name>` or `pypi:<name>` | registry metadata, README/description, versions, dependencies |
+| `standards-pack` | `rfc:<n>`, `ietf:<draft>`, `w3c:<shortname>`, `whatwg:<url>` | standard metadata, section-level records, references |
+| `dataset-pack` | local CSV, TSV, JSON, NDJSON, SQLite, optional Parquet | schema, exact streamable row counts, and bounded data dictionary records |
+| `transcript-pack` | local VTT, SRT, text, JSON, or direct transcript URL | timestamped transcript segment records |
+| `wiki-pack` | `wiki:<title>`, `wikipedia:<title>`, or Wikimedia/MediaWiki page URLs | page metadata, license/revision metadata, lead and section-level records from the MediaWiki REST API |
+
+Remote typed lanes support `--cache --cache-dir .docpull-cache/typed-packs`
+for repeatable official API/metadata calls. Python SDK users can call the
+matching `async_build_*_pack` helpers when already inside an event loop.
+
+## Release Smoke
+
+The full free/local public surface can be checked against real public data with
+the opt-in smoke harness:
+
+```bash
+python scripts/real_feature_smoke.py --json
+```
+
+Use `--include-cloud` only in environments configured with the relevant cloud
+tools or keys. Cloud failures are reported separately from the required
+free/local lanes.
 
 ## Boundaries
 
-Context packs do not infer hidden firmographics, solve CAPTCHA challenges, use
-stealth scraping, or silently call paid providers. Unknown product prices stay
-`null`; broad search requires an explicit provider and budget.
+DocPull does not silently call paid services, bypass site controls, solve
+CAPTCHAs, or promote exploratory workflows as release commands. External
+browser automation, hosted research, search providers, and private workflows
+belong outside the public pack contract unless their outputs are normalized
+back into a v3 pack and validated.

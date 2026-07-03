@@ -33,6 +33,10 @@ export const metadata: Metadata = {
     icon: "/logo.svg",
   },
   keywords: [
+    "context dependencies",
+    "context packs",
+    "context ci",
+    "provenance",
     "web extraction",
     "web to markdown",
     "website to markdown",
@@ -45,15 +49,10 @@ export const metadata: Metadata = {
     "RAG",
     "MCP",
     "AI agents",
-    "web scraping",
-    "web crawler",
     "python",
     "cli",
     "sdk",
     "docs",
-    "crawler",
-    "Parallel",
-    "context packs",
   ],
 
   openGraph: {

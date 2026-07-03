@@ -46,7 +46,7 @@ async def test_sqlite_save_migrates_legacy_documents_table(tmp_path):
         assert {"schema_version", "content_hash", "source_type", "extraction"} <= columns
         row = conn.execute("SELECT url, schema_version, content_hash FROM documents").fetchone()
         assert row[0] == "https://example.com/page"
-        assert row[1] == 1
+        assert row[1] == 3
         assert row[2]
         fts_row = conn.execute("SELECT url FROM documents_fts WHERE documents_fts MATCH 'Body'").fetchone()
         assert fts_row == ("https://example.com/page",)

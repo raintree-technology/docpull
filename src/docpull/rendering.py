@@ -171,21 +171,22 @@ def build_agent_browser_command(
     binary: str = "agent-browser",
 ) -> list[str]:
     """Build the shell command used by the agent-browser backend."""
-    viewport = f"{config.viewport.width}x{config.viewport.height}"
+    wait_for = shlex.quote(config.wait_for)
+    width = str(int(config.viewport.width))
+    height = str(int(config.viewport.height))
+    session = f"docpull-render-{hashlib.sha256(url.encode('utf-8')).hexdigest()[:12]}"
     return [
         binary,
+        "--session",
+        session,
+        "batch",
+        "--bail",
         "--json",
-        "--timeout",
-        str(int(config.timeout_seconds)),
-        "--viewport",
-        viewport,
-        "open",
-        url,
-        "wait",
-        config.wait_for,
-        "get",
-        "html",
-        "html",
+        f"set viewport {width} {height}",
+        f"open {shlex.quote(url)}",
+        f"wait --load {wait_for}",
+        "get html html",
+        "close",
     ]
 
 
@@ -848,7 +849,7 @@ def _validate_render_target(url: str, allowed_domains: Sequence[str]) -> None:
     if os.environ.get(_RENDER_TRUSTED_BROWSER_ENV) != "1":
         raise RenderError(
             "Browser rendering is disabled for untrusted network targets because the current "
-            "agent-browser backend cannot enforce redirect, subresource, or connect-time DNS "
+            "browser backend cannot enforce redirect, subresource, or connect-time DNS "
             f"allow-lists. Set {_RENDER_TRUSTED_BROWSER_ENV}=1 only for trusted targets."
         )
 

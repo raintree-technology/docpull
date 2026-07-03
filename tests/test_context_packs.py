@@ -4,23 +4,32 @@ from __future__ import annotations
 
 import base64
 import json
+import subprocess
 from pathlib import Path
 from types import SimpleNamespace
 from urllib.parse import urlparse
 
 import pytest
 
-from docpull.context_packs import (
-    build_brand_pack,
-    build_image_pack,
-    build_product_pack,
-    build_search_pack,
-    build_styleguide_pack,
-    capture_screenshot_pack,
-    extract_schema,
+from docpull.context_packs._legacy_cli import (
+    run_brand_pack_cli,
+    run_extract_schema_cli,
+    run_image_pack_cli,
+    run_product_pack_cli,
+    run_screenshot_pack_cli,
+    run_search_pack_cli,
+    run_styleguide_pack_cli,
 )
-from docpull.context_packs.common import ContextPackError
+from docpull.context_packs.brand import _local_firmographics, build_brand_pack
+from docpull.context_packs.common import ContextPackError, PageSnapshot
+from docpull.context_packs.product import build_product_pack
+from docpull.context_packs.schema_extract import extract_schema
+from docpull.context_packs.search import build_search_pack
+from docpull.context_packs.styleguide import build_styleguide_pack
+from docpull.context_packs.visuals import build_image_pack, capture_screenshot_pack
 from tests.pack_fixtures import write_context_pack
+
+pytestmark = pytest.mark.internal_legacy
 
 
 class FakeFetcher:
@@ -76,6 +85,48 @@ def test_brand_pack_extracts_jsonld_org_and_socials(
 def test_brand_pack_rejects_free_email_by_default(tmp_path: Path) -> None:
     with pytest.raises(ContextPackError, match="Free or disposable"):
         build_brand_pack("ignored", email="person@gmail.com", output_dir=tmp_path / "brand")
+
+
+def test_brand_firmographics_rejects_unrelated_founded_year() -> None:
+    page = PageSnapshot(
+        url="https://www.djangoproject.com/foundation/",
+        title="Django Software Foundation",
+        html=(
+            "<html><body><p>Caktus Group is a Django consulting company founded in 2007.</p></body></html>"
+        ),
+        markdown="Caktus Group is a Django consulting company founded in 2007.",
+        metadata={},
+        extraction={},
+        source_type="test",
+    )
+
+    payload = _local_firmographics(
+        [page],
+        profile_name="Django Project",
+        domain="www.djangoproject.com",
+    )
+
+    assert payload == {}
+
+
+def test_brand_firmographics_accepts_brand_founded_year() -> None:
+    page = PageSnapshot(
+        url="https://www.djangoproject.com/foundation/",
+        title="Django Software Foundation",
+        html="<html><body><p>The Django Software Foundation was founded in 2005.</p></body></html>",
+        markdown="The Django Software Foundation was founded in 2005.",
+        metadata={},
+        extraction={},
+        source_type="test",
+    )
+
+    payload = _local_firmographics(
+        [page],
+        profile_name="Django Project",
+        domain="www.djangoproject.com",
+    )
+
+    assert payload["founded_year"]["value"] == 2005
 
 
 def test_styleguide_pack_extracts_inline_tokens(
@@ -140,7 +191,63 @@ def test_extract_schema_uses_existing_pack_evidence(tmp_path: Path) -> None:
     citation_url = urlparse(payload["data"]["citations"][0]["url"])
     assert citation_url.scheme == "https"
     assert citation_url.hostname == "docs.parallel.ai"
-    assert (tmp_path / "schema" / "basis.ndjson").exists()
+    basis_records = [
+        json.loads(line)
+        for line in (tmp_path / "schema" / "basis.ndjson").read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    assert basis_records
+    assert all(record["schema_version"] == 2 for record in basis_records)
+    assert any(record["claim_path"] == "data.summary" for record in basis_records)
+
+
+def test_extract_schema_fills_common_product_fields_from_evidence(tmp_path: Path) -> None:
+    pack = tmp_path / "pack"
+    write_context_pack(
+        pack,
+        records=[
+            {
+                "document_id": "doc_1",
+                "url": "https://books.example.com/item",
+                "title": "A Light in the Attic",
+                "content": "A Light in the Attic\nPrice (incl. tax) £51.77\nAvailability In stock",
+                "content_hash": "hash_1",
+                "source_type": "test",
+            }
+        ],
+    )
+    schema = tmp_path / "schema.json"
+    schema.write_text(
+        json.dumps(
+            {
+                "type": "object",
+                "required": ["title", "price", "currency", "availability"],
+                "properties": {
+                    "title": {"type": "string"},
+                    "price": {"type": "string"},
+                    "currency": {"type": "string"},
+                    "availability": {"type": "string"},
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    payload = extract_schema(pack, schema_path=schema, output_dir=tmp_path / "schema")
+
+    assert payload["summary"]["validation_valid"] is True
+    assert payload["data"]["price"] == "£51.77"
+    assert payload["data"]["currency"] == "GBP"
+    assert payload["data"]["availability"] == "Availability In stock"
+    assert "price" in payload["field_evidence"]
+    basis_records = [
+        json.loads(line)
+        for line in (tmp_path / "schema" / "basis.ndjson").read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    by_path = {record["claim_path"]: record for record in basis_records}
+    assert by_path["data.price"]["evidence_state"] == "supported"
+    assert by_path["data.price"]["citation_ids"] == ["S1"]
 
 
 def test_image_pack_extracts_markdown_images_from_pack(tmp_path: Path) -> None:
@@ -229,7 +336,14 @@ def test_screenshot_pack_falls_back_to_agent_browser_batch(
                 stdout='{"error":"Unknown command: --timeout","success":false}',
                 stderr="",
             )
-        assert command == ["agent-browser", "batch", "--bail", "--json"]
+        assert command == [
+            "agent-browser",
+            "--session",
+            "docpull-screenshot-18a4abaa5dac",
+            "batch",
+            "--bail",
+            "--json",
+        ]
         batch = json.loads(str(kwargs["input"]))
         assert batch[0] == ["open", "https://acme.test/"]
         assert batch[1] == ["set", "viewport", "800", "600"]
@@ -257,9 +371,40 @@ def test_screenshot_pack_falls_back_to_agent_browser_batch(
 
     assert payload["status"] == "completed"
     assert payload["screenshots"][0]["bytes"] == len(png)
-    assert payload["screenshots"][0]["command"][1:4] == ["batch", "--bail", "--json"]
+    assert payload["screenshots"][0]["command"][3:6] == ["batch", "--bail", "--json"]
     assert (tmp_path / "shot" / "screenshots" / "page.png").read_bytes() == png
     assert len(calls) == 2
+
+
+def test_screenshot_pack_reports_batch_timeout_without_traceback(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from docpull.context_packs import visuals
+
+    calls = 0
+
+    def fake_run(command: list[str], **kwargs: object) -> SimpleNamespace:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return SimpleNamespace(
+                returncode=1,
+                stdout='{"error":"Unknown command: --timeout","success":false}',
+                stderr="",
+            )
+        raise subprocess.TimeoutExpired(command, timeout=45)
+
+    monkeypatch.setenv("DOCPULL_RENDER_TRUSTED_BROWSER_TARGETS", "1")
+    monkeypatch.setattr(visuals.shutil, "which", lambda binary: f"/bin/{binary}")
+    monkeypatch.setattr(visuals.subprocess, "run", fake_run)
+
+    with pytest.raises(ContextPackError, match="timed out"):
+        capture_screenshot_pack(
+            "https://acme.test",
+            output_dir=tmp_path / "shot",
+            agent_browser_binary="agent-browser",
+        )
 
 
 @pytest.mark.parametrize(
@@ -275,10 +420,19 @@ def test_screenshot_pack_falls_back_to_agent_browser_batch(
     ],
 )
 def test_context_pack_command_help_paths(argv: list[str]) -> None:
-    from docpull.cli import main
+    runners = {
+        "brand-pack": run_brand_pack_cli,
+        "styleguide-pack": run_styleguide_pack_cli,
+        "product-pack": run_product_pack_cli,
+        "extract-schema": run_extract_schema_cli,
+        "image-pack": run_image_pack_cli,
+        "screenshot-pack": run_screenshot_pack_cli,
+        "search-pack": run_search_pack_cli,
+    }
+    command, *rest = argv
 
     with pytest.raises(SystemExit) as exc_info:
-        main(argv)
+        runners[command](rest)
 
     assert exc_info.value.code == 0
 
@@ -300,10 +454,8 @@ async def test_mcp_dispatch_search_pack_local(tmp_path: Path) -> None:
         },
     )
 
-    assert result.is_error is False
-    assert result.data is not None
-    assert result.data["workflow"] == "search-pack"
-    assert result.data["summary"]["result_count"] >= 1
+    assert result.is_error is True
+    assert result.text == "Unknown tool: search_pack"
 
 
 @pytest.mark.asyncio
@@ -324,10 +476,8 @@ async def test_mcp_dispatch_brand_pack(
         },
     )
 
-    assert result.is_error is False
-    assert result.data is not None
-    assert result.data["workflow"] == "brand-pack"
-    assert result.data["brand"]["name"] == "Acme"
+    assert result.is_error is True
+    assert result.text == "Unknown tool: brand_pack"
 
 
 def _html_for_url(url: str) -> str:

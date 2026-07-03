@@ -13,6 +13,13 @@ from urllib.parse import urlparse
 from rich.console import Console
 from rich.markup import escape
 
+from .output_contract import (
+    VALIDATION_LEVELS,
+    OutputContractError,
+    ensure_agent_contract_sidecars,
+    validate_pack_contract,
+    validation_report_text,
+)
 from .source_scoring import score_source_entries
 from .time_utils import utc_now_iso
 
@@ -25,6 +32,7 @@ BRIEF_SCHEMA_VERSION = 1
 SEARCH_SCHEMA_VERSION = 1
 SEARCH_COLLECTION_SCHEMA_VERSION = 1
 PREPARE_SCHEMA_VERSION = 1
+COMPANY_BRAIN_SCHEMA_VERSION = 1
 DEFAULT_ENTITY_LIMIT = 100
 DEFAULT_BRIEF_EXCERPTS = 8
 DEFAULT_BRIEF_ENTITY_LIMIT = 20
@@ -76,6 +84,12 @@ def create_pack_parser() -> argparse.ArgumentParser:
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
+    validate = subparsers.add_parser("validate", help="Validate a pack against the output contract")
+    validate.add_argument("pack_dir", type=Path, help="Context pack directory")
+    validate.add_argument("--level", choices=VALIDATION_LEVELS, default="raw")
+    validate.add_argument("--format", choices=["text", "json"], default="text")
+    validate.add_argument("--output", type=Path, help="Optional validation report output path")
+
     score = subparsers.add_parser("score", help="Score a context pack for agent readiness")
     score.add_argument("pack_dir", type=Path, help="Context pack directory")
     score.add_argument("--output", type=Path, help="Score JSON output path")
@@ -92,6 +106,7 @@ def create_pack_parser() -> argparse.ArgumentParser:
     audit.add_argument("pack_dir", type=Path, help="Context pack directory")
     audit.add_argument("--output", type=Path, help="Audit JSON output path")
     audit.add_argument("--markdown", type=Path, help="Audit Markdown output path")
+    audit.add_argument("--json", action="store_true", dest="json_output", help="Print audit JSON")
     audit.add_argument(
         "--fail-under",
         type=float,
@@ -104,6 +119,36 @@ def create_pack_parser() -> argparse.ArgumentParser:
         default=[],
         help="Expected source domain or suffix. Repeat as needed.",
     )
+    audit.add_argument("--redaction", action="store_true", help="Scan pack for sensitive content patterns")
+    audit.add_argument("--redaction-policy", type=Path, help="Optional redaction policy YAML/JSON")
+    audit.add_argument(
+        "--redaction-backend",
+        choices=["regex", "presidio", "hybrid"],
+        help="Override redaction backend from policy",
+    )
+
+    publish = subparsers.add_parser("publish", help="Write agent-readable pack publishing artifacts")
+    publish.add_argument("pack_dir", type=Path, help="Context pack directory")
+    publish.add_argument("--target", choices=["agent-docs"], default="agent-docs")
+
+    basis = subparsers.add_parser("basis", help="Write evidence basis artifacts for a context pack")
+    basis.add_argument("pack_dir", type=Path, help="Context pack directory")
+    basis.add_argument("--claim", help="Claim or objective to ground against local evidence")
+    basis.add_argument("--claim-path", default="pack.objective", help="Claim path label")
+    basis.add_argument("--limit", type=int, default=5, help="Maximum evidence records")
+    basis.add_argument(
+        "--min-supported-ratio",
+        type=float,
+        default=0.80,
+        help="Minimum supported evidence ratio for basis.report.json",
+    )
+    basis.add_argument("--output", type=Path, help="Basis NDJSON output path")
+
+    redact = subparsers.add_parser("redact", help="Write a redacted copy of a context pack")
+    redact.add_argument("pack_dir", type=Path, help="Context pack directory")
+    redact.add_argument("--policy", type=Path, help="Redaction policy YAML/JSON")
+    redact.add_argument("--backend", choices=["regex", "presidio", "hybrid"], help="Override policy backend")
+    redact.add_argument("--output-dir", "-o", type=Path, required=True)
 
     diff = subparsers.add_parser("diff", help="Diff two context packs")
     diff.add_argument("old_pack_dir", type=Path, help="Older context pack directory")
@@ -227,6 +272,11 @@ def create_pack_parser() -> argparse.ArgumentParser:
     )
     prepare.add_argument("--no-graph", action="store_true", help="Skip local source graph artifacts")
     prepare.add_argument(
+        "--eval-grade",
+        action="store_true",
+        help="Write rights, provenance, citation index, and pack card artifacts",
+    )
+    prepare.add_argument(
         "--require-domain",
         action="append",
         dest="required_domains",
@@ -244,6 +294,15 @@ def run_pack_cli(argv: list[str] | None = None) -> int:
     console = Console()
 
     try:
+        if args.command == "validate":
+            payload = validate_pack_contract(args.pack_dir, level=args.level)
+            if args.output:
+                _write_json(args.output, payload)
+            if args.format == "json":
+                console.print_json(data=payload)
+            else:
+                console.print(validation_report_text(payload).rstrip())
+            return 0 if payload["status"] == "pass" else 1
         if args.command == "score":
             payload = score_pack(args.pack_dir, required_domains=args.required_domains)
             output = args.output or (args.pack_dir / "pack.score.json")
@@ -256,23 +315,80 @@ def run_pack_cli(argv: list[str] | None = None) -> int:
             return 0
         if args.command == "audit":
             from .local_workflows import audit_pack
+            from .redaction import scan_sensitive_content
 
+            pack_dir = args.pack_dir.resolve()
+            audit_json_path = args.output or (pack_dir / "pack.audit.json")
+            audit_markdown_path = args.markdown or (pack_dir / "PACK_AUDIT.md")
             payload = audit_pack(
-                args.pack_dir,
+                pack_dir,
                 required_domains=args.required_domains,
                 fail_under=args.fail_under,
-                json_path=args.output,
-                markdown_path=args.markdown,
+                json_path=audit_json_path,
+                markdown_path=audit_markdown_path,
+            )
+            if args.redaction:
+                payload["redaction"] = scan_sensitive_content(
+                    pack_dir,
+                    policy_path=args.redaction_policy,
+                    backend=args.redaction_backend,
+                )
+                _write_json(audit_json_path, payload)
+            if args.json_output:
+                console.print_json(data=payload)
+            else:
+                console.print(
+                    f"[green]Pack audit:[/green] {payload['score']}/100 ({payload['grade']}) "
+                    f"-> {payload['artifacts']['json']}"
+                )
+            return 0
+        if args.command == "publish":
+            from .agent_publish import publish_agent_docs
+
+            payload = publish_agent_docs(args.pack_dir, target=args.target)
+            console.print(f"[green]Pack published:[/green] {payload['artifacts']['agent_context']}")
+            return 0
+        if args.command == "basis":
+            from .basis import build_pack_basis, write_basis
+
+            pack_dir = args.pack_dir.resolve()
+            pack = _read_pack_metadata(pack_dir)
+            claim = args.claim or str(pack.get("objective") or "Review local DocPull context pack")
+            output = args.output or (pack_dir / "basis.ndjson")
+            records = build_pack_basis(
+                pack_dir,
+                claim_path=args.claim_path,
+                claim=claim,
+                limit=args.limit,
+                producer="docpull.pack.basis",
+            )
+            payload = write_basis(output, records, min_supported_ratio=args.min_supported_ratio)
+            summary = payload["summary"]
+            console.print(
+                "[green]Pack basis:[/green] "
+                f"{summary['supported_count']}/{summary['basis_count']} supported -> {output}"
+            )
+            return 0
+        if args.command == "redact":
+            from .redaction import redact_pack
+
+            payload = redact_pack(
+                args.pack_dir,
+                policy_path=args.policy,
+                output_dir=args.output_dir,
+                backend=args.backend,
             )
             console.print(
-                f"[green]Pack audit:[/green] {payload['score']}/100 ({payload['grade']}) "
-                f"-> {payload['artifacts']['json']}"
+                f"[green]Pack redacted:[/green] {payload['output_dir']} findings={payload['finding_count']}"
             )
             return 0
         if args.command == "diff":
             payload = diff_packs(args.old_pack_dir, args.new_pack_dir)
             output = args.output or (args.new_pack_dir / "pack.diff.json")
             _write_json(output, payload)
+            semantic = payload.get("semantic_diff")
+            if isinstance(semantic, dict):
+                _write_json(args.new_pack_dir / "semantic.diff.json", semantic)
             if args.markdown:
                 args.markdown.write_text(_diff_markdown(payload), encoding="utf-8")
             console.print(
@@ -365,6 +481,7 @@ def run_pack_cli(argv: list[str] | None = None) -> int:
                 search_limit=args.search_limit,
                 graph=not args.no_graph,
                 graph_entity_limit=args.graph_entity_limit,
+                eval_grade=args.eval_grade,
                 markdown=not args.no_markdown,
                 output=args.output,
             )
@@ -375,7 +492,7 @@ def run_pack_cli(argv: list[str] | None = None) -> int:
             )
             return 0
         parser.error(f"Unknown command: {args.command}")
-    except PackToolError as err:
+    except (PackToolError, OutputContractError) as err:
         console.print("[red]Pack error:[/red] " + escape(str(err)))
         return 1
     except Exception as err:  # noqa: BLE001
@@ -389,7 +506,7 @@ def score_pack(pack_dir: Path, *, required_domains: list[str] | None = None) -> 
     manifest = _read_json(pack_dir / "corpus.manifest.json", required=False) or {}
     parallel_pack, metadata_path = _read_pack_metadata_entry(pack_dir)
     metadata_label = metadata_path.name if metadata_path else "pack metadata"
-    records = _read_ndjson(pack_dir / "documents.ndjson")
+    records = _read_pack_records(pack_dir)
 
     issues: list[dict[str, Any]] = []
     warnings: list[dict[str, Any]] = []
@@ -534,7 +651,7 @@ def score_pack(pack_dir: Path, *, required_domains: list[str] | None = None) -> 
 def score_pack_sources(pack_dir: Path, *, required_domains: list[str] | None = None) -> dict[str, Any]:
     pack_dir = pack_dir.resolve()
     parallel_pack = _read_pack_metadata(pack_dir)
-    records = _read_ndjson(pack_dir / "documents.ndjson")
+    records = _read_pack_records(pack_dir)
     expected = required_domains or _expected_domains(parallel_pack)
     sources = _pack_source_entries(parallel_pack, records)
     scored = score_source_entries(sources, expected_domains=expected)
@@ -555,7 +672,7 @@ def build_citation_map(
 ) -> dict[str, Any]:
     pack_dir = pack_dir.resolve()
     pack = _read_pack_metadata(pack_dir)
-    records = _read_ndjson(pack_dir / "documents.ndjson")
+    records = _read_pack_records(pack_dir)
     sources, _citation_by_url, expected = _citation_sources(pack_dir, pack, records, required_domains)
     return {
         "schema_version": CITATION_SCHEMA_VERSION,
@@ -578,9 +695,14 @@ def extract_pack_entities(
         raise PackToolError("--limit must be at least 1.")
     pack_dir = pack_dir.resolve()
     pack = _read_pack_metadata(pack_dir)
-    records = _read_ndjson(pack_dir / "documents.ndjson")
+    records = _read_pack_records(pack_dir)
     sources, citation_by_url, expected = _citation_sources(pack_dir, pack, records, required_domains)
-    entities = _extract_entities(records, citation_by_url, limit=limit)
+    entities = _extract_entities(
+        records,
+        citation_by_url,
+        _record_citation_lookup(sources),
+        limit=limit,
+    )
     return {
         "schema_version": ENTITY_SCHEMA_VERSION,
         "generated_at": utc_now_iso(),
@@ -607,10 +729,15 @@ def build_research_brief(
         raise PackToolError("--entity-limit cannot be negative.")
     pack_dir = pack_dir.resolve()
     pack = _read_pack_metadata(pack_dir)
-    records = _read_ndjson(pack_dir / "documents.ndjson")
+    records = _read_pack_records(pack_dir)
     sources, citation_by_url, expected = _citation_sources(pack_dir, pack, records, required_domains)
     brief_objective = objective or str(pack.get("objective") or "Review local DocPull context pack")
-    entities = _extract_entities(records, citation_by_url, limit=max(1, entity_limit)) if entity_limit else []
+    record_citation_by_key = _record_citation_lookup(sources)
+    entities = (
+        _extract_entities(records, citation_by_url, record_citation_by_key, limit=max(1, entity_limit))
+        if entity_limit
+        else []
+    )
     return {
         "schema_version": BRIEF_SCHEMA_VERSION,
         "generated_at": utc_now_iso(),
@@ -627,6 +754,7 @@ def build_research_brief(
         "key_excerpts": _select_key_excerpts(
             records,
             citation_by_url,
+            record_citation_by_key,
             objective=brief_objective,
             max_excerpts=max_excerpts,
         ),
@@ -638,6 +766,144 @@ def build_research_brief(
             "brief_markdown": "RESEARCH_BRIEF.md",
         },
     }
+
+
+def build_company_brain_bundle(
+    pack_dir: Path,
+    *,
+    objective: str | None = None,
+    market: str | None = None,
+    search_queries: list[str] | None = None,
+    default_search: bool = True,
+    required_domains: list[str] | None = None,
+    max_excerpts: int = DEFAULT_BRIEF_EXCERPTS,
+    entity_limit: int = DEFAULT_BRIEF_ENTITY_LIMIT,
+    search_limit: int = DEFAULT_SEARCH_LIMIT,
+    output: Path | None = None,
+    markdown_path: Path | None = None,
+) -> dict[str, Any]:
+    """Write an app-ready Company Brain import bundle from a local context pack."""
+    if max_excerpts < 1:
+        raise PackToolError("--max-excerpts must be at least 1.")
+    if entity_limit < 0:
+        raise PackToolError("--entity-limit cannot be negative.")
+    if search_limit < 1:
+        raise PackToolError("--search-limit must be at least 1.")
+
+    pack_dir = pack_dir.resolve()
+    pack = _read_pack_metadata(pack_dir)
+    brain_objective = objective or str(pack.get("objective") or "Review local DocPull context pack")
+    workspace_label = (market or str(pack.get("market") or "")).strip() or "Company Brain workspace"
+    queries = _prepare_search_queries(
+        search_queries,
+        objective=brain_objective,
+        default_search=default_search,
+    )
+
+    artifacts: dict[str, str] = {}
+    score_payload, source_scores_payload = _write_prepare_score_artifacts(
+        pack_dir,
+        required_domains=required_domains,
+        artifacts=artifacts,
+    )
+    citations_payload = _write_prepare_citation_artifacts(
+        pack_dir,
+        required_domains=required_domains,
+        markdown=True,
+        artifacts=artifacts,
+    )
+    entities_payload = _write_prepare_entity_artifacts(
+        pack_dir,
+        required_domains=required_domains,
+        citations_payload=citations_payload,
+        entity_limit=entity_limit,
+        markdown=True,
+        artifacts=artifacts,
+    )
+    search_payloads = _write_prepare_search_artifacts(
+        pack_dir,
+        queries=queries,
+        required_domains=required_domains,
+        search_limit=search_limit,
+        markdown=True,
+        artifacts=artifacts,
+    )
+    brief_payload = _write_prepare_brief_artifacts(
+        pack_dir,
+        objective=brain_objective,
+        required_domains=required_domains,
+        max_excerpts=max_excerpts,
+        entity_limit=entity_limit,
+        markdown=True,
+        artifacts=artifacts,
+    )
+
+    source_snapshots = _company_brain_source_snapshots(citations_payload)
+    claims = _company_brain_claims(brief_payload)
+    entities = _company_brain_entities(entities_payload)
+    signals = _company_brain_signals(search_payloads)
+    bundle_path = (output or (pack_dir / "company_brain.bundle.json")).resolve()
+    summary_path = (markdown_path or (pack_dir / "COMPANY_BRAIN.md")).resolve()
+    artifacts["bundle"] = _artifact_ref(pack_dir, bundle_path)
+    artifacts["company_brain_markdown"] = _artifact_ref(pack_dir, summary_path)
+
+    payload = {
+        "schema_version": COMPANY_BRAIN_SCHEMA_VERSION,
+        "generated_at": utc_now_iso(),
+        "pack_dir": str(pack_dir),
+        "workspace": {
+            "name": workspace_label,
+            "market": workspace_label,
+            "objective": brain_objective,
+        },
+        "summary": {
+            "score": score_payload["score"],
+            "grade": score_payload["grade"],
+            "source_count": citations_payload["source_count"],
+            "record_count": citations_payload["record_count"],
+            "entity_count": len(entities),
+            "claim_count": len(claims),
+            "search_query_count": len(search_payloads),
+            "search_result_count": sum(
+                _safe_int(search_payload.get("result_count")) for search_payload in search_payloads
+            ),
+            "expected_domains": citations_payload["expected_domains"],
+        },
+        "records": {
+            "sources": citations_payload["sources"],
+            "source_snapshots": source_snapshots,
+            "entities": entities,
+            "source_supported_claims": claims,
+            "signals": signals,
+            "brief": {
+                "objective": brief_payload["objective"],
+                "summary": brief_payload["summary"],
+                "key_excerpts": brief_payload["key_excerpts"],
+            },
+            "gate_inputs": {
+                "pack_score": score_payload,
+                "source_scores": source_scores_payload,
+                "required_domains": citations_payload["expected_domains"],
+                "claim_policy": "Every promoted claim must carry a citation_id and source URL.",
+            },
+        },
+        "agent_run_seed": {
+            "trigger": "docpull.pack.company-brain",
+            "tool": "docpull",
+            "status": "ready_for_control_plane_import",
+            "policy_checks": [
+                "source_domain_boundary",
+                "citation_coverage",
+                "claim_source_support",
+                "pack_integrity_score",
+            ],
+        },
+        "artifacts": artifacts,
+    }
+    summary_path.parent.mkdir(parents=True, exist_ok=True)
+    summary_path.write_text(_company_brain_markdown(payload), encoding="utf-8")
+    _write_json(bundle_path, payload)
+    return payload
 
 
 def prepare_pack(
@@ -652,6 +918,7 @@ def prepare_pack(
     search_limit: int = DEFAULT_SEARCH_LIMIT,
     graph: bool = True,
     graph_entity_limit: int = DEFAULT_GRAPH_ENTITY_LIMIT,
+    eval_grade: bool = False,
     markdown: bool = True,
     output: Path | None = None,
 ) -> dict[str, Any]:
@@ -710,6 +977,12 @@ def prepare_pack(
         markdown=markdown,
         artifacts=artifacts,
     )
+    basis_payload = _write_prepare_basis_artifacts(
+        pack_dir,
+        objective=prepare_objective,
+        max_excerpts=max_excerpts,
+        artifacts=artifacts,
+    )
     graph_payload = (
         _write_prepare_graph_artifacts(
             pack_dir,
@@ -720,6 +993,22 @@ def prepare_pack(
         if graph
         else None
     )
+    _write_prepare_agent_contract_artifacts(
+        pack_dir,
+        required_domains=required_domains,
+        citations_payload=citations_payload,
+        artifacts=artifacts,
+    )
+    eval_grade_payload = None
+    if eval_grade:
+        from .eval_grade import prepare_eval_grade_pack
+
+        eval_grade_payload = prepare_eval_grade_pack(
+            pack_dir,
+            required_domains=required_domains,
+            markdown=markdown,
+            artifacts=artifacts,
+        )
 
     output_path = (output or (pack_dir / "pack.prepare.json")).resolve()
     artifacts["prepare"] = _artifact_ref(pack_dir, output_path)
@@ -737,6 +1026,8 @@ def prepare_pack(
             "source_count": citations_payload["source_count"],
             "entity_count": entities_payload["entity_count"],
             "brief_excerpt_count": len(brief_payload["key_excerpts"]),
+            "basis_count": basis_payload["summary"]["basis_count"],
+            "basis_supported_ratio": basis_payload["summary"]["supported_ratio"],
             "graph_node_count": (
                 _safe_int(graph_payload.get("summary", {}).get("node_count"))
                 if isinstance(graph_payload, dict)
@@ -746,6 +1037,9 @@ def prepare_pack(
                 _safe_int(graph_payload.get("summary", {}).get("edge_count"))
                 if isinstance(graph_payload, dict)
                 else 0
+            ),
+            "eval_grade_artifact_count": (
+                len(eval_grade_payload.get("artifacts", {})) if isinstance(eval_grade_payload, dict) else 0
             ),
             "search_query_count": len(search_payloads),
             "search_result_count": sum(
@@ -892,6 +1186,58 @@ def _write_prepare_brief_artifacts(
     return brief_payload
 
 
+def _write_prepare_basis_artifacts(
+    pack_dir: Path,
+    *,
+    objective: str,
+    max_excerpts: int,
+    artifacts: dict[str, str],
+) -> dict[str, Any]:
+    from .basis import build_pack_basis, write_basis
+
+    basis_path = pack_dir / "basis.ndjson"
+    records = build_pack_basis(
+        pack_dir,
+        claim_path="pack.objective",
+        claim=objective,
+        limit=max(1, max_excerpts),
+        producer="docpull.pack.prepare",
+    )
+    payload = write_basis(basis_path, records)
+    artifacts["basis"] = _artifact_ref(pack_dir, basis_path)
+    artifacts["basis_report"] = "basis.report.json"
+    artifacts["basis_markdown"] = "BASIS.md"
+    return payload
+
+
+def _write_prepare_agent_contract_artifacts(
+    pack_dir: Path,
+    *,
+    required_domains: list[str] | None,
+    citations_payload: dict[str, Any],
+    artifacts: dict[str, str],
+) -> None:
+    from .eval_grade import build_citation_index
+    from .local_workflows import audit_pack
+
+    for key, path in ensure_agent_contract_sidecars(pack_dir).items():
+        artifacts[key] = _artifact_ref(pack_dir, path)
+
+    audit_payload = audit_pack(pack_dir, required_domains=required_domains)
+    audit_artifacts = audit_payload.get("artifacts")
+    if isinstance(audit_artifacts, dict):
+        for key, value in audit_artifacts.items():
+            if isinstance(value, str):
+                artifacts[f"audit_{key}"] = value
+
+    citation_index_path = pack_dir / "citation.index.json"
+    _write_json(
+        citation_index_path,
+        build_citation_index(pack_dir, citations_payload=citations_payload),
+    )
+    artifacts["citation_index"] = _artifact_ref(pack_dir, citation_index_path)
+
+
 def _write_prepare_graph_artifacts(
     pack_dir: Path,
     *,
@@ -923,6 +1269,105 @@ def _empty_entities_payload(pack_dir: Path, citations_payload: dict[str, Any]) -
     }
 
 
+def _company_brain_source_snapshots(citations_payload: dict[str, Any]) -> list[dict[str, Any]]:
+    snapshots: list[dict[str, Any]] = []
+    for index, source in enumerate(citations_payload.get("sources", []), start=1):
+        if not isinstance(source, dict):
+            continue
+        snapshots.append(
+            {
+                "source_id": f"source_{index:03d}",
+                "source_snapshot_id": f"source_snapshot_{index:03d}",
+                "citation_id": source.get("citation_id"),
+                "title": source.get("title"),
+                "url": source.get("url"),
+                "domain": source.get("domain"),
+                "path": source.get("path"),
+                "score": source.get("score"),
+                "grade": source.get("grade"),
+                "record_count": source.get("record_count"),
+                "chunk_count": source.get("chunk_count"),
+                "token_count": source.get("token_count"),
+                "content_hashes": source.get("content_hashes") or [],
+                "latest_fetched_at": source.get("latest_fetched_at"),
+            }
+        )
+    return snapshots
+
+
+def _company_brain_entities(entities_payload: dict[str, Any]) -> list[dict[str, Any]]:
+    records: list[dict[str, Any]] = []
+    for index, entity in enumerate(entities_payload.get("entities", []), start=1):
+        if not isinstance(entity, dict):
+            continue
+        records.append(
+            {
+                "entity_id": f"entity_{index:03d}",
+                "type": entity.get("type"),
+                "value": entity.get("value"),
+                "normalized": entity.get("normalized"),
+                "count": entity.get("count"),
+                "source_count": entity.get("source_count"),
+                "evidence": entity.get("citations") or [],
+            }
+        )
+    return records
+
+
+def _company_brain_claims(brief_payload: dict[str, Any]) -> list[dict[str, Any]]:
+    claims: list[dict[str, Any]] = []
+    for index, excerpt in enumerate(brief_payload.get("key_excerpts", []), start=1):
+        if not isinstance(excerpt, dict):
+            continue
+        citation_id = excerpt.get("citation_id")
+        url = excerpt.get("url")
+        text = str(excerpt.get("excerpt") or "").strip()
+        if not citation_id or not url or not text:
+            continue
+        claims.append(
+            {
+                "claim_id": f"claim_{index:03d}",
+                "status": "source_supported",
+                "text": text,
+                "citation_id": citation_id,
+                "record_citation_id": excerpt.get("record_citation_id"),
+                "url": url,
+                "title": excerpt.get("title"),
+                "chunk_id": excerpt.get("chunk_id"),
+                "chunk_heading": excerpt.get("chunk_heading"),
+                "support_score": excerpt.get("score"),
+            }
+        )
+    return claims
+
+
+def _company_brain_signals(search_payloads: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    signals: list[dict[str, Any]] = []
+    signal_index = 1
+    for search_payload in search_payloads:
+        query = search_payload.get("query")
+        for result in search_payload.get("results", []):
+            if not isinstance(result, dict):
+                continue
+            signals.append(
+                {
+                    "signal_id": f"signal_{signal_index:03d}",
+                    "type": "local_pack_search_result",
+                    "query": query,
+                    "rank": result.get("rank"),
+                    "score": result.get("score"),
+                    "citation_id": result.get("citation_id"),
+                    "record_citation_id": result.get("record_citation_id"),
+                    "url": result.get("url"),
+                    "title": result.get("title"),
+                    "matched_terms": result.get("matched_terms") or [],
+                    "excerpt": result.get("excerpt"),
+                }
+            )
+            signal_index += 1
+    return signals
+
+
 def search_pack(
     pack_dir: Path,
     query: str,
@@ -936,9 +1381,15 @@ def search_pack(
         raise PackToolError("--limit must be at least 1.")
     pack_dir = pack_dir.resolve()
     pack = _read_pack_metadata(pack_dir)
-    records = _read_ndjson(pack_dir / "documents.ndjson")
+    records = _read_pack_records(pack_dir)
     sources, citation_by_url, expected = _citation_sources(pack_dir, pack, records, required_domains)
-    results = _search_records(records, citation_by_url, query=query, limit=limit)
+    results = _search_records(
+        records,
+        citation_by_url,
+        _record_citation_lookup(sources),
+        query=query,
+        limit=limit,
+    )
     citation_ids = {str(result["citation_id"]) for result in results}
     return {
         "schema_version": SEARCH_SCHEMA_VERSION,
@@ -969,7 +1420,7 @@ def diff_packs(old_pack_dir: Path, new_pack_dir: Path) -> dict[str, Any]:
         url for url in shared_urls if _output_paths(old_records[url]) != _output_paths(new_records[url])
     ]
     any_changed_urls = set(changed_urls) | set(title_changed_urls) | set(path_changed_urls)
-    return {
+    payload = {
         "schema_version": DIFF_SCHEMA_VERSION,
         "generated_at": utc_now_iso(),
         "old_pack_dir": str(old_pack_dir.resolve()),
@@ -998,6 +1449,14 @@ def diff_packs(old_pack_dir: Path, new_pack_dir: Path) -> dict[str, Any]:
         "old_record_count": sum(len(items) for items in old_records.values()),
         "new_record_count": sum(len(items) for items in new_records.values()),
     }
+    from .eval_grade import classify_semantic_diff
+
+    payload["semantic_diff"] = classify_semantic_diff(
+        old_pack_dir,
+        new_pack_dir,
+        diff_payload=payload,
+    )
+    return payload
 
 
 def _read_json(path: Path, *, required: bool = True) -> Any:
@@ -1009,6 +1468,14 @@ def _read_json(path: Path, *, required: bool = True) -> Any:
         return json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as err:
         raise PackToolError(f"Invalid JSON in {path}: {err}") from err
+
+
+def _dict_value(value: Any) -> dict[str, Any]:
+    return value if isinstance(value, dict) else {}
+
+
+def _list_value(value: Any) -> list[Any]:
+    return value if isinstance(value, list) else []
 
 
 def _read_pack_metadata(pack_dir: Path) -> dict[str, Any]:
@@ -1043,6 +1510,19 @@ def _read_ndjson(path: Path) -> list[dict[str, Any]]:
             raise PackToolError(f"Invalid NDJSON in {path} line {index}: expected object")
         records.append(value)
     return records
+
+
+def _read_pack_records(pack_dir: Path) -> list[dict[str, Any]]:
+    ndjson = pack_dir / "documents.ndjson"
+    if ndjson.exists():
+        return _read_ndjson(ndjson)
+    try:
+        from .pack_reader import load_pack
+
+        pack = load_pack(pack_dir)
+    except Exception as err:  # noqa: BLE001
+        raise PackToolError(f"Unable to load pack records from {pack_dir}: {err}") from err
+    return [record.model_dump(mode="json", exclude_none=True) for record in pack.documents]
 
 
 def _optional_int(value: Any) -> int | None:
@@ -1135,6 +1615,18 @@ def _citation_sources(
                 if str(record.get("content_hash") or "").strip()
             }
         )
+        record_citations = [
+            {
+                "record_citation_id": f"{citation_id}.{record_index}",
+                "source_citation_id": citation_id,
+                "record_key": _record_key(record),
+                "document_id": record.get("document_id"),
+                "chunk_id": record.get("chunk_id"),
+                "content_hash": record.get("content_hash"),
+                "title": record.get("title") or source.get("title") or url,
+            }
+            for record_index, record in enumerate(url_records, start=1)
+        ]
         source_types = sorted({str(record.get("source_type") or "unknown") for record in url_records})
         fetched_at_values = sorted(
             str(record.get("fetched_at") or "") for record in url_records if record.get("fetched_at")
@@ -1159,6 +1651,7 @@ def _citation_sources(
                 "source_types": source_types,
                 "headings": headings[:20],
                 "content_hashes": content_hashes[:20],
+                "record_citations": record_citations,
                 "first_fetched_at": fetched_at_values[0] if fetched_at_values else None,
                 "latest_fetched_at": fetched_at_values[-1] if fetched_at_values else None,
             }
@@ -1196,6 +1689,7 @@ def _pack_source_entries(
 def _extract_entities(
     records: list[dict[str, Any]],
     citation_by_url: dict[str, str],
+    record_citation_by_key: dict[str, str],
     *,
     limit: int,
 ) -> list[dict[str, Any]]:
@@ -1206,6 +1700,7 @@ def _extract_entities(
             continue
         url = str(record.get("url") or "")
         citation_id = citation_by_url.get(url)
+        record_citation_id = record_citation_by_key.get(_record_key(record))
         for entity_type, pattern in _ENTITY_PATTERNS:
             for match in pattern.finditer(content):
                 value = _clean_entity_value(match.group(0))
@@ -1232,6 +1727,7 @@ def _extract_entities(
                         citations.append(
                             {
                                 "citation_id": citation_id,
+                                "record_citation_id": record_citation_id,
                                 "url": url,
                                 "title": str(record.get("title") or url),
                                 "excerpt": _nearest_sentence(content, match.start(), match.end()),
@@ -1254,6 +1750,7 @@ def _extract_entities(
 def _select_key_excerpts(
     records: list[dict[str, Any]],
     citation_by_url: dict[str, str],
+    record_citation_by_key: dict[str, str],
     *,
     objective: str,
     max_excerpts: int,
@@ -1264,6 +1761,7 @@ def _select_key_excerpts(
     for record in records:
         url = str(record.get("url") or "")
         citation_id = citation_by_url.get(url)
+        record_citation_id = record_citation_by_key.get(_record_key(record))
         if not citation_id:
             continue
         content = str(record.get("content") or "")
@@ -1277,6 +1775,7 @@ def _select_key_excerpts(
         excerpts.append(
             {
                 "citation_id": citation_id,
+                "record_citation_id": record_citation_id,
                 "url": url,
                 "title": str(record.get("title") or url),
                 "chunk_id": record.get("chunk_id"),
@@ -1292,6 +1791,7 @@ def _select_key_excerpts(
 def _search_records(
     records: list[dict[str, Any]],
     citation_by_url: dict[str, str],
+    record_citation_by_key: dict[str, str],
     *,
     query: str,
     limit: int,
@@ -1302,6 +1802,7 @@ def _search_records(
     for record_index, record in enumerate(records, start=1):
         url = str(record.get("url") or "")
         citation_id = citation_by_url.get(url)
+        record_citation_id = record_citation_by_key.get(_record_key(record))
         if not citation_id:
             continue
         title = str(record.get("title") or url)
@@ -1322,6 +1823,7 @@ def _search_records(
                 "record_index": record_index,
                 "score": score,
                 "citation_id": citation_id,
+                "record_citation_id": record_citation_id,
                 "url": url,
                 "title": title,
                 "chunk_id": record.get("chunk_id"),
@@ -1711,6 +2213,73 @@ def _brief_markdown(payload: dict[str, Any]) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
+def _company_brain_markdown(payload: dict[str, Any]) -> str:
+    workspace = _dict_value(payload.get("workspace"))
+    summary = _dict_value(payload.get("summary"))
+    records = _dict_value(payload.get("records"))
+    claims = records.get("source_supported_claims") if isinstance(records, dict) else []
+    entities = records.get("entities") if isinstance(records, dict) else []
+    signals = records.get("signals") if isinstance(records, dict) else []
+    claim_items = _list_value(claims)
+    entity_items = _list_value(entities)
+    signal_items = _list_value(signals)
+
+    lines = [
+        "# Company Brain Import Bundle",
+        "",
+        f"Workspace: {workspace.get('name')}",
+        f"Objective: {workspace.get('objective')}",
+        f"Generated: {payload.get('generated_at')}",
+        "",
+        "## Import Summary",
+        "",
+        f"- Pack score: {summary.get('score')}/100 ({summary.get('grade')})",
+        f"- Sources: {summary.get('source_count', 0)}",
+        f"- Records: {summary.get('record_count', 0)}",
+        f"- Entities: {summary.get('entity_count', 0)}",
+        f"- Source-supported claims: {summary.get('claim_count', 0)}",
+        f"- Search signals: {summary.get('search_result_count', 0)}",
+        "",
+        "## Source-Supported Claims",
+        "",
+    ]
+    for claim in claim_items[:12]:
+        if not isinstance(claim, dict):
+            continue
+        lines.append(f"- [{claim.get('citation_id')}] {_truncate_text(str(claim.get('text') or ''), 220)}")
+
+    lines.extend(["", "## Entities", ""])
+    for entity in entity_items[:12]:
+        if not isinstance(entity, dict):
+            continue
+        lines.append(
+            f"- {entity.get('type')}: {entity.get('value')} "
+            f"(sources {entity.get('source_count')}, count {entity.get('count')})"
+        )
+
+    lines.extend(["", "## Signals", ""])
+    for signal in signal_items[:12]:
+        if not isinstance(signal, dict):
+            continue
+        lines.append(
+            f"- {signal.get('query')}: [{signal.get('citation_id')}] "
+            f"{_truncate_text(str(signal.get('title') or signal.get('url') or ''), 140)}"
+        )
+
+    lines.extend(
+        [
+            "",
+            "## Control Plane Contract",
+            "",
+            "- Import `records.sources` and `records.source_snapshots` as public context.",
+            "- Import `records.entities` as watchlist or dossier seeds.",
+            "- Import `records.source_supported_claims` as brief claims that require citation coverage.",
+            "- Import `records.gate_inputs` as policy/eval inputs before showing or acting on a brief.",
+        ]
+    )
+    return "\n".join(lines).rstrip() + "\n"
+
+
 def _records_by_url(records: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
     grouped: dict[str, list[dict[str, Any]]] = {}
     for record in records:
@@ -1719,6 +2288,26 @@ def _records_by_url(records: list[dict[str, Any]]) -> dict[str, list[dict[str, A
             continue
         grouped.setdefault(url, []).append(record)
     return grouped
+
+
+def _record_key(record: dict[str, Any]) -> str:
+    return str(record.get("chunk_id") or record.get("document_id") or record.get("content_hash") or "")
+
+
+def _record_citation_lookup(sources: list[dict[str, Any]]) -> dict[str, str]:
+    lookup: dict[str, str] = {}
+    for source in sources:
+        citations = source.get("record_citations")
+        if not isinstance(citations, list):
+            continue
+        for citation in citations:
+            if not isinstance(citation, dict):
+                continue
+            key = str(citation.get("record_key") or "")
+            value = str(citation.get("record_citation_id") or "")
+            if key and value:
+                lookup[key] = value
+    return lookup
 
 
 def _hashes(records: list[dict[str, Any]]) -> list[str]:
@@ -1815,6 +2404,26 @@ def _diff_markdown(payload: dict[str, Any]) -> str:
         if payload[key]:
             lines.extend(["", f"## {heading}", ""])
             lines.extend(f"- {url}" for url in payload[key])
+    semantic = payload.get("semantic_diff")
+    if isinstance(semantic, dict):
+        summary = _dict_value(semantic.get("summary"))
+        category_lines = [
+            f"- {key}: {value}"
+            for key, value in sorted(summary.items())
+            if isinstance(value, int)
+            and key
+            in {
+                "breaking_change_candidate",
+                "deprecation_candidate",
+                "new_feature_candidate",
+                "removed_section",
+                "auth_security_change",
+                "pricing_or_limit_change",
+                "ambiguous_change",
+            }
+        ]
+        if category_lines:
+            lines.extend(["", "## Semantic Diff", "", *category_lines])
     return "\n".join(lines).rstrip() + "\n"
 
 

@@ -130,7 +130,8 @@ def test_publish_workflow_creates_github_release_after_pypi_publish() -> None:
 
     assert "contents: write" in publish_section
     assert "id-token: write" in publish_section
-    assert "pypa/gh-action-pypi-publish@release/v1" in publish_section
+    assert "pypa/gh-action-pypi-publish@" in publish_section
+    assert "# release/v1" in publish_section
     assert "name: Create GitHub release" in publish_section
     assert "if: github.event_name == 'push' && github.ref_type == 'tag'" in publish_section
     assert "GH_TOKEN: ${{ github.token }}" in publish_section

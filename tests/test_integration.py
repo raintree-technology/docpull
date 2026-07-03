@@ -417,7 +417,7 @@ class TestProfileDefaults:
         assert config.output.format == "ndjson"
         assert config.output.emit_chunks is True
         assert config.output.max_tokens_per_file == 2500
-        assert config.content_filter.extractor == "trafilatura"
+        assert config.content_filter.extractor == "ensemble"
         assert config.content_filter.clean_inline_xbrl is True
         assert config.crawl.per_host_concurrent == 1
 

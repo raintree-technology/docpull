@@ -8,7 +8,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from docpull.cli import main
+from docpull import parity_cli
 from docpull.parity import (
     crawl_pack,
     entities_pack,
@@ -18,6 +18,8 @@ from docpull.parity import (
     validate_structured_output,
 )
 from tests.pack_fixtures import write_context_pack
+
+pytestmark = pytest.mark.internal_legacy
 
 
 def test_map_sources_writes_discovery_and_lifecycle_artifacts(tmp_path: Path) -> None:
@@ -169,7 +171,16 @@ def test_structured_output_validator_reports_missing_required_fields() -> None:
     ],
 )
 def test_parity_command_help_paths(argv: list[str]) -> None:
+    runners = {
+        "extract-pack": parity_cli.run_extract_pack_cli,
+        "map": parity_cli.run_map_cli,
+        "crawl-pack": parity_cli.run_crawl_pack_cli,
+        "research-pack": parity_cli.run_research_pack_cli,
+        "entities-pack": parity_cli.run_entities_pack_cli,
+    }
+    command, *rest = argv
+
     with pytest.raises(SystemExit) as exc_info:
-        main(argv)
+        runners[command](rest)
 
     assert exc_info.value.code == 0

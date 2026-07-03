@@ -32,7 +32,7 @@ async def test_ndjson_writes_one_line_per_page(tmp_path):
     records = [json.loads(line) for line in lines]
     assert [r["url"] for r in records] == [f"https://example.com/p{i}" for i in range(3)]
     assert all("hash" in r for r in records)
-    assert all(r["schema_version"] == 1 for r in records)
+    assert all(r["schema_version"] == 3 for r in records)
     assert all("content_hash" in r for r in records)
     sources = (tmp_path / "sources.md").read_text(encoding="utf-8")
     assert "# Context Pack Sources" in sources

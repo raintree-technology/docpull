@@ -19,6 +19,7 @@ from .common import (
     ContextPackRun,
     PageSnapshot,
     artifact_ref,
+    asset_allowed_domains_for_domain,
     domain_from_email,
     domain_from_input,
     ensure_policy_for_domain,
@@ -60,6 +61,22 @@ COLOR_RE = re.compile(
     r"#[0-9a-fA-F]{3,8}\b|rgba?\([^)]+\)|hsla?\([^)]+\)",
     re.IGNORECASE,
 )
+FOUNDED_RE = re.compile(r"\bfounded\s+(?:in\s+)?(\d{4})\b", flags=re.IGNORECASE)
+GENERIC_IDENTITY_TERMS = {
+    "about",
+    "brand",
+    "cloud",
+    "company",
+    "developer",
+    "docs",
+    "foundation",
+    "group",
+    "home",
+    "project",
+    "software",
+    "team",
+    "technology",
+}
 
 
 def build_brand_pack(
@@ -106,7 +123,11 @@ def build_brand_pack(
     profile["colors"] = _rank_brand_colors(profile.get("colors", []) + assets["colors"])
     profile["social_links"] = _extract_social_links(pages)
     profile["contact_links"] = _extract_contact_links(pages, domain)
-    profile["firmographics"] = _local_firmographics(pages)
+    profile["firmographics"] = _local_firmographics(
+        pages,
+        profile_name=profile.get("name"),
+        domain=domain,
+    )
 
     result_payload = {
         "workflow": BRAND_WORKFLOW,
@@ -321,6 +342,7 @@ def _extract_brand_assets(
     icons: list[AssetRef] = []
     colors: list[str] = []
     seen: set[str] = set()
+    allowed_asset_domains = asset_allowed_domains_for_domain(domain)
     for page in pages:
         soup = soup_for(page)
         colors.extend(_colors_from_soup(soup))
@@ -335,7 +357,7 @@ def _extract_brand_assets(
                     output_dir=output_dir / "assets" / "logos",
                     source_url=page.url,
                     kind=kind,
-                    allowed_domains=[domain],
+                    allowed_domains=allowed_asset_domains,
                     allowed_content_types=IMAGE_CONTENT_TYPES,
                     max_bytes=500_000,
                     run=run,
@@ -430,23 +452,108 @@ def _extract_contact_links(pages: list[PageSnapshot], domain: str) -> list[dict[
     return contacts[:20]
 
 
-def _local_firmographics(pages: list[PageSnapshot]) -> dict[str, Any]:
+def _local_firmographics(
+    pages: list[PageSnapshot],
+    profile_name: str | None = None,
+    domain: str | None = None,
+) -> dict[str, Any]:
     firmographics: dict[str, Any] = {}
+    identity_terms = _brand_identity_terms(profile_name, domain)
     for page in pages:
         soup = soup_for(page)
-        text = soup.get_text(" ")
-        founded = re.search(r"\bfounded\s+(?:in\s+)?(\d{4})\b", text, flags=re.IGNORECASE)
-        if founded and "founded_year" not in firmographics:
+        for text in _firmographic_text_blocks(soup):
+            founded = FOUNDED_RE.search(text)
+            if not founded or "founded_year" in firmographics:
+                continue
+            excerpt = _firmographic_excerpt(text, founded)
+            if identity_terms and not _founding_evidence_matches_identity(excerpt, identity_terms):
+                continue
             firmographics["founded_year"] = {
                 "value": int(founded.group(1)),
                 "evidence": evidence_for_page(
                     page,
                     pages,
                     field="founded_year",
-                    excerpt=text_excerpt(text, founded.group(0)),
+                    excerpt=excerpt,
                 ).to_dict(),
             }
     return firmographics
+
+
+def _brand_identity_terms(profile_name: str | None, domain: str | None) -> set[str]:
+    raw_terms: set[str] = set()
+    if profile_name:
+        raw_terms.update(re.findall(r"[a-z0-9]{3,}", profile_name.lower()))
+    if domain:
+        host = domain.lower().removeprefix("www.")
+        for label in re.split(r"[.\-_]", host):
+            raw_terms.add(label)
+            for suffix in ("project", "docs", "api", "dev", "app", "cloud", "software", "foundation"):
+                if label.endswith(suffix) and len(label) - len(suffix) >= 4:
+                    raw_terms.add(label[: -len(suffix)])
+    return {term for term in raw_terms if len(term) >= 4 and term not in GENERIC_IDENTITY_TERMS}
+
+
+def _firmographic_text_blocks(soup: BeautifulSoup) -> list[str]:
+    blocks: list[str] = []
+    for tag in soup.find_all(["p", "li", "tr", "td", "th", "figcaption"]):
+        text = " ".join(tag.get_text(" ").split())
+        if text:
+            blocks.append(text)
+    if not blocks:
+        text = " ".join(soup.get_text(" ").split())
+        if text:
+            blocks.append(text)
+    return blocks
+
+
+def _firmographic_excerpt(text: str, match: re.Match[str]) -> str:
+    start = max(
+        text.rfind(".", 0, match.start()),
+        text.rfind("!", 0, match.start()),
+        text.rfind("?", 0, match.start()),
+    )
+    end_candidates = [
+        index
+        for index in (
+            text.find(".", match.end()),
+            text.find("!", match.end()),
+            text.find("?", match.end()),
+        )
+        if index != -1
+    ]
+    end = min(end_candidates) + 1 if end_candidates else len(text)
+    sentence = text[start + 1 : end].strip()
+    if sentence:
+        return sentence[:500]
+    return text_excerpt(text, match.group(0))
+
+
+def _text_mentions_identity(text: str, identity_terms: set[str]) -> bool:
+    normalized = text.lower()
+    return any(re.search(rf"\b{re.escape(term)}\b", normalized) for term in identity_terms)
+
+
+def _founding_evidence_matches_identity(text: str, identity_terms: set[str]) -> bool:
+    if not _text_mentions_identity(text, identity_terms):
+        return False
+    founded = FOUNDED_RE.search(text)
+    if not founded:
+        return True
+    subject = _subject_before_founding(text[: founded.start()])
+    return not (subject and not _text_mentions_identity(subject, identity_terms))
+
+
+def _subject_before_founding(text: str) -> str | None:
+    normalized = text.lower().strip(" ,;:-")
+    if not normalized:
+        return None
+    copula = re.search(r"\b(?:is|are|was|were)\b", normalized)
+    if copula:
+        return normalized[: copula.start()].removeprefix("the ").strip(" ,;:-")
+    if "," in normalized:
+        return normalized.split(",", 1)[0].removeprefix("the ").strip(" ,;:-")
+    return normalized.removeprefix("the ").strip(" ,;:-")
 
 
 def _colors_from_soup(soup: BeautifulSoup) -> list[str]:

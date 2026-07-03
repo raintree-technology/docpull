@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import json
 import sys
 import tempfile
 from pathlib import Path
@@ -64,6 +65,7 @@ from .rendering import (
     render_url_to_directory,
 )
 from .skill_export import default_skill_root, expand_skill_agents
+from .surface import PRUNED_CLI_COMMANDS, format_cli_subcommands
 
 RenderBackend = Literal["agent-browser", "vercel-sandbox", "e2b-sandbox"]
 
@@ -98,6 +100,41 @@ def _write_fetch_accounting(
         paid_capable=paid_capable,
         accounting=accounting,
     )
+
+
+def _output_dir_has_records(output_dir: Path) -> bool:
+    """Return whether an output directory contains at least one readable record."""
+    manifest_path = output_dir / "corpus.manifest.json"
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        manifest = None
+    if isinstance(manifest, dict):
+        for key in ("record_count", "document_count", "chunk_count"):
+            value = manifest.get(key)
+            if isinstance(value, int) and value > 0:
+                return True
+        records = manifest.get("records")
+        if isinstance(records, list) and records:
+            return True
+
+    ndjson_path = output_dir / "documents.ndjson"
+    try:
+        if ndjson_path.exists():
+            return any(line.strip() for line in ndjson_path.read_text(encoding="utf-8").splitlines())
+    except OSError:
+        return False
+    return False
+
+
+def _fetch_exit_code(stats: object, output_dir: Path, *, allow_empty: bool = False) -> int:
+    if int(getattr(stats, "pages_failed", 0)) > 0:
+        return 1
+    if allow_empty:
+        return 0
+    if int(getattr(stats, "pages_fetched", 0)) == 0 and not _output_dir_has_records(output_dir):
+        return 1
+    return 0
 
 
 def _add_render_options(parser: argparse.ArgumentParser) -> None:
@@ -172,11 +209,7 @@ def _add_render_options(parser: argparse.ArgumentParser) -> None:
 
 def create_parser() -> argparse.ArgumentParser:
     """Create argument parser for CLI."""
-    parser = argparse.ArgumentParser(
-        prog="docpull",
-        description="Fetch and convert static/server-rendered web content to markdown",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
+    epilog = f"""
 Examples:
   # Fetch with default settings (RAG profile)
   docpull https://docs.example.com
@@ -190,46 +223,13 @@ Examples:
   # Filter paths
   docpull https://example.com --include-paths "/api/*" --exclude-paths "/changelog/*"
 
-Subcommands:
-  init         Create a persistent DocPull project
-  add          Add a source to a project
-  sync         Sync configured project sources
-  diff         Diff project runs
-  status       Show project status
-  history      Show project run history
-  review       Write a source-health/diff review for a run
-  release      Create versioned context-pack release artifacts
-  remote       Call a hosted DocPull API control plane
-  eval-set     Generate local eval cases from project runs
-  watch        Sync, diff, and export one source
-  render       Render one public URL or check the optional agent-browser backend
-  discover     Build/select/fetch provider-neutral discovery packs
-  extract-pack Extract known URLs into a provider-neutral local pack
-  map          Build URL-only local map/discovery packs
-  crawl-pack   Select mapped candidates and fetch a local pack
-  research-pack Produce cited local research results from a pack
-  entities-pack Build local entity/list packs from existing evidence
-  brand-pack   Build an evidence-backed local brand profile
-  styleguide-pack Extract local design tokens from a public site
-  product-pack Normalize product and pricing evidence
-  extract-schema Extract a JSON shape from local evidence
-  image-pack    Build a local visual asset manifest
-  screenshot-pack Capture an explicit browser-rendered screenshot
-  search-pack  Build a local-first search result pack
-  policy       Validate or explain source policy files
-  auth         Check authenticated source access without writing content
-  refresh      Refresh an existing local pack and write change reports
-  pack         Score, diff, audit, search, cite, and prepare context packs
-  graph        Build and query local cited source graphs for context packs
-  answer-pack  Answer from local pack evidence with citations
-  export       Export a pack for agent or RAG tools
-  serve        Serve a local pack over localhost JSON routes
-  share        Serve a Markdown or HTML report at a local URL
-  monitor      Run cron-friendly local pack monitors
-  parallel     Build optional Parallel-backed context packs
-  provider     Check provider keys and run provider-backed context packs
-  tavily/exa   First-class aliases for provider-backed packs and capability checks
-        """,
+{format_cli_subcommands()}
+        """
+    parser = argparse.ArgumentParser(
+        prog="docpull",
+        description="Fetch and convert static/server-rendered web content to markdown",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=epilog,
     )
 
     parser.add_argument(
@@ -405,9 +405,9 @@ Subcommands:
     )
     filter_group.add_argument(
         "--extractor",
-        choices=["default", "trafilatura"],
+        choices=["default", "trafilatura", "ensemble"],
         default=None,
-        help="Content extractor (trafilatura requires: pip install docpull[trafilatura])",
+        help="Content extractor (ensemble uses available local candidates; trafilatura is optional)",
     )
     filter_group.add_argument(
         "--no-special-cases",
@@ -967,7 +967,10 @@ def run_fetcher(args: argparse.Namespace) -> int:
                         for reason, count in sorted(skip_counts.items(), key=lambda x: -x[1]):
                             console.print(f"  {reason.value}: {count}")
 
-                return 0 if stats.pages_failed == 0 else 1
+                exit_code = _fetch_exit_code(stats, config.output.directory, allow_empty=args.dry_run)
+                if exit_code and not args.quiet and stats.pages_fetched == 0 and stats.pages_failed == 0:
+                    console.print("[yellow]No readable pages were fetched; output pack is empty.[/yellow]")
+                return exit_code
 
         except Exception as e:
             console.print("[red]Error:[/red] " + escape(str(e)))
@@ -986,6 +989,12 @@ def run_render_cli(argv: list[str]) -> int:
         return _run_render_init_cli(argv[1:])
     if argv and argv[0] == "doctor":
         return _run_render_doctor_cli()
+    output_dir_explicit = any(
+        arg in {"--output-dir", "-o"}
+        or arg.startswith("--output-dir=")
+        or (arg.startswith("-o") and arg != "-o")
+        for arg in argv
+    )
 
     parser = argparse.ArgumentParser(
         prog="docpull render",
@@ -1152,7 +1161,7 @@ def run_render_cli(argv: list[str]) -> int:
         return 1
     budget_limit = effective_budget_limit(
         args.budget,
-        args.cloud_max_estimated_cost if backend != "agent-browser" else None,
+        args.cloud_max_estimated_cost if backend in {"vercel-sandbox", "e2b-sandbox"} else None,
     )
     cloud_estimated_cost = (
         estimate_cloud_render_cost_usd(cast(Literal["vercel-sandbox", "e2b-sandbox"], backend), config)
@@ -1161,7 +1170,7 @@ def run_render_cli(argv: list[str]) -> int:
     )
     route_steps = default_route_steps(
         include_local_render=backend == "agent-browser",
-        include_cloud=backend != "agent-browser",
+        include_cloud=backend in {"vercel-sandbox", "e2b-sandbox"},
         budget_limit_usd=budget_limit,
     )
     if args.explain_route:
@@ -1207,7 +1216,7 @@ def run_render_cli(argv: list[str]) -> int:
     async def run() -> int:
         output_dir = args.output_dir
         temp_dir: tempfile.TemporaryDirectory[str] | None = None
-        if args.live_smoke:
+        if args.live_smoke and not output_dir_explicit:
             temp_dir = tempfile.TemporaryDirectory(prefix="docpull-render-smoke-")
             output_dir = Path(temp_dir.name)
         try:
@@ -1371,6 +1380,15 @@ def _renderer_for_render_cli_backend(
 def main(argv: list[str] | None = None) -> int:
     """Main entry point."""
     raw_argv = list(argv) if argv is not None else sys.argv[1:]
+    if raw_argv and raw_argv[0] in PRUNED_CLI_COMMANDS:
+        command = raw_argv[0]
+        print(
+            f"docpull: error: '{command}' was removed from the public v3 surface. "
+            "Use root URL fetch, typed *-pack lanes, `docpull pack`, `docpull export`, or "
+            "`docpull ci` instead.",
+            file=sys.stderr,
+        )
+        return 2
     if raw_argv and raw_argv[0] == "render":
         return run_render_cli(raw_argv[1:])
     if raw_argv and raw_argv[0] == "init":
@@ -1381,6 +1399,18 @@ def main(argv: list[str] | None = None) -> int:
         from .project import run_add_cli
 
         return run_add_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "install":
+        from .project import run_install_cli
+
+        return run_install_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "deps":
+        from .project import run_deps_cli
+
+        return run_deps_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "sources":
+        from .project import run_sources_cli
+
+        return run_sources_cli(raw_argv[1:])
     if raw_argv and raw_argv[0] == "sync":
         from .project import run_sync_cli
 
@@ -1405,26 +1435,22 @@ def main(argv: list[str] | None = None) -> int:
         from .project import run_release_cli
 
         return run_release_cli(raw_argv[1:])
-    if raw_argv and raw_argv[0] == "remote":
-        from .project import run_remote_cli
+    if raw_argv and raw_argv[0] == "ci":
+        from .context_ci import run_context_ci_cli
 
-        return run_remote_cli(raw_argv[1:])
-    if raw_argv and raw_argv[0] == "eval-set":
-        from .project import run_eval_set_cli
-
-        return run_eval_set_cli(raw_argv[1:])
+        return run_context_ci_cli(raw_argv[1:])
     if raw_argv and raw_argv[0] == "watch":
         from .project import run_watch_cli
 
         return run_watch_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "parse":
+        from .document_parse import run_parse_cli
+
+        return run_parse_cli(raw_argv[1:])
     if raw_argv and raw_argv[0] == "mcp":
         from .mcp.server import run_mcp_server
 
         return run_mcp_server(raw_argv[1:])
-    if raw_argv and raw_argv[0] == "parallel":
-        from .parallel_workflows import run_parallel_cli
-
-        return run_parallel_cli(raw_argv[1:])
     if raw_argv and raw_argv[0] == "pack":
         from .pack_tools import run_pack_cli
 
@@ -1453,10 +1479,6 @@ def main(argv: list[str] | None = None) -> int:
         from .local_workflows import run_refresh_cli
 
         return run_refresh_cli(raw_argv[1:])
-    if raw_argv and raw_argv[0] == "answer-pack":
-        from .local_workflows import run_answer_cli
-
-        return run_answer_cli(raw_argv[1:])
     if raw_argv and raw_argv[0] == "policy":
         from .policy_cli import run_policy_cli
 
@@ -1469,74 +1491,42 @@ def main(argv: list[str] | None = None) -> int:
         from .monitor import run_monitor_cli
 
         return run_monitor_cli(raw_argv[1:])
-    if raw_argv and raw_argv[0] == "evidence-pack":
-        from .evidence_pack import run_evidence_pack_cli
+    if raw_argv and raw_argv[0] == "openapi-pack":
+        from .context_packs.cli import run_openapi_pack_cli
 
-        return run_evidence_pack_cli(raw_argv[1:])
-    if raw_argv and raw_argv[0] == "benchmark":
-        from .benchmark import run_benchmark_cli
+        return run_openapi_pack_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "feed-pack":
+        from .context_packs.cli import run_feed_pack_cli
 
-        return run_benchmark_cli(raw_argv[1:])
-    if raw_argv and raw_argv[0] == "discover":
-        from .discovery_cli import run_discovery_cli
+        return run_feed_pack_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "paper-pack":
+        from .context_packs.cli import run_paper_pack_cli
 
-        return run_discovery_cli(raw_argv[1:])
-    if raw_argv and raw_argv[0] == "extract-pack":
-        from .parity_cli import run_extract_pack_cli
+        return run_paper_pack_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "repo-pack":
+        from .context_packs.cli import run_repo_pack_cli
 
-        return run_extract_pack_cli(raw_argv[1:])
-    if raw_argv and raw_argv[0] == "map":
-        from .parity_cli import run_map_cli
+        return run_repo_pack_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "package-pack":
+        from .context_packs.cli import run_package_pack_cli
 
-        return run_map_cli(raw_argv[1:])
-    if raw_argv and raw_argv[0] == "crawl-pack":
-        from .parity_cli import run_crawl_pack_cli
+        return run_package_pack_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "standards-pack":
+        from .context_packs.cli import run_standards_pack_cli
 
-        return run_crawl_pack_cli(raw_argv[1:])
-    if raw_argv and raw_argv[0] == "research-pack":
-        from .parity_cli import run_research_pack_cli
+        return run_standards_pack_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "dataset-pack":
+        from .context_packs.cli import run_dataset_pack_cli
 
-        return run_research_pack_cli(raw_argv[1:])
-    if raw_argv and raw_argv[0] == "entities-pack":
-        from .parity_cli import run_entities_pack_cli
+        return run_dataset_pack_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "transcript-pack":
+        from .context_packs.cli import run_transcript_pack_cli
 
-        return run_entities_pack_cli(raw_argv[1:])
-    if raw_argv and raw_argv[0] == "brand-pack":
-        from .context_packs.cli import run_brand_pack_cli
+        return run_transcript_pack_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "wiki-pack":
+        from .context_packs.cli import run_wiki_pack_cli
 
-        return run_brand_pack_cli(raw_argv[1:])
-    if raw_argv and raw_argv[0] == "styleguide-pack":
-        from .context_packs.cli import run_styleguide_pack_cli
-
-        return run_styleguide_pack_cli(raw_argv[1:])
-    if raw_argv and raw_argv[0] == "product-pack":
-        from .context_packs.cli import run_product_pack_cli
-
-        return run_product_pack_cli(raw_argv[1:])
-    if raw_argv and raw_argv[0] == "extract-schema":
-        from .context_packs.cli import run_extract_schema_cli
-
-        return run_extract_schema_cli(raw_argv[1:])
-    if raw_argv and raw_argv[0] == "image-pack":
-        from .context_packs.cli import run_image_pack_cli
-
-        return run_image_pack_cli(raw_argv[1:])
-    if raw_argv and raw_argv[0] == "screenshot-pack":
-        from .context_packs.cli import run_screenshot_pack_cli
-
-        return run_screenshot_pack_cli(raw_argv[1:])
-    if raw_argv and raw_argv[0] == "search-pack":
-        from .context_packs.cli import run_search_pack_cli
-
-        return run_search_pack_cli(raw_argv[1:])
-    if raw_argv and raw_argv[0] in {"provider", "providers"}:
-        from .provider_cli import run_provider_cli
-
-        return run_provider_cli(raw_argv[1:])
-    if raw_argv and raw_argv[0] in {"tavily", "exa"}:
-        from .provider_cli import run_provider_extension_cli
-
-        return run_provider_extension_cli(raw_argv[0], raw_argv[1:])
+        return run_wiki_pack_cli(raw_argv[1:])
 
     parser = create_parser()
     args = parser.parse_args(raw_argv)

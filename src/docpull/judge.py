@@ -1,4 +1,4 @@
-"""LLM-judge dimension for docpull benchmark packs (stub).
+"""Advisory LLM-judge dimension for private docpull benchmark packs.
 
 The existing ``benchmark_score`` is fully deterministic. For research-style
 evals the Anthropic "Demystifying evals for AI agents" post recommends
@@ -8,21 +8,15 @@ corroborating signal as an **advisory** score (parallel to, not folded
 into, ``benchmark_score``) so the heuristic baseline and its regression
 properties stay intact.
 
-What this gives you:
+What this gives private benchmark runs:
     * A clear rubric prompt (coverage / groundedness / source_authority /
       synthesis_readiness) the model fills in with per-dimension scores.
     * A key-gated transport: if ``ANTHROPIC_API_KEY`` is unset, the judge
       returns ``skipped=True`` with a structured reason rather than failing
       the run.
     * A pluggable ``client`` callable so the same code path works in tests
-      (inject a stub) and in CI (skip cleanly).
+      (inject a fake client) and in CI (skip cleanly).
     * Document sampling capped to keep cost predictable and reproducible.
-
-Wire-up checklist (deferred — this is a stub, not a calibrated grader):
-    * Calibrate the rubric against ~10 hand-graded packs (see Anthropic eval
-      post, "Design graders thoughtfully" section).
-    * Decide reporting cadence (every run vs. a sampled subset) given cost.
-    * Optionally add a self-consistency layer (multi-judge consensus).
 
 Usage:
     python -m docpull.judge .bench/runs/<id>/<target>/<workflow>/run-1 \\
@@ -271,7 +265,7 @@ class _AnthropicMessagesClient:
 
     Kept dependency-free on purpose (no anthropic SDK, no httpx). The Anthropic
     eval post calls out that LLM judges benefit from a clean retry/timeout
-    surface and easy injection in tests — this class is the seam.
+    surface and easy injection in tests.
     """
 
     def __init__(self, *, api_key: str, model: str) -> None:

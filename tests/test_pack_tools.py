@@ -6,8 +6,10 @@ import json
 from pathlib import Path
 
 from docpull.cli import main
+from docpull.eval_grade import run_evalgen_cli, run_freshdocs_cli
 from docpull.pack_tools import (
     build_citation_map,
+    build_company_brain_bundle,
     build_research_brief,
     diff_packs,
     extract_pack_entities,
@@ -450,6 +452,105 @@ def test_pack_prepare_writes_standard_intelligence_bundle(tmp_path: Path) -> Non
     assert (pack / "pack.prepare.json").exists()
 
 
+def test_pack_prepare_eval_grade_writes_supply_chain_artifacts(tmp_path: Path) -> None:
+    pack = tmp_path / "pack"
+    _write_pack(
+        pack,
+        [
+            _record(
+                "https://docs.parallel.ai/api-reference/search/search",
+                "aaa",
+                (
+                    "Parallel Search API supports live search with cited JSON results. "
+                    "Contact support@example.com for API access."
+                ),
+            )
+        ],
+        include_domains=["docs.parallel.ai"],
+    )
+    (pack / "coverage.report.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "summary": {
+                    "coverage_confidence": "high",
+                    "discovered_url_count": 5,
+                    "selected_url_count": 1,
+                    "extracted_doc_count": 1,
+                },
+                "recommendations": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (pack / "acquisition.routes.json").write_text(
+        json.dumps({"schema_version": 1, "routes": [{"route": "sitemap", "fetched_count": 1}]}),
+        encoding="utf-8",
+    )
+
+    result = prepare_pack(pack, default_search=False, graph=False, eval_grade=True)
+
+    assert result["summary"]["eval_grade_artifact_count"] == 4
+    assert result["artifacts"]["rights_manifest"] == "rights.manifest.json"
+    assert result["artifacts"]["provenance_graph"] == "provenance.graph.json"
+    assert result["artifacts"]["citation_index"] == "citation.index.json"
+    assert result["artifacts"]["pack_card"] == "PACK_CARD.md"
+    rights = json.loads((pack / "rights.manifest.json").read_text(encoding="utf-8"))
+    assert rights["allowed_use"]["redistribution"] == "unknown"
+    assert rights["allowed_use"]["model_training"] == "unknown"
+    assert rights["pii_risk"] == "medium"
+    citation_index = json.loads((pack / "citation.index.json").read_text(encoding="utf-8"))
+    assert citation_index["summary"]["entry_count"] == 1
+    assert citation_index["entries"][0]["source_file"] == "sources/01.md"
+    assert citation_index["entries"][0]["record_citation_id"] == "S1.1"
+    provenance = json.loads((pack / "provenance.graph.json").read_text(encoding="utf-8"))
+    assert provenance["sources"][0]["discovered_by"] == ["sitemap"]
+    assert "Rights" in (pack / "PACK_CARD.md").read_text(encoding="utf-8")
+
+
+def test_company_brain_bundle_writes_app_ready_import(tmp_path: Path) -> None:
+    pack = tmp_path / "pack"
+    _write_pack(
+        pack,
+        [
+            _record(
+                "https://docs.parallel.ai/api-reference/search/search",
+                "aaa",
+                (
+                    "Parallel Search API supports live search, cited JSON results, "
+                    "pricing research, and source controls for AI agent workflows."
+                ),
+            ),
+            _record(
+                "https://docs.parallel.ai/api-reference/extract/extract",
+                "bbb",
+                (
+                    "Parallel Extract API turns selected URLs into markdown context. "
+                    "Agent builders use it for source-supported briefs and MCP tools."
+                ),
+            ),
+        ],
+        include_domains=["docs.parallel.ai"],
+    )
+
+    result = build_company_brain_bundle(
+        pack,
+        objective="Review agent infrastructure search and extraction",
+        market="AI agent infrastructure",
+        search_queries=["pricing cited JSON"],
+    )
+
+    assert result["workspace"]["market"] == "AI agent infrastructure"
+    assert result["summary"]["source_count"] == 2
+    assert result["summary"]["claim_count"] >= 1
+    assert result["records"]["source_snapshots"][0]["source_id"] == "source_001"
+    assert result["records"]["source_supported_claims"][0]["status"] == "source_supported"
+    assert result["records"]["gate_inputs"]["claim_policy"].startswith("Every promoted claim")
+    assert result["artifacts"]["bundle"] == "company_brain.bundle.json"
+    assert (pack / "company_brain.bundle.json").exists()
+    assert (pack / "COMPANY_BRAIN.md").exists()
+
+
 def test_pack_prepare_cli_can_skip_search_entities_and_markdown(tmp_path: Path) -> None:
     pack = tmp_path / "pack"
     _write_pack(
@@ -541,6 +642,52 @@ def test_pack_score_flags_manifest_and_pack_record_count_mismatch(tmp_path: Path
     assert result["score"] < 100
 
 
+def test_pack_audit_flags_stale_score_and_audit_sidecars(tmp_path: Path) -> None:
+    pack = tmp_path / "pack"
+    _write_pack(
+        pack,
+        [_record("https://parallel.ai/products/search", "aaa")],
+        include_domains=["parallel.ai"],
+    )
+    stale_summary = {"record_count": 2, "document_count": 1}
+    (pack / "pack.score.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "score": 95,
+                "grade": "excellent",
+                "summary": stale_summary,
+                "issues": [],
+                "warnings": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (pack / "pack.audit.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "score": 95,
+                "grade": "excellent",
+                "summary": stale_summary,
+                "dimensions": {},
+                "issues": [],
+                "warnings": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    assert main(["pack", "audit", str(pack)]) == 0
+
+    payload = json.loads((pack / "pack.audit.json").read_text(encoding="utf-8"))
+    issue_codes = {issue["code"] for issue in payload["issues"]}
+    assert "stale_pack_score_sidecar" in issue_codes
+    assert "stale_pack_audit_sidecar" in issue_codes
+    assert payload["summary"]["stale_sidecar_count"] == 2
+    assert payload["score"] < 100
+
+
 def test_pack_score_flags_missing_declared_artifacts_and_sources(tmp_path: Path) -> None:
     pack = tmp_path / "pack"
     _write_pack(
@@ -586,6 +733,9 @@ def test_pack_diff_reports_added_removed_and_changed_urls(tmp_path: Path) -> Non
     assert result["added_urls"] == ["https://parallel.ai/added"]
     assert result["removed_urls"] == ["https://parallel.ai/removed"]
     assert result["changed_urls"] == ["https://parallel.ai/changed"]
+    assert result["semantic_diff"]["summary"]["removed_section"] == 1
+    assert result["semantic_diff"]["summary"]["new_feature_candidate"] == 1
+    assert result["semantic_diff"]["summary"]["ambiguous_change"] == 1
 
 
 def test_pack_diff_cli_writes_outputs(tmp_path: Path) -> None:
@@ -609,4 +759,93 @@ def test_pack_diff_cli_writes_outputs(tmp_path: Path) -> None:
     )
 
     assert (new_pack / "pack.diff.json").exists()
+    assert (new_pack / "semantic.diff.json").exists()
+    semantic = json.loads((new_pack / "semantic.diff.json").read_text(encoding="utf-8"))
+    assert semantic["summary"]["removed_section"] == 1
     assert "Added" in (tmp_path / "diff.md").read_text(encoding="utf-8")
+
+
+def test_evalgen_cli_writes_public_tasks_and_hidden_answers(tmp_path: Path) -> None:
+    pack = tmp_path / "pack"
+    _write_pack(
+        pack,
+        [
+            _record(
+                "https://docs.parallel.ai/api-reference/search/search",
+                "aaa",
+                (
+                    "Parallel Search API returns live cited JSON results for agents. "
+                    "Deprecated legacy search behavior is no longer supported."
+                ),
+            )
+        ],
+        include_domains=["docs.parallel.ai"],
+    )
+
+    assert main(["pack", "prepare", str(pack), "--eval-grade", "--no-search", "--no-graph"]) == 0
+    assert (
+        run_evalgen_cli(
+            [
+                str(pack),
+                "--types",
+                "current-context-qa,version-drift,citation,coverage-aware",
+                "--limit",
+                "4",
+            ]
+        )
+        == 0
+    )
+
+    tasks = [
+        json.loads(line)
+        for line in (pack / "evals" / "tasks.public.jsonl").read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    answers = [
+        json.loads(line)
+        for line in (pack / "evals" / "answers.hidden.jsonl").read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    traps = [
+        json.loads(line)
+        for line in (pack / "evals" / "traps.jsonl").read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    assert {task["task_type"] for task in tasks} == {
+        "current-context-qa",
+        "version-drift",
+        "citation",
+        "coverage-aware",
+    }
+    assert all(task["citation_requirements"][0]["content_hash"] == "aaa" for task in tasks)
+    assert all("expected_claims" not in task for task in tasks)
+    assert len(answers) == 4
+    assert answers[0]["expected_claims"][0]["source_hash"] == "aaa"
+    assert traps
+    assert (pack / "evals" / "rubric.md").exists()
+    assert (pack / "evals" / "grader.py").exists()
+
+    assert run_freshdocs_cli(["bench", str(pack)]) == 0
+    report = json.loads((pack / "freshdocs.report.json").read_text(encoding="utf-8"))
+    assert report["summary"]["task_count"] == 4
+    assert report["summary"]["hidden_answer_count"] == 4
+    assert report["summary"]["citation_requirement_count"] == 4
+    assert (pack / "FRESHDOCS_BENCH.md").exists()
+
+    legacy_eval_dir = tmp_path / "legacy-evals"
+    assert (
+        run_evalgen_cli(
+            [
+                str(pack),
+                "--types",
+                "current-docs-qa",
+                "--limit",
+                "1",
+                "--output-dir",
+                str(legacy_eval_dir),
+            ]
+        )
+        == 0
+    )
+    legacy_task = json.loads((legacy_eval_dir / "tasks.public.jsonl").read_text(encoding="utf-8"))
+    assert legacy_task["task_type"] == "current-context-qa"

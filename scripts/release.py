@@ -45,7 +45,7 @@ def gh(*args: str, capture: bool = False, check: bool = True) -> str:
 
 
 def project_version_from_text(text: str) -> str:
-    return tomllib.loads(text)["project"]["version"]
+    return str(tomllib.loads(text)["project"]["version"])
 
 
 def local_project_version() -> str:

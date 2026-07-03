@@ -343,6 +343,7 @@ class Fetcher:
             allow_insecure_tls=self.config.network.insecure_tls,
             auth_scope_hosts=auth_scope_hosts,
             require_pinned_dns=self.config.network.require_pinned_dns,
+            log_retry_warnings=self.config.network.log_retry_warnings,
         )
         await self._http_client.__aenter__()
 
@@ -413,6 +414,7 @@ class Fetcher:
                 add_frontmatter=add_frontmatter,
                 enable_special_cases=self.config.content_filter.enable_special_cases,
                 use_trafilatura=self.config.content_filter.extractor == "trafilatura",
+                use_ensemble=self.config.content_filter.extractor == "ensemble",
                 strict_js_required=self.config.content_filter.strict_js_required,
                 clean_inline_xbrl=self.config.content_filter.clean_inline_xbrl,
             )
@@ -443,7 +445,11 @@ class Fetcher:
             )
             steps.append(self._ndjson_saver)
         elif self.config.output.format == "sqlite":
-            self._sqlite_saver = SqliteSaveStep(base_output_dir=output_dir, run_identity=self.run_identity)
+            self._sqlite_saver = SqliteSaveStep(
+                base_output_dir=output_dir,
+                run_identity=self.run_identity,
+                emit_chunks=self.config.output.emit_chunks,
+            )
             steps.append(self._sqlite_saver)
         elif self.config.output.format == "okf":
             self._okf_saver = OkfSaveStep(

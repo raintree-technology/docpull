@@ -26,7 +26,7 @@ SOURCE_POLICY_FILENAME = "source_policy.json"
 DISCOVERY_GUIDE_FILENAME = "DISCOVERY.md"
 SELECTED_SOURCES_FILENAME = "selected_sources.ndjson"
 SELECTED_URLS_FILENAME = "selected_urls.txt"
-SITE_SCAN_SOURCES = ("llms", "feeds", "openapi", "sitemaps", "github")
+SITE_SCAN_SOURCES = ("links", "llms", "feeds", "openapi", "sitemaps", "github")
 _MAX_SCAN_RESOURCE_BYTES = 5 * 1024 * 1024
 _URL_RE = re.compile(r"https?://[^\s<>)\"']+")
 _MARKDOWN_LINK_RE = re.compile(r"\[([^\]]+)]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)")
@@ -280,6 +280,11 @@ async def records_from_site_scan(
                 expected_domains=expected_domains or [],
             )
 
+    if "links" in enabled:
+        await add_many(
+            await _scan_static_links(start_url, client=client, timeout_seconds=timeout_seconds),
+            "links",
+        )
     if "llms" in enabled:
         await add_many(
             await _scan_llms_txt(start_url, client=client, timeout_seconds=timeout_seconds),
@@ -307,6 +312,111 @@ async def records_from_site_scan(
         )
 
     return records
+
+
+async def _scan_static_links(
+    start_url: str,
+    *,
+    client: HttpClient,
+    timeout_seconds: float,
+) -> list[dict[str, Any]]:
+    response = await _fetch_scan_response(
+        client,
+        start_url,
+        timeout_seconds=timeout_seconds,
+        headers={
+            "Accept": ("text/html,application/xhtml+xml,application/xml;q=0.9,text/plain;q=0.7,*/*;q=0.1")
+        },
+    )
+    if response is None:
+        return []
+    final_url = response.url or start_url
+    candidates = [
+        {
+            "url": final_url,
+            "title": "Start URL",
+            "snippet": "Fetched start URL for local static link discovery",
+            "source_url": final_url,
+            "raw_ref": final_url,
+            "metadata": {"index_type": "static_links", "link_rel": "self"},
+        }
+    ]
+    candidates.extend(_extract_static_link_candidates(response.content, final_url))
+    return candidates
+
+
+def _extract_static_link_candidates(content: bytes, base_url: str) -> list[dict[str, Any]]:
+    try:
+        soup = BeautifulSoup(content, "html.parser")
+    except Exception:
+        return []
+    candidates: list[dict[str, Any]] = []
+    seen: set[str] = {normalize_url(base_url)}
+    title_text = _html_title(soup)
+
+    for tag in soup.find_all(["a", "area"], href=True):
+        href = str(tag.get("href") or "").strip()
+        resolved = _resolve_candidate_url(href, base_url)
+        if not resolved:
+            continue
+        key = normalize_url(resolved)
+        if key in seen:
+            continue
+        seen.add(key)
+        text = tag.get_text(" ", strip=True) or str(tag.get("aria-label") or "").strip() or None
+        candidates.append(
+            {
+                "url": resolved,
+                "title": text,
+                "snippet": title_text,
+                "source_url": base_url,
+                "rank": len(candidates) + 1,
+                "raw_ref": f"{base_url}#a[{len(candidates) + 1}]",
+                "metadata": {
+                    "index_type": "static_links",
+                    "tag": tag.name,
+                    "rel": _rel_value(tag),
+                },
+            }
+        )
+
+    for tag in soup.find_all("link", href=True):
+        rel = _rel_value(tag)
+        if not rel or not any(token in rel for token in ("canonical", "alternate", "next", "prev")):
+            continue
+        resolved = _resolve_candidate_url(str(tag.get("href") or ""), base_url)
+        if not resolved:
+            continue
+        key = normalize_url(resolved)
+        if key in seen:
+            continue
+        seen.add(key)
+        candidates.append(
+            {
+                "url": resolved,
+                "title": rel,
+                "snippet": title_text,
+                "source_url": base_url,
+                "rank": len(candidates) + 1,
+                "raw_ref": f"{base_url}#link[{len(candidates) + 1}]",
+                "metadata": {"index_type": "static_links", "tag": "link", "rel": rel},
+            }
+        )
+    return candidates
+
+
+def _html_title(soup: BeautifulSoup) -> str | None:
+    if soup.title and soup.title.string:
+        return soup.title.string.strip()[:500]
+    heading = soup.find(["h1", "h2"])
+    return heading.get_text(" ", strip=True)[:500] if heading else None
+
+
+def _rel_value(tag: Any) -> str:
+    value = tag.get("rel")
+    if isinstance(value, list):
+        return " ".join(str(item).lower() for item in value)
+    return str(value or "").lower()
 
 
 def write_discovery_pack(

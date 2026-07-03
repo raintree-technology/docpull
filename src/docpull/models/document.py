@@ -7,6 +7,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from ..output_contract import content_type_base, default_rights_state
 from ..time_utils import utc_now_iso
 from .run import DOCUMENT_RECORD_SCHEMA_VERSION, RunIdentity
 
@@ -23,8 +24,15 @@ class DocumentRecord(BaseModel):
     extraction: dict[str, Any] = Field(default_factory=dict)
     source_type: str | None = None
     fetched_at: str = Field(default_factory=utc_now_iso)
+    rendered_at: str | None = None
+    content_type: str = "text/markdown"
+    mime_type: str = "text/markdown"
     content_hash: str
     run: dict[str, Any] | None = None
+    route: dict[str, Any] = Field(default_factory=dict)
+    rights: dict[str, Any] = Field(default_factory=default_rights_state)
+    source_citation_id: str | None = None
+    record_citation_id: str | None = None
     chunk_index: int | None = None
     chunk_id: str | None = None
     chunk_heading: str | None = None
@@ -48,6 +56,13 @@ class DocumentRecord(BaseModel):
         extraction: dict[str, Any] | None = None,
         source_type: str | None = None,
         run_identity: RunIdentity | None = None,
+        content_type: str | None = None,
+        mime_type: str | None = None,
+        rendered_at: str | None = None,
+        route: dict[str, Any] | None = None,
+        rights: dict[str, Any] | None = None,
+        source_citation_id: str | None = None,
+        record_citation_id: str | None = None,
         chunk_index: int | None = None,
         chunk_heading: str | None = None,
         token_count: int | None = None,
@@ -64,20 +79,30 @@ class DocumentRecord(BaseModel):
                 content_hash,
             )
         doc_metadata = metadata or {}
+        normalized_content_type = (content_type or "text/markdown").strip() or "text/markdown"
+        normalized_mime_type = mime_type or content_type_base(normalized_content_type) or "text/markdown"
+        normalized_token_count = token_count if token_count is not None else _estimate_token_count(content)
         return cls(
             document_id=document_id,
             url=url,
-            title=title,
+            title=title or url,
             content=content,
             metadata=doc_metadata,
             extraction=extraction or {},
             source_type=source_type,
+            rendered_at=rendered_at,
+            content_type=normalized_content_type,
+            mime_type=normalized_mime_type,
             content_hash=content_hash,
             run=run_identity.model_dump(mode="json") if run_identity else None,
+            route=route or {"name": "unknown"},
+            rights=rights or default_rights_state(),
+            source_citation_id=source_citation_id,
+            record_citation_id=record_citation_id,
             chunk_index=chunk_index,
             chunk_id=chunk_id,
             chunk_heading=chunk_heading,
-            token_count=token_count,
+            token_count=normalized_token_count,
             cik=_metadata_string(doc_metadata, "cik"),
             accession_number=_metadata_string(doc_metadata, "accession_number"),
             form=_metadata_string(doc_metadata, "form"),
@@ -99,3 +124,9 @@ def _metadata_string(metadata: dict[str, Any], key: str) -> str | None:
         return None
     text = str(value).strip()
     return text or None
+
+
+def _estimate_token_count(content: str) -> int:
+    """Cheap fallback token count for contract completeness."""
+    words = content.split()
+    return max(1, len(words)) if content.strip() else 0

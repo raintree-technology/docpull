@@ -458,7 +458,7 @@ def create_benchmark_parser() -> argparse.ArgumentParser:
         default="none",
         help=(
             "Optional observability trace backend. Raindrop requires "
-            "RAINDROP_WRITE_KEY and docpull[observability]."
+            "RAINDROP_WRITE_KEY and the raindrop-ai package."
         ),
     )
     quick.add_argument("--json", action="store_true", dest="json_output", help="Print report JSON")
@@ -1282,8 +1282,7 @@ class _RaindropTraceRecorder(_TraceRecorder):
             import raindrop.analytics as raindrop  # type: ignore[import-not-found]
         except ImportError as err:
             raise BenchmarkError(
-                "Raindrop tracing requires the optional SDK. "
-                "Install with: pip install 'docpull[observability]'"
+                "Raindrop tracing requires the optional SDK. Install with: pip install raindrop-ai"
             ) from err
         self._raindrop: Any = raindrop
         try:
@@ -3825,7 +3824,7 @@ def _article_markdown(report: dict[str, Any], *, title: str) -> str:
             "## Reproduce",
             "",
             "```bash",
-            "pip install 'docpull[parallel,observability]'",
+            "pip install parallel-web raindrop-ai",
             "export PARALLEL_API_KEY='<parallel-key>'",
             "export TAVILY_API_KEY='<tavily-key>'",
             "export TAVILY_CREDIT_USD='<account-credit-value>'",
@@ -3967,7 +3966,7 @@ def _legacy_article_markdown(report: dict[str, Any], *, title: str) -> str:
             "## Reproduce",
             "",
             "```bash",
-            "pip install 'docpull[parallel,observability]'",
+            "pip install parallel-web raindrop-ai",
             "export PARALLEL_API_KEY='<parallel-key>'",
             "export TAVILY_API_KEY='<tavily-key>'",
             "export EXA_API_KEY='<exa-key>'",

@@ -76,7 +76,7 @@ PROFILES: dict[ProfileName, dict[str, Any]] = {
     ProfileName.SEC_FILING: {
         # SEC/EDGAR filing capture for evidence packs. Filings are large,
         # table-heavy, and XBRL-noisy, so default to conservative concurrency,
-        # trafilatura extraction, chunked NDJSON, and Inline XBRL cleanup.
+        # best-available local extraction, chunked NDJSON, and Inline XBRL cleanup.
         "crawl": {
             "max_concurrent": 2,
             "per_host_concurrent": 1,
@@ -84,7 +84,7 @@ PROFILES: dict[ProfileName, dict[str, Any]] = {
             "adaptive_rate_limit": True,
         },
         "content_filter": {
-            "extractor": "trafilatura",
+            "extractor": "ensemble",
             "clean_inline_xbrl": True,
             "enable_special_cases": True,
             "strict_js_required": False,

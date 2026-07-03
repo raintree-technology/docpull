@@ -151,7 +151,7 @@ async def test_conditional_get_returns_304_on_second_run(server, tmp_path: Path,
     # Run 1: full fetch, populates manifest.
     fetched1, _ = await _run(cfg)
     assert fetched1 == 1
-    saved = list(output_dir.glob("*.md"))
+    saved = [path for path in output_dir.glob("*.md") if path.name not in {"sources.md"}]
     assert saved, f"expected a saved markdown file in {output_dir}"
 
     # Reset the request log before the second run.
@@ -182,7 +182,7 @@ async def test_missing_output_file_forces_full_fetch(server, tmp_path: Path, mon
 
     # Populate cache.
     await _run(cfg)
-    saved = list(output_dir.glob("*.md"))
+    saved = [path for path in output_dir.glob("*.md") if path.name not in {"sources.md"}]
     assert saved, f"expected a saved markdown file in {output_dir}"
     saved_path = saved[0]
 

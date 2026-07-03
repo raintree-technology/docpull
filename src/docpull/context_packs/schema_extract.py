@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
+from ..basis import basis_record, write_basis
 from ..parity import load_output_schema, validate_structured_output
 from ..policy import PolicyConfig
 from .common import (
@@ -14,7 +16,6 @@ from .common import (
     ContextPackError,
     ContextPackRun,
     PageSnapshot,
-    append_ndjson,
     artifact_ref,
     domain_from_input,
     ensure_policy_for_domain,
@@ -29,6 +30,14 @@ from .common import (
 
 SCHEMA_WORKFLOW = "extract-schema"
 DEFAULT_SCHEMA_OUTPUT_DIR = Path("packs/schema")
+PRICE_RE = re.compile(
+    r"(?P<currency>[$€£]|USD|EUR|GBP|CAD|AUD|JPY)\s*(?P<amount>\d+(?:,\d{3})*(?:\.\d{1,2})?)",
+    re.IGNORECASE,
+)
+AVAILABILITY_RE = re.compile(
+    r"\b(in stock|out of stock|available|unavailable|sold out|backorder(?:ed)?|preorder)\b",
+    re.IGNORECASE,
+)
 
 
 def extract_schema(
@@ -57,11 +66,11 @@ def extract_schema(
             "errors": list(validation.get("errors", [])) + fact_check_payload["errors"],
         }
 
-    basis_records = _basis_records(pages)
+    basis_records = _basis_records(result, field_evidence)
     basis_path = output_dir / "basis.ndjson"
     schema_out_path = output_dir / "structured.schema.json"
     validation_path = output_dir / "structured.validation.json"
-    append_ndjson(basis_path, basis_records)
+    write_basis(basis_path, basis_records)
     write_json(schema_out_path, schema)
     write_json(validation_path, validation)
     result_payload = {
@@ -209,6 +218,12 @@ def _field_value(
         return first.url
     if field == "domain":
         return urlparse(first.url).hostname
+    if field in {"price", "amount", "cost"}:
+        return _price_value(prop_schema, pages)
+    if field in {"currency", "currency_code"}:
+        return _currency_value(pages)
+    if field in {"availability", "stock", "stock_status"}:
+        return _availability_value(pages)
     if field in {"citations", "sources"}:
         return [
             {
@@ -222,6 +237,44 @@ def _field_value(
         return []
     if expected_type == "object":
         return {}
+    return None
+
+
+def _price_value(prop_schema: dict[str, Any], pages: list[PageSnapshot]) -> str | float | None:
+    expected_type = prop_schema.get("type")
+    for page in pages:
+        match = PRICE_RE.search(page.markdown)
+        if not match:
+            continue
+        raw = f"{match.group('currency')}{match.group('amount')}"
+        if expected_type in {"number", "integer"}:
+            try:
+                return float(match.group("amount").replace(",", ""))
+            except ValueError:
+                return None
+        return raw
+    return None
+
+
+def _currency_value(pages: list[PageSnapshot]) -> str | None:
+    for page in pages:
+        match = PRICE_RE.search(page.markdown)
+        if match:
+            return _currency_code(match.group("currency"))
+    return None
+
+
+def _currency_code(value: str) -> str:
+    normalized = value.upper()
+    return {"$": "USD", "€": "EUR", "£": "GBP"}.get(normalized, normalized)
+
+
+def _availability_value(pages: list[PageSnapshot]) -> str | None:
+    for page in pages:
+        for line in page.markdown.splitlines():
+            match = AVAILABILITY_RE.search(line)
+            if match:
+                return " ".join(line.split())[:200]
     return None
 
 
@@ -265,17 +318,61 @@ def _is_non_null_scalar(value: Any) -> bool:
     return value is not None and not isinstance(value, dict | list)
 
 
-def _basis_records(pages: list[PageSnapshot]) -> list[dict[str, Any]]:
-    return [
-        {
-            "schema_version": CONTEXT_PACK_SCHEMA_VERSION,
-            "citation_id": f"S{index}",
-            "url": page.url,
-            "title": page.title,
-            "excerpt": text_excerpt(page.markdown, limit=800),
-        }
-        for index, page in enumerate(pages, start=1)
-    ]
+def _basis_records(
+    payload: dict[str, Any],
+    field_evidence: dict[str, list[dict[str, Any]]],
+) -> list[dict[str, Any]]:
+    records: list[dict[str, Any]] = []
+    for path, value in _scalar_paths(payload):
+        evidence = field_evidence.get(path) or []
+        citation_ids = [str(item.get("citation_id")) for item in evidence if item.get("citation_id")]
+        source_urls = [str(item.get("url")) for item in evidence if item.get("url")]
+        excerpts = [
+            {
+                "citation_id": item.get("citation_id"),
+                "source_url": item.get("url"),
+                "text": item.get("excerpt"),
+            }
+            for item in evidence
+            if item.get("excerpt")
+        ]
+        if value is None:
+            state = "insufficient"
+            confidence = "low"
+            warnings = ["field value is null because no local evidence matched"]
+        elif evidence:
+            state = "supported"
+            confidence = "medium"
+            warnings = []
+        else:
+            state = "partial"
+            confidence = "low"
+            warnings = ["field value has no cited evidence"]
+        records.append(
+            basis_record(
+                claim_path=f"data.{path}",
+                claim=f"{path} = {value!r}",
+                citation_ids=citation_ids,
+                source_urls=source_urls,
+                excerpts=excerpts,
+                confidence=confidence,  # type: ignore[arg-type]
+                evidence_state=state,  # type: ignore[arg-type]
+                warnings=warnings,
+                producer="docpull.extract-schema",
+            )
+        )
+    if not records:
+        records.append(
+            basis_record(
+                claim_path="data",
+                claim="Structured extraction produced no scalar fields.",
+                confidence="low",
+                evidence_state="insufficient",
+                warnings=["schema produced no scalar fields"],
+                producer="docpull.extract-schema",
+            )
+        )
+    return records
 
 
 def _first_heading(page: PageSnapshot) -> str | None:
