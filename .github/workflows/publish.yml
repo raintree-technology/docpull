@@ -115,6 +115,12 @@ jobs:
           python -m pip install -r requirements-release.txt
           pip install --no-build-isolation -e ".[all,dev]"
 
+      - name: Install local render runtime
+        run: |
+          npm install -g agent-browser@0.31.1
+          agent-browser install --with-deps
+          agent-browser --version
+
       - name: Check generated release metadata
         run: python scripts/sync_release_metadata.py --check
 
