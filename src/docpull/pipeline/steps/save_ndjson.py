@@ -18,6 +18,7 @@ from typing import IO
 from ...models.document import DocumentRecord
 from ...models.events import EventType, FetchEvent
 from ...models.run import RunIdentity
+from ...output_contract import document_context_fields
 from ..base import EventEmitter, PageContext
 from ..manifest import CorpusManifest
 
@@ -109,6 +110,7 @@ class NdjsonSaveStep:
                         extraction=ctx.extraction_info,
                         source_type=ctx.source_type,
                         run_identity=self._run_identity,
+                        **document_context_fields(ctx, output_format="ndjson"),
                         chunk_index=getattr(chunk, "index", 0),
                         chunk_heading=getattr(chunk, "heading", None),
                         token_count=getattr(chunk, "token_count", None),
@@ -126,6 +128,7 @@ class NdjsonSaveStep:
                     extraction=ctx.extraction_info,
                     source_type=ctx.source_type,
                     run_identity=self._run_identity,
+                    **document_context_fields(ctx, output_format="ndjson"),
                 )
                 self._manifest.add_record(record, manifest_output_path)
                 self._add_source_index_record(record)

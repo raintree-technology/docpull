@@ -24,8 +24,12 @@ from .pack_tools import (
     _diff_markdown,
     _domain,
     _expected_domains,
+    _issue,
+    _optional_int,
+    _read_json,
     _read_ndjson,
     _read_pack_metadata,
+    _read_pack_records,
     _safe_int,
     _search_markdown,
     _write_json,
@@ -150,7 +154,7 @@ def refresh_pack(
 ) -> dict[str, Any]:
     """Refresh the URLs in a local pack and write refresh report sidecars."""
     pack_dir = pack_dir.resolve()
-    records = _read_ndjson(pack_dir / "documents.ndjson")
+    records = _read_pack_records(pack_dir)
     if not records:
         raise LocalWorkflowError("Cannot refresh an empty pack.")
     urls = _unique_record_urls(records)
@@ -353,11 +357,16 @@ def audit_pack(
 ) -> dict[str, Any]:
     """Write an actionable local pack quality audit."""
     pack_dir = pack_dir.resolve()
-    records = _read_ndjson(pack_dir / "documents.ndjson")
+    records = _read_pack_records(pack_dir)
     score_payload = score_pack(pack_dir, required_domains=required_domains)
     citation_payload = build_citation_map(pack_dir, required_domains=required_domains)
     dimensions = _audit_dimensions(records, score_payload, citation_payload)
-    weighted_score = _weighted_audit_score(dimensions, score_payload["score"])
+    stale_sidecar_issues = _stale_sidecar_issues(pack_dir, records, score_payload)
+    weighted_score = max(
+        0,
+        _weighted_audit_score(dimensions, score_payload["score"]) - min(30, len(stale_sidecar_issues) * 15),
+    )
+    issues = [*score_payload["issues"], *stale_sidecar_issues]
     payload = {
         "schema_version": AUDIT_SCHEMA_VERSION,
         "generated_at": utc_now_iso(),
@@ -368,12 +377,13 @@ def audit_pack(
         "fail_under": fail_under,
         "passed": fail_under is None or (weighted_score / 100) >= fail_under,
         "dimensions": dimensions,
-        "issues": score_payload["issues"],
+        "issues": issues,
         "warnings": score_payload["warnings"],
         "summary": {
             **score_payload["summary"],
             "source_count": citation_payload["source_count"],
             "citation_coverage": dimensions["citation_coverage"]["value"],
+            "stale_sidecar_count": len(stale_sidecar_issues),
         },
     }
     output = json_path or (pack_dir / "pack.audit.json")
@@ -390,6 +400,58 @@ def audit_pack(
             f"Pack audit score {weighted_score / 100:.2f} is below fail_under {fail_under:.2f}"
         )
     return payload
+
+
+def _stale_sidecar_issues(
+    pack_dir: Path,
+    records: list[dict[str, Any]],
+    score_payload: dict[str, Any],
+) -> list[dict[str, Any]]:
+    current_record_count = len(records)
+    current_document_count = _optional_int(score_payload.get("summary", {}).get("document_count"))
+    if current_document_count is None:
+        current_document_count = len(
+            {
+                str(record.get("document_id") or record.get("url") or "")
+                for record in records
+                if record.get("document_id") or record.get("url")
+            }
+        )
+    issues: list[dict[str, Any]] = []
+    for filename, code in (
+        ("pack.score.json", "stale_pack_score_sidecar"),
+        ("pack.audit.json", "stale_pack_audit_sidecar"),
+    ):
+        path = pack_dir / filename
+        if not path.exists():
+            continue
+        payload = _read_json(path, required=False)
+        if not isinstance(payload, dict):
+            continue
+        summary_raw = payload.get("summary")
+        summary: dict[str, Any] = summary_raw if isinstance(summary_raw, dict) else {}
+        sidecar_record_count = _optional_int(summary.get("record_count"))
+        sidecar_document_count = _optional_int(summary.get("document_count"))
+        record_stale = sidecar_record_count is not None and sidecar_record_count != current_record_count
+        document_stale = (
+            sidecar_document_count is not None and sidecar_document_count != current_document_count
+        )
+        if not record_stale and not document_stale:
+            continue
+        issues.append(
+            _issue(
+                code,
+                (
+                    f"{filename} summary counts do not match the current context corpus: "
+                    f"record_count {sidecar_record_count} vs {current_record_count}, "
+                    f"document_count {sidecar_document_count} vs {current_document_count}. "
+                    "Regenerate pack trust artifacts."
+                ),
+                severity="error",
+                paths=[filename],
+            )
+        )
+    return issues
 
 
 def answer_pack(

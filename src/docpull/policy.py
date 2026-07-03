@@ -169,9 +169,22 @@ class RedactionPolicy(BaseModel):
     """Redaction policy for generated artifacts."""
 
     enabled: bool = True
+    backend: Literal["regex", "presidio", "hybrid"] = "regex"
+    language: str = "en"
+    entities: list[str] = Field(default_factory=list)
+    score_threshold: float = Field(0.0, ge=0.0, le=1.0)
     patterns: list[RedactionPattern] = Field(default_factory=list)
 
     model_config = {"extra": "forbid"}
+
+    @field_validator("entities", mode="before")
+    @classmethod
+    def _validate_entities(cls, value: Any) -> list[str]:
+        if value is None:
+            return []
+        if not isinstance(value, list):
+            raise ValueError("redaction.entities must be a list")
+        return _dedupe([str(item).strip().upper() for item in value if str(item).strip()])
 
 
 class FreshnessPolicy(BaseModel):
@@ -348,7 +361,7 @@ class PolicyConfig(BaseModel):
         lines.append(
             "redaction: "
             + (
-                f"enabled with {len(self.redaction.patterns)} pattern(s)"
+                f"{self.redaction.backend} backend with {len(self.redaction.patterns)} pattern(s)"
                 if self.redaction.enabled
                 else "disabled"
             )

@@ -11,12 +11,13 @@ import yaml
 from aiohttp import web
 from pydantic import ValidationError
 
-from docpull import ProfileName, Scraper, scrape_one
+from docpull import ProfileName
 from docpull.conversion.special_cases import _split_markdown_frontmatter
 from docpull.core.fetcher import Fetcher
 from docpull.models.config import DocpullConfig
 from docpull.pipeline.base import PageContext
 from docpull.pipeline.steps.save_okf import OkfSaveStep
+from docpull.scraper import Scraper, scrape_one
 from docpull.security.robots import RobotsChecker
 from docpull.security.url_validator import UrlValidator
 

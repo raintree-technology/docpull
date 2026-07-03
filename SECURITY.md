@@ -7,4 +7,3 @@ Do not open public issues for vulnerabilities, credentials, tokens, or customer 
 ## Secrets
 
 Secrets are managed in Infisical. Real `.env` files should not be committed or kept on development devices after migration.
-

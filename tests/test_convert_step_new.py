@@ -97,3 +97,50 @@ async def test_raw_markdown_frontmatter_is_not_duplicated():
     assert 'title: "---"' not in generated_frontmatter
     assert body_markdown.lstrip().startswith("# Body")
     assert "\ntitle: Original\n" not in body_markdown
+
+
+@pytest.mark.asyncio
+async def test_article_cleanup_removes_caption_labels_and_related_sections():
+    html = b"""
+    <html><body><article>
+      <h1>Rescue story</h1>
+      <p><strong>A survivor was rescued after eight days.</strong></p>
+      <p>Watch: rescue teams reach the survivor</p>
+      <p>ByJane ReporterBBC News</p>
+      <p>By Jane Reporter</p>
+      <p>BBC News</p>
+      <p>Published</p>
+      <p>Published 3 hours ago</p>
+      <p>2 July 2026, 12:31 BST</p>
+      <p>This video can not be played</p>
+      <p>Figure caption,</p>
+      <p><img src="/photo.jpg" alt="Rescue team">Image source, Example Agency</p>
+      <p>Image caption,</p>
+      <p>Short orphan caption</p>
+      <p>The main article continues with useful reported detail.</p>
+      <p>More on this story</p>
+      <ul><li><a href="/noise">Unrelated link</a></li></ul>
+    </article></body></html>
+    """
+    ctx = _page_context("https://www.bbc.co.uk/news/articles/example", html)
+    ctx.metadata["published_time"] = "2026-07-02T12:00:00Z"
+    step = ConvertStep(add_frontmatter=False)
+
+    result = await step.execute(ctx)
+
+    assert result.markdown is not None
+    assert "A survivor was rescued" in result.markdown
+    assert "The main article continues" in result.markdown
+    assert "Figure caption" not in result.markdown
+    assert "Watch:" not in result.markdown
+    assert "ByJane" not in result.markdown
+    assert "By Jane Reporter" not in result.markdown
+    assert "BBC News" not in result.markdown
+    assert "Published" not in result.markdown
+    assert "12:31 BST" not in result.markdown
+    assert "This video can not be played" not in result.markdown
+    assert "Image source" not in result.markdown
+    assert "Image caption" not in result.markdown
+    assert "Short orphan caption" not in result.markdown
+    assert "More on this story" not in result.markdown
+    assert "Unrelated link" not in result.markdown

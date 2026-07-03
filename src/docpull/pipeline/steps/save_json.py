@@ -13,6 +13,7 @@ from typing import TextIO
 from ...models.document import DocumentRecord
 from ...models.events import EventType, FetchEvent
 from ...models.run import RunIdentity
+from ...output_contract import OUTPUT_CONTRACT_SCHEMA_VERSION, document_context_fields
 from ...time_utils import utc_now_iso
 from ..base import EventEmitter, PageContext
 from ..manifest import CorpusManifest
@@ -114,6 +115,7 @@ class JsonSaveStep:
             extraction=ctx.extraction_info,
             source_type=ctx.source_type,
             run_identity=self._run_identity,
+            **document_context_fields(ctx, output_format="json"),
         )
         doc = record.model_dump(mode="json", exclude_none=True)
         self._manifest.add_record(record, self._output_file)
@@ -153,7 +155,8 @@ class JsonSaveStep:
             # No documents written - create empty structure
             self._base_dir.mkdir(parents=True, exist_ok=True)
             output = {
-                "schema_version": 1,
+                "schema_version": OUTPUT_CONTRACT_SCHEMA_VERSION,
+                "output_contract_version": OUTPUT_CONTRACT_SCHEMA_VERSION,
                 "generated_at": utc_now_iso(),
                 "run": self._run_identity.model_dump(mode="json") if self._run_identity else None,
                 "document_count": 0,
@@ -167,7 +170,8 @@ class JsonSaveStep:
 
         try:
             self._temp_file.write("\n  ],\n")
-            self._temp_file.write('  "schema_version": 1,\n')
+            self._temp_file.write(f'  "schema_version": {OUTPUT_CONTRACT_SCHEMA_VERSION},\n')
+            self._temp_file.write(f'  "output_contract_version": {OUTPUT_CONTRACT_SCHEMA_VERSION},\n')
             self._temp_file.write(f'  "generated_at": "{utc_now_iso()}",\n')
             if self._run_identity:
                 run_json = json.dumps(self._run_identity.model_dump(mode="json"), ensure_ascii=False)

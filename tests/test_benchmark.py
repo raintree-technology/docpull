@@ -13,10 +13,18 @@ from typing import Any
 import pytest
 
 import docpull.benchmark as benchmark
-from docpull.benchmark import BenchmarkError, run_quick_benchmark
-from docpull.cli import main
+from docpull.benchmark import BenchmarkError, run_benchmark_cli, run_quick_benchmark
 from docpull.models.events import EventType, SkipReason
 from tests.pack_fixtures import write_context_pack
+
+pytestmark = pytest.mark.internal_legacy
+
+
+def main(argv: list[str]) -> int:
+    command, *rest = argv
+    if command == "benchmark":
+        return run_benchmark_cli(rest)
+    raise AssertionError(f"Unexpected benchmark CLI command: {command}")
 
 
 async def _fake_core_case(**kwargs: Any) -> dict[str, Any]:

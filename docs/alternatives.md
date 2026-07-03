@@ -21,7 +21,7 @@ tool.
 | Automate a real browser or interact with JavaScript-heavy pages | Playwright, Puppeteer, Selenium | Required when useful content only exists after client-side rendering or interaction |
 | Build browser-backed crawlers in the JavaScript ecosystem | Crawlee | Strong fit for JavaScript/TypeScript crawling stacks |
 | Use a hosted web-to-LLM extraction service | Firecrawl, Jina Reader, hosted extraction APIs | Useful when you want an API service to manage crawling/extraction infrastructure |
-| Search the live web and then build a local context pack | DocPull with Parallel/Tavily/Exa provider extras | Search providers find sources; DocPull normalizes selected sources into local artifacts |
+| Search the live web before building a pack | Dedicated search/extract providers, then DocPull source ingestion | Search providers find candidate sources; DocPull's public release contract starts when selected sources are fetched, parsed, packed, and validated locally |
 
 ## Where DocPull Is Strongest
 
@@ -46,8 +46,7 @@ tool.
 - CAPTCHA, anti-bot, residential proxy, or evasion workflows.
 - Full custom crawler infrastructure with domain-specific queues, item
   pipelines, or storage backends.
-- Search-engine style discovery across the open web without a provider such as
-  Parallel, Tavily, or Exa.
+- Search-engine style discovery across the open web.
 
 ## Comparison Matrix
 
@@ -75,6 +74,7 @@ If you need a single page inside an agent loop:
 docpull https://example.com/pricing --single
 ```
 
-If you need browser interaction, use browser automation, such as Playwright. If
-you need open-web source discovery before extraction, use a search/extract
-provider and then normalize the selected sources into a DocPull context pack.
+If you need browser interaction, use browser automation outside DocPull. If you
+need open-web source discovery before extraction, use a dedicated search or
+research service separately, then feed selected URLs, files, or specs through
+DocPull's local fetch, parse, OpenAPI, pack, validation, and export workflow.

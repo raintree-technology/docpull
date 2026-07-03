@@ -62,7 +62,7 @@ from .time_utils import utc_now_iso
 PACK_SCHEMA_VERSION = 1
 DEFAULT_OUTPUT_DIR = Path("packs/parallel-context-pack")
 PARALLEL_API_KEY_ENV = "PARALLEL_API_KEY"
-PARALLEL_INSTALL_COMMAND = "pip install 'docpull[parallel]'"
+PARALLEL_INSTALL_COMMAND = "pip install parallel-web"
 PARALLEL_API_KEY_COMMAND = f'export {PARALLEL_API_KEY_ENV}="<your-parallel-api-key>"'
 PARALLEL_SECRETS_FILENAME = SECRETS_FILENAME
 PARALLEL_PROJECT_ENV_FILENAME = PROJECT_ENV_FILENAME

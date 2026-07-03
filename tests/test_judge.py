@@ -1,4 +1,4 @@
-"""Tests for the LLM-judge dimension stub.
+"""Tests for the advisory private benchmark judge.
 
 We never call out to the real Anthropic API in tests. The judge accepts a
 ``client`` callable so we inject canned responses; the default code path

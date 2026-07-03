@@ -45,7 +45,7 @@ Send messages to Claude using the Messages API...`,
 ├── getting-started.md
 ├── streaming.md
 ├── tools.md
-└── providers.md
+└── models.md
 
 ./.claude/skills/vercel-ai/SKILL.md:
 
@@ -66,61 +66,38 @@ source: https://sdk.vercel.ai/docs/getting-started
 Install the Vercel AI SDK to build AI-powered applications...`,
   },
   {
-    id: "parallel",
-    name: "Parallel",
-    code: `docpull parallel context-pack "Track Parallel Web Systems API sources" \\
-  --query "Parallel Search API docs" \\
-  --query "Parallel Extract API docs" \\
-  --include-domain parallel.ai \\
-  --include-domain docs.parallel.ai \\
-  --exclude-domain onparallel.com \\
-  --extract-limit 3 \\
-  --max-estimated-cost 0.05 \\
-  --task-brief \\
-  --output-dir ./packs/parallel-sources
-
-docpull pack score ./packs/parallel-sources --require-domain parallel.ai
-docpull pack sources ./packs/parallel-sources --require-domain docs.parallel.ai`,
-    output: `./packs/parallel-sources/
-├── AGENT_CONTEXT.md
+    id: "pack",
+    name: "v3 Pack",
+    code: `docpull https://docs.example.com -o ./packs/docs
+docpull pack validate ./packs/docs --level raw
+docpull pack prepare ./packs/docs --eval-grade
+docpull pack validate ./packs/docs --level eval
+docpull export ./packs/docs --format openai-vector-jsonl -o ./exports/docs.jsonl`,
+    output: `./packs/docs/
 ├── documents.ndjson
 ├── corpus.manifest.json
-├── parallel.pack.json
+├── acquisition.routes.json
 ├── sources.md
-├── brief.md
-└── sources/
-    ├── 01-parallel.md
-    └── 02-parallel-documentation.md
+├── context.lock.json
+├── coverage.report.json
+├── citation.index.json
+├── pack.score.json
+├── pack.audit.json
+├── rights.manifest.json
+├── provenance.graph.json
+└── PACK_CARD.md
 
-AGENT_CONTEXT.md:
-- Load documents.ndjson for chunked records
-- Use sources.md for source order
-- Review Source Scores before loading low-signal URLs
-- Inspect parallel.pack.json for IDs, usage, warnings, and errors
-
-parallel.pack.json:
+pack validate:
 {
-  "provider": "parallel",
-  "workflow": "context-pack",
-  "session_id": "session_example_parallel_context_pack",
-  "estimated_cost_usd": 0.013,
-  "request_options": {
-    "source_policy": {
-      "include_domains": ["parallel.ai", "docs.parallel.ai"],
-      "exclude_domains": ["onparallel.com"]
-    }
-  },
-  "extract_result_count": 2,
-  "extract_error_count": 1,
-  "artifacts": {
-    "agent_context": "AGENT_CONTEXT.md",
-    "documents_ndjson": "documents.ndjson",
-    "sources": "sources.md"
-  }
+  "schema_version": "3",
+  "level": "eval",
+  "ok": true,
+  "required_sidecars": "present",
+  "citation_index": "valid"
 }
 
-Pack score: 95/100 (excellent; one extract error preserved)
-Source scores: 2 sources -> source.scores.json`,
+./exports/docs.jsonl:
+{"custom_id":"S1.1","body":{"input":"..."}}`,
   },
   {
     id: "python",

@@ -9,7 +9,17 @@ from types import SimpleNamespace
 import pytest
 
 from docpull import provider_cli
-from docpull.cli import main
+
+pytestmark = pytest.mark.internal_legacy
+
+
+def main(argv: list[str]) -> int:
+    command, *rest = argv
+    if command == "providers":
+        return provider_cli.run_provider_cli(rest)
+    if command in {"tavily", "exa"}:
+        return provider_cli.run_provider_extension_cli(command, rest)
+    raise AssertionError(f"Unexpected provider CLI command: {command}")
 
 
 def test_provider_extension_help_is_actionable(

@@ -18,6 +18,7 @@ from .common import (
     ContextPackRun,
     PageSnapshot,
     artifact_ref,
+    asset_allowed_domains_for_domain,
     domain_from_input,
     ensure_policy_for_domain,
     fetch_context_asset_bytes,
@@ -188,13 +189,14 @@ async def _fetch_css(url: str, *, domain: str, run: ContextPackRun) -> str | Non
         )
         return None
     host = (urlparse(url).hostname or "").lower().rstrip(".")
-    if not host or not policy_domain_matches(host, domain):
+    allowed_domains = asset_allowed_domains_for_domain(domain)
+    if not host or not any(policy_domain_matches(host, allowed) for allowed in allowed_domains):
         run.warn("stylesheet_rejected", "Stylesheet outside allowed domain.", url=url)
         return None
     try:
         response = await fetch_context_asset_bytes(
             url,
-            allowed_domains=[domain],
+            allowed_domains=allowed_domains,
             allowed_content_types={"text/css", "text/plain"},
             max_bytes=MAX_STYLESHEET_BYTES,
         )

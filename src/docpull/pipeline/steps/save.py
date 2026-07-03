@@ -7,6 +7,7 @@ from pathlib import Path
 from ...models.document import DocumentRecord
 from ...models.events import EventType, FetchEvent, SkipReason
 from ...models.run import RunIdentity
+from ...output_contract import document_context_fields
 from ...skill_export import SkillAgent, export_agent_skill
 from ..base import EventEmitter, PageContext
 from ..manifest import CorpusManifest
@@ -172,6 +173,7 @@ class SaveStep:
                             extraction=ctx.extraction_info,
                             source_type=ctx.source_type,
                             run_identity=self._run_identity,
+                            **document_context_fields(ctx, output_format="markdown"),
                             chunk_index=idx,
                             chunk_heading=getattr(chunk, "heading", None),
                             token_count=getattr(chunk, "token_count", None),
@@ -198,6 +200,7 @@ class SaveStep:
                         extraction=ctx.extraction_info,
                         source_type=ctx.source_type,
                         run_identity=self._run_identity,
+                        **document_context_fields(ctx, output_format="markdown"),
                     )
                     self._manifest.add_record(record, validated_path)
 

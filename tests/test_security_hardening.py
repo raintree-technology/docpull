@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import socket
 import sys
 from pathlib import Path
@@ -85,6 +86,14 @@ class _FakeSession:
     def head(self, url: str, **kwargs: object) -> _FakeRequestContext:
         self.calls.append((url, kwargs))
         return _FakeRequestContext(self._responses.pop(0))
+
+
+class _FailingSession:
+    def __init__(self, error: BaseException) -> None:
+        self._error = error
+
+    def get(self, url: str, **kwargs: object) -> _FakeRequestContext:
+        raise self._error
 
 
 class TestUrlValidatorResolution:
@@ -339,6 +348,63 @@ class TestRedirectValidation:
     def test_robots_checker_rejects_insecure_tls_override(self) -> None:
         with pytest.raises(ValueError, match="Insecure TLS is not supported"):
             RobotsChecker(allow_insecure_tls=True)
+
+    @pytest.mark.asyncio
+    async def test_retry_status_logging_redacts_url_credentials(
+        self,
+        caplog: pytest.LogCaptureFixture,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        async def no_sleep(_delay: float) -> None:
+            return None
+
+        monkeypatch.setattr("docpull.http.client.asyncio.sleep", no_sleep)
+        client = AsyncHttpClient(rate_limiter=_DummyRateLimiter(), max_retries=1)
+        client._session = _FakeSession(
+            [
+                _FakeResponse(500, url="https://user:password@example.com/path?token=secret"),
+                _FakeResponse(
+                    200,
+                    headers={"Content-Type": "text/plain"},
+                    chunks=[b"ok"],
+                    url="https://user:password@example.com/path?token=secret",
+                ),
+            ]
+        )
+
+        with caplog.at_level(logging.WARNING, logger="docpull.http.client"):
+            await client.get("https://user:password@example.com/path?token=secret")
+
+        assert "[redacted]@example.com" in caplog.text
+        assert "token=%5Bredacted%5D" in caplog.text
+        assert "password" not in caplog.text
+        assert "secret" not in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_retry_exception_logging_does_not_log_exception_secrets(
+        self,
+        caplog: pytest.LogCaptureFixture,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        async def no_sleep(_delay: float) -> None:
+            return None
+
+        monkeypatch.setattr("docpull.http.client.asyncio.sleep", no_sleep)
+        client = AsyncHttpClient(rate_limiter=_DummyRateLimiter(), max_retries=1)
+        client._session = _FailingSession(
+            aiohttp.ClientError("could not fetch https://user:password@example.com/path?token=secret")
+        )
+
+        with (
+            caplog.at_level(logging.WARNING, logger="docpull.http.client"),
+            pytest.raises(aiohttp.ClientError),
+        ):
+            await client.get("https://user:password@example.com/path?token=secret")
+
+        assert "[redacted]@example.com" in caplog.text
+        assert "ClientError" in caplog.text
+        assert "password" not in caplog.text
+        assert "secret" not in caplog.text
 
     def test_robots_checker_stops_on_unsafe_redirect(self, monkeypatch: pytest.MonkeyPatch) -> None:
         validator = MagicMock()

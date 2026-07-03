@@ -1,0 +1,131 @@
+{
+  "schema_version": 1,
+  "claims": [
+    {
+      "area": "Core fetch/output",
+      "claim": "DocPull writes raw v3 sidecars for Markdown, JSON, NDJSON, SQLite, and OKF output formats.",
+      "references": [
+        {"type": "code", "path": "src/docpull/output_contract.py"},
+        {"type": "test", "path": "tests/test_outputs_e2e.py"},
+        {"type": "doc", "path": "docs/context-pack-contract-v3.md"}
+      ]
+    },
+    {
+      "area": "v3 pack contract",
+      "claim": "The v3 pack validator checks raw, agent, and eval artifacts and reports specific issue codes.",
+      "references": [
+        {"type": "code", "path": "src/docpull/output_contract.py"},
+        {"type": "test", "path": "tests/test_output_contract.py"},
+        {"type": "doc", "path": "docs/context-pack-contract-v3.md"}
+      ]
+    },
+    {
+      "area": "Typed packs",
+      "claim": "Typed pack lanes cover OpenAPI, feed, paper, repo, package, standards, dataset, transcript, and wiki sources.",
+      "references": [
+        {"type": "code", "path": "src/docpull/context_packs"},
+        {"type": "test", "path": "tests/test_typed_knowledge_packs.py"},
+        {"type": "doc", "path": "docs/context-packs.md"}
+      ]
+    },
+    {
+      "area": "Exports",
+      "claim": "Public export formats preserve DocPull provenance for JSONL, agent skill, Cursor rule, workflow JSON, sheet, warehouse, and Parquet outputs.",
+      "references": [
+        {"type": "code", "path": "src/docpull/exports.py"},
+        {"type": "test", "path": "tests/test_exports.py"},
+        {"type": "doc", "path": "docs/context-packs.md"}
+      ]
+    },
+    {
+      "area": "Context CI",
+      "claim": "Context CI gates pack quality, audit score, coverage, citations, freshness, rights, basis quality, and prediction checks.",
+      "references": [
+        {"type": "code", "path": "src/docpull/context_ci.py"},
+        {"type": "test", "path": "tests/test_context_ci.py"},
+        {"type": "doc", "path": "docs/context-ci.md"}
+      ]
+    },
+    {
+      "area": "Project workflow",
+      "claim": "Projects support init, add, install, sync, deps, status, history, review, diff, release, ci, and watch workflows.",
+      "references": [
+        {"type": "code", "path": "src/docpull/project.py"},
+        {"type": "test", "path": "tests/test_project.py"},
+        {"type": "doc", "path": "docs/context-dependencies.md"}
+      ]
+    },
+    {
+      "area": "Graph",
+      "claim": "Local graph workflows build, query, inspect neighbors, report status, and refresh cited graph sidecars.",
+      "references": [
+        {"type": "code", "path": "src/docpull/graph.py"},
+        {"type": "test", "path": "tests/test_graph.py"},
+        {"type": "doc", "path": "docs/context-packs.md"}
+      ]
+    },
+    {
+      "area": "MCP",
+      "claim": "The supported MCP surface is the Python stdio server and the public tool list in the surface registry.",
+      "references": [
+        {"type": "code", "path": "src/docpull/mcp/server.py"},
+        {"type": "test", "path": "tests/test_mcp_server.py"},
+        {"type": "doc", "path": "docs/surface-contract.md"}
+      ]
+    },
+    {
+      "area": "Render",
+      "claim": "Render support is explicit, bounded, and optional, with local and cloud backend checks rather than a private-portal promise.",
+      "references": [
+        {"type": "code", "path": "src/docpull/rendering.py"},
+        {"type": "test", "path": "tests/test_rendering.py"},
+        {"type": "doc", "path": "README.md"}
+      ]
+    },
+    {
+      "area": "Auth",
+      "claim": "Authenticated-source preflights support bearer, basic, cookie, and custom-header credentials without persisting secret values.",
+      "references": [
+        {"type": "code", "path": "src/docpull/auth_cli.py"},
+        {"type": "test", "path": "tests/test_auth_cli.py"},
+        {"type": "doc", "path": "docs/context-dependencies.md"}
+      ]
+    },
+    {
+      "area": "Monitor",
+      "claim": "Local monitors support init, list, run, trigger, pause, unpause, scheduler snippets, and reports.",
+      "references": [
+        {"type": "code", "path": "src/docpull/monitor.py"},
+        {"type": "test", "path": "tests/test_monitor.py"},
+        {"type": "doc", "path": "docs/context-dependencies.md"}
+      ]
+    },
+    {
+      "area": "Security/static quality",
+      "claim": "Release security gates include Python static checks, dependency audit, secret scanning, and security regression tests.",
+      "references": [
+        {"type": "code", "path": ".github/workflows/security.yml"},
+        {"type": "test", "path": "tests/test_security_hardening.py"},
+        {"type": "doc", "path": "docs/surface-contract.md"}
+      ]
+    },
+    {
+      "area": "Web/docs copy",
+      "claim": "Release-facing documentation is checked against the public surface registry and claim-audit manifest.",
+      "references": [
+        {"type": "code", "path": "src/docpull/surface.py"},
+        {"type": "test", "path": "tests/test_surface_contract.py"},
+        {"type": "doc", "path": "docs/surface-contract.md"}
+      ]
+    },
+    {
+      "area": "Release hygiene",
+      "claim": "Strict release readiness fails unless generated release metadata is synchronized and the working tree is clean.",
+      "references": [
+        {"type": "code", "path": "scripts/release_a_plus_check.py"},
+        {"type": "test", "path": "tests/test_release_a_plus_check_script.py"},
+        {"type": "doc", "path": "README.md"}
+      ]
+    }
+  ]
+}

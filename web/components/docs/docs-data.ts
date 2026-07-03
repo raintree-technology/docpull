@@ -11,7 +11,7 @@ export type DocsNavGroup = {
 
 export type DocsTableRow = readonly [name: string, description: string];
 
-export const overviewBadges = ["v5.0.0", "Python 3.10+"] as const;
+export const overviewBadges = ["v6.0.0", "Python 3.10+"] as const;
 
 export const docsNav = [
   {
@@ -21,6 +21,7 @@ export const docsNav = [
       { label: "Install", href: "#install" },
       { label: "Quickstart", href: "#quickstart" },
       { label: "Outputs", href: "#outputs" },
+      { label: "Pack contract", href: "#pack-contract" },
       { label: "Profiles", href: "#profiles" },
     ],
   },
@@ -32,7 +33,7 @@ export const docsNav = [
       { label: "MCP server", href: "#mcp-server" },
       { label: "Agent skills", href: "#agent-skills" },
       { label: "Rendering fallback", href: "#rendering" },
-      { label: "Provider workflows", href: "#providers" },
+      { label: "Context CI", href: "#context-ci" },
     ],
   },
   {
@@ -51,6 +52,8 @@ export const toc = [
   { label: "Install", href: "#install" },
   { label: "Quickstart", href: "#quickstart" },
   { label: "Outputs", href: "#outputs" },
+  { label: "Local inputs", href: "#local-inputs" },
+  { label: "Pack contract", href: "#pack-contract" },
   { label: "Profiles", href: "#profiles" },
   { label: "MCP server", href: "#mcp-server" },
   { label: "Rendering", href: "#rendering" },

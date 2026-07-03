@@ -11,7 +11,6 @@ from types import SimpleNamespace
 import pytest
 
 from docpull import discovery_cli
-from docpull.cli import main
 from docpull.discovery.contracts import (
     CandidateSourceRecord,
     normalize_provider_response,
@@ -22,6 +21,13 @@ from docpull.discovery.contracts import (
 )
 from docpull.http.protocols import HttpResponse
 from docpull.policy import PolicyConfig
+
+
+def main(argv: list[str]) -> int:
+    command, *rest = argv
+    if command == "discover":
+        return discovery_cli.run_discovery_cli(rest)
+    raise AssertionError(f"Unexpected discovery CLI command: {command}")
 
 
 def _candidate(url: str, *, score: float, rank: int = 1, title: str | None = None) -> CandidateSourceRecord:
@@ -297,9 +303,14 @@ def test_site_scan_collects_local_open_discovery_candidates() -> None:
         "https://docs.example.com": (
             """
 <html><head>
+  <title>Example Website</title>
+  <link rel="canonical" href="/">
   <link rel="alternate" type="application/rss+xml" href="/feed.xml">
   <link rel="service-desc" href="/openapi.json">
-</head></html>
+</head><body>
+  <a href="/pricing">Pricing</a>
+  <a href="/about">About</a>
+</body></html>
 """,
             "text/html",
         ),
@@ -362,12 +373,16 @@ def test_site_scan_collects_local_open_discovery_candidates() -> None:
 
     by_url = {record.url: record for record in records}
     assert "https://docs.example.com/llms.txt" in by_url
+    assert "https://docs.example.com" in by_url
+    assert "https://docs.example.com/pricing" in by_url
+    assert "https://docs.example.com/about" in by_url
     assert "https://docs.example.com/guide" in by_url
     assert "https://docs.example.com/releases" in by_url
     assert "https://docs.example.com/openapi.json" in by_url
     assert "https://docs.example.com/api/reference" in by_url
     assert "https://docs.example.com/reference/sitemap-page" in by_url
     assert {record.metadata["discovery_engine"] for record in records} >= {
+        "links",
         "llms",
         "feeds",
         "openapi",

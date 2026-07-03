@@ -17,7 +17,6 @@ Read-only:
 - ``pack_citations(pack_dir, required_domains?)`` — build a stable source map.
 - ``pack_entities(pack_dir, limit?, required_domains?)`` — extract cited entities.
 - ``pack_search(pack_dir, query, limit?, required_domains?)`` — search pack records.
-- ``answer_pack(pack_dir, question, ...)`` — answer from local evidence.
 - ``pack_brief(pack_dir, objective?, ...)`` — generate a cited local research brief.
 - ``graph_status(pack_dir)`` — report whether local graph artifacts are current.
 - ``graph_query(pack_dir, query, limit?)`` — search graph nodes and cited edge evidence.
@@ -27,15 +26,6 @@ Read-only:
 
 Write:
 - ``ensure_docs(source, force?)`` — fetch (or refresh) a named source alias.
-- ``parallel_context_pack(...)`` — build or dry-run a Parallel context pack.
-- ``discover_sources(urls, ...)`` — create a provider-neutral discovery pack.
-- ``fetch_discovered_sources(discovery_pack_dir, ...)`` — select discovery candidates.
-- ``extract_pack(url_file, ...)`` — fetch known URLs into a local parity pack.
-- ``map_sources(input_path, source_type, ...)`` — create a URL-only map/discovery pack.
-- ``crawl_pack(input_path, ...)`` — select mapped candidates and fetch a local pack.
-- ``research_pack(pack_dir, objective, ...)`` — write local research lifecycle artifacts.
-- ``entities_pack(pack_dir, ...)`` — write local entity/list lifecycle artifacts.
-- ``parallel_api_pack(source, kind?, output_dir?)`` — build an API pack.
 - ``pack_prepare(pack_dir, objective?, ...)`` — write standard pack intelligence artifacts.
 - ``graph_build(pack_dir, entity_limit?)`` — write local source graph sidecars.
 - ``graph_refresh(pack_dir, entity_limit?)`` — rebuild graph sidecars and write graph.diff.json.
@@ -56,7 +46,6 @@ from pathlib import Path
 from typing import Any, Literal, cast
 
 from ..accounting import (
-    ACCOUNTING_ARTIFACT,
     RunAccounting,
     blocked_action,
     budget_block_payload,
@@ -65,26 +54,10 @@ from ..accounting import (
     maybe_write_run_accounting,
     paid_action_blocked,
 )
-from ..context_packs import (
-    build_brand_pack,
-    build_image_pack,
-    build_product_pack,
-    build_search_pack,
-    build_styleguide_pack,
-    capture_screenshot_pack,
-    extract_schema,
-)
-from ..discovery import (
-    CandidateSourceRecord,
-    read_candidate_records,
-    select_candidate_records,
-    write_discovery_pack,
-    write_selected_sources,
-)
 from ..exports import EXPORT_FORMATS
 from ..exports import export_pack as export_local_pack
 from ..graph import build_graph, graph_neighbors, graph_status, query_graph, refresh_graph
-from ..local_workflows import answer_pack, audit_pack, refresh_pack
+from ..local_workflows import audit_pack, refresh_pack
 from ..pack_reader import load_pack
 from ..pack_tools import (
     build_citation_map,
@@ -95,34 +68,9 @@ from ..pack_tools import (
     score_pack,
     search_pack,
 )
-from ..parallel_workflows import (
-    DEFAULT_MAX_ESTIMATED_COST_USD,
-    DEFAULT_MAX_TOKENS,
-    _build_fetch_policy,
-    _build_request_options,
-    _build_source_policy,
-    estimate_context_pack_cost,
-    run_api_pack,
-    run_live_context_pack,
-)
-from ..parity import (
-    crawl_pack as run_crawl_pack,
-)
-from ..parity import (
-    entities_pack as run_entities_pack,
-)
-from ..parity import (
-    extract_pack as run_extract_pack,
-)
-from ..parity import (
-    map_sources as run_map_sources,
-)
-from ..parity import (
-    research_pack as run_research_pack,
-)
 from ..policy import PolicyConfig
 from ..rendering import render_url_to_directory
-from ..time_utils import utc_now_iso
+from ..surface import PRUNED_MCP_TOOLS
 from .tools import (
     ToolResult,
     add_source,
@@ -318,18 +266,6 @@ _REMOVE_SOURCE_OUTPUT_SCHEMA = {
     "required": ["name", "removed", "cache_deleted"],
 }
 
-_PARALLEL_PACK_OUTPUT_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "workflow": {"type": "string"},
-        "output_dir": {"type": "string"},
-        "dry_run": {"type": "boolean"},
-        "estimated_cost_usd": {"type": "number"},
-        "accounting": _ACCOUNTING_OUTPUT_SCHEMA,
-    },
-    "required": ["workflow", "output_dir"],
-}
-
 _PACK_SCORE_OUTPUT_SCHEMA = {
     "type": "object",
     "properties": {
@@ -514,19 +450,6 @@ _AUDIT_PACK_OUTPUT_SCHEMA = {
     "required": ["score", "grade", "passed", "summary", "dimensions"],
 }
 
-_ANSWER_PACK_OUTPUT_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "question": {"type": "string"},
-        "answer": {"type": "object"},
-        "search": {"type": "object"},
-        "brief": {"type": "object"},
-        "artifacts": {"type": "object"},
-        "accounting": _ACCOUNTING_OUTPUT_SCHEMA,
-    },
-    "required": ["question", "answer", "search", "artifacts"],
-}
-
 _VALIDATE_POLICY_OUTPUT_SCHEMA = {
     "type": "object",
     "properties": {
@@ -557,28 +480,6 @@ _RENDER_URL_OUTPUT_SCHEMA = {
     "required": ["url", "backend"],
 }
 
-_DISCOVER_SOURCES_OUTPUT_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "output_dir": {"type": "string"},
-        "candidate_count": {"type": "integer"},
-        "skipped_count": {"type": "integer"},
-        "artifacts": {"type": "object"},
-        "skipped": {"type": "array"},
-    },
-    "required": ["output_dir", "candidate_count", "skipped_count", "artifacts"],
-}
-
-_FETCH_DISCOVERED_OUTPUT_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "source_pack": {"type": "string"},
-        "selected_count": {"type": "integer"},
-        "artifacts": {"type": "object"},
-    },
-    "required": ["source_pack", "selected_count", "artifacts"],
-}
-
 _EXPORT_PACK_OUTPUT_SCHEMA = {
     "type": "object",
     "properties": {
@@ -601,38 +502,6 @@ _SERVE_PACK_STATUS_OUTPUT_SCHEMA = {
         "sqlite_fts_available": {"type": "boolean"},
     },
     "required": ["status", "pack_dir", "document_count", "source_count"],
-}
-
-_PARITY_WORKFLOW_OUTPUT_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "workflow": {"type": "string"},
-        "provider": {"type": "string"},
-        "run_id": {"type": "string"},
-        "status": {"type": "string"},
-        "output_dir": {"type": "string"},
-        "summary": {"type": "object"},
-        "artifacts": {"type": "object"},
-        "local_first_limits": {"type": "array", "items": {"type": "string"}},
-    },
-    "required": ["workflow", "provider", "run_id", "status", "output_dir", "summary", "artifacts"],
-}
-
-_CONTEXT_PACK_OUTPUT_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "schema_version": {"type": "integer"},
-        "generated_at": {"type": "string"},
-        "workflow": {"type": "string"},
-        "provider": {"type": "string"},
-        "status": {"type": "string"},
-        "input": {"type": "object"},
-        "summary": {"type": "object"},
-        "artifacts": {"type": "object"},
-        "warnings": {"type": "array", "items": {"type": "object"}},
-        "errors": {"type": "array", "items": {"type": "object"}},
-    },
-    "required": ["schema_version", "generated_at", "workflow", "provider", "status", "summary"],
 }
 
 
@@ -677,20 +546,6 @@ def _path_arg(arguments: dict[str, Any], key: str, default: str | None = None) -
     return Path(value)
 
 
-def _optional_path_arg(arguments: dict[str, Any], key: str) -> Path | None:
-    value = arguments.get(key)
-    if value is None:
-        return None
-    if not isinstance(value, str) or not value:
-        raise ValueError(f"'{key}' must be a non-empty path string")
-    return Path(value)
-
-
-def _policy_arg(arguments: dict[str, Any]) -> PolicyConfig:
-    policy_path = _optional_path_arg(arguments, "policy_path")
-    return PolicyConfig.from_file(policy_path) if policy_path else PolicyConfig()
-
-
 def _read_accounting_payload(path: Path) -> dict[str, Any] | None:
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
@@ -724,10 +579,6 @@ def _mcp_accounting_payload(
     return accounting.to_dict()
 
 
-def _pack_accounting_payload(pack_dir: Path) -> dict[str, Any] | None:
-    return _read_accounting_payload(pack_dir / ACCOUNTING_ARTIFACT)
-
-
 async def _dispatch_tool(
     name: str,
     arguments: dict[str, Any],
@@ -736,6 +587,9 @@ async def _dispatch_tool(
 ) -> ToolResult:
     """Run one MCP tool and return the transport-neutral tool result."""
     try:
+        if name in PRUNED_MCP_TOOLS:
+            raise ValueError(f"Unknown tool: {name}")
+
         if name == "fetch_url":
             url = _require_str(arguments, "url")
             max_tokens = _coerce_int(arguments.get("max_tokens"), name="max_tokens", default=0)
@@ -773,7 +627,7 @@ async def _dispatch_tool(
             budget_limit = effective_budget_limit(
                 float(budget_arg) if budget_arg is not None else None,
                 float(cloud_max_estimated_cost)
-                if cloud_max_estimated_cost is not None and backend != "agent-browser"
+                if cloud_max_estimated_cost is not None and backend in {"vercel-sandbox", "e2b-sandbox"}
                 else None,
             )
             template = arguments.get("template")
@@ -931,483 +785,6 @@ async def _dispatch_tool(
                 line_end=_coerce_int(line_end, name="line_end", default=0) or None,
             )
 
-        elif name == "parallel_context_pack":
-            objective = _require_str(arguments, "objective")
-            queries = _string_list_arg(arguments, "queries") or [objective]
-            extract_limit = _coerce_int(arguments.get("extract_limit"), name="extract_limit", default=8)
-            if extract_limit < 1 or extract_limit > 20:
-                raise ValueError("'extract_limit' must be between 1 and 20")
-            max_search_results = (
-                _coerce_int(arguments.get("max_search_results"), name="max_search_results", default=0) or None
-            )
-            source_policy = _build_source_policy(
-                include_domains=_string_list_arg(arguments, "include_domains"),
-                exclude_domains=_string_list_arg(arguments, "exclude_domains"),
-                after_date=arguments.get("after_date")
-                if isinstance(arguments.get("after_date"), str)
-                else None,
-            )
-            fetch_policy = _build_fetch_policy(
-                max_age_seconds=None,
-                timeout_seconds=None,
-                disable_cache_fallback=False,
-            )
-            estimated_cost = estimate_context_pack_cost(
-                extract_limit=extract_limit,
-                max_search_results=max_search_results,
-            )
-            max_estimated_cost = float(arguments.get("max_estimated_cost", DEFAULT_MAX_ESTIMATED_COST_USD))
-            budget_arg = arguments.get("budget")
-            if budget_arg is not None and not isinstance(budget_arg, int | float):
-                raise ValueError("'budget' must be a number")
-            budget_limit = effective_budget_limit(
-                max_estimated_cost,
-                float(budget_arg) if budget_arg is not None else None,
-            )
-            output_dir = _path_arg(arguments, "output_dir", "packs/parallel-context-pack")
-            request_options = _build_request_options(
-                source_policy=source_policy,
-                fetch_policy=fetch_policy,
-                excerpt_chars_per_result=None,
-                location=None,
-                max_search_results=max_search_results,
-                max_search_chars_total=None,
-                max_extract_chars_total=None,
-                max_full_content_chars=50000,
-                client_model=arguments.get("client_model")
-                if isinstance(arguments.get("client_model"), str)
-                else None,
-                full_content=True,
-            )
-            blocked_by_budget = paid_action_blocked(budget_limit, estimated_cost_usd=estimated_cost)
-            accounting = RunAccounting(
-                budget_limit_usd=budget_limit,
-                estimated_paid_cost_usd=estimated_cost,
-                route_steps=default_route_steps(
-                    include_provider=True,
-                    budget_limit_usd=budget_limit,
-                ),
-                command="mcp parallel_context_pack",
-                metadata={
-                    "mcp_tool": "parallel_context_pack",
-                    "objective": objective,
-                    "query_count": len(queries),
-                    "extract_limit": extract_limit,
-                    "max_search_results": max_search_results,
-                },
-            )
-            if blocked_by_budget:
-                accounting.blocked_actions.append(
-                    blocked_action(
-                        "parallel:context-pack",
-                        budget_limit_usd=budget_limit,
-                        estimated_cost_usd=estimated_cost,
-                        provider="parallel",
-                    )
-                )
-            if bool(arguments.get("dry_run", False)):
-                blocked = (
-                    budget_block_payload(
-                        "parallel:context-pack",
-                        budget_limit_usd=budget_limit,
-                        estimated_cost_usd=estimated_cost,
-                        provider="parallel",
-                    )
-                    if blocked_by_budget
-                    else {}
-                )
-                accounting_payload = _mcp_accounting_payload(
-                    accounting,
-                    output_dir=None,
-                    budget_limit_usd=budget_limit,
-                    paid_capable=True,
-                )
-                result = ToolResult(
-                    "Parallel context pack dry run.",
-                    data={
-                        "workflow": "context-pack",
-                        "output_dir": str(output_dir),
-                        "dry_run": True,
-                        "estimated_cost_usd": estimated_cost,
-                        "budget_limit_usd": budget_limit,
-                        "request_options": request_options,
-                        **blocked,
-                        "accounting": accounting_payload,
-                    },
-                )
-            else:
-                if blocked_by_budget:
-                    accounting_payload = _mcp_accounting_payload(
-                        accounting,
-                        output_dir=output_dir,
-                        budget_limit_usd=budget_limit,
-                        paid_capable=True,
-                    )
-                    result = ToolResult(
-                        "Parallel context pack blocked by budget before provider call.",
-                        data={
-                            "workflow": "context-pack",
-                            "output_dir": str(output_dir),
-                            "dry_run": False,
-                            "estimated_cost_usd": estimated_cost,
-                            "budget_limit_usd": budget_limit,
-                            "request_options": request_options,
-                            **budget_block_payload(
-                                "parallel:context-pack",
-                                budget_limit_usd=budget_limit,
-                                estimated_cost_usd=estimated_cost,
-                                provider="parallel",
-                            ),
-                            "accounting": accounting_payload,
-                        },
-                    )
-                elif estimated_cost > max_estimated_cost:
-                    raise ValueError(
-                        f"Estimated Parallel cost ${estimated_cost:.3f} exceeds max_estimated_cost "
-                        f"${max_estimated_cost:.3f}"
-                    )
-                else:
-                    mode_arg = arguments.get("mode")
-                    mode = mode_arg if isinstance(mode_arg, str) else "advanced"
-                    accounting.paid_request_count = 1
-                    pack_path = await asyncio.to_thread(
-                        run_live_context_pack,
-                        objective=objective,
-                        queries=queries,
-                        output_dir=output_dir,
-                        mode=mode,
-                        extract_limit=extract_limit,
-                        max_tokens_per_file=DEFAULT_MAX_TOKENS,
-                        source_policy=source_policy,
-                        max_search_results=max_search_results,
-                        client_model=arguments.get("client_model")
-                        if isinstance(arguments.get("client_model"), str)
-                        else None,
-                        estimated_cost_usd=estimated_cost,
-                    )
-                    accounting.metadata["output_dir"] = str(pack_path)
-                    accounting_payload = _mcp_accounting_payload(
-                        accounting,
-                        output_dir=pack_path,
-                        budget_limit_usd=budget_limit,
-                        paid_capable=True,
-                    )
-                    result = ToolResult(
-                        f"Wrote Parallel context pack: {pack_path}",
-                        data={
-                            "workflow": "context-pack",
-                            "output_dir": str(pack_path),
-                            "dry_run": False,
-                            "estimated_cost_usd": estimated_cost,
-                            "accounting": accounting_payload,
-                        },
-                    )
-
-        elif name == "parallel_api_pack":
-            source = _require_str(arguments, "source")
-            kind = arguments.get("kind", "auto")
-            if kind not in {"auto", "llms", "openapi"}:
-                raise ValueError("'kind' must be one of: auto, llms, openapi")
-            output_dir = _path_arg(arguments, "output_dir", "packs/api-pack")
-            pack_path = await asyncio.to_thread(
-                run_api_pack,
-                source=source,
-                kind=kind,
-                output_dir=output_dir,
-            )
-            result = ToolResult(
-                f"Wrote API context pack: {pack_path}",
-                data={"workflow": "api-pack", "output_dir": str(pack_path), "dry_run": False},
-            )
-
-        elif name == "discover_sources":
-            urls = _string_list_arg(arguments, "urls")
-            if not urls:
-                raise ValueError("'urls' must contain at least one URL")
-            generated_at = utc_now_iso()
-            query = arguments.get("query")
-            if query is not None and not isinstance(query, str):
-                raise ValueError("'query' must be a string")
-            discovery_objective = arguments.get("objective")
-            if discovery_objective is not None and not isinstance(discovery_objective, str):
-                raise ValueError("'objective' must be a string")
-            policy = PolicyConfig(
-                allowed_domains=_string_list_arg(arguments, "include_domains"),
-                denied_domains=_string_list_arg(arguments, "exclude_domains"),
-            )
-            records = [
-                CandidateSourceRecord(
-                    generated_at=generated_at,
-                    url=url,
-                    source="mcp-discover-sources",
-                    provider="local",
-                    rank=index,
-                    query=query,
-                    discovered_at=generated_at,
-                )
-                for index, url in enumerate(urls, start=1)
-            ]
-            max_results = _coerce_int(arguments.get("max_results"), name="max_results", default=0) or None
-            discovery_payload: dict[str, Any] = await asyncio.to_thread(
-                write_discovery_pack,
-                _path_arg(arguments, "output_dir", "packs/discovery"),
-                records,
-                policy=policy,
-                objective=discovery_objective,
-                query=query,
-                source="mcp-discover-sources",
-                max_results=max_results,
-            )
-            result = ToolResult(
-                f"Discovery pack: {discovery_payload['candidate_count']} candidates",
-                data=discovery_payload,
-            )
-
-        elif name == "fetch_discovered_sources":
-            pack_dir = _path_arg(arguments, "discovery_pack_dir")
-            records = read_candidate_records(pack_dir)
-            selectors = _string_list_arg(arguments, "selectors") or ["top:10"]
-            selected = select_candidate_records(records, selectors)
-            selection_payload: dict[str, Any] = await asyncio.to_thread(
-                write_selected_sources,
-                _path_arg(arguments, "output_dir", "packs/discovery-selected"),
-                selected,
-                source_pack=pack_dir,
-                policy=None,
-            )
-            result = ToolResult(
-                f"Selected discovered sources: {selection_payload['selected_count']}",
-                data=selection_payload,
-            )
-
-        elif name == "extract_pack":
-            max_results = _coerce_int(arguments.get("max_results"), name="max_results", default=0) or None
-            payload = await asyncio.to_thread(
-                run_extract_pack,
-                _path_arg(arguments, "url_file"),
-                output_dir=_path_arg(arguments, "output_dir", "packs/extract-pack"),
-                policy=_policy_arg(arguments),
-                query=arguments.get("query") if isinstance(arguments.get("query"), str) else None,
-                objective=arguments.get("objective") if isinstance(arguments.get("objective"), str) else None,
-                max_results=max_results,
-                dry_run=bool(arguments.get("dry_run", False)),
-            )
-            result = ToolResult(
-                f"Extract pack: {payload['status']} -> {payload['output_dir']}",
-                data=payload,
-            )
-
-        elif name == "map_sources":
-            source_type = _require_str(arguments, "source_type")
-            if source_type not in {"urls", "sitemap"}:
-                raise ValueError("'source_type' must be urls or sitemap")
-            max_results = _coerce_int(arguments.get("max_results"), name="max_results", default=0) or None
-            payload = await asyncio.to_thread(
-                run_map_sources,
-                _path_arg(arguments, "input_path"),
-                source_type=source_type,
-                output_dir=_path_arg(arguments, "output_dir", "packs/map"),
-                policy=_policy_arg(arguments),
-                query=arguments.get("query") if isinstance(arguments.get("query"), str) else None,
-                objective=arguments.get("objective") if isinstance(arguments.get("objective"), str) else None,
-                base_url=arguments.get("base_url") if isinstance(arguments.get("base_url"), str) else None,
-                max_results=max_results,
-            )
-            map_summary_raw = payload.get("summary")
-            map_summary = map_summary_raw if isinstance(map_summary_raw, dict) else {}
-            result = ToolResult(
-                f"Map sources: {map_summary.get('candidate_count', 0)} candidates",
-                data=payload,
-            )
-
-        elif name == "crawl_pack":
-            max_results = _coerce_int(arguments.get("max_results"), name="max_results", default=0) or None
-            payload = await asyncio.to_thread(
-                run_crawl_pack,
-                _path_arg(arguments, "input_path"),
-                output_dir=_path_arg(arguments, "output_dir", "packs/crawl-pack"),
-                policy=_policy_arg(arguments),
-                selectors=_string_list_arg(arguments, "selectors") or None,
-                manual_file=_optional_path_arg(arguments, "manual_file"),
-                max_results=max_results,
-                dry_run=bool(arguments.get("dry_run", False)),
-            )
-            result = ToolResult(
-                f"Crawl pack: {payload['status']} -> {payload['output_dir']}",
-                data=payload,
-            )
-
-        elif name == "research_pack":
-            payload = await asyncio.to_thread(
-                run_research_pack,
-                _path_arg(arguments, "pack_dir"),
-                objective=_require_str(arguments, "objective"),
-                output_dir=_optional_path_arg(arguments, "output_dir"),
-                schema_path=_optional_path_arg(arguments, "schema_path"),
-                required_domains=_string_list_arg(arguments, "required_domains"),
-                max_excerpts=_coerce_int(arguments.get("max_excerpts"), name="max_excerpts", default=8),
-                entity_limit=_coerce_int(arguments.get("entity_limit"), name="entity_limit", default=20),
-            )
-            result = ToolResult(
-                f"Research pack: {payload['status']} -> {payload['output_dir']}",
-                data=payload,
-            )
-
-        elif name == "entities_pack":
-            payload = await asyncio.to_thread(
-                run_entities_pack,
-                _path_arg(arguments, "pack_dir"),
-                output_dir=_optional_path_arg(arguments, "output_dir"),
-                required_domains=_string_list_arg(arguments, "required_domains"),
-                limit=_coerce_int(arguments.get("limit"), name="limit", default=100),
-            )
-            entities_summary_raw = payload.get("summary")
-            entities_summary = entities_summary_raw if isinstance(entities_summary_raw, dict) else {}
-            result = ToolResult(
-                f"Entities pack: {entities_summary.get('entity_count', 0)} entities",
-                data=payload,
-            )
-
-        elif name == "brand_pack":
-            brand_payload = await asyncio.to_thread(
-                build_brand_pack,
-                _require_str(arguments, "domain_or_url"),
-                email=arguments.get("email") if isinstance(arguments.get("email"), str) else None,
-                name=arguments.get("name") if isinstance(arguments.get("name"), str) else None,
-                ticker=arguments.get("ticker") if isinstance(arguments.get("ticker"), str) else None,
-                output_dir=_path_arg(arguments, "output_dir", "packs/brand"),
-                policy=_policy_arg(arguments),
-                allow_free_email=bool(arguments.get("allow_free_email", False)),
-                download_assets=bool(arguments.get("download_assets", False)),
-                max_pages=_coerce_int(arguments.get("max_pages"), name="max_pages", default=4),
-            )
-            summary_raw = brand_payload.get("summary")
-            summary = summary_raw if isinstance(summary_raw, dict) else {}
-            result = ToolResult(
-                f"Brand pack: {brand_payload['status']} -> {summary.get('domain', '')}",
-                data=brand_payload,
-            )
-
-        elif name == "styleguide_pack":
-            payload = await asyncio.to_thread(
-                build_styleguide_pack,
-                _require_str(arguments, "domain_or_url"),
-                output_dir=_path_arg(arguments, "output_dir", "packs/styleguide"),
-                policy=_policy_arg(arguments),
-                render=bool(arguments.get("render", False)),
-                max_stylesheets=_coerce_int(
-                    arguments.get("max_stylesheets"),
-                    name="max_stylesheets",
-                    default=8,
-                ),
-            )
-            result = ToolResult(
-                f"Styleguide pack: {payload['status']} -> {payload.get('summary', {})}",
-                data=payload,
-            )
-
-        elif name == "product_pack":
-            mode = arguments.get("mode", "page")
-            if mode not in {"page", "site"}:
-                raise ValueError("'mode' must be page or site")
-            payload = await asyncio.to_thread(
-                build_product_pack,
-                _require_str(arguments, "url_or_domain"),
-                mode=mode,
-                output_dir=_path_arg(arguments, "output_dir", "packs/products"),
-                policy=_policy_arg(arguments),
-                max_pages=_coerce_int(arguments.get("max_pages"), name="max_pages", default=6),
-            )
-            result = ToolResult(
-                f"Product pack: {payload['status']} -> {payload.get('summary', {})}",
-                data=payload,
-            )
-
-        elif name == "extract_schema":
-            payload = await asyncio.to_thread(
-                extract_schema,
-                _require_str(arguments, "url_or_pack"),
-                schema_path=_path_arg(arguments, "schema_path"),
-                output_dir=_path_arg(arguments, "output_dir", "packs/schema"),
-                policy=_policy_arg(arguments),
-                fact_check=bool(arguments.get("fact_check", False)),
-            )
-            result = ToolResult(
-                f"Extract schema: {payload['status']} -> {payload.get('summary', {})}",
-                data=payload,
-            )
-
-        elif name == "image_pack":
-            payload = await asyncio.to_thread(
-                build_image_pack,
-                _require_str(arguments, "url_or_pack"),
-                output_dir=_path_arg(arguments, "output_dir", "packs/images"),
-                policy=_policy_arg(arguments),
-                download_assets=bool(arguments.get("download_assets", False)),
-                max_assets=_coerce_int(arguments.get("max_assets"), name="max_assets", default=30),
-            )
-            result = ToolResult(
-                f"Image pack: {payload['status']} -> {payload.get('summary', {})}",
-                data=payload,
-            )
-
-        elif name == "screenshot_pack":
-            payload = await asyncio.to_thread(
-                capture_screenshot_pack,
-                _require_str(arguments, "url"),
-                output_dir=_path_arg(arguments, "output_dir", "packs/screenshot"),
-                policy=_policy_arg(arguments),
-                viewport=arguments.get("viewport", "1280x720")
-                if isinstance(arguments.get("viewport", "1280x720"), str)
-                else "1280x720",
-                full_page=bool(arguments.get("full_page", False)),
-                wait_for=arguments.get("wait_for", "load")
-                if isinstance(arguments.get("wait_for", "load"), str)
-                else "load",
-                agent_browser_binary=arguments.get("agent_browser_binary")
-                if isinstance(arguments.get("agent_browser_binary"), str)
-                else None,
-            )
-            result = ToolResult(
-                f"Screenshot pack: {payload['status']} -> {payload.get('summary', {})}",
-                data=payload,
-            )
-
-        elif name == "search_pack":
-            provider = arguments.get("provider", "local")
-            if provider not in {"local", "parallel", "tavily", "exa", "context"}:
-                raise ValueError("'provider' must be local, parallel, tavily, exa, or context")
-            budget_arg = arguments.get("budget")
-            if budget_arg is not None and not isinstance(budget_arg, int | float):
-                raise ValueError("'budget' must be a number")
-            search_max_estimated_cost_arg = arguments.get("max_estimated_cost")
-            if search_max_estimated_cost_arg is not None and not isinstance(
-                search_max_estimated_cost_arg,
-                int | float,
-            ):
-                raise ValueError("'max_estimated_cost' must be a number")
-            payload = await asyncio.to_thread(
-                build_search_pack,
-                _require_str(arguments, "query"),
-                provider=provider,
-                pack_dir=_optional_path_arg(arguments, "pack_dir"),
-                output_dir=_path_arg(arguments, "output_dir", "packs/search"),
-                policy=_policy_arg(arguments),
-                include_domains=_string_list_arg(arguments, "include_domains"),
-                exclude_domains=_string_list_arg(arguments, "exclude_domains"),
-                max_results=_coerce_int(arguments.get("max_results"), name="max_results", default=10),
-                scrape=bool(arguments.get("scrape", False)),
-                dry_run=bool(arguments.get("dry_run", False)),
-                budget=float(budget_arg) if budget_arg is not None else None,
-                max_estimated_cost=float(search_max_estimated_cost_arg)
-                if search_max_estimated_cost_arg is not None
-                else None,
-            )
-            result = ToolResult(
-                f"Search pack: {payload['status']} -> {payload.get('summary', {})}",
-                data=payload,
-            )
-
         elif name == "pack_score":
             payload = await asyncio.to_thread(
                 score_pack,
@@ -1504,25 +881,6 @@ async def _dispatch_tool(
             result = ToolResult(
                 f"Pack search: {payload['result_count']} results",
                 data=payload,
-            )
-
-        elif name == "answer_pack":
-            answer_pack_dir = _path_arg(arguments, "pack_dir")
-            answer_payload: dict[str, Any] = await asyncio.to_thread(
-                answer_pack,
-                answer_pack_dir,
-                _require_str(arguments, "question"),
-                required_domains=_string_list_arg(arguments, "required_domains"),
-                limit=_coerce_int(arguments.get("limit"), name="limit", default=8),
-            )
-            existing_accounting = _pack_accounting_payload(answer_pack_dir)
-            if existing_accounting is not None:
-                answer_payload["accounting"] = existing_accounting
-            answer_raw = answer_payload.get("answer")
-            answer_data: dict[str, Any] = answer_raw if isinstance(answer_raw, dict) else {}
-            result = ToolResult(
-                f"Answer pack: {answer_data.get('status')}",
-                data=answer_payload,
             )
 
         elif name == "pack_brief":
@@ -1763,7 +1121,7 @@ async def _run_stdio() -> int:
 
     @server.list_tools()  # type: ignore[misc,no-untyped-call]
     async def _list_tools() -> list[Tool]:
-        return [
+        tools = [
             Tool(
                 name="fetch_url",
                 description=(
@@ -2007,484 +1365,6 @@ async def _run_stdio() -> int:
                 outputSchema=_READ_DOC_OUTPUT_SCHEMA,
             ),
             Tool(
-                name="parallel_context_pack",
-                description=(
-                    "Build or dry-run a Parallel Search + Extract context pack from "
-                    "an objective and search queries. Requires docpull[parallel] and "
-                    "a configured Parallel API key when dry_run=false. Run "
-                    "`docpull parallel init` or set PARALLEL_API_KEY."
-                ),
-                annotations=ToolAnnotations(
-                    title="Build a Parallel context pack",
-                    readOnlyHint=False,
-                    destructiveHint=False,
-                    idempotentHint=False,
-                    openWorldHint=True,
-                ),
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "objective": {"type": "string"},
-                        "queries": {"type": "array", "items": {"type": "string"}},
-                        "output_dir": {"type": "string", "default": "packs/parallel-context-pack"},
-                        "mode": {
-                            "type": "string",
-                            "enum": ["turbo", "basic", "advanced"],
-                            "default": "advanced",
-                        },
-                        "extract_limit": {"type": "integer", "minimum": 1, "maximum": 20, "default": 8},
-                        "include_domains": {"type": "array", "items": {"type": "string"}},
-                        "exclude_domains": {"type": "array", "items": {"type": "string"}},
-                        "after_date": {"type": "string"},
-                        "max_search_results": {"type": "integer", "minimum": 1},
-                        "client_model": {"type": "string"},
-                        "max_estimated_cost": {"type": "number", "default": DEFAULT_MAX_ESTIMATED_COST_USD},
-                        "budget": {
-                            "type": "number",
-                            "minimum": 0,
-                            "description": (
-                                "Maximum paid-capable Parallel spend. Use 0 for a dry-run only plan."
-                            ),
-                        },
-                        "dry_run": {"type": "boolean", "default": False},
-                    },
-                    "required": ["objective"],
-                },
-                outputSchema=_PARALLEL_PACK_OUTPUT_SCHEMA,
-            ),
-            Tool(
-                name="discover_sources",
-                description=(
-                    "Write a provider-neutral discovery pack from explicit candidate URLs. "
-                    "Provider-backed web search remains CLI/provider-specific; this MCP tool "
-                    "normalizes supplied URLs into candidate_sources.ndjson."
-                ),
-                annotations=ToolAnnotations(
-                    title="Create discovery pack",
-                    readOnlyHint=False,
-                    destructiveHint=False,
-                    idempotentHint=True,
-                    openWorldHint=False,
-                ),
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "objective": {"type": "string"},
-                        "query": {"type": "string"},
-                        "urls": {"type": "array", "items": {"type": "string"}},
-                        "include_domains": {"type": "array", "items": {"type": "string"}},
-                        "exclude_domains": {"type": "array", "items": {"type": "string"}},
-                        "output_dir": {"type": "string", "default": "packs/discovery"},
-                        "max_results": {"type": "integer", "minimum": 1},
-                    },
-                    "required": ["urls"],
-                },
-                outputSchema=_DISCOVER_SOURCES_OUTPUT_SCHEMA,
-            ),
-            Tool(
-                name="fetch_discovered_sources",
-                description=(
-                    "Apply selection policies to an existing discovery pack and write "
-                    "selected_sources.ndjson plus selected_urls.txt. Fetching selected URLs "
-                    "is intentionally left to the CLI/operator path."
-                ),
-                annotations=ToolAnnotations(
-                    title="Select discovery candidates",
-                    readOnlyHint=False,
-                    destructiveHint=False,
-                    idempotentHint=True,
-                    openWorldHint=False,
-                ),
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "discovery_pack_dir": {"type": "string"},
-                        "selectors": {
-                            "type": "array",
-                            "items": {"type": "string"},
-                            "default": ["top:10"],
-                        },
-                        "output_dir": {"type": "string", "default": "packs/discovery-selected"},
-                    },
-                    "required": ["discovery_pack_dir"],
-                },
-                outputSchema=_FETCH_DISCOVERED_OUTPUT_SCHEMA,
-            ),
-            Tool(
-                name="extract_pack",
-                description=(
-                    "Fetch a local URL file into a provider-neutral extract-pack with "
-                    "documents.ndjson, manifest, sources, lifecycle events, status, "
-                    "poll report, and sample webhook payload."
-                ),
-                annotations=ToolAnnotations(
-                    title="Build local extract pack",
-                    readOnlyHint=False,
-                    destructiveHint=False,
-                    idempotentHint=False,
-                    openWorldHint=True,
-                ),
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "url_file": {"type": "string"},
-                        "output_dir": {"type": "string", "default": "packs/extract-pack"},
-                        "policy_path": {"type": "string"},
-                        "query": {"type": "string"},
-                        "objective": {"type": "string"},
-                        "max_results": {"type": "integer", "minimum": 1},
-                        "dry_run": {"type": "boolean", "default": False},
-                    },
-                    "required": ["url_file"],
-                },
-                outputSchema=_PARITY_WORKFLOW_OUTPUT_SCHEMA,
-            ),
-            Tool(
-                name="map_sources",
-                description=(
-                    "Create a URL-only local map/discovery pack from a URL file or "
-                    "local sitemap XML file. This is the local equivalent of hosted "
-                    "map/crawl discovery without fetching content."
-                ),
-                annotations=ToolAnnotations(
-                    title="Map local source URLs",
-                    readOnlyHint=False,
-                    destructiveHint=False,
-                    idempotentHint=True,
-                    openWorldHint=False,
-                ),
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "input_path": {"type": "string"},
-                        "source_type": {"type": "string", "enum": ["urls", "sitemap"]},
-                        "output_dir": {"type": "string", "default": "packs/map"},
-                        "policy_path": {"type": "string"},
-                        "query": {"type": "string"},
-                        "objective": {"type": "string"},
-                        "base_url": {"type": "string"},
-                        "max_results": {"type": "integer", "minimum": 1},
-                    },
-                    "required": ["input_path", "source_type"],
-                },
-                outputSchema=_PARITY_WORKFLOW_OUTPUT_SCHEMA,
-            ),
-            Tool(
-                name="crawl_pack",
-                description=(
-                    "Select mapped candidates from a discovery pack/candidate NDJSON or "
-                    "URL file, then fetch them into a local crawl-pack. Use dry_run to "
-                    "write selection artifacts without network requests."
-                ),
-                annotations=ToolAnnotations(
-                    title="Build local crawl pack",
-                    readOnlyHint=False,
-                    destructiveHint=False,
-                    idempotentHint=False,
-                    openWorldHint=True,
-                ),
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "input_path": {"type": "string"},
-                        "output_dir": {"type": "string", "default": "packs/crawl-pack"},
-                        "policy_path": {"type": "string"},
-                        "selectors": {
-                            "type": "array",
-                            "items": {"type": "string"},
-                            "default": ["top:10"],
-                        },
-                        "manual_file": {"type": "string"},
-                        "max_results": {"type": "integer", "minimum": 1},
-                        "dry_run": {"type": "boolean", "default": False},
-                    },
-                    "required": ["input_path"],
-                },
-                outputSchema=_PARITY_WORKFLOW_OUTPUT_SCHEMA,
-            ),
-            Tool(
-                name="research_pack",
-                description=(
-                    "Produce a cited local research result from an existing pack, "
-                    "including basis excerpts, optional structured-output validation, "
-                    "events.ndjson, status.json, poll.report.json, and webhook sample."
-                ),
-                annotations=ToolAnnotations(
-                    title="Build local research pack",
-                    readOnlyHint=False,
-                    destructiveHint=False,
-                    idempotentHint=True,
-                    openWorldHint=False,
-                ),
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "pack_dir": {"type": "string"},
-                        "objective": {"type": "string"},
-                        "output_dir": {"type": "string"},
-                        "schema_path": {"type": "string"},
-                        "required_domains": {"type": "array", "items": {"type": "string"}},
-                        "max_excerpts": {"type": "integer", "minimum": 1, "default": 8},
-                        "entity_limit": {"type": "integer", "minimum": 0, "default": 20},
-                    },
-                    "required": ["pack_dir", "objective"],
-                },
-                outputSchema=_PARITY_WORKFLOW_OUTPUT_SCHEMA,
-            ),
-            Tool(
-                name="entities_pack",
-                description=(
-                    "Build a local entity/list pack from an existing pack, preserving "
-                    "citation basis and lifecycle artifacts. This approximates hosted "
-                    "entity/list APIs over local evidence only."
-                ),
-                annotations=ToolAnnotations(
-                    title="Build local entities pack",
-                    readOnlyHint=False,
-                    destructiveHint=False,
-                    idempotentHint=True,
-                    openWorldHint=False,
-                ),
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "pack_dir": {"type": "string"},
-                        "output_dir": {"type": "string"},
-                        "limit": {"type": "integer", "minimum": 1, "default": 100},
-                        "required_domains": {"type": "array", "items": {"type": "string"}},
-                    },
-                    "required": ["pack_dir"],
-                },
-                outputSchema=_PARITY_WORKFLOW_OUTPUT_SCHEMA,
-            ),
-            Tool(
-                name="brand_pack",
-                description=(
-                    "Build a local evidence-backed brand profile from a domain, URL, or work email. "
-                    "MCP defaults keep asset downloads off and page bounds tight."
-                ),
-                annotations=ToolAnnotations(
-                    title="Build brand pack",
-                    readOnlyHint=False,
-                    destructiveHint=False,
-                    idempotentHint=True,
-                    openWorldHint=True,
-                ),
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "domain_or_url": {"type": "string"},
-                        "email": {"type": "string"},
-                        "name": {"type": "string"},
-                        "ticker": {"type": "string"},
-                        "output_dir": {"type": "string", "default": "packs/brand"},
-                        "policy_path": {"type": "string"},
-                        "allow_free_email": {"type": "boolean", "default": False},
-                        "download_assets": {"type": "boolean", "default": False},
-                        "max_pages": {"type": "integer", "minimum": 1, "maximum": 8, "default": 4},
-                    },
-                    "required": ["domain_or_url"],
-                },
-                outputSchema=_CONTEXT_PACK_OUTPUT_SCHEMA,
-            ),
-            Tool(
-                name="styleguide_pack",
-                description=(
-                    "Extract local design tokens, font stacks, and component samples from static HTML/CSS. "
-                    "Rendering is off unless explicitly enabled and trusted."
-                ),
-                annotations=ToolAnnotations(
-                    title="Build styleguide pack",
-                    readOnlyHint=False,
-                    destructiveHint=False,
-                    idempotentHint=True,
-                    openWorldHint=True,
-                ),
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "domain_or_url": {"type": "string"},
-                        "output_dir": {"type": "string", "default": "packs/styleguide"},
-                        "policy_path": {"type": "string"},
-                        "render": {"type": "boolean", "default": False},
-                        "max_stylesheets": {"type": "integer", "minimum": 1, "maximum": 20, "default": 8},
-                    },
-                    "required": ["domain_or_url"],
-                },
-                outputSchema=_CONTEXT_PACK_OUTPUT_SCHEMA,
-            ),
-            Tool(
-                name="product_pack",
-                description=(
-                    "Extract cited product and pricing records from a URL or bounded same-domain site."
-                ),
-                annotations=ToolAnnotations(
-                    title="Build product pack",
-                    readOnlyHint=False,
-                    destructiveHint=False,
-                    idempotentHint=True,
-                    openWorldHint=True,
-                ),
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "url_or_domain": {"type": "string"},
-                        "mode": {"type": "string", "enum": ["page", "site"], "default": "page"},
-                        "output_dir": {"type": "string", "default": "packs/products"},
-                        "policy_path": {"type": "string"},
-                        "max_pages": {"type": "integer", "minimum": 1, "maximum": 12, "default": 6},
-                    },
-                    "required": ["url_or_domain"],
-                },
-                outputSchema=_CONTEXT_PACK_OUTPUT_SCHEMA,
-            ),
-            Tool(
-                name="extract_schema",
-                description=(
-                    "Fill a JSON Schema-shaped result from URL or existing-pack evidence and validate it. "
-                    "No model/provider call is made."
-                ),
-                annotations=ToolAnnotations(
-                    title="Extract schema",
-                    readOnlyHint=False,
-                    destructiveHint=False,
-                    idempotentHint=True,
-                    openWorldHint=True,
-                ),
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "url_or_pack": {"type": "string"},
-                        "schema_path": {"type": "string"},
-                        "output_dir": {"type": "string", "default": "packs/schema"},
-                        "policy_path": {"type": "string"},
-                        "fact_check": {"type": "boolean", "default": False},
-                    },
-                    "required": ["url_or_pack", "schema_path"],
-                },
-                outputSchema=_CONTEXT_PACK_OUTPUT_SCHEMA,
-            ),
-            Tool(
-                name="image_pack",
-                description=(
-                    "Extract image, icon, Open Graph, CSS background, and Markdown image references from "
-                    "a URL or existing pack. Asset downloads are off by default for MCP."
-                ),
-                annotations=ToolAnnotations(
-                    title="Build image pack",
-                    readOnlyHint=False,
-                    destructiveHint=False,
-                    idempotentHint=True,
-                    openWorldHint=True,
-                ),
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "url_or_pack": {"type": "string"},
-                        "output_dir": {"type": "string", "default": "packs/images"},
-                        "policy_path": {"type": "string"},
-                        "download_assets": {"type": "boolean", "default": False},
-                        "max_assets": {"type": "integer", "minimum": 1, "maximum": 100, "default": 30},
-                    },
-                    "required": ["url_or_pack"],
-                },
-                outputSchema=_CONTEXT_PACK_OUTPUT_SCHEMA,
-            ),
-            Tool(
-                name="screenshot_pack",
-                description=(
-                    "Capture a PNG screenshot pack through explicit local browser rendering. "
-                    "Requires DOCPULL_RENDER_TRUSTED_BROWSER_TARGETS=1."
-                ),
-                annotations=ToolAnnotations(
-                    title="Capture screenshot pack",
-                    readOnlyHint=False,
-                    destructiveHint=False,
-                    idempotentHint=False,
-                    openWorldHint=True,
-                ),
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "url": {"type": "string"},
-                        "output_dir": {"type": "string", "default": "packs/screenshot"},
-                        "policy_path": {"type": "string"},
-                        "viewport": {"type": "string", "default": "1280x720"},
-                        "full_page": {"type": "boolean", "default": False},
-                        "wait_for": {
-                            "type": "string",
-                            "enum": ["load", "domcontentloaded", "networkidle"],
-                            "default": "load",
-                        },
-                        "agent_browser_binary": {"type": "string"},
-                    },
-                    "required": ["url"],
-                },
-                outputSchema=_CONTEXT_PACK_OUTPUT_SCHEMA,
-            ),
-            Tool(
-                name="search_pack",
-                description=(
-                    "Build a local-first search result pack. Local mode searches an existing pack; "
-                    "global provider mode requires explicit provider and budget controls."
-                ),
-                annotations=ToolAnnotations(
-                    title="Build search pack",
-                    readOnlyHint=False,
-                    destructiveHint=False,
-                    idempotentHint=True,
-                    openWorldHint=True,
-                ),
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "query": {"type": "string"},
-                        "provider": {
-                            "type": "string",
-                            "enum": ["local", "parallel", "tavily", "exa", "context"],
-                            "default": "local",
-                        },
-                        "pack_dir": {"type": "string"},
-                        "output_dir": {"type": "string", "default": "packs/search"},
-                        "policy_path": {"type": "string"},
-                        "include_domains": {"type": "array", "items": {"type": "string"}},
-                        "exclude_domains": {"type": "array", "items": {"type": "string"}},
-                        "max_results": {"type": "integer", "minimum": 1, "maximum": 100, "default": 10},
-                        "scrape": {"type": "boolean", "default": False},
-                        "dry_run": {"type": "boolean", "default": False},
-                        "budget": {"type": "number", "minimum": 0},
-                        "max_estimated_cost": {"type": "number", "minimum": 0},
-                    },
-                    "required": ["query"],
-                },
-                outputSchema=_CONTEXT_PACK_OUTPUT_SCHEMA,
-            ),
-            Tool(
-                name="parallel_api_pack",
-                description=(
-                    "Turn a local or HTTPS llms.txt/OpenAPI source into a docpull "
-                    "context pack. Runs in a worker thread so remote sources work "
-                    "inside MCP clients."
-                ),
-                annotations=ToolAnnotations(
-                    title="Build an API context pack",
-                    readOnlyHint=False,
-                    destructiveHint=False,
-                    idempotentHint=True,
-                    openWorldHint=True,
-                ),
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "source": {"type": "string"},
-                        "kind": {"type": "string", "enum": ["auto", "llms", "openapi"], "default": "auto"},
-                        "output_dir": {"type": "string", "default": "packs/api-pack"},
-                    },
-                    "required": ["source"],
-                },
-                outputSchema=_PARALLEL_PACK_OUTPUT_SCHEMA,
-            ),
-            Tool(
                 name="pack_score",
                 description="Score a docpull context pack for agent-readiness without shelling out.",
                 annotations=ToolAnnotations(
@@ -2630,31 +1510,6 @@ async def _run_stdio() -> int:
                     "required": ["pack_dir", "query"],
                 },
                 outputSchema=_PACK_SEARCH_OUTPUT_SCHEMA,
-            ),
-            Tool(
-                name="answer_pack",
-                description=(
-                    "Answer a question from local pack evidence with citations, "
-                    "or refuse when evidence is insufficient."
-                ),
-                annotations=ToolAnnotations(
-                    title="Answer from a pack",
-                    readOnlyHint=False,
-                    destructiveHint=False,
-                    idempotentHint=True,
-                    openWorldHint=False,
-                ),
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "pack_dir": {"type": "string"},
-                        "question": {"type": "string"},
-                        "limit": {"type": "integer", "minimum": 1, "default": 8},
-                        "required_domains": {"type": "array", "items": {"type": "string"}},
-                    },
-                    "required": ["pack_dir", "question"],
-                },
-                outputSchema=_ANSWER_PACK_OUTPUT_SCHEMA,
             ),
             Tool(
                 name="pack_brief",
@@ -2983,6 +1838,7 @@ async def _run_stdio() -> int:
                 outputSchema=_REMOVE_SOURCE_OUTPUT_SCHEMA,
             ),
         ]
+        return [tool for tool in tools if tool.name not in PRUNED_MCP_TOOLS]
 
     async def _make_progress_callback() -> Any:
         """Return ``(pages_done, total_or_none) -> awaitable`` bound to the

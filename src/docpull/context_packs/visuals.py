@@ -438,15 +438,19 @@ def _run_agent_browser_batch_screenshot(
         screenshot_command,
     ]
     batch_json = json.dumps(batch, separators=(",", ":"))
-    command = [binary, "batch", "--bail", "--json"]
-    result = subprocess.run(  # nosec B603
-        command,
-        input=batch_json,
-        check=False,
-        capture_output=True,
-        text=True,
-        timeout=45,
-    )
+    session = f"docpull-screenshot-{hashlib.sha256(url.encode('utf-8')).hexdigest()[:12]}"
+    command = [binary, "--session", session, "batch", "--bail", "--json"]
+    try:
+        result = subprocess.run(  # nosec B603
+            command,
+            input=batch_json,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=45,
+        )
+    except subprocess.TimeoutExpired as err:
+        raise ContextPackError("agent-browser batch screenshot timed out after 45 seconds.") from err
     if result.returncode != 0:
         detail = (result.stderr or result.stdout).strip()[:500]
         raise ContextPackError(

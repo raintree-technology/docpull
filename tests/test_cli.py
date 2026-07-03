@@ -12,14 +12,21 @@ from docpull.cli import create_parser, main, run_fetcher
 from docpull.models.events import EventType, SkipReason
 
 
-def _capture_fetcher_config(monkeypatch, *, fetch_one_result=None, run_events=None, discover_urls=None):
+def _capture_fetcher_config(
+    monkeypatch,
+    *,
+    fetch_one_result=None,
+    run_events=None,
+    discover_urls=None,
+    stats=None,
+):
     captured = {}
 
     class FakeFetcher:
         def __init__(self, config):
             captured["config"] = config
             self.config = config
-            self.stats = SimpleNamespace(
+            self.stats = stats or SimpleNamespace(
                 urls_discovered=2,
                 pages_fetched=1,
                 pages_skipped=1,
@@ -105,6 +112,14 @@ def test_parser_accepts_budget_and_explain_route():
 
     assert args.budget == 0
     assert args.explain_route is True
+
+
+def test_parser_accepts_ensemble_extractor():
+    parser = create_parser()
+
+    args = parser.parse_args(["https://example.com", "--extractor", "ensemble"])
+
+    assert args.extractor == "ensemble"
 
 
 def test_render_defaults_off(monkeypatch):
@@ -321,6 +336,27 @@ def test_quiet_crawl_counts_skips_without_progress(monkeypatch):
     assert run_fetcher(args) == 0
 
 
+def test_crawl_returns_nonzero_when_no_records_are_written(tmp_path, monkeypatch):
+    _capture_fetcher_config(
+        monkeypatch,
+        run_events=[
+            SimpleNamespace(type=EventType.FETCH_SKIPPED, skip_reason=SkipReason.ROBOTS_DISALLOWED),
+            SimpleNamespace(type=EventType.COMPLETED, message="Done"),
+        ],
+        stats=SimpleNamespace(
+            urls_discovered=1,
+            pages_fetched=0,
+            pages_skipped=1,
+            pages_failed=0,
+            duration_seconds=0.1,
+        ),
+    )
+    parser = create_parser()
+    args = parser.parse_args(["https://example.com", "--quiet", "-o", str(tmp_path)])
+
+    assert run_fetcher(args) == 1
+
+
 def test_non_quiet_crawl_renders_progress_and_summary(monkeypatch, capsys):
     _capture_fetcher_config(
         monkeypatch,
@@ -458,6 +494,26 @@ def test_render_live_smoke_uses_default_url_and_temp_output(monkeypatch, capsys)
     assert capsys.readouterr().out == ""
 
 
+def test_render_live_smoke_honors_explicit_output_dir(tmp_path, monkeypatch, capsys):
+    captured = {}
+
+    async def fake_render_url_to_directory(url, output_dir, *, config, renderer=None):
+        captured["url"] = url
+        captured["output_dir"] = output_dir
+        return SimpleNamespace(
+            html_path=output_dir / "index.html",
+            sidecar_path=output_dir / "rendered_pages.ndjson",
+        )
+
+    monkeypatch.setattr("docpull.cli.render_url_to_directory", fake_render_url_to_directory)
+
+    assert main(["render", "https://example.com/app", "--live-smoke", "-o", str(tmp_path), "--quiet"]) == 0
+
+    assert captured["url"] == "https://example.com/app"
+    assert captured["output_dir"] == tmp_path
+    assert capsys.readouterr().out == ""
+
+
 def test_render_init_prints_agent_browser_template_recipe(capsys):
     assert main(["render", "init", "e2b", "--template", "docpull-agent-browser"]) == 0
 
@@ -516,25 +572,6 @@ def test_parser_accepts_sec_filing_profile():
     args = parser.parse_args(["https://www.sec.gov/Archives/example.htm", "--profile", "sec-filing"])
 
     assert args.profile == "sec-filing"
-
-
-def test_evidence_pack_help_exits_cleanly(capsys):
-    with pytest.raises(SystemExit) as exc_info:
-        main(["evidence-pack", "--help"])
-
-    assert exc_info.value.code == 0
-    captured = capsys.readouterr()
-    assert "docpull evidence-pack" in captured.out
-    assert "--sec-user-agent" in captured.out
-
-
-def test_evidence_pack_dispatch_reports_user_error(capsys):
-    result = main(["evidence-pack", "missing.ndjson", "--rules", "missing.yml"])
-
-    assert result == 1
-    captured = capsys.readouterr()
-    assert "Evidence pack error:" in captured.out
-    assert "Input filing NDJSON does not exist" in captured.out
 
 
 def test_skill_rejects_okf_output(tmp_path, capsys):

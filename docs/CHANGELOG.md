@@ -5,7 +5,97 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## [6.0.0] - 2026-07-01
+
+### Added
+- Add DocPull output contract v3 validation with `docpull pack validate`,
+  raw/agent/eval levels, v3 manifests, raw sidecars for file-backed outputs,
+  record-level citations, chunk-safe SQLite output, and listing item sidecars
+  for link-dense event/news pages.
+- Add `docpull parse`, a local document parsing lane that emits v3 packs from
+  plain text/Markdown directly and optional MarkItDown or Unstructured parser
+  backends for complex office/PDF files.
+- Add optional Presidio-backed PII detection for `docpull pack audit --redaction`
+  and `docpull pack redact`, while keeping deterministic regex redaction as the
+  default backend.
+- Add `docpull openapi-pack` to convert local or HTTPS OpenAPI JSON/YAML specs
+  into v3 endpoint and component-schema records.
+- Add `docpull feed-pack` to convert RSS, Atom, JSON Feed, or pages that
+  advertise feeds into item-level v3 records with feed item sidecars,
+  listing sidecars, and freshness metadata.
+- Add typed knowledge lanes for known-source context dependencies:
+  `docpull paper-pack`, `repo-pack`, `package-pack`, `standards-pack`,
+  `dataset-pack`, `transcript-pack`, and `wiki-pack`. These commands emit v3 raw packs,
+  validate with `docpull pack validate`, prepare to agent/eval grade, and
+  export through the existing pack export formats without adding new MCP tools.
+  Remote typed lanes also support opt-in metadata caching, typed sidecar roots,
+  async SDK wrappers, standards section records, exact streamable dataset row
+  counts, and explicit official API source contracts for arXiv, Crossref, and
+  NCBI E-utilities.
+- Add `--extractor ensemble`, which scores built-in and optional trafilatura
+  extraction candidates and keeps the strongest Markdown output.
+- Add `docpull ci`, a local Context CI gate for project and standalone pack
+  context. It validates lockfiles, current score/audit sidecars, coverage,
+  citation coverage, eval-grade artifacts, rights constraints, and optional
+  context prediction pass rates while writing `context-ci.report.json` and
+  `CONTEXT_CI.md`.
+- Add GitHub Actions workflow definitions for scheduled free live smokes over
+  typed official APIs and ordinary web sources, so source drift can be checked
+  outside the default offline test suite.
+- Add `scripts/real_feature_smoke.py`, an opt-in real-data acceptance harness
+  for the free/local public surface with optional cloud-render lanes.
+- Document the Context CI GitHub Actions workflow, context-pack contract, and
+  hidden-eval human review protocol.
+- Add Context CI examples, Context Pack Contract v3, a design-partner
+  playbook, and a spec-only hosted control-plane extension.
+- Make `current-context-qa` the default evalgen task type while accepting
+  `current-docs-qa` as a legacy alias.
+- Add a Context CI benchmark report over local demo packs showing passing,
+  manifest-mismatch, coverage, rights, citation, and stale-answer gates.
+
+### Changed
+- Consolidate the unreleased v3 surface around context dependencies, pack
+  validation/preparation, exports, Context CI, document parsing, OpenAPI packs,
+  and the canonical `agent-browser` renderer contract.
+- Remove unreleased top-level parity/provider/benchmark commands from the
+  public CLI surface; internal modules may remain for future work but are no
+  longer documented as release commands.
+- Remove unreleased provider/parity/typed-pack tools from the public MCP
+  surface and prune the corresponding top-level Python SDK exports.
+- Prune `docpull.context_packs.__all__` to the public typed lanes while keeping
+  legacy builders importable from concrete private modules for tests.
+- Promote `validate_pack_contract`, `run_context_ci`, `ContextCIError`, and
+  `CIThresholds` through the root Python SDK contract.
+- Remove provider and observability extras from the public package extras;
+  internal experiments that need those SDKs should install them directly.
+- Remove the unreleased Playwright renderer runtime and keep `agent-browser` as
+  the sole local browser-rendering contract for local, Vercel, and E2B paths.
+- Make the `sec-filing` profile use the extractor ensemble so base installs
+  fall back to the built-in extractor when optional Trafilatura is unavailable.
+- Let project mode store and sync typed source specs for packages, papers,
+  standards, datasets, transcripts, repos, OpenAPI specs, feeds, and wiki pages.
+- Bound ad hoc `docpull watch` projects to one page/depth by default and add
+  explicit `--max-pages` / `--max-depth` watch controls.
+- Let `cursor-rules` exports accept an output directory and write
+  `<skill-name>.mdc` plus references, matching the CLI's file-or-directory
+  contract.
+- Enrich `repo-pack` GitHub archive fallback with public HTML metadata when the
+  REST API is unavailable, preserving description/topics where possible.
+
+### Fixed
+- Honor an explicit `docpull render --live-smoke -o DIR` output directory by
+  preserving rendered HTML and `rendered_pages.ndjson` artifacts there, while
+  keeping bare `--live-smoke` runs temporary.
+- Return a nonzero CLI status when a crawl writes no readable records, so
+  robots-blocked or otherwise empty public-site crawls do not look successful.
+- Improve article cleanup for separated bylines, source/newsroom lines,
+  relative timestamps, video placeholders, captions, and non-heading related
+  story sections.
+- Let `feed-pack` accept bounded feeds mislabeled as
+  `application/octet-stream` only after normal attachment/body guards and feed
+  shape validation.
+- Fix typed project source inference for repo refs containing `s`, and keep
+  HTTPS file URLs as normal web sources unless a typed lane is explicit.
 
 ## [5.5.1] - 2026-06-29
 
@@ -221,9 +311,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Wire `docpull[proxy]` to actual SOCKS proxy handling via `aiohttp-socks`,
   keep HTTP/HTTPS proxying on aiohttp's native request path, raise the optional
   proxy floor to `aiohttp-socks>=0.11.0`, and document security-floor
-  dependencies as Dependabot-managed constraints.
-- Run Dependabot version checks daily across Python, GitHub Actions, web npm,
-  and MCP Bun manifests so dependency floor updates are raised promptly.
+  dependencies as Renovate-managed constraints.
+- Run Renovate version checks across Python, GitHub Actions, web npm, and MCP
+  Bun manifests so dependency floor updates are raised promptly.
 - Pin release build backends (`setuptools`, `wheel`) alongside `pip`, `build`,
   and `twine`, and run the publish build without isolation so releases do not
   silently download latest build tooling.
@@ -795,8 +885,8 @@ and Drizzle documentation sites.
   lowercase header names, but the `Location` lookup was case-sensitive,
   causing 301/308 redirects to be treated as errors. This blocked
   `docs.anthropic.com` and any other site whose robots.txt was redirected.
-- **html2text link escape artifacts**: cleaned up mangled links of the form
-  `[text](prefix/<https:/real.url>)` in the post-processing pass; handles
+- **html2text link escape artifacts**: cleaned up mangled Markdown link targets
+  containing `prefix/<https:/real.url>` in the post-processing pass; handles
   both text and image-only (empty-text) links.
 
 ### Removed

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
+from docpull.conversion.article_cleanup import clean_article_markdown
 from docpull.conversion.extractor import MainContentExtractor
 from docpull.conversion.markdown import HtmlToMarkdown
 from docpull.conversion.special_cases import detect_source_type
@@ -67,6 +68,47 @@ class TestMainContentExtraction:
         assert "Intro to Claude" in extracted
         assert "Claude is a highly performant" in extracted
         assert "Loading..." not in extracted
+
+
+class TestNewsArticleCleanup:
+    def test_removes_known_news_artifacts_without_dropping_article_body(self):
+        markdown = """# City launches new transit plan
+
+ByJane ReporterBBC News
+
+BBC News
+
+Published
+
+This video can not be played
+
+![Mayor at train station](https://example.com/image.jpg)
+Image caption,
+Mayor announces the new plan
+
+The city has announced a new transit plan that expands evening service.
+
+Officials said the plan will start next month and include new bus lanes.
+
+More on this story
+
+[Unrelated story](https://example.com/related)
+"""
+
+        cleaned = clean_article_markdown(
+            markdown,
+            url="https://www.bbc.com/news/articles/example",
+            metadata={"published_time": "2026-07-01T00:00:00Z"},
+        )
+
+        assert "The city has announced a new transit plan" in cleaned
+        assert "Officials said the plan will start next month" in cleaned
+        assert "ByJane ReporterBBC News" not in cleaned
+        assert "BBC News" not in cleaned
+        assert "This video can not be played" not in cleaned
+        assert "Image caption" not in cleaned
+        assert "Mayor announces the new plan" not in cleaned
+        assert "Unrelated story" not in cleaned
 
     def test_prefers_nextjs_streamed_segment_over_loading_shell(self):
         loading_text = " ".join(["Loading..."] * 16)

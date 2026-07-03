@@ -9,13 +9,13 @@ name: Update metrics
 #   - GitHub traffic (clones, views, referrers, paths) — last 14 days.
 #
 # Plugin install proxy: `/plugin marketplace add raintree-technology/docpull`
-# is a git clone under the hood, so daily clone counts approximate
-# plugin installs.
+# is a git clone under the hood. Weekly clone counts are enough for trend
+# tracking without daily Actions spend.
 #
 # Why a workflow instead of an external dashboard:
 #   - Single source of truth committed in-repo (no external service to babysit).
 #   - History via `git log METRICS.md` if you ever want trend analysis.
-#   - Free; uses pre-installed gh CLI + stdlib Python on ubuntu-latest.
+#   - Free; uses pre-installed gh CLI + stdlib Python on ubuntu-24.04.
 #
 # Token: traffic endpoints (clones, views, referrers, paths) require
 # `Administration: read` permission, which the default GITHUB_TOKEN does
@@ -26,8 +26,8 @@ name: Update metrics
 
 on:
   schedule:
-    # 09:12 UTC daily (off-hour to dodge top-of-hour Actions spikes).
-    - cron: "12 9 * * *"
+    # 09:12 UTC weekly Monday (off-hour to dodge top-of-hour Actions spikes).
+    - cron: "12 9 * * 1"
   workflow_dispatch:
 
 permissions:
@@ -49,6 +49,7 @@ jobs:
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
+          persist-credentials: false
           ref: ${{ github.event.repository.default_branch }}
 
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1

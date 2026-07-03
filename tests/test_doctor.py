@@ -137,10 +137,12 @@ def test_run_doctor_plain_output_reports_optional_feature_guidance(
 
     output = capsys.readouterr().out
     assert "All core dependencies installed correctly!" in output
-    assert "Optional features available:" in output
+    assert "Missing optional Python extras:" in output
+    assert "Proxy support: pip install 'docpull[proxy]'" in output
+    assert "Install only the extras you need" in output
+    assert "Optional external runtime setup:" in output
     assert "Browser rendering" in output
     assert "Cloud rendering" in output
-    assert "pip install docpull[all]" in output
 
 
 def test_run_doctor_plain_output_reports_optional_external_tool_guidance(
@@ -177,7 +179,46 @@ def test_run_doctor_plain_output_reports_optional_external_tool_guidance(
     assert "agent-browser backend unavailable" in output
     assert "Vercel Sandbox backend unavailable" in output
     assert "E2B Sandbox backend unavailable" in output
+    assert "Optional external runtime setup:" in output
     assert "Browser rendering" in output
+    assert "Missing optional Python extras:" not in output
+    assert "Install only the extras you need" not in output
+
+
+def test_run_doctor_plain_output_omits_optional_install_guidance_when_extras_present(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    def fake_check_dependency(module_name: str, package_name: str | None = None, optional: bool = False):
+        display = package_name or module_name
+        return True, f"[OK] {display}"
+
+    monkeypatch.setattr(doctor, "check_dependency", fake_check_dependency)
+    monkeypatch.setattr(doctor, "check_network", lambda: (True, "[OK] Network connectivity"))
+    monkeypatch.setattr(doctor, "check_output_dir", lambda _output_dir=None: (True, "[OK] Output"))
+    monkeypatch.setattr(
+        doctor,
+        "check_agent_browser_availability",
+        lambda: (True, "[OK] agent-browser backend (/bin/agent-browser)"),
+    )
+    monkeypatch.setattr(
+        doctor,
+        "check_vercel_sandbox_availability",
+        lambda: (False, "[WARN] Vercel Sandbox backend unavailable"),
+    )
+    monkeypatch.setattr(
+        doctor,
+        "check_e2b_sandbox_availability",
+        lambda: (False, "[WARN] E2B Sandbox backend unavailable"),
+    )
+
+    assert doctor.run_doctor(use_rich=False) == 0
+
+    output = capsys.readouterr().out
+    assert "Missing optional Python extras:" not in output
+    assert "Install only the extras you need" not in output
+    assert "Optional external runtime setup:" in output
+    assert "Cloud rendering" in output
 
 
 def test_run_doctor_rich_output_path(

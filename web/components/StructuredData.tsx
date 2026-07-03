@@ -2,7 +2,7 @@ import { faqs } from "./faq-content";
 
 // Spec: SEO / Structured data (JSON-LD). A single @graph describing the site,
 // the publishing organization, the software itself, and the FAQ. Rendered
-// server-side so crawlers and AI agents see it in the initial HTML.
+// server-side so search indexers and AI agents see it in the initial HTML.
 
 const baseUrl = "https://docpull.raintree.technology";
 
@@ -39,18 +39,19 @@ const graph = {
       downloadUrl: "https://pypi.org/project/docpull/",
       softwareHelp: "https://github.com/raintree-technology/docpull#readme",
       description:
-        "Security-hardened, browser-free crawler that turns static and server-rendered web pages into source-linked Markdown agents can read, cite, and reuse.",
+        "Security-hardened, browser-free context dependency tool that turns selected web sources and files into source-linked artifacts agents can read, cite, validate, and reuse.",
       author: { "@id": `${baseUrl}/#organization` },
       license: "https://opensource.org/licenses/MIT",
       isAccessibleForFree: true,
       featureList: [
-        "Public web-source crawling to Markdown, JSON, NDJSON, and SQLite",
+        "Context dependency lockfiles for repeatable source sets",
+        "Public web-source ingestion to Markdown, JSON, NDJSON, SQLite, and OKF",
         "Token-aware chunks with stable document and chunk IDs",
+        "v3 raw, agent, and eval pack validation",
+        "Citation indexes, rights manifests, provenance graphs, and pack audits",
         "MCP server for agent access to cached Markdown sources",
-        "Single-URL fetch path for tool calls",
-        "Parallel-backed context packs with AGENT_CONTEXT.md load plans",
-        "Entity packs, batch packs, monitor packs, and API packs",
-        "Pack scoring and diffing for local agent-readiness checks",
+        "Exports for agent frameworks, skills, rules, sheets, and warehouses",
+        "Context CI for stale, missing, or weak evidence checks",
       ],
       offers: {
         "@type": "Offer",

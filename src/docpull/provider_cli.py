@@ -1257,7 +1257,7 @@ def _provider_auth_next_actions(statuses: dict[str, dict[str, Any]]) -> list[dic
         elif status["reason"] == "missing_optional_sdk":
             actions.append(
                 {
-                    "command": "pip install 'docpull[parallel]'",
+                    "command": "pip install parallel-web",
                     "reason": "Install the optional Parallel SDK.",
                 }
             )

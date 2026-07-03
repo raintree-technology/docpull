@@ -44,6 +44,7 @@ def test_agent_browser_binary_prefers_explicit_value_and_env(monkeypatch):
 
 
 def test_check_agent_browser_availability_reports_path(monkeypatch):
+    monkeypatch.delenv("DOCPULL_AGENT_BROWSER_BIN", raising=False)
     monkeypatch.setattr(
         rendering.shutil,
         "which",
@@ -118,18 +119,16 @@ def test_agent_browser_command_construction():
 
     assert command == [
         "/opt/bin/agent-browser",
+        "--session",
+        "docpull-render-08d099a4ffed",
+        "batch",
+        "--bail",
         "--json",
-        "--timeout",
-        "12",
-        "--viewport",
-        "800x600",
-        "open",
-        "https://example.com/app",
-        "wait",
-        "networkidle",
-        "get",
-        "html",
-        "html",
+        "set viewport 800 600",
+        "open https://example.com/app",
+        "wait --load networkidle",
+        "get html html",
+        "close",
     ]
 
 
@@ -147,7 +146,9 @@ def test_cloud_agent_browser_install_can_be_skipped_for_prebuilt_template():
     assert "npm install -g agent-browser" not in command
     assert "node - <<'NODE'" in command
     assert 'const ALLOWED_DOMAINS = ["example.com"];' in script
-    assert '"agent-browser", "--json"' in script
+    assert (
+        '"agent-browser", "--session", "docpull-render-08d099a4ffed", "batch", "--bail", "--json"'
+    ) in script
 
 
 def test_render_config_runtime_alias_maps_to_backend():

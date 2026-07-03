@@ -121,6 +121,9 @@ def run_doctor(output_dir: Path | None = None, use_rich: bool = True) -> int:
         ("aiohttp_socks", "aiohttp-socks", True),
         ("url_normalize", "url-normalize", True),
         ("trafilatura", "trafilatura", True),
+        ("markitdown", "markitdown", True),
+        ("unstructured", "unstructured", True),
+        ("presidio_analyzer", "presidio-analyzer", True),
         ("tiktoken", "tiktoken", True),
         ("mcp", "mcp", True),
     ]
@@ -177,20 +180,46 @@ def run_doctor(output_dir: Path | None = None, use_rich: bool = True) -> int:
     else:
         print("\nAll core dependencies installed correctly!")
 
-        optional_missing = [msg for success, msg in optional_results if not success]
+        optional_missing = [
+            package_name
+            for (_module_name, package_name, _optional), (success, _message) in zip(
+                optional_checks, optional_results, strict=True
+            )
+            if not success
+        ]
         external_missing = [msg for success, msg in external_tool_results if not success]
-        if optional_missing or external_missing:
-            print("\nOptional features available:")
-            print("  - Proxy support: pip install docpull[proxy]")
-            print("  - URL normalization helpers: pip install docpull[normalize]")
-            print("  - Browser rendering: install an agent-browser compatible CLI")
-            print("    or set DOCPULL_AGENT_BROWSER_BIN to its executable path")
-            print("  - Cloud rendering: install the Vercel Sandbox CLI or `docpull[e2b]`")
-            print("    and configure Vercel auth or E2B_API_KEY")
-            print("    Optional: set DOCPULL_E2B_TEMPLATE for a prebuilt E2B renderer image")
-            print("  - All optional features: pip install docpull[all]")
+        if optional_missing:
+            print("\nMissing optional Python extras:")
+            for package_name in optional_missing:
+                guidance = _optional_dependency_guidance(package_name)
+                if guidance:
+                    print(f"  - {guidance}")
+            print("  - Install only the extras you need, e.g. pip install 'docpull[parse,parquet,llm]'")
+        if external_missing:
+            print("\nOptional external runtime setup:")
+            if any("agent-browser backend" in msg for msg in external_missing):
+                print("  - Browser rendering: install an agent-browser compatible CLI")
+                print("    or set DOCPULL_AGENT_BROWSER_BIN to its executable path")
+            if any("Vercel Sandbox" in msg or "E2B Sandbox" in msg for msg in external_missing):
+                print("  - Cloud rendering: install the Vercel Sandbox CLI or `docpull[e2b]`")
+                print("    and configure Vercel auth or E2B_API_KEY")
+                print("    Optional: set DOCPULL_E2B_TEMPLATE for a prebuilt E2B renderer image")
 
         return 0
+
+
+def _optional_dependency_guidance(package_name: str) -> str | None:
+    guidance = {
+        "aiohttp-socks": "Proxy support: pip install 'docpull[proxy]'",
+        "url-normalize": "URL normalization helpers: pip install 'docpull[normalize]'",
+        "trafilatura": "Trafilatura extraction: pip install 'docpull[trafilatura]'",
+        "markitdown": "MarkItDown parsing: pip install 'docpull[markitdown]'",
+        "unstructured": "Unstructured parsing: pip install 'docpull[unstructured]'",
+        "presidio-analyzer": "Presidio PII redaction: pip install 'docpull[presidio]'",
+        "tiktoken": "Token-accurate chunking: pip install 'docpull[llm]'",
+        "mcp": "MCP server: pip install 'docpull[mcp]'",
+    }
+    return guidance.get(package_name)
 
 
 if __name__ == "__main__":

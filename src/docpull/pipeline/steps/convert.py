@@ -7,6 +7,7 @@ import re
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
+from ...conversion.article_cleanup import clean_article_markdown
 from ...conversion.extractor import MainContentExtractor
 from ...conversion.filings import clean_inline_xbrl_html
 from ...conversion.markdown import FrontmatterBuilder, HtmlToMarkdown
@@ -22,6 +23,7 @@ from ...models.events import EventType, FetchEvent, SkipReason
 from ..base import EventEmitter, PageContext
 
 if TYPE_CHECKING:
+    from ...conversion.ensemble import ExtractorEnsemble
     from ...conversion.trafilatura_extractor import TrafilaturaExtractor
 
 logger = logging.getLogger(__name__)
@@ -108,6 +110,7 @@ class ConvertStep:
         special_cases: list[SpecialCaseExtractor] | None = None,
         enable_special_cases: bool = True,
         use_trafilatura: bool = False,
+        use_ensemble: bool = False,
         strict_js_required: bool = False,
         clean_inline_xbrl: bool = False,
     ):
@@ -121,6 +124,8 @@ class ConvertStep:
             enable_special_cases: Run framework-specific extractors first.
             use_trafilatura: Use the optional trafilatura extractor instead
                 of the default one. Requires ``pip install docpull[trafilatura]``.
+            use_ensemble: Run available generic/trafilatura candidates and
+                choose the best-scoring Markdown output.
             strict_js_required: If True, a page that appears to be a JS-only
                 SPA and produces empty content raises (ctx.error) instead of
                 silently skipping.
@@ -133,13 +138,22 @@ class ConvertStep:
         self._special_cases = special_cases if special_cases is not None else list(DEFAULT_CHAIN)
         self._strict_js_required = strict_js_required
         self._use_trafilatura = use_trafilatura
+        self._use_ensemble = use_ensemble
         self._clean_inline_xbrl = clean_inline_xbrl
 
-        # Exactly one of (_trafilatura) or (_extractor + _converter) is populated.
+        # Exactly one route is active: trafilatura, ensemble, or generic.
         self._trafilatura: TrafilaturaExtractor | None = None
+        self._ensemble: ExtractorEnsemble | None = None
         self._extractor: MainContentExtractor | None = None
         self._converter: HtmlToMarkdown | None = None
-        if use_trafilatura:
+        if use_ensemble:
+            from ...conversion.ensemble import ExtractorEnsemble
+
+            self._ensemble = ExtractorEnsemble(
+                extractor=extractor,
+                converter=converter,
+            )
+        elif use_trafilatura:
             from ...conversion.trafilatura_extractor import TrafilaturaExtractor
 
             self._trafilatura = TrafilaturaExtractor()
@@ -176,6 +190,10 @@ class ConvertStep:
             elif self._trafilatura is not None:
                 markdown = self._trafilatura.extract(ctx.html, ctx.url)
                 ctx.extraction_info["method"] = "trafilatura"
+            elif self._ensemble is not None:
+                markdown, ensemble_payload = self._ensemble.extract(ctx.html, ctx.url)
+                ctx.extraction_info["method"] = "ensemble"
+                ctx.extraction_info["ensemble"] = ensemble_payload
             else:
                 if self._extractor is None or self._converter is None:
                     raise RuntimeError("Generic HTML converter is not initialized.")
@@ -193,6 +211,8 @@ class ConvertStep:
             # "Loading..." shell. Treat as empty if so.
             if looks_like_spa_output(markdown):
                 return self._handle_empty_content(ctx, emit)
+
+            markdown = clean_article_markdown(markdown, url=ctx.url, metadata=ctx.metadata)
 
             if self._add_frontmatter and self._frontmatter_builder:
                 if ctx.source_type in {"raw_text", "llms_txt"}:
@@ -310,6 +330,8 @@ class ConvertStep:
         score = 0.35
         if ctx.extraction_info.get("method") == "special_case":
             score += 0.35
+        elif ctx.extraction_info.get("method") == "ensemble":
+            score += 0.28
         elif ctx.extraction_info.get("method") == "trafilatura":
             score += 0.25
         elif len(markdown) > 500:

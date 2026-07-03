@@ -62,7 +62,7 @@ When you cite fetched content, include the source path returned by `grep_docs` /
 
 ## Built-in aliases
 
-These are pre-configured and resolvable by `ensure_docs(source=...)` without setup: `react`, `nextjs`, `tailwindcss`, `vite`, `hono`, `fastapi`, `express`, `anthropic`, `openai`, `parallel`, `langchain`, `supabase`, `drizzle`, `prisma`. Run `list_sources()` for the current set.
+These are pre-configured and resolvable by `ensure_docs(source=...)` without setup: `react`, `nextjs`, `tailwindcss`, `vite`, `hono`, `fastapi`, `express`, `anthropic`, `openai`, `langchain`, `supabase`, `drizzle`, `prisma`. Run `list_sources()` for the current set.
 
 ## Failure modes
 

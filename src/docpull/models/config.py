@@ -122,9 +122,9 @@ class ContentFilterConfig(BaseModel):
         None,
         description="Maximum size per response in bytes (e.g., '200kb', '1mb'). Caps the per-page download.",
     )
-    extractor: Literal["default", "trafilatura"] = Field(
+    extractor: Literal["default", "trafilatura", "ensemble"] = Field(
         "default",
-        description="Content extractor to use (trafilatura requires optional install)",
+        description="Content extractor to use (trafilatura/ensemble can use optional trafilatura)",
     )
     enable_special_cases: bool = Field(
         True,
@@ -275,6 +275,14 @@ class RenderConfig(BaseModel):
     @classmethod
     def _parse_shorthand(cls, value: Any) -> Any:
         if isinstance(value, str):
+            runtime_key = value.strip()
+            runtime_to_backend = {
+                "local": "agent-browser",
+                "vercel": "vercel-sandbox",
+                "e2b": "e2b-sandbox",
+            }
+            if runtime_key in runtime_to_backend:
+                return {"mode": "agent-browser", "backend": runtime_to_backend[runtime_key]}
             return {"mode": value}
         if isinstance(value, dict):
             normalized = dict(value)
@@ -550,6 +558,7 @@ class NetworkConfig(BaseModel):
         description="Deprecated insecure option; docpull always verifies TLS certificates",
     )
     max_retries: int = Field(3, ge=0, description="Maximum retry attempts for failed requests")
+    log_retry_warnings: bool = Field(True, description="Log retryable HTTP failures before retrying")
     connect_timeout: int = Field(10, ge=1, description="Connection timeout in seconds")
     read_timeout: int = Field(30, ge=5, description="Read timeout in seconds")
     require_pinned_dns: bool = Field(

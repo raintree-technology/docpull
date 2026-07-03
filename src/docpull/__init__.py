@@ -14,20 +14,31 @@ Usage:
             print(event)
 """
 
-__version__ = "5.5.1"
+__version__ = "6.0.0"
 
 from .cache import CacheManager, StreamingDeduplicator
+from .context_ci import CIThresholds, ContextCIError, run_context_ci
 from .context_packs import (
-    build_brand_pack,
-    build_image_pack,
-    build_product_pack,
-    build_search_pack,
-    build_styleguide_pack,
-    capture_screenshot_pack,
-    extract_schema,
+    async_build_dataset_pack,
+    async_build_package_pack,
+    async_build_paper_pack,
+    async_build_repo_pack,
+    async_build_standards_pack,
+    async_build_transcript_pack,
+    async_build_wiki_pack,
+    build_dataset_pack,
+    build_feed_pack,
+    build_openapi_pack,
+    build_package_pack,
+    build_paper_pack,
+    build_repo_pack,
+    build_standards_pack,
+    build_transcript_pack,
+    build_wiki_pack,
 )
 from .conversion.chunking import Chunk, TokenCounter, chunk_markdown
 from .core.fetcher import Fetcher, fetch_blocking, fetch_one
+from .document_parse import DocumentParseError, ParsedDocument, parse_documents, parse_one_document
 from .exports import ExportResult, export_pack
 from .graph import (
     GraphError,
@@ -38,7 +49,7 @@ from .graph import (
     query_graph,
     refresh_graph,
 )
-from .local_workflows import answer_pack, audit_pack, refresh_pack
+from .local_workflows import audit_pack, refresh_pack
 from .models.config import (
     BudgetConfig,
     CacheConfig,
@@ -54,6 +65,7 @@ from .models.config import (
     RenderViewport,
 )
 from .models.events import EventType, FetchEvent, FetchStats
+from .output_contract import validate_pack_contract
 from .pack_reader import LocalPack, PackReadError, PackSource, load_pack
 from .pack_tools import (
     build_citation_map,
@@ -64,15 +76,6 @@ from .pack_tools import (
     score_pack,
     score_pack_sources,
     search_pack,
-)
-from .parity import (
-    ParityWorkflowError,
-    crawl_pack,
-    entities_pack,
-    extract_pack,
-    map_sources,
-    research_pack,
-    validate_structured_output,
 )
 from .pipeline.base import PageContext
 from .pipeline.steps import SqliteSearchResult, search_sqlite_documents
@@ -94,39 +97,37 @@ from .rendering import (
     render_url,
     render_url_to_directory,
 )
-from .scraper import (
-    Scraper,
-    ScrapeResult,
-    ScrapeRunResult,
-    scrape_one,
-    scrape_one_blocking,
-    scrape_site,
-)
 from .server import PackASGIApp, PackServerError, create_pack_app
 from .share import ReportHTTPServer, ShareError, create_report_server, render_report_document
+from .surface import PUBLIC_SDK_EXPORTS
 
 __all__ = [
     "__version__",
+    "async_build_dataset_pack",
+    "async_build_package_pack",
+    "async_build_paper_pack",
+    "async_build_repo_pack",
+    "async_build_standards_pack",
+    "async_build_transcript_pack",
+    "async_build_wiki_pack",
     "Fetcher",
     "fetch_blocking",
     "fetch_one",
     "refresh_pack",
     "audit_pack",
-    "answer_pack",
-    "build_brand_pack",
-    "build_styleguide_pack",
-    "build_product_pack",
-    "extract_schema",
-    "build_image_pack",
-    "capture_screenshot_pack",
-    "build_search_pack",
-    "extract_pack",
-    "map_sources",
-    "crawl_pack",
-    "research_pack",
-    "entities_pack",
-    "validate_structured_output",
-    "ParityWorkflowError",
+    "build_dataset_pack",
+    "build_feed_pack",
+    "build_openapi_pack",
+    "build_package_pack",
+    "build_paper_pack",
+    "build_repo_pack",
+    "build_standards_pack",
+    "build_transcript_pack",
+    "build_wiki_pack",
+    "parse_documents",
+    "parse_one_document",
+    "DocumentParseError",
+    "ParsedDocument",
     "score_pack",
     "score_pack_sources",
     "diff_packs",
@@ -135,6 +136,10 @@ __all__ = [
     "search_pack",
     "build_research_brief",
     "prepare_pack",
+    "validate_pack_contract",
+    "run_context_ci",
+    "ContextCIError",
+    "CIThresholds",
     "export_pack",
     "ExportResult",
     "GraphError",
@@ -155,12 +160,6 @@ __all__ = [
     "render_report_document",
     "ReportHTTPServer",
     "ShareError",
-    "ScrapeResult",
-    "ScrapeRunResult",
-    "Scraper",
-    "scrape_one",
-    "scrape_one_blocking",
-    "scrape_site",
     "PageContext",
     "PolicyConfig",
     "DocpullConfig",
@@ -201,3 +200,5 @@ __all__ = [
     "TokenCounter",
     "chunk_markdown",
 ]
+
+assert tuple(__all__) == PUBLIC_SDK_EXPORTS

@@ -31,6 +31,11 @@ auth:
   allow_authenticated_sources: false
 redaction:
   enabled: true
+  backend: hybrid
+  language: en
+  entities:
+    - email_address
+  score_threshold: 0.7
   patterns:
     - name: email
       regex: "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+"
@@ -44,6 +49,9 @@ redaction:
     assert policy.allows_url("https://docs.example.com/api")[0] is True
     assert policy.allows_url("https://docs.example.com/admin/users") == (False, "path_denied")
     assert policy.budget.maximum_paid_cost_usd == 0
+    assert policy.redaction.backend == "hybrid"
+    assert policy.redaction.entities == ["EMAIL_ADDRESS"]
+    assert policy.redaction.score_threshold == 0.7
     assert any("allowed domains: docs.example.com" in line for line in policy.explain())
     assert any("paid budget: $0.0000" in line for line in policy.explain())
 

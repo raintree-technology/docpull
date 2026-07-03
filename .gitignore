@@ -211,3 +211,8 @@ screenshots/
 .docpull-cache/
 .docpull/
 .env*.local
+
+# Local generated agent wrappers and benchmark/demo packs
+.agents/
+competitors/
+docs/internal/

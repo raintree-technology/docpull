@@ -25,7 +25,7 @@ const overviewFacts = [
   { icon: Terminal, label: "CLI / SDK / MCP" },
   { icon: FileText, label: "Markdown + NDJSON" },
   { icon: Lock, label: "Local-first default" },
-  { icon: PackageCheck, label: "Optional providers" },
+  { icon: PackageCheck, label: "v3 pack contract" },
 ] as const;
 
 export function DocsArticle() {
@@ -60,8 +60,8 @@ export function DocsArticle() {
           local artifacts for agents, RAG, and offline research.
         </p>
         <p className="mt-4 text-base leading-7 text-muted-foreground">
-          It is browser-free by default, writes auditable files, and can
-          escalate to optional renderers or providers only when you ask.
+          It is browser-free by default, writes auditable files, and uses
+          explicit rendering only when you ask.
         </p>
         <FactStrip facts={overviewFacts} />
       </div>
@@ -70,7 +70,7 @@ export function DocsArticle() {
         <AnchorHeading id="install">Install</AnchorHeading>
         <p className="text-base leading-7 text-muted-foreground">
           Install the base CLI from PyPI. The default path handles static HTML
-          and server-rendered pages without a browser or provider account.
+          and server-rendered pages without a browser or external account.
         </p>
         <DocsCodeBlock code="pip install docpull" />
         <p className="text-base leading-7 text-muted-foreground">
@@ -81,7 +81,8 @@ export function DocsArticle() {
 pip install 'docpull[trafilatura]'   # alternate extractor
 pip install 'docpull[mcp]'           # stdio MCP server
 pip install 'docpull[serve]'         # local pack JSON server
-pip install 'docpull[parallel]'      # Parallel context packs
+pip install 'docpull[parse]'         # document parsing extras
+pip install 'docpull[parquet]'       # Parquet export support
 pip install 'docpull[all]'           # all optional extras`}
         />
         <DocsCodeBlock code="docpull --doctor" title="verify" />
@@ -132,6 +133,47 @@ docpull https://www.python.org/blogs/ --format okf -o ./out/okf`}
       </section>
 
       <section className="mt-11 space-y-5">
+        <AnchorHeading id="local-inputs">Local inputs</AnchorHeading>
+        <p className="text-base leading-7 text-muted-foreground">
+          Known-source pack builders normalize files, APIs, feeds, papers,
+          repos, packages, standards, datasets, transcripts, and wiki pages
+          into the same v3 pack contract.
+        </p>
+        <DocsCodeBlock
+          code={`docpull parse ./handbook.pdf -o ./packs/handbook --backend auto
+docpull openapi-pack ./openapi.json -o ./packs/api
+docpull feed-pack ./feed.xml -o ./packs/feed
+docpull paper-pack arxiv:1706.03762 -o ./packs/papers
+docpull repo-pack psf/requests -o ./packs/repo --cache
+docpull package-pack pypi:requests -o ./packs/package
+docpull standards-pack rfc:9110 -o ./packs/standard
+docpull dataset-pack ./metrics.csv -o ./packs/dataset
+docpull transcript-pack ./meeting.vtt -o ./packs/transcript
+docpull wiki-pack wiki:Web_scraping -o ./packs/wiki`}
+        />
+      </section>
+
+      <section className="mt-11 space-y-5">
+        <AnchorHeading id="pack-contract">Pack contract</AnchorHeading>
+        <p className="text-base leading-7 text-muted-foreground">
+          A raw output directory becomes an agent-ready dependency only after it
+          satisfies the v3 pack contract. The validator is the public source of
+          truth for required records, sidecars, citations, rights, provenance,
+          and audit artifacts.
+        </p>
+        <DocsCodeBlock
+          code={`docpull pack validate ./packs/docs --level raw
+docpull pack prepare ./packs/docs --eval-grade
+docpull pack validate ./packs/docs --level eval --format json`}
+        />
+        <Callout icon={CheckCircle2} title="Three pack levels">
+          Raw packs include corpus, sources, and acquisition sidecars. Agent
+          packs add context locks, coverage, citations, scores, and audits.
+          Eval packs add rights, provenance, basis artifacts, and a pack card.
+        </Callout>
+      </section>
+
+      <section className="mt-11 space-y-5">
         <AnchorHeading id="profiles">Profiles</AnchorHeading>
         <p className="text-base leading-7 text-muted-foreground">
           Profiles tune extraction, chunking, and artifact shape for common
@@ -150,14 +192,14 @@ docpull https://site.com --profile mirror --cache -o ./site-mirror`}
         <AnchorHeading id="zero-budget">Zero-budget runs</AnchorHeading>
         <p className="text-base leading-7 text-muted-foreground">
           Use <InlineCode>--budget 0</InlineCode> when a run must not make
-          paid-capable provider or cloud calls. Local cache, direct HTTP,
-          sitemap discovery, extraction, indexing, pack analysis, and local
-          rendering remain available.
+          cloud rendering calls. Local cache, direct HTTP, sitemap discovery,
+          extraction, indexing, pack analysis, and local rendering remain
+          available.
         </p>
         <DocsCodeBlock
           code={`docpull https://docs.example.com --budget 0 -o ./docs/example
 docpull render https://example.com/app --runtime local --budget 0
-docpull providers context-pack "Find official docs" --provider all --dry-run --budget 0 --json`}
+docpull ci --prepare --budget 0`}
         />
         <Callout icon={CheckCircle2} title="Accounting is explicit">
           Runs involving a budget or paid-capable route write
@@ -278,24 +320,16 @@ docpull render https://example.com/app -o ./rendered`}
       </section>
 
       <section className="mt-11 space-y-5">
-        <AnchorHeading id="providers">Provider workflows</AnchorHeading>
+        <AnchorHeading id="context-ci">Context CI and exports</AnchorHeading>
         <p className="text-base leading-7 text-muted-foreground">
-          Parallel, Tavily, and Exa are optional escalation paths. Use dry runs
-          and probes to inspect behavior before live calls.
+          Keep source packs current in CI, then export validated records to the
+          agent or data surface that consumes them.
         </p>
         <DocsCodeBlock
-          code={`docpull providers auth --json --require-ready --redact-paths
-docpull providers probe --provider tavily --provider exa --json --require-verified --redact-paths
-docpull providers capabilities
-
-docpull tavily context-pack "Find current Tavily API docs" \\
-  --query "Tavily Search Extract API docs" \\
-  --include-domain docs.tavily.com \\
-  --output-dir ./packs/tavily-docs
-
-docpull exa extract-pack https://docs.exa.ai/reference/search \\
-  --objective "Extract the Exa Search API reference" \\
-  --output-dir ./packs/exa-search-reference`}
+          code={`docpull ci --prepare
+docpull export ./packs/docs --format openai-vector-jsonl -o ./exports/openai.jsonl
+docpull export ./packs/docs --format claude-skill -o ./.claude/skills/docs
+docpull export ./packs/docs --format cursor-rules -o ./.cursor/rules/docs.mdc`}
         />
       </section>
 
@@ -318,7 +352,7 @@ docpull exa extract-pack https://docs.exa.ai/reference/search \\
       <section className="mt-11 space-y-5">
         <AnchorHeading id="troubleshooting">Troubleshooting</AnchorHeading>
         <p className="text-base leading-7 text-muted-foreground">
-          Start with deterministic local checks before changing your crawl
+          Start with deterministic local checks before changing your source
           policy.
         </p>
         <DocsCodeBlock
@@ -342,13 +376,13 @@ docpull URL --preview-urls`}
             icon={Terminal}
             title="CLI recipes"
           >
-            Commands for crawls, formats, packs, providers, rendering, and
-            monitors.
+            Commands for source ingestion, formats, packs, rendering, exports,
+            and monitors.
           </ResourceCard>
           <ResourceCard
             href="https://github.com/raintree-technology/docpull/blob/main/docs/scraping-boundary.md"
             icon={Layers3}
-            title="Scraping boundary"
+            title="Web source boundary"
           >
             What docpull fetches by default and when to use rendering.
           </ResourceCard>
@@ -377,7 +411,7 @@ docpull URL --preview-urls`}
           </p>
           <p className="mt-2 text-base leading-7 text-muted-foreground">
             Crawl a small public docs section, inspect the manifest, then move
-            to profiles, providers, or MCP only when the local pack shape is
+            to profiles, exports, or MCP only when the local pack shape is
             right.
           </p>
           <DocsCodeBlock
