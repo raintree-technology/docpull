@@ -1,5 +1,5 @@
 """
-docpull - Fetch and convert static/server-rendered web content to markdown.
+docpull - Context dependencies for AI agents.
 
 Usage:
     from docpull import Fetcher, DocpullConfig, ProfileName
@@ -14,7 +14,7 @@ Usage:
             print(event)
 """
 
-__version__ = "6.0.0"
+__version__ = "6.0.1"
 
 from .cache import CacheManager, StreamingDeduplicator
 from .context_ci import CIThresholds, ContextCIError, run_context_ci
