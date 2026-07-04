@@ -963,13 +963,45 @@ def run_quick_benchmark(
 
     report_path = run_dir / "benchmark.report.json"
     markdown_path = run_dir / "benchmark.summary.md"
+    config_path = run_dir / "benchmark.config.json"
+    generated_at = utc_now_iso()
+    safe_provider_status = _benchmark_provider_statuses(provider_status)
     artifacts: dict[str, str] = {
+        "config": str(config_path),
         "json": str(report_path),
         "markdown": str(markdown_path),
     }
+    benchmark_config = {
+        "schema_version": BENCHMARK_SCHEMA_VERSION,
+        "generated_at": generated_at,
+        "run_dir": str(run_dir),
+        "target_url": targets[0].url,
+        "target_set": target_set,
+        "targets": [target.report_dict() for target in targets],
+        "requested_providers": requested_providers,
+        "enabled_providers": ["core", *providers],
+        "skipped_providers": skipped_providers,
+        "provider_status": safe_provider_status,
+        "runs_per_case": runs,
+        "budget_limit_usd": budget_limit,
+        "zero_dollar": zero_dollar,
+        "settings": {
+            "max_pages": max_pages,
+            "max_depth": max_depth,
+            "max_concurrent": max_concurrent,
+            "per_host_concurrent": per_host_concurrent,
+            "cache_enabled": cache_enabled,
+            "cached_pass": cached_pass,
+            "mode": mode,
+            "max_search_results": max_search_results,
+            "extract_limit": extract_limit,
+            "max_estimated_cost": max_estimated_cost,
+        },
+        "cost_normalization": _cost_normalization_metadata(tavily_credit_usd),
+    }
     report = {
         "schema_version": BENCHMARK_SCHEMA_VERSION,
-        "generated_at": utc_now_iso(),
+        "generated_at": generated_at,
         "run_dir": str(run_dir),
         "target_url": targets[0].url,
         "target_set": target_set,
@@ -981,7 +1013,7 @@ def run_quick_benchmark(
         "skipped_providers": skipped_providers,
         "budget_limit_usd": budget_limit,
         "zero_dollar": zero_dollar,
-        "provider_status": _benchmark_provider_statuses(provider_status),
+        "provider_status": safe_provider_status,
         "cost_normalization": _cost_normalization_metadata(tavily_credit_usd),
         "runs_per_case": runs,
         "trace": trace.metadata(),
@@ -1011,6 +1043,10 @@ def run_quick_benchmark(
         report["zero_dollar_completion"] = _zero_dollar_completion(cases)
     trace.finish(report)
     report["trace"] = trace.metadata()
+    config_path.write_text(
+        json.dumps(benchmark_config, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
     report_path.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     markdown_path.write_text(_markdown_report(report), encoding="utf-8")
     return report
@@ -3848,6 +3884,7 @@ def _article_markdown(report: dict[str, Any], *, title: str) -> str:
             "",
             "## Artifacts",
             "",
+            f"- Config: `{artifacts.get('config')}`",
             f"- JSON report: `{artifacts.get('json')}`",
             f"- Summary: `{artifacts.get('markdown')}`",
             "",
@@ -3977,6 +4014,7 @@ def _legacy_article_markdown(report: dict[str, Any], *, title: str) -> str:
             "",
             "## Artifacts",
             "",
+            f"- Config: `{artifacts.get('config')}`",
             f"- JSON report: `{artifacts.get('json')}`",
             f"- Summary: `{artifacts.get('markdown')}`",
             "",

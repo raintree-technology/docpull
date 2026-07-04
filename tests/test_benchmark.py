@@ -92,6 +92,8 @@ def test_benchmark_quick_cli_writes_reports(
     assert report["trace"]["provider"] == "none"
     assert report["targets"][0]["id"] == "docs-parallel-ai"
     assert report["cases"][0]["target_id"] == "docs-parallel-ai"
+    assert report["artifacts"]["config"].endswith("benchmark.config.json")
+    assert (output_dir / "benchmark.config.json").exists()
     assert (output_dir / "benchmark.summary.md").exists()
 
 
