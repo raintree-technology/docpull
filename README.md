@@ -8,10 +8,12 @@
 [![GitHub stars](https://img.shields.io/github/stars/raintree-technology/docpull?style=social)](https://github.com/raintree-technology/docpull/stargazers)
 [![License: MIT](https://img.shields.io/github/license/raintree-technology/docpull)](https://github.com/raintree-technology/docpull/blob/main/LICENSE)
 
+<!-- mcp-name: io.github.raintree-technology/docpull -->
+
 DocPull is a local-first dependency manager for AI context. Define the public
-docs and web sources an agent depends on, sync them into cited context packs,
-diff what changed, and export reproducible context for Cursor, Claude, Codex,
-OpenAI, LlamaIndex, LangChain, MCP clients, and RAG pipelines.
+web sources an agent depends on, sync them into cited context packs, diff what
+changed, and export reproducible context for Cursor, Claude, OpenAI,
+LlamaIndex, LangChain, MCP clients, and RAG pipelines.
 
 The core workflow is a `docpull.yaml` plus a `.docpull/context.lock.json`,
 similar in spirit to code dependency manifests and lockfiles:
@@ -23,7 +25,7 @@ docpull install
 docpull deps
 docpull sync
 docpull diff
-docpull export context-pack --target codex
+docpull export context-pack --target openai
 ```
 
 Bundled aliases such as `stripe`, `react`, `postgres`, `openai`, and
@@ -386,12 +388,11 @@ More examples live in [CLI Recipes](docs/examples/README.md).
 With an explicit `--skill-agent`, docpull stores the fetched corpus under
 `.docpull/skills/<name>/references` and creates agent-specific wrappers that
 point at that corpus. `--skill-agent claude` writes a Claude Code skill under
-`.claude/skills/<name>/`, `--skill-agent codex` writes a Codex skill under
-`.agents/skills/<name>/` with `agents/openai.yaml`, and `--skill-agent cursor`
-writes a Cursor project rule at `.cursor/rules/<name>.mdc`. Use
-`--skill-agent all` to create all three. If you pass `--output-dir`, docpull
-stages the generated corpus there; explicit `--skill-agent` targets still write
-their active agent wrappers.
+`.claude/skills/<name>/`, and `--skill-agent cursor` writes a Cursor project
+rule at `.cursor/rules/<name>.mdc`. Use `--skill-agent all` to create every
+supported wrapper. If you pass `--output-dir`, docpull stages the generated
+corpus there; explicit `--skill-agent` targets still write their active agent
+wrappers.
 
 Use docpull when you need to:
 
@@ -601,7 +602,7 @@ part of the package release contract.
 - `docpull export` writes local files for OpenAI vector JSONL, LangChain,
   LlamaIndex, DSPy, Sheets CSV/TSV, n8n workflow JSON, Vercel AI SDK JSON,
   CrewAI JSON, warehouse NDJSON, optional Parquet via `docpull[parquet]`, and
-  Codex/Claude/Cursor agent references.
+  agent reference bundles.
 ## Security Defaults
 
 - HTTPS-only fetching with robots.txt compliance.

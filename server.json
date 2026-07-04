@@ -1,0 +1,22 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.raintree-technology/docpull",
+  "title": "DocPull",
+  "description": "Sync public web sources into cited context packs for AI agents, RAG, and MCP clients.",
+  "repository": {
+    "url": "https://github.com/raintree-technology/docpull",
+    "source": "github"
+  },
+  "websiteUrl": "https://docpull.raintree.technology",
+  "version": "6.0.1",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "identifier": "docpull",
+      "version": "6.0.1",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}
