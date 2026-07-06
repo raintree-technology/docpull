@@ -179,8 +179,8 @@ dev = [
 docpull = "docpull.cli:main"
 
 [project.urls]
-Homepage = "https://docpull.raintree.technology"
-Documentation = "https://docpull.raintree.technology"
+Homepage = "https://github.com/raintree-technology/docpull"
+Documentation = "https://github.com/raintree-technology/docpull#readme"
 Repository = "https://github.com/raintree-technology/docpull"
 "Source Code" = "https://github.com/raintree-technology/docpull"
 "Bug Tracker" = "https://github.com/raintree-technology/docpull/issues"

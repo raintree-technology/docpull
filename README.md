@@ -636,7 +636,7 @@ docpull URL --preview-urls
 
 ## Links
 
-- [Website](https://docpull.raintree.technology)
+- [Documentation](https://github.com/raintree-technology/docpull#readme)
 - [PyPI](https://pypi.org/project/docpull/)
 - [GitHub](https://github.com/raintree-technology/docpull)
 - [Metrics](METRICS.md)
