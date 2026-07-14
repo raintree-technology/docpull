@@ -1,0 +1,23 @@
+{
+  "adapter_version": "2",
+  "case_id": "change.fixture.02",
+  "cost_basis": "Repository replay; no request.",
+  "cost_kind": "actual",
+  "cost_usd": 0,
+  "elapsed_seconds": 0.001,
+  "payload": {
+    "delay_seconds": 0.01,
+    "events": [
+      {
+        "category": "content",
+        "identity": "identity-02",
+        "kind": "removed"
+      }
+    ],
+    "kind": "changes"
+  },
+  "request_count": 0,
+  "schema_version": 2,
+  "status": "completed",
+  "system": "fixture"
+}

@@ -1,0 +1,59 @@
+{
+  "files": {
+    "COMPARISON.md": "e4d578dc3db33e24b89cfb44e54872c77cb44facd293aab179f1c0ec85171040",
+    "METHODOLOGY.md": "067de59540fe05a674df7d12b5f3c55838bfa4411608415375a525e3dc10c215",
+    "README.md": "c6ef9316fb859f164eb1f56bc533fbd1b85e3a976de7db8b7f3a7579d474f071",
+    "comparison.json": "a321d085c7dfebf5908d1f16186d9ebe12557e7a4f06f3eb3f014d69541c8c21",
+    "reports/docpull.report.json": "617a14e8d17e99addf08683736b6b452a2853b432dcdd29f4bfef3a814ccb898",
+    "reports/parallel.report.json": "d12c48b683b1200cef5649d8090567220ac25081b8420ddc8959ef41b0a5f312",
+    "reports/tavily-advanced.report.json": "5455f3b40efb9cd255803ea5a232eeaae7d674f16dd7b1d802ceb30a7c067f24",
+    "reports/tavily.report.json": "a8419cc35f7df9f31ff298d6f247402a856008754b700fa1e41d2df1dfb6d632",
+    "suite.yaml": "02b0ae9e23cb938b27082e9f27e0a40468672bfab6491fa8c80a15efdc4a1786"
+  },
+  "generated_at": "2026-07-14T21:02:40.729677+00:00",
+  "packaging_platform": "macOS-26.5.2-arm64-arm-64bit",
+  "schema_version": 1,
+  "source_reports": [
+    {
+      "published_report": "reports/docpull.report.json",
+      "published_report_sha256": "617a14e8d17e99addf08683736b6b452a2853b432dcdd29f4bfef3a814ccb898",
+      "source_report_sha256": "a1841146d6b28dbf3db5faf7875b34b80ad6e8a1295af191cd71529e5427e9fe",
+      "system": "docpull"
+    },
+    {
+      "published_report": "reports/tavily.report.json",
+      "published_report_sha256": "a8419cc35f7df9f31ff298d6f247402a856008754b700fa1e41d2df1dfb6d632",
+      "source_report_sha256": "00be06a3287c570316089c14e2f108e83dfcd5c3fe1305a9c09124a267da46f5",
+      "system": "tavily"
+    },
+    {
+      "published_report": "reports/tavily-advanced.report.json",
+      "published_report_sha256": "5455f3b40efb9cd255803ea5a232eeaae7d674f16dd7b1d802ceb30a7c067f24",
+      "source_report_sha256": "2ae5a7eb9ac0b9683c7a6471f4e89e67269f5af265ed0ca5443493590a7deeff",
+      "system": "tavily-advanced"
+    },
+    {
+      "published_report": "reports/parallel.report.json",
+      "published_report_sha256": "d12c48b683b1200cef5649d8090567220ac25081b8420ddc8959ef41b0a5f312",
+      "source_report_sha256": "66f4a12c0a10c83b9c33e9d4500a7d87fcda5e8a4e30f70d5ad42ec71f0b178d",
+      "system": "parallel"
+    }
+  ],
+  "suite_name": "live-neutral-extract",
+  "suite_sha256": "02b0ae9e23cb938b27082e9f27e0a40468672bfab6491fa8c80a15efdc4a1786",
+  "suite_version": "1.0.0",
+  "unavailable_systems": [
+    {
+      "reason": "Configured credential returned HTTP 402 during a one-case live probe; no scored matrix was run.",
+      "system": "exa"
+    },
+    {
+      "reason": "Configured credential returned HTTP 402 during a one-case live probe; no scored matrix was run.",
+      "system": "exa-full"
+    },
+    {
+      "reason": "No credential was configured; no requests were made.",
+      "system": "context.dev"
+    }
+  ]
+}

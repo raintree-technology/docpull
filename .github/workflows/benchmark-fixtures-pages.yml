@@ -1,0 +1,46 @@
+name: Benchmark Fixture Pages
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "bench/fixtures/v2/**"
+      - "bench/fixtures/manifest.json"
+      - ".github/workflows/benchmark-fixtures-pages.yml"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: benchmark-fixture-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+
+      - name: Assemble versioned rights-safe fixture tree
+        run: |
+          mkdir -p _site/bench-fixtures/v2
+          cp -R bench/fixtures/v2/. _site/bench-fixtures/v2/
+          cp bench/fixtures/manifest.json _site/bench-fixtures/manifest.json
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa
+        with:
+          path: _site
+
+      - name: Deploy Pages
+        id: deployment
+        uses: actions/deploy-pages@f81c16a76926d83c46a4255ed246c4a83a2a0258

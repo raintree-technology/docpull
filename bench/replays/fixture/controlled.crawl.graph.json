@@ -1,0 +1,41 @@
+{
+  "schema_version": 2,
+  "system": "fixture",
+  "status": "completed",
+  "cost_usd": 0.0,
+  "cost_kind": "actual",
+  "cost_basis": "Repository replay; no request.",
+  "adapter_version": "2",
+  "artifacts": {},
+  "case_id": "controlled.crawl.graph",
+  "payload": {
+    "kind": "content",
+    "records": [
+      {
+        "url": "http://127.0.0.1:8765/index.html",
+        "title": "Context Fixture Home",
+        "content": "# Context Fixture\n\nalpha-731 deterministic evidence from the stable root page. This repository-authored article is deliberately long enough for controlled extraction scoring and redistribution.",
+        "metadata": {}
+      },
+      {
+        "url": "http://127.0.0.1:8765/guide.html",
+        "title": "Context Fixture Guide",
+        "content": "# Fixture Guide\n\nbeta-204 bounded graph evidence from the guide page with a unique explanation of traversal limits and path precision.",
+        "metadata": {}
+      },
+      {
+        "url": "http://127.0.0.1:8765/changelog.html",
+        "title": "Context Fixture Changelog",
+        "content": "# Fixture Changelog\n\ngamma-918 independent crawl evidence from the changelog with a distinct record for duplicate-rate scoring.",
+        "metadata": {}
+      }
+    ],
+    "selected_urls": [
+      "http://127.0.0.1:8765/index.html",
+      "http://127.0.0.1:8765/guide.html",
+      "http://127.0.0.1:8765/changelog.html"
+    ]
+  },
+  "elapsed_seconds": 0.003,
+  "request_count": 0
+}

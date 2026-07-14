@@ -1,0 +1,227 @@
+schema_version: 2
+name: docpull-context-lifecycle
+version: 2.0.0
+description: Unified runner alias for the ten controlled lifecycle checks.
+cases:
+- id: lifecycle.raw_contract
+  input:
+    case_id: lifecycle.raw_contract
+    lane: lifecycle
+    check: raw_contract
+    timeout_seconds: 180
+  expected:
+    lane: lifecycle
+    required_details:
+      status: pass
+      records: 3
+  metadata:
+    description: Controlled lifecycle case lifecycle.raw_contract.
+    split: dev
+    family: context-lifecycle
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - context-lifecycle
+    rights: &id001
+      redistribution: allowed
+      source: Repository-authored MIT benchmark fixture.
+- id: lifecycle.eval_prepare
+  input:
+    case_id: lifecycle.eval_prepare
+    lane: lifecycle
+    check: eval_prepare
+    timeout_seconds: 180
+  expected:
+    lane: lifecycle
+    required_details:
+      status: pass
+      citation_entries: 3
+  metadata:
+    description: Controlled lifecycle case lifecycle.eval_prepare.
+    split: dev
+    family: context-lifecycle
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - context-lifecycle
+    rights: *id001
+- id: lifecycle.stable_identity
+  input:
+    case_id: lifecycle.stable_identity
+    lane: lifecycle
+    check: stable_identity
+    timeout_seconds: 180
+  expected:
+    lane: lifecycle
+    required_details:
+      stable_documents: 3
+  metadata:
+    description: Controlled lifecycle case lifecycle.stable_identity.
+    split: dev
+    family: context-lifecycle
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - context-lifecycle
+    rights: *id001
+- id: lifecycle.exact_diff
+  input:
+    case_id: lifecycle.exact_diff
+    lane: lifecycle
+    check: exact_diff
+    timeout_seconds: 180
+  expected:
+    lane: lifecycle
+    required_details:
+      added: 1
+      removed: 1
+      changed: 1
+      unchanged: 1
+  metadata:
+    description: Controlled lifecycle case lifecycle.exact_diff.
+    split: dev
+    family: context-lifecycle
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - context-lifecycle
+    rights: *id001
+- id: lifecycle.offline_search
+  input:
+    case_id: lifecycle.offline_search
+    lane: lifecycle
+    check: offline_search
+    timeout_seconds: 180
+  expected:
+    lane: lifecycle
+    required_details:
+      network: disabled
+  metadata:
+    description: Controlled lifecycle case lifecycle.offline_search.
+    split: dev
+    family: context-lifecycle
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - context-lifecycle
+    rights: *id001
+- id: lifecycle.exports
+  input:
+    case_id: lifecycle.exports
+    lane: lifecycle
+    check: exports
+    timeout_seconds: 180
+  expected:
+    lane: lifecycle
+    required_details:
+      network: disabled
+      vector_records: 3
+  metadata:
+    description: Controlled lifecycle case lifecycle.exports.
+    split: dev
+    family: context-lifecycle
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - context-lifecycle
+    rights: *id001
+- id: lifecycle.context_ci
+  input:
+    case_id: lifecycle.context_ci
+    lane: lifecycle
+    check: context_ci
+    timeout_seconds: 180
+  expected:
+    lane: lifecycle
+    required_details:
+      network: disabled
+  metadata:
+    description: Controlled lifecycle case lifecycle.context_ci.
+    split: dev
+    family: context-lifecycle
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - context-lifecycle
+    rights: *id001
+- id: lifecycle.lock_drift
+  input:
+    case_id: lifecycle.lock_drift
+    lane: lifecycle
+    check: lock_drift
+    timeout_seconds: 180
+  expected:
+    lane: lifecycle
+    required_details:
+      drift_rejected: true
+      network: disabled
+  metadata:
+    description: Controlled lifecycle case lifecycle.lock_drift.
+    split: dev
+    family: context-lifecycle
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - context-lifecycle
+    rights: *id001
+- id: lifecycle.credential_non_persistence
+  input:
+    case_id: lifecycle.credential_non_persistence
+    lane: lifecycle
+    check: credential_non_persistence
+    timeout_seconds: 180
+  expected:
+    lane: lifecycle
+    required_details:
+      secret_persisted: false
+      network: disabled
+  metadata:
+    description: Controlled lifecycle case lifecycle.credential_non_persistence.
+    split: dev
+    family: context-lifecycle
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - context-lifecycle
+    rights: *id001
+- id: lifecycle.zero_budget
+  input:
+    case_id: lifecycle.zero_budget
+    lane: lifecycle
+    check: zero_budget
+    timeout_seconds: 180
+  expected:
+    lane: lifecycle
+    required_details:
+      blocked: true
+      budget_usd: 0.0
+  metadata:
+    description: Controlled lifecycle case lifecycle.zero_budget.
+    split: dev
+    family: context-lifecycle
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - context-lifecycle
+    rights: *id001
+fixture_manifest_sha256: 7f10af6e7477025da6f6a64c197a5922bfecb2af8c7f28386f8591ab98041a51

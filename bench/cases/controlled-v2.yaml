@@ -1,0 +1,5273 @@
+schema_version: 2
+name: docpull-controlled-evaluation
+version: 2.0.0
+description: Deterministic rights-safe controlled corpus covering ten non-live capability
+  lanes.
+cases:
+- id: extract.fixture.01
+  input:
+    case_id: extract.fixture.01
+    lane: extract
+    url: https://raintree-technology.github.io/docpull/bench-fixtures/v2/extract/01.html
+    include_domains:
+    - raintree-technology.github.io
+  expected:
+    lane: extract
+    minimum_records: 1
+    minimum_content_chars: 80
+    required_terms:
+    - extract-marker-01
+    - deterministic evidence
+    forbidden_terms:
+    - forbidden navigation boilerplate
+    required_urls:
+    - https://raintree-technology.github.io/docpull/bench-fixtures/v2/extract/01.html
+    allowed_domains:
+    - raintree-technology.github.io
+    required_headings:
+    - Evidence Heading 01
+  metadata:
+    description: Controlled extract case extract.fixture.01.
+    split: dev
+    family: hosted-fixture
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - hosted-fixture
+    rights: &id001
+      redistribution: allowed
+      source: Repository-authored MIT benchmark fixture.
+- id: extract.fixture.02
+  input:
+    case_id: extract.fixture.02
+    lane: extract
+    url: https://raintree-technology.github.io/docpull/bench-fixtures/v2/extract/02.html
+    include_domains:
+    - raintree-technology.github.io
+  expected:
+    lane: extract
+    minimum_records: 1
+    minimum_content_chars: 80
+    required_terms:
+    - extract-marker-02
+    - deterministic evidence
+    forbidden_terms:
+    - forbidden navigation boilerplate
+    required_urls:
+    - https://raintree-technology.github.io/docpull/bench-fixtures/v2/extract/02.html
+    allowed_domains:
+    - raintree-technology.github.io
+    required_headings:
+    - Evidence Heading 02
+  metadata:
+    description: Controlled extract case extract.fixture.02.
+    split: dev
+    family: hosted-fixture
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - hosted-fixture
+    rights: *id001
+- id: extract.fixture.03
+  input:
+    case_id: extract.fixture.03
+    lane: extract
+    url: https://raintree-technology.github.io/docpull/bench-fixtures/v2/extract/03.html
+    include_domains:
+    - raintree-technology.github.io
+  expected:
+    lane: extract
+    minimum_records: 1
+    minimum_content_chars: 80
+    required_terms:
+    - extract-marker-03
+    - deterministic evidence
+    forbidden_terms:
+    - forbidden navigation boilerplate
+    required_urls:
+    - https://raintree-technology.github.io/docpull/bench-fixtures/v2/extract/03.html
+    allowed_domains:
+    - raintree-technology.github.io
+    required_headings:
+    - Evidence Heading 03
+  metadata:
+    description: Controlled extract case extract.fixture.03.
+    split: dev
+    family: hosted-fixture
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - hosted-fixture
+    rights: *id001
+- id: extract.fixture.04
+  input:
+    case_id: extract.fixture.04
+    lane: extract
+    url: https://raintree-technology.github.io/docpull/bench-fixtures/v2/extract/04.html
+    include_domains:
+    - raintree-technology.github.io
+  expected:
+    lane: extract
+    minimum_records: 1
+    minimum_content_chars: 80
+    required_terms:
+    - extract-marker-04
+    - deterministic evidence
+    forbidden_terms:
+    - forbidden navigation boilerplate
+    required_urls:
+    - https://raintree-technology.github.io/docpull/bench-fixtures/v2/extract/04.html
+    allowed_domains:
+    - raintree-technology.github.io
+    required_headings:
+    - Evidence Heading 04
+  metadata:
+    description: Controlled extract case extract.fixture.04.
+    split: dev
+    family: hosted-fixture
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - hosted-fixture
+    rights: *id001
+- id: extract.fixture.05
+  input:
+    case_id: extract.fixture.05
+    lane: extract
+    url: https://raintree-technology.github.io/docpull/bench-fixtures/v2/extract/05.html
+    include_domains:
+    - raintree-technology.github.io
+  expected:
+    lane: extract
+    minimum_records: 1
+    minimum_content_chars: 80
+    required_terms:
+    - extract-marker-05
+    - deterministic evidence
+    forbidden_terms:
+    - forbidden navigation boilerplate
+    required_urls:
+    - https://raintree-technology.github.io/docpull/bench-fixtures/v2/extract/05.html
+    allowed_domains:
+    - raintree-technology.github.io
+    required_headings:
+    - Evidence Heading 05
+  metadata:
+    description: Controlled extract case extract.fixture.05.
+    split: dev
+    family: hosted-fixture
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - hosted-fixture
+    rights: *id001
+- id: extract.fixture.06
+  input:
+    case_id: extract.fixture.06
+    lane: extract
+    url: https://raintree-technology.github.io/docpull/bench-fixtures/v2/extract/06.html
+    include_domains:
+    - raintree-technology.github.io
+  expected:
+    lane: extract
+    minimum_records: 1
+    minimum_content_chars: 80
+    required_terms:
+    - extract-marker-06
+    - deterministic evidence
+    forbidden_terms:
+    - forbidden navigation boilerplate
+    required_urls:
+    - https://raintree-technology.github.io/docpull/bench-fixtures/v2/extract/06.html
+    allowed_domains:
+    - raintree-technology.github.io
+    required_headings:
+    - Evidence Heading 06
+  metadata:
+    description: Controlled extract case extract.fixture.06.
+    split: dev
+    family: hosted-fixture
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - hosted-fixture
+    rights: *id001
+- id: extract.fixture.07
+  input:
+    case_id: extract.fixture.07
+    lane: extract
+    url: https://raintree-technology.github.io/docpull/bench-fixtures/v2/extract/07.html
+    include_domains:
+    - raintree-technology.github.io
+  expected:
+    lane: extract
+    minimum_records: 1
+    minimum_content_chars: 80
+    required_terms:
+    - extract-marker-07
+    - deterministic evidence
+    forbidden_terms:
+    - forbidden navigation boilerplate
+    required_urls:
+    - https://raintree-technology.github.io/docpull/bench-fixtures/v2/extract/07.html
+    allowed_domains:
+    - raintree-technology.github.io
+    required_headings:
+    - Evidence Heading 07
+  metadata:
+    description: Controlled extract case extract.fixture.07.
+    split: dev
+    family: hosted-fixture
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - hosted-fixture
+    rights: *id001
+- id: extract.fixture.08
+  input:
+    case_id: extract.fixture.08
+    lane: extract
+    url: https://raintree-technology.github.io/docpull/bench-fixtures/v2/extract/08.html
+    include_domains:
+    - raintree-technology.github.io
+  expected:
+    lane: extract
+    minimum_records: 1
+    minimum_content_chars: 80
+    required_terms:
+    - extract-marker-08
+    - deterministic evidence
+    forbidden_terms:
+    - forbidden navigation boilerplate
+    required_urls:
+    - https://raintree-technology.github.io/docpull/bench-fixtures/v2/extract/08.html
+    allowed_domains:
+    - raintree-technology.github.io
+    required_headings:
+    - Evidence Heading 08
+  metadata:
+    description: Controlled extract case extract.fixture.08.
+    split: dev
+    family: hosted-fixture
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - hosted-fixture
+    rights: *id001
+- id: extract.fixture.09
+  input:
+    case_id: extract.fixture.09
+    lane: extract
+    url: https://raintree-technology.github.io/docpull/bench-fixtures/v2/extract/09.html
+    include_domains:
+    - raintree-technology.github.io
+  expected:
+    lane: extract
+    minimum_records: 1
+    minimum_content_chars: 80
+    required_terms:
+    - extract-marker-09
+    - deterministic evidence
+    forbidden_terms:
+    - forbidden navigation boilerplate
+    required_urls:
+    - https://raintree-technology.github.io/docpull/bench-fixtures/v2/extract/09.html
+    allowed_domains:
+    - raintree-technology.github.io
+    required_headings:
+    - Evidence Heading 09
+  metadata:
+    description: Controlled extract case extract.fixture.09.
+    split: dev
+    family: hosted-fixture
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - hosted-fixture
+    rights: *id001
+- id: extract.fixture.10
+  input:
+    case_id: extract.fixture.10
+    lane: extract
+    url: https://raintree-technology.github.io/docpull/bench-fixtures/v2/extract/10.html
+    include_domains:
+    - raintree-technology.github.io
+  expected:
+    lane: extract
+    minimum_records: 1
+    minimum_content_chars: 80
+    required_terms:
+    - extract-marker-10
+    - deterministic evidence
+    forbidden_terms:
+    - forbidden navigation boilerplate
+    required_urls:
+    - https://raintree-technology.github.io/docpull/bench-fixtures/v2/extract/10.html
+    allowed_domains:
+    - raintree-technology.github.io
+    required_headings:
+    - Evidence Heading 10
+  metadata:
+    description: Controlled extract case extract.fixture.10.
+    split: dev
+    family: hosted-fixture
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - hosted-fixture
+    rights: *id001
+- id: extract.fixture.11
+  input:
+    case_id: extract.fixture.11
+    lane: extract
+    url: https://raintree-technology.github.io/docpull/bench-fixtures/v2/extract/11.html
+    include_domains:
+    - raintree-technology.github.io
+  expected:
+    lane: extract
+    minimum_records: 1
+    minimum_content_chars: 80
+    required_terms:
+    - extract-marker-11
+    - deterministic evidence
+    forbidden_terms:
+    - forbidden navigation boilerplate
+    required_urls:
+    - https://raintree-technology.github.io/docpull/bench-fixtures/v2/extract/11.html
+    allowed_domains:
+    - raintree-technology.github.io
+    required_headings:
+    - Evidence Heading 11
+  metadata:
+    description: Controlled extract case extract.fixture.11.
+    split: dev
+    family: hosted-fixture
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - hosted-fixture
+    rights: *id001
+- id: extract.fixture.12
+  input:
+    case_id: extract.fixture.12
+    lane: extract
+    url: https://raintree-technology.github.io/docpull/bench-fixtures/v2/extract/12.html
+    include_domains:
+    - raintree-technology.github.io
+  expected:
+    lane: extract
+    minimum_records: 1
+    minimum_content_chars: 80
+    required_terms:
+    - extract-marker-12
+    - deterministic evidence
+    forbidden_terms:
+    - forbidden navigation boilerplate
+    required_urls:
+    - https://raintree-technology.github.io/docpull/bench-fixtures/v2/extract/12.html
+    allowed_domains:
+    - raintree-technology.github.io
+    required_headings:
+    - Evidence Heading 12
+  metadata:
+    description: Controlled extract case extract.fixture.12.
+    split: dev
+    family: hosted-fixture
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - hosted-fixture
+    rights: *id001
+- id: crawl.fixture.graph-01
+  input:
+    case_id: crawl.fixture.graph-01
+    lane: crawl
+    url: https://raintree-technology.github.io/docpull/bench-fixtures/v2/crawl/graph-01/1.html
+    include_domains:
+    - raintree-technology.github.io
+    include_path_prefixes:
+    - /docpull/bench-fixtures/v2/crawl/graph-01/
+    max_pages: 3
+    max_depth: 1
+  expected:
+    lane: crawl
+    minimum_records: 3
+    minimum_content_chars: 150
+    required_terms:
+    - crawl-01-1
+    - crawl-01-2
+    - crawl-01-3
+    required_urls:
+    - https://raintree-technology.github.io/docpull/bench-fixtures/v2/crawl/graph-01/1.html
+    - https://raintree-technology.github.io/docpull/bench-fixtures/v2/crawl/graph-01/2.html
+    - https://raintree-technology.github.io/docpull/bench-fixtures/v2/crawl/graph-01/3.html
+    allowed_domains:
+    - raintree-technology.github.io
+    maximum_duplicate_rate: 0
+  metadata:
+    description: Controlled crawl case crawl.fixture.graph-01.
+    split: dev
+    family: controlled-graph
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - controlled-graph
+    rights: *id001
+- id: crawl.fixture.graph-02
+  input:
+    case_id: crawl.fixture.graph-02
+    lane: crawl
+    url: https://raintree-technology.github.io/docpull/bench-fixtures/v2/crawl/graph-02/1.html
+    include_domains:
+    - raintree-technology.github.io
+    include_path_prefixes:
+    - /docpull/bench-fixtures/v2/crawl/graph-02/
+    max_pages: 3
+    max_depth: 1
+  expected:
+    lane: crawl
+    minimum_records: 3
+    minimum_content_chars: 150
+    required_terms:
+    - crawl-02-1
+    - crawl-02-2
+    - crawl-02-3
+    required_urls:
+    - https://raintree-technology.github.io/docpull/bench-fixtures/v2/crawl/graph-02/1.html
+    - https://raintree-technology.github.io/docpull/bench-fixtures/v2/crawl/graph-02/2.html
+    - https://raintree-technology.github.io/docpull/bench-fixtures/v2/crawl/graph-02/3.html
+    allowed_domains:
+    - raintree-technology.github.io
+    maximum_duplicate_rate: 0
+  metadata:
+    description: Controlled crawl case crawl.fixture.graph-02.
+    split: dev
+    family: controlled-graph
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - controlled-graph
+    rights: *id001
+- id: crawl.fixture.graph-03
+  input:
+    case_id: crawl.fixture.graph-03
+    lane: crawl
+    url: https://raintree-technology.github.io/docpull/bench-fixtures/v2/crawl/graph-03/1.html
+    include_domains:
+    - raintree-technology.github.io
+    include_path_prefixes:
+    - /docpull/bench-fixtures/v2/crawl/graph-03/
+    max_pages: 3
+    max_depth: 1
+  expected:
+    lane: crawl
+    minimum_records: 3
+    minimum_content_chars: 150
+    required_terms:
+    - crawl-03-1
+    - crawl-03-2
+    - crawl-03-3
+    required_urls:
+    - https://raintree-technology.github.io/docpull/bench-fixtures/v2/crawl/graph-03/1.html
+    - https://raintree-technology.github.io/docpull/bench-fixtures/v2/crawl/graph-03/2.html
+    - https://raintree-technology.github.io/docpull/bench-fixtures/v2/crawl/graph-03/3.html
+    allowed_domains:
+    - raintree-technology.github.io
+    maximum_duplicate_rate: 0
+  metadata:
+    description: Controlled crawl case crawl.fixture.graph-03.
+    split: dev
+    family: controlled-graph
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - controlled-graph
+    rights: *id001
+- id: crawl.fixture.graph-04
+  input:
+    case_id: crawl.fixture.graph-04
+    lane: crawl
+    url: https://raintree-technology.github.io/docpull/bench-fixtures/v2/crawl/graph-04/1.html
+    include_domains:
+    - raintree-technology.github.io
+    include_path_prefixes:
+    - /docpull/bench-fixtures/v2/crawl/graph-04/
+    max_pages: 3
+    max_depth: 1
+  expected:
+    lane: crawl
+    minimum_records: 3
+    minimum_content_chars: 150
+    required_terms:
+    - crawl-04-1
+    - crawl-04-2
+    - crawl-04-3
+    required_urls:
+    - https://raintree-technology.github.io/docpull/bench-fixtures/v2/crawl/graph-04/1.html
+    - https://raintree-technology.github.io/docpull/bench-fixtures/v2/crawl/graph-04/2.html
+    - https://raintree-technology.github.io/docpull/bench-fixtures/v2/crawl/graph-04/3.html
+    allowed_domains:
+    - raintree-technology.github.io
+    maximum_duplicate_rate: 0
+  metadata:
+    description: Controlled crawl case crawl.fixture.graph-04.
+    split: dev
+    family: controlled-graph
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - controlled-graph
+    rights: *id001
+- id: crawl.fixture.graph-05
+  input:
+    case_id: crawl.fixture.graph-05
+    lane: crawl
+    url: https://raintree-technology.github.io/docpull/bench-fixtures/v2/crawl/graph-05/1.html
+    include_domains:
+    - raintree-technology.github.io
+    include_path_prefixes:
+    - /docpull/bench-fixtures/v2/crawl/graph-05/
+    max_pages: 3
+    max_depth: 1
+  expected:
+    lane: crawl
+    minimum_records: 3
+    minimum_content_chars: 150
+    required_terms:
+    - crawl-05-1
+    - crawl-05-2
+    - crawl-05-3
+    required_urls:
+    - https://raintree-technology.github.io/docpull/bench-fixtures/v2/crawl/graph-05/1.html
+    - https://raintree-technology.github.io/docpull/bench-fixtures/v2/crawl/graph-05/2.html
+    - https://raintree-technology.github.io/docpull/bench-fixtures/v2/crawl/graph-05/3.html
+    allowed_domains:
+    - raintree-technology.github.io
+    maximum_duplicate_rate: 0
+  metadata:
+    description: Controlled crawl case crawl.fixture.graph-05.
+    split: dev
+    family: controlled-graph
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - controlled-graph
+    rights: *id001
+- id: crawl.fixture.graph-06
+  input:
+    case_id: crawl.fixture.graph-06
+    lane: crawl
+    url: https://raintree-technology.github.io/docpull/bench-fixtures/v2/crawl/graph-06/1.html
+    include_domains:
+    - raintree-technology.github.io
+    include_path_prefixes:
+    - /docpull/bench-fixtures/v2/crawl/graph-06/
+    max_pages: 3
+    max_depth: 1
+  expected:
+    lane: crawl
+    minimum_records: 3
+    minimum_content_chars: 150
+    required_terms:
+    - crawl-06-1
+    - crawl-06-2
+    - crawl-06-3
+    required_urls:
+    - https://raintree-technology.github.io/docpull/bench-fixtures/v2/crawl/graph-06/1.html
+    - https://raintree-technology.github.io/docpull/bench-fixtures/v2/crawl/graph-06/2.html
+    - https://raintree-technology.github.io/docpull/bench-fixtures/v2/crawl/graph-06/3.html
+    allowed_domains:
+    - raintree-technology.github.io
+    maximum_duplicate_rate: 0
+  metadata:
+    description: Controlled crawl case crawl.fixture.graph-06.
+    split: dev
+    family: controlled-graph
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - controlled-graph
+    rights: *id001
+- id: parse.fixture.01
+  input:
+    case_id: parse.fixture.01
+    lane: parse
+    path: bench/fixtures/v2/parse/01-plain.txt
+  expected:
+    lane: parse
+    minimum_records: 1
+    minimum_content_chars: 10
+    required_terms: &id002
+    - Plain Heading
+    - alpha plain evidence
+    required_ordered_terms: *id002
+    expected_status: completed
+  metadata:
+    description: Controlled parse case parse.fixture.01.
+    split: dev
+    family: document-parse
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - document-parse
+    rights: *id001
+- id: parse.fixture.02
+  input:
+    case_id: parse.fixture.02
+    lane: parse
+    path: bench/fixtures/v2/parse/02-markdown.md
+  expected:
+    lane: parse
+    minimum_records: 1
+    minimum_content_chars: 10
+    required_terms: &id003
+    - Markdown Heading
+    - alpha markdown evidence
+    required_ordered_terms: *id003
+    expected_status: completed
+  metadata:
+    description: Controlled parse case parse.fixture.02.
+    split: dev
+    family: document-parse
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - document-parse
+    rights: *id001
+- id: parse.fixture.03
+  input:
+    case_id: parse.fixture.03
+    lane: parse
+    path: bench/fixtures/v2/parse/03-document.docx
+  expected:
+    lane: parse
+    minimum_records: 1
+    minimum_content_chars: 10
+    required_terms: &id004
+    - DOCX Recovery Fixture
+    - alpha docx evidence
+    required_ordered_terms: *id004
+    expected_status: completed
+  metadata:
+    description: Controlled parse case parse.fixture.03.
+    split: dev
+    family: document-parse
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - document-parse
+    rights: *id001
+- id: parse.fixture.04
+  input:
+    case_id: parse.fixture.04
+    lane: parse
+    path: bench/fixtures/v2/parse/04-text.pdf
+  expected:
+    lane: parse
+    minimum_records: 1
+    minimum_content_chars: 10
+    required_terms: &id005
+    - Text PDF Heading
+    - alpha pdf evidence
+    required_ordered_terms: *id005
+    expected_status: completed
+  metadata:
+    description: Controlled parse case parse.fixture.04.
+    split: dev
+    family: document-parse
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - document-parse
+    rights: *id001
+- id: parse.fixture.05
+  input:
+    case_id: parse.fixture.05
+    lane: parse
+    path: bench/fixtures/v2/parse/05-table.pdf
+  expected:
+    lane: parse
+    minimum_records: 1
+    minimum_content_chars: 10
+    required_terms: &id006
+    - Table PDF
+    - alpha
+    - '731'
+    required_ordered_terms: *id006
+    expected_status: completed
+  metadata:
+    description: Controlled parse case parse.fixture.05.
+    split: dev
+    family: document-parse
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - document-parse
+    rights: *id001
+- id: parse.fixture.06
+  input:
+    case_id: parse.fixture.06
+    lane: parse
+    path: bench/fixtures/v2/parse/06-code.txt
+  expected:
+    lane: parse
+    minimum_records: 1
+    minimum_content_chars: 10
+    required_terms: &id007
+    - Code Heading
+    - alpha = 731
+    required_ordered_terms: *id007
+    expected_status: completed
+  metadata:
+    description: Controlled parse case parse.fixture.06.
+    split: dev
+    family: document-parse
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - document-parse
+    rights: *id001
+- id: parse.fixture.07
+  input:
+    case_id: parse.fixture.07
+    lane: parse
+    path: bench/fixtures/v2/parse/07-malformed.pdf
+  expected:
+    lane: parse
+    minimum_records: 0
+    minimum_content_chars: 0
+    required_terms: &id008 []
+    required_ordered_terms: *id008
+    expected_status: failed
+  metadata:
+    description: Controlled parse case parse.fixture.07.
+    split: dev
+    family: document-parse
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - document-parse
+    rights: *id001
+- id: parse.fixture.08
+  input:
+    case_id: parse.fixture.08
+    lane: parse
+    path: bench/fixtures/v2/parse/08-encrypted.pdf
+  expected:
+    lane: parse
+    minimum_records: 0
+    minimum_content_chars: 0
+    required_terms: &id009 []
+    required_ordered_terms: *id009
+    expected_status: failed
+  metadata:
+    description: Controlled parse case parse.fixture.08.
+    split: dev
+    family: document-parse
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - document-parse
+    rights: *id001
+- id: parse.fixture.09
+  input:
+    case_id: parse.fixture.09
+    lane: parse
+    path: bench/fixtures/v2/parse/09-ocr-gated.pdf
+  expected:
+    lane: parse
+    minimum_records: 0
+    minimum_content_chars: 0
+    required_terms: &id010 []
+    required_ordered_terms: *id010
+    expected_status: unsupported
+  metadata:
+    description: Controlled parse case parse.fixture.09.
+    split: dev
+    family: document-parse
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - document-parse
+    rights: *id001
+- id: parse.fixture.10
+  input:
+    case_id: parse.fixture.10
+    lane: parse
+    path: bench/fixtures/v2/parse/10-unicode.md
+  expected:
+    lane: parse
+    minimum_records: 1
+    minimum_content_chars: 10
+    required_terms: &id011
+    - Unicode Heading
+    - café
+    - 東京
+    required_ordered_terms: *id011
+    expected_status: completed
+  metadata:
+    description: Controlled parse case parse.fixture.10.
+    split: dev
+    family: document-parse
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - document-parse
+    rights: *id001
+- id: pack.fixture.01
+  input:
+    case_id: pack.fixture.01
+    lane: pack
+    path: bench/fixtures/v2/packs/pack-01
+    contract_level: raw
+    action: validate
+  expected:
+    lane: pack
+    minimum_records: 1
+    minimum_content_chars: 10
+    required_files:
+    - pack.yaml
+    - records.ndjson
+    - citations.json
+    required_contract_level: raw
+    minimum_stable_identities: 1
+  metadata:
+    description: Controlled pack case pack.fixture.01.
+    split: dev
+    family: artifact-contract
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - artifact-contract
+    rights: *id001
+- id: pack.fixture.02
+  input:
+    case_id: pack.fixture.02
+    lane: pack
+    path: bench/fixtures/v2/packs/pack-02
+    contract_level: agent
+    action: validate
+  expected:
+    lane: pack
+    minimum_records: 1
+    minimum_content_chars: 10
+    required_files:
+    - pack.yaml
+    - records.ndjson
+    - citations.json
+    required_contract_level: agent
+    minimum_stable_identities: 1
+  metadata:
+    description: Controlled pack case pack.fixture.02.
+    split: dev
+    family: artifact-contract
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - artifact-contract
+    rights: *id001
+- id: pack.fixture.03
+  input:
+    case_id: pack.fixture.03
+    lane: pack
+    path: bench/fixtures/v2/packs/pack-03
+    contract_level: eval
+    action: validate
+  expected:
+    lane: pack
+    minimum_records: 1
+    minimum_content_chars: 10
+    required_files:
+    - pack.yaml
+    - records.ndjson
+    - citations.json
+    required_contract_level: eval
+    minimum_stable_identities: 1
+  metadata:
+    description: Controlled pack case pack.fixture.03.
+    split: dev
+    family: artifact-contract
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - artifact-contract
+    rights: *id001
+- id: pack.fixture.04
+  input:
+    case_id: pack.fixture.04
+    lane: pack
+    path: bench/fixtures/v2/packs/pack-04
+    contract_level: raw
+    action: validate
+  expected:
+    lane: pack
+    minimum_records: 1
+    minimum_content_chars: 10
+    required_files:
+    - pack.yaml
+    - records.ndjson
+    - citations.json
+    required_contract_level: raw
+    minimum_stable_identities: 1
+  metadata:
+    description: Controlled pack case pack.fixture.04.
+    split: dev
+    family: artifact-contract
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - artifact-contract
+    rights: *id001
+- id: pack.fixture.05
+  input:
+    case_id: pack.fixture.05
+    lane: pack
+    path: bench/fixtures/v2/packs/pack-05
+    contract_level: agent
+    action: validate
+  expected:
+    lane: pack
+    minimum_records: 1
+    minimum_content_chars: 10
+    required_files:
+    - pack.yaml
+    - records.ndjson
+    - citations.json
+    required_contract_level: agent
+    minimum_stable_identities: 1
+  metadata:
+    description: Controlled pack case pack.fixture.05.
+    split: dev
+    family: artifact-contract
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - artifact-contract
+    rights: *id001
+- id: pack.fixture.06
+  input:
+    case_id: pack.fixture.06
+    lane: pack
+    path: bench/fixtures/v2/packs/pack-06
+    contract_level: eval
+    action: validate
+  expected:
+    lane: pack
+    minimum_records: 1
+    minimum_content_chars: 10
+    required_files:
+    - pack.yaml
+    - records.ndjson
+    - citations.json
+    required_contract_level: eval
+    minimum_stable_identities: 1
+  metadata:
+    description: Controlled pack case pack.fixture.06.
+    split: dev
+    family: artifact-contract
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - artifact-contract
+    rights: *id001
+- id: pack.fixture.07
+  input:
+    case_id: pack.fixture.07
+    lane: pack
+    path: bench/fixtures/v2/packs/pack-07
+    contract_level: raw
+    action: validate
+  expected:
+    lane: pack
+    minimum_records: 1
+    minimum_content_chars: 10
+    required_files:
+    - pack.yaml
+    - records.ndjson
+    - citations.json
+    required_contract_level: raw
+    minimum_stable_identities: 1
+  metadata:
+    description: Controlled pack case pack.fixture.07.
+    split: dev
+    family: artifact-contract
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - artifact-contract
+    rights: *id001
+- id: pack.fixture.08
+  input:
+    case_id: pack.fixture.08
+    lane: pack
+    path: bench/fixtures/v2/packs/pack-08
+    contract_level: agent
+    action: validate
+  expected:
+    lane: pack
+    minimum_records: 1
+    minimum_content_chars: 10
+    required_files:
+    - pack.yaml
+    - records.ndjson
+    - citations.json
+    required_contract_level: agent
+    minimum_stable_identities: 1
+  metadata:
+    description: Controlled pack case pack.fixture.08.
+    split: dev
+    family: artifact-contract
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - artifact-contract
+    rights: *id001
+- id: pack.fixture.09
+  input:
+    case_id: pack.fixture.09
+    lane: pack
+    path: bench/fixtures/v2/packs/pack-09
+    contract_level: eval
+    action: validate
+  expected:
+    lane: pack
+    minimum_records: 1
+    minimum_content_chars: 10
+    required_files:
+    - pack.yaml
+    - records.ndjson
+    - citations.json
+    required_contract_level: eval
+    minimum_stable_identities: 1
+  metadata:
+    description: Controlled pack case pack.fixture.09.
+    split: dev
+    family: artifact-contract
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - artifact-contract
+    rights: *id001
+- id: pack.fixture.10
+  input:
+    case_id: pack.fixture.10
+    lane: pack
+    path: bench/fixtures/v2/packs/pack-10
+    contract_level: raw
+    action: validate
+  expected:
+    lane: pack
+    minimum_records: 1
+    minimum_content_chars: 10
+    required_files:
+    - pack.yaml
+    - records.ndjson
+    - citations.json
+    required_contract_level: raw
+    minimum_stable_identities: 1
+  metadata:
+    description: Controlled pack case pack.fixture.10.
+    split: dev
+    family: artifact-contract
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - artifact-contract
+    rights: *id001
+- id: structured.fixture.01
+  input:
+    case_id: structured.fixture.01
+    lane: structured
+    source_path: bench/fixtures/v2/structured/case-01/source.md
+    schema_path: bench/fixtures/v2/structured/case-01/schema.json
+  expected:
+    lane: structured
+    expected_value:
+      identifier: S-001
+      count: 1
+    required_evidence_ids:
+    - structured-evidence-01
+  metadata:
+    description: Controlled structured case structured.fixture.01.
+    split: dev
+    family: typed-extraction
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - typed-extraction
+    rights: *id001
+- id: structured.fixture.02
+  input:
+    case_id: structured.fixture.02
+    lane: structured
+    source_path: bench/fixtures/v2/structured/case-02/source.md
+    schema_path: bench/fixtures/v2/structured/case-02/schema.json
+  expected:
+    lane: structured
+    expected_value:
+      identifier: S-002
+      count: 2
+    required_evidence_ids:
+    - structured-evidence-02
+  metadata:
+    description: Controlled structured case structured.fixture.02.
+    split: dev
+    family: typed-extraction
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - typed-extraction
+    rights: *id001
+- id: structured.fixture.03
+  input:
+    case_id: structured.fixture.03
+    lane: structured
+    source_path: bench/fixtures/v2/structured/case-03/source.md
+    schema_path: bench/fixtures/v2/structured/case-03/schema.json
+  expected:
+    lane: structured
+    expected_value:
+      identifier: S-003
+      count: 3
+    required_evidence_ids:
+    - structured-evidence-03
+  metadata:
+    description: Controlled structured case structured.fixture.03.
+    split: dev
+    family: typed-extraction
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - typed-extraction
+    rights: *id001
+- id: structured.fixture.04
+  input:
+    case_id: structured.fixture.04
+    lane: structured
+    source_path: bench/fixtures/v2/structured/case-04/source.md
+    schema_path: bench/fixtures/v2/structured/case-04/schema.json
+  expected:
+    lane: structured
+    expected_value:
+      identifier: S-004
+      count: 4
+    required_evidence_ids:
+    - structured-evidence-04
+  metadata:
+    description: Controlled structured case structured.fixture.04.
+    split: dev
+    family: typed-extraction
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - typed-extraction
+    rights: *id001
+- id: structured.fixture.05
+  input:
+    case_id: structured.fixture.05
+    lane: structured
+    source_path: bench/fixtures/v2/structured/case-05/source.md
+    schema_path: bench/fixtures/v2/structured/case-05/schema.json
+  expected:
+    lane: structured
+    expected_value:
+      identifier: S-005
+      count: 5
+    required_evidence_ids:
+    - structured-evidence-05
+  metadata:
+    description: Controlled structured case structured.fixture.05.
+    split: dev
+    family: typed-extraction
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - typed-extraction
+    rights: *id001
+- id: structured.fixture.06
+  input:
+    case_id: structured.fixture.06
+    lane: structured
+    source_path: bench/fixtures/v2/structured/case-06/source.md
+    schema_path: bench/fixtures/v2/structured/case-06/schema.json
+  expected:
+    lane: structured
+    expected_value:
+      identifier: S-006
+      count: 6
+    required_evidence_ids:
+    - structured-evidence-06
+  metadata:
+    description: Controlled structured case structured.fixture.06.
+    split: dev
+    family: typed-extraction
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - typed-extraction
+    rights: *id001
+- id: structured.fixture.07
+  input:
+    case_id: structured.fixture.07
+    lane: structured
+    source_path: bench/fixtures/v2/structured/case-07/source.md
+    schema_path: bench/fixtures/v2/structured/case-07/schema.json
+  expected:
+    lane: structured
+    expected_value:
+      identifier: S-007
+      count: 7
+    required_evidence_ids:
+    - structured-evidence-07
+  metadata:
+    description: Controlled structured case structured.fixture.07.
+    split: dev
+    family: typed-extraction
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - typed-extraction
+    rights: *id001
+- id: structured.fixture.08
+  input:
+    case_id: structured.fixture.08
+    lane: structured
+    source_path: bench/fixtures/v2/structured/case-08/source.md
+    schema_path: bench/fixtures/v2/structured/case-08/schema.json
+  expected:
+    lane: structured
+    expected_value:
+      identifier: S-008
+      count: 8
+    required_evidence_ids:
+    - structured-evidence-08
+  metadata:
+    description: Controlled structured case structured.fixture.08.
+    split: dev
+    family: typed-extraction
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - typed-extraction
+    rights: *id001
+- id: structured.fixture.09
+  input:
+    case_id: structured.fixture.09
+    lane: structured
+    source_path: bench/fixtures/v2/structured/case-09/source.md
+    schema_path: bench/fixtures/v2/structured/case-09/schema.json
+  expected:
+    lane: structured
+    expected_value:
+      identifier: S-009
+      count: 9
+    required_evidence_ids:
+    - structured-evidence-09
+  metadata:
+    description: Controlled structured case structured.fixture.09.
+    split: dev
+    family: typed-extraction
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - typed-extraction
+    rights: *id001
+- id: structured.fixture.10
+  input:
+    case_id: structured.fixture.10
+    lane: structured
+    source_path: bench/fixtures/v2/structured/case-10/source.md
+    schema_path: bench/fixtures/v2/structured/case-10/schema.json
+  expected:
+    lane: structured
+    expected_value:
+      identifier: S-010
+      count: 10
+    required_evidence_ids:
+    - structured-evidence-10
+  metadata:
+    description: Controlled structured case structured.fixture.10.
+    split: dev
+    family: typed-extraction
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - typed-extraction
+    rights: *id001
+- id: structured.fixture.11
+  input:
+    case_id: structured.fixture.11
+    lane: structured
+    source_path: bench/fixtures/v2/structured/case-11/source.md
+    schema_path: bench/fixtures/v2/structured/case-11/schema.json
+  expected:
+    lane: structured
+    expected_value:
+      identifier: S-011
+      count: 11
+    required_evidence_ids:
+    - structured-evidence-11
+  metadata:
+    description: Controlled structured case structured.fixture.11.
+    split: dev
+    family: typed-extraction
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - typed-extraction
+    rights: *id001
+- id: structured.fixture.12
+  input:
+    case_id: structured.fixture.12
+    lane: structured
+    source_path: bench/fixtures/v2/structured/case-12/source.md
+    schema_path: bench/fixtures/v2/structured/case-12/schema.json
+  expected:
+    lane: structured
+    expected_value:
+      identifier: S-012
+      count: 12
+    required_evidence_ids:
+    - structured-evidence-12
+  metadata:
+    description: Controlled structured case structured.fixture.12.
+    split: dev
+    family: typed-extraction
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - typed-extraction
+    rights: *id001
+- id: lifecycle.raw_contract
+  input:
+    case_id: lifecycle.raw_contract
+    lane: lifecycle
+    check: raw_contract
+    timeout_seconds: 180
+  expected:
+    lane: lifecycle
+    required_details:
+      status: pass
+      records: 3
+  metadata:
+    description: Controlled lifecycle case lifecycle.raw_contract.
+    split: dev
+    family: context-lifecycle
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - context-lifecycle
+    rights: *id001
+- id: lifecycle.eval_prepare
+  input:
+    case_id: lifecycle.eval_prepare
+    lane: lifecycle
+    check: eval_prepare
+    timeout_seconds: 180
+  expected:
+    lane: lifecycle
+    required_details:
+      status: pass
+      citation_entries: 3
+  metadata:
+    description: Controlled lifecycle case lifecycle.eval_prepare.
+    split: dev
+    family: context-lifecycle
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - context-lifecycle
+    rights: *id001
+- id: lifecycle.stable_identity
+  input:
+    case_id: lifecycle.stable_identity
+    lane: lifecycle
+    check: stable_identity
+    timeout_seconds: 180
+  expected:
+    lane: lifecycle
+    required_details:
+      stable_documents: 3
+  metadata:
+    description: Controlled lifecycle case lifecycle.stable_identity.
+    split: dev
+    family: context-lifecycle
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - context-lifecycle
+    rights: *id001
+- id: lifecycle.exact_diff
+  input:
+    case_id: lifecycle.exact_diff
+    lane: lifecycle
+    check: exact_diff
+    timeout_seconds: 180
+  expected:
+    lane: lifecycle
+    required_details:
+      added: 1
+      removed: 1
+      changed: 1
+      unchanged: 1
+  metadata:
+    description: Controlled lifecycle case lifecycle.exact_diff.
+    split: dev
+    family: context-lifecycle
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - context-lifecycle
+    rights: *id001
+- id: lifecycle.offline_search
+  input:
+    case_id: lifecycle.offline_search
+    lane: lifecycle
+    check: offline_search
+    timeout_seconds: 180
+  expected:
+    lane: lifecycle
+    required_details:
+      network: disabled
+  metadata:
+    description: Controlled lifecycle case lifecycle.offline_search.
+    split: dev
+    family: context-lifecycle
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - context-lifecycle
+    rights: *id001
+- id: lifecycle.exports
+  input:
+    case_id: lifecycle.exports
+    lane: lifecycle
+    check: exports
+    timeout_seconds: 180
+  expected:
+    lane: lifecycle
+    required_details:
+      network: disabled
+      vector_records: 3
+  metadata:
+    description: Controlled lifecycle case lifecycle.exports.
+    split: dev
+    family: context-lifecycle
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - context-lifecycle
+    rights: *id001
+- id: lifecycle.context_ci
+  input:
+    case_id: lifecycle.context_ci
+    lane: lifecycle
+    check: context_ci
+    timeout_seconds: 180
+  expected:
+    lane: lifecycle
+    required_details:
+      network: disabled
+  metadata:
+    description: Controlled lifecycle case lifecycle.context_ci.
+    split: dev
+    family: context-lifecycle
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - context-lifecycle
+    rights: *id001
+- id: lifecycle.lock_drift
+  input:
+    case_id: lifecycle.lock_drift
+    lane: lifecycle
+    check: lock_drift
+    timeout_seconds: 180
+  expected:
+    lane: lifecycle
+    required_details:
+      drift_rejected: true
+      network: disabled
+  metadata:
+    description: Controlled lifecycle case lifecycle.lock_drift.
+    split: dev
+    family: context-lifecycle
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - context-lifecycle
+    rights: *id001
+- id: lifecycle.credential_non_persistence
+  input:
+    case_id: lifecycle.credential_non_persistence
+    lane: lifecycle
+    check: credential_non_persistence
+    timeout_seconds: 180
+  expected:
+    lane: lifecycle
+    required_details:
+      secret_persisted: false
+      network: disabled
+  metadata:
+    description: Controlled lifecycle case lifecycle.credential_non_persistence.
+    split: dev
+    family: context-lifecycle
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - context-lifecycle
+    rights: *id001
+- id: lifecycle.zero_budget
+  input:
+    case_id: lifecycle.zero_budget
+    lane: lifecycle
+    check: zero_budget
+    timeout_seconds: 180
+  expected:
+    lane: lifecycle
+    required_details:
+      blocked: true
+      budget_usd: 0.0
+  metadata:
+    description: Controlled lifecycle case lifecycle.zero_budget.
+    split: dev
+    family: context-lifecycle
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - context-lifecycle
+    rights: *id001
+- id: change.fixture.01
+  input:
+    case_id: change.fixture.01
+    lane: change
+    before_path: bench/fixtures/v2/change/case-01/before.md
+    after_path: bench/fixtures/v2/change/case-01/after.md
+  expected:
+    lane: change
+    events:
+    - identity: identity-01
+      kind: added
+      category: content
+  metadata:
+    description: Controlled change case change.fixture.01.
+    split: dev
+    family: content-transition
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - content-transition
+    rights: *id001
+- id: change.fixture.02
+  input:
+    case_id: change.fixture.02
+    lane: change
+    before_path: bench/fixtures/v2/change/case-02/before.md
+    after_path: bench/fixtures/v2/change/case-02/after.md
+  expected:
+    lane: change
+    events:
+    - identity: identity-02
+      kind: removed
+      category: content
+  metadata:
+    description: Controlled change case change.fixture.02.
+    split: dev
+    family: content-transition
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - content-transition
+    rights: *id001
+- id: change.fixture.03
+  input:
+    case_id: change.fixture.03
+    lane: change
+    before_path: bench/fixtures/v2/change/case-03/before.md
+    after_path: bench/fixtures/v2/change/case-03/after.md
+  expected:
+    lane: change
+    events:
+    - identity: identity-03
+      kind: changed
+      category: content
+  metadata:
+    description: Controlled change case change.fixture.03.
+    split: dev
+    family: content-transition
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - content-transition
+    rights: *id001
+- id: change.fixture.04
+  input:
+    case_id: change.fixture.04
+    lane: change
+    before_path: bench/fixtures/v2/change/case-04/before.md
+    after_path: bench/fixtures/v2/change/case-04/after.md
+  expected:
+    lane: change
+    events:
+    - identity: identity-04
+      kind: cosmetic
+      category: content
+  metadata:
+    description: Controlled change case change.fixture.04.
+    split: dev
+    family: content-transition
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - content-transition
+    rights: *id001
+- id: change.fixture.05
+  input:
+    case_id: change.fixture.05
+    lane: change
+    before_path: bench/fixtures/v2/change/case-05/before.md
+    after_path: bench/fixtures/v2/change/case-05/after.md
+  expected:
+    lane: change
+    events:
+    - identity: identity-05
+      kind: added
+      category: content
+  metadata:
+    description: Controlled change case change.fixture.05.
+    split: dev
+    family: content-transition
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - content-transition
+    rights: *id001
+- id: change.fixture.06
+  input:
+    case_id: change.fixture.06
+    lane: change
+    before_path: bench/fixtures/v2/change/case-06/before.md
+    after_path: bench/fixtures/v2/change/case-06/after.md
+  expected:
+    lane: change
+    events:
+    - identity: identity-06
+      kind: removed
+      category: content
+  metadata:
+    description: Controlled change case change.fixture.06.
+    split: dev
+    family: content-transition
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - content-transition
+    rights: *id001
+- id: change.fixture.07
+  input:
+    case_id: change.fixture.07
+    lane: change
+    before_path: bench/fixtures/v2/change/case-07/before.md
+    after_path: bench/fixtures/v2/change/case-07/after.md
+  expected:
+    lane: change
+    events:
+    - identity: identity-07
+      kind: changed
+      category: content
+  metadata:
+    description: Controlled change case change.fixture.07.
+    split: dev
+    family: content-transition
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - content-transition
+    rights: *id001
+- id: change.fixture.08
+  input:
+    case_id: change.fixture.08
+    lane: change
+    before_path: bench/fixtures/v2/change/case-08/before.md
+    after_path: bench/fixtures/v2/change/case-08/after.md
+  expected:
+    lane: change
+    events:
+    - identity: identity-08
+      kind: cosmetic
+      category: content
+  metadata:
+    description: Controlled change case change.fixture.08.
+    split: dev
+    family: content-transition
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - content-transition
+    rights: *id001
+- id: change.fixture.09
+  input:
+    case_id: change.fixture.09
+    lane: change
+    before_path: bench/fixtures/v2/change/case-09/before.md
+    after_path: bench/fixtures/v2/change/case-09/after.md
+  expected:
+    lane: change
+    events:
+    - identity: identity-09
+      kind: added
+      category: content
+  metadata:
+    description: Controlled change case change.fixture.09.
+    split: dev
+    family: content-transition
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - content-transition
+    rights: *id001
+- id: change.fixture.10
+  input:
+    case_id: change.fixture.10
+    lane: change
+    before_path: bench/fixtures/v2/change/case-10/before.md
+    after_path: bench/fixtures/v2/change/case-10/after.md
+  expected:
+    lane: change
+    events:
+    - identity: identity-10
+      kind: removed
+      category: content
+  metadata:
+    description: Controlled change case change.fixture.10.
+    split: dev
+    family: content-transition
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - content-transition
+    rights: *id001
+- id: change.fixture.11
+  input:
+    case_id: change.fixture.11
+    lane: change
+    before_path: bench/fixtures/v2/change/case-11/before.md
+    after_path: bench/fixtures/v2/change/case-11/after.md
+  expected:
+    lane: change
+    events:
+    - identity: identity-11
+      kind: changed
+      category: content
+  metadata:
+    description: Controlled change case change.fixture.11.
+    split: dev
+    family: content-transition
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - content-transition
+    rights: *id001
+- id: change.fixture.12
+  input:
+    case_id: change.fixture.12
+    lane: change
+    before_path: bench/fixtures/v2/change/case-12/before.md
+    after_path: bench/fixtures/v2/change/case-12/after.md
+  expected:
+    lane: change
+    events:
+    - identity: identity-12
+      kind: cosmetic
+      category: content
+  metadata:
+    description: Controlled change case change.fixture.12.
+    split: dev
+    family: content-transition
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - content-transition
+    rights: *id001
+- id: retrieval.query.001
+  input:
+    case_id: retrieval.query.001
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-001
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-001
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.001.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.002
+  input:
+    case_id: retrieval.query.002
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-002
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-002
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.002.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.003
+  input:
+    case_id: retrieval.query.003
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-003
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-003
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.003.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.004
+  input:
+    case_id: retrieval.query.004
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-004
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-004
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.004.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.005
+  input:
+    case_id: retrieval.query.005
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-005
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-005
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.005.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.006
+  input:
+    case_id: retrieval.query.006
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-006
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-006
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.006.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.007
+  input:
+    case_id: retrieval.query.007
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-007
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-007
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.007.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.008
+  input:
+    case_id: retrieval.query.008
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-008
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-008
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.008.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.009
+  input:
+    case_id: retrieval.query.009
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-009
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-009
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.009.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.010
+  input:
+    case_id: retrieval.query.010
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-010
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-010
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.010.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.011
+  input:
+    case_id: retrieval.query.011
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-011
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-011
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.011.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.012
+  input:
+    case_id: retrieval.query.012
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-012
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-012
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.012.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.013
+  input:
+    case_id: retrieval.query.013
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-013
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-013
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.013.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.014
+  input:
+    case_id: retrieval.query.014
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-014
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-014
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.014.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.015
+  input:
+    case_id: retrieval.query.015
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-015
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-015
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.015.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.016
+  input:
+    case_id: retrieval.query.016
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-016
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-016
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.016.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.017
+  input:
+    case_id: retrieval.query.017
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-017
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-017
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.017.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.018
+  input:
+    case_id: retrieval.query.018
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-018
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-018
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.018.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.019
+  input:
+    case_id: retrieval.query.019
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-019
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-019
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.019.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.020
+  input:
+    case_id: retrieval.query.020
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-020
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-020
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.020.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.021
+  input:
+    case_id: retrieval.query.021
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-021
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-021
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.021.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.022
+  input:
+    case_id: retrieval.query.022
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-022
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-022
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.022.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.023
+  input:
+    case_id: retrieval.query.023
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-023
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-023
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.023.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.024
+  input:
+    case_id: retrieval.query.024
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-024
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-024
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.024.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.025
+  input:
+    case_id: retrieval.query.025
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-025
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-025
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.025.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.026
+  input:
+    case_id: retrieval.query.026
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-026
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-026
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.026.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.027
+  input:
+    case_id: retrieval.query.027
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-027
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-027
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.027.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.028
+  input:
+    case_id: retrieval.query.028
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-028
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-028
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.028.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.029
+  input:
+    case_id: retrieval.query.029
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-029
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-029
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.029.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.030
+  input:
+    case_id: retrieval.query.030
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-030
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-030
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.030.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.031
+  input:
+    case_id: retrieval.query.031
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-031
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-031
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.031.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.032
+  input:
+    case_id: retrieval.query.032
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-032
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-032
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.032.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.033
+  input:
+    case_id: retrieval.query.033
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-033
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-033
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.033.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.034
+  input:
+    case_id: retrieval.query.034
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-034
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-034
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.034.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.035
+  input:
+    case_id: retrieval.query.035
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-035
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-035
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.035.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.036
+  input:
+    case_id: retrieval.query.036
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-036
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-036
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.036.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.037
+  input:
+    case_id: retrieval.query.037
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-037
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-037
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.037.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.038
+  input:
+    case_id: retrieval.query.038
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-038
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-038
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.038.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.039
+  input:
+    case_id: retrieval.query.039
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-039
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-039
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.039.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.040
+  input:
+    case_id: retrieval.query.040
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-040
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-040
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.040.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.041
+  input:
+    case_id: retrieval.query.041
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-041
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-041
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.041.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.042
+  input:
+    case_id: retrieval.query.042
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-042
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-042
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.042.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.043
+  input:
+    case_id: retrieval.query.043
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-043
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-043
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.043.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.044
+  input:
+    case_id: retrieval.query.044
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-044
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-044
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.044.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.045
+  input:
+    case_id: retrieval.query.045
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-045
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-045
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.045.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.046
+  input:
+    case_id: retrieval.query.046
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-046
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-046
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.046.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.047
+  input:
+    case_id: retrieval.query.047
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-047
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-047
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.047.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.048
+  input:
+    case_id: retrieval.query.048
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-048
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-048
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.048.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.049
+  input:
+    case_id: retrieval.query.049
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-049
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-049
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.049.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.050
+  input:
+    case_id: retrieval.query.050
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-050
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-050
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.050.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.051
+  input:
+    case_id: retrieval.query.051
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-051
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-051
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.051.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.052
+  input:
+    case_id: retrieval.query.052
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-052
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-052
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.052.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.053
+  input:
+    case_id: retrieval.query.053
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-053
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-053
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.053.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.054
+  input:
+    case_id: retrieval.query.054
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-054
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-054
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.054.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.055
+  input:
+    case_id: retrieval.query.055
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-055
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-055
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.055.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.056
+  input:
+    case_id: retrieval.query.056
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-056
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-056
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.056.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.057
+  input:
+    case_id: retrieval.query.057
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-057
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-057
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.057.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.058
+  input:
+    case_id: retrieval.query.058
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-058
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-058
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.058.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.059
+  input:
+    case_id: retrieval.query.059
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-059
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-059
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.059.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.060
+  input:
+    case_id: retrieval.query.060
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-060
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-060
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.060.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.061
+  input:
+    case_id: retrieval.query.061
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-061
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-061
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.061.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.062
+  input:
+    case_id: retrieval.query.062
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-062
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-062
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.062.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.063
+  input:
+    case_id: retrieval.query.063
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-063
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-063
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.063.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.064
+  input:
+    case_id: retrieval.query.064
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-064
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-064
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.064.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.065
+  input:
+    case_id: retrieval.query.065
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-065
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-065
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.065.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.066
+  input:
+    case_id: retrieval.query.066
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-066
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-066
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.066.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.067
+  input:
+    case_id: retrieval.query.067
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-067
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-067
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.067.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.068
+  input:
+    case_id: retrieval.query.068
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-068
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-068
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.068.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.069
+  input:
+    case_id: retrieval.query.069
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-069
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-069
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.069.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.070
+  input:
+    case_id: retrieval.query.070
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-070
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-070
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.070.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.071
+  input:
+    case_id: retrieval.query.071
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-071
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-071
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.071.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.072
+  input:
+    case_id: retrieval.query.072
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-072
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-072
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.072.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.073
+  input:
+    case_id: retrieval.query.073
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-073
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-073
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.073.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.074
+  input:
+    case_id: retrieval.query.074
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-074
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-074
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.074.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.075
+  input:
+    case_id: retrieval.query.075
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-075
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-075
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.075.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.076
+  input:
+    case_id: retrieval.query.076
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-076
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-076
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.076.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.077
+  input:
+    case_id: retrieval.query.077
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-077
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-077
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.077.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.078
+  input:
+    case_id: retrieval.query.078
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-078
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-078
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.078.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.079
+  input:
+    case_id: retrieval.query.079
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-079
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-079
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.079.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.080
+  input:
+    case_id: retrieval.query.080
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: frozen-token-080
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids:
+    - record-080
+    expected_empty: false
+  metadata:
+    description: Controlled retrieval case retrieval.query.080.
+    split: dev
+    family: frozen-pack
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - frozen-pack
+    rights: *id001
+- id: retrieval.query.081
+  input:
+    case_id: retrieval.query.081
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: absent-token-081
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids: []
+    expected_empty: true
+  metadata:
+    description: Controlled retrieval case retrieval.query.081.
+    split: dev
+    family: unanswerable
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - unanswerable
+    rights: *id001
+- id: retrieval.query.082
+  input:
+    case_id: retrieval.query.082
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: absent-token-082
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids: []
+    expected_empty: true
+  metadata:
+    description: Controlled retrieval case retrieval.query.082.
+    split: dev
+    family: unanswerable
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - unanswerable
+    rights: *id001
+- id: retrieval.query.083
+  input:
+    case_id: retrieval.query.083
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: absent-token-083
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids: []
+    expected_empty: true
+  metadata:
+    description: Controlled retrieval case retrieval.query.083.
+    split: dev
+    family: unanswerable
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - unanswerable
+    rights: *id001
+- id: retrieval.query.084
+  input:
+    case_id: retrieval.query.084
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: absent-token-084
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids: []
+    expected_empty: true
+  metadata:
+    description: Controlled retrieval case retrieval.query.084.
+    split: dev
+    family: unanswerable
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - unanswerable
+    rights: *id001
+- id: retrieval.query.085
+  input:
+    case_id: retrieval.query.085
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: absent-token-085
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids: []
+    expected_empty: true
+  metadata:
+    description: Controlled retrieval case retrieval.query.085.
+    split: dev
+    family: unanswerable
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - unanswerable
+    rights: *id001
+- id: retrieval.query.086
+  input:
+    case_id: retrieval.query.086
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: absent-token-086
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids: []
+    expected_empty: true
+  metadata:
+    description: Controlled retrieval case retrieval.query.086.
+    split: dev
+    family: unanswerable
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - unanswerable
+    rights: *id001
+- id: retrieval.query.087
+  input:
+    case_id: retrieval.query.087
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: absent-token-087
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids: []
+    expected_empty: true
+  metadata:
+    description: Controlled retrieval case retrieval.query.087.
+    split: dev
+    family: unanswerable
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - unanswerable
+    rights: *id001
+- id: retrieval.query.088
+  input:
+    case_id: retrieval.query.088
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: absent-token-088
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids: []
+    expected_empty: true
+  metadata:
+    description: Controlled retrieval case retrieval.query.088.
+    split: dev
+    family: unanswerable
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - unanswerable
+    rights: *id001
+- id: retrieval.query.089
+  input:
+    case_id: retrieval.query.089
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: absent-token-089
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids: []
+    expected_empty: true
+  metadata:
+    description: Controlled retrieval case retrieval.query.089.
+    split: dev
+    family: unanswerable
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - unanswerable
+    rights: *id001
+- id: retrieval.query.090
+  input:
+    case_id: retrieval.query.090
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: absent-token-090
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids: []
+    expected_empty: true
+  metadata:
+    description: Controlled retrieval case retrieval.query.090.
+    split: dev
+    family: unanswerable
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - unanswerable
+    rights: *id001
+- id: retrieval.query.091
+  input:
+    case_id: retrieval.query.091
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: absent-token-091
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids: []
+    expected_empty: true
+  metadata:
+    description: Controlled retrieval case retrieval.query.091.
+    split: dev
+    family: unanswerable
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - unanswerable
+    rights: *id001
+- id: retrieval.query.092
+  input:
+    case_id: retrieval.query.092
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: absent-token-092
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids: []
+    expected_empty: true
+  metadata:
+    description: Controlled retrieval case retrieval.query.092.
+    split: dev
+    family: unanswerable
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - unanswerable
+    rights: *id001
+- id: retrieval.query.093
+  input:
+    case_id: retrieval.query.093
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: absent-token-093
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids: []
+    expected_empty: true
+  metadata:
+    description: Controlled retrieval case retrieval.query.093.
+    split: dev
+    family: unanswerable
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - unanswerable
+    rights: *id001
+- id: retrieval.query.094
+  input:
+    case_id: retrieval.query.094
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: absent-token-094
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids: []
+    expected_empty: true
+  metadata:
+    description: Controlled retrieval case retrieval.query.094.
+    split: dev
+    family: unanswerable
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - unanswerable
+    rights: *id001
+- id: retrieval.query.095
+  input:
+    case_id: retrieval.query.095
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: absent-token-095
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids: []
+    expected_empty: true
+  metadata:
+    description: Controlled retrieval case retrieval.query.095.
+    split: dev
+    family: unanswerable
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - unanswerable
+    rights: *id001
+- id: retrieval.query.096
+  input:
+    case_id: retrieval.query.096
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: absent-token-096
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids: []
+    expected_empty: true
+  metadata:
+    description: Controlled retrieval case retrieval.query.096.
+    split: dev
+    family: unanswerable
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - unanswerable
+    rights: *id001
+- id: retrieval.query.097
+  input:
+    case_id: retrieval.query.097
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: absent-token-097
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids: []
+    expected_empty: true
+  metadata:
+    description: Controlled retrieval case retrieval.query.097.
+    split: dev
+    family: unanswerable
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - unanswerable
+    rights: *id001
+- id: retrieval.query.098
+  input:
+    case_id: retrieval.query.098
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: absent-token-098
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids: []
+    expected_empty: true
+  metadata:
+    description: Controlled retrieval case retrieval.query.098.
+    split: dev
+    family: unanswerable
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - unanswerable
+    rights: *id001
+- id: retrieval.query.099
+  input:
+    case_id: retrieval.query.099
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: absent-token-099
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids: []
+    expected_empty: true
+  metadata:
+    description: Controlled retrieval case retrieval.query.099.
+    split: dev
+    family: unanswerable
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - unanswerable
+    rights: *id001
+- id: retrieval.query.100
+  input:
+    case_id: retrieval.query.100
+    lane: retrieval
+    pack_path: bench/fixtures/v2/corpus
+    query: absent-token-100
+    max_results: 5
+  expected:
+    lane: retrieval
+    relevant_ids: []
+    expected_empty: true
+  metadata:
+    description: Controlled retrieval case retrieval.query.100.
+    split: dev
+    family: unanswerable
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - unanswerable
+    rights: *id001
+- id: research.fixture.01
+  input:
+    case_id: research.fixture.01
+    lane: research
+    corpus_path: bench/fixtures/v2/research/task-01.md
+    question: Return field 01 with evidence.
+  expected:
+    lane: research
+    claims:
+    - claim_id: claim-01
+      value: value-01
+      evidence_ids:
+      - research-evidence-01
+      required_excerpt_terms:
+      - field-01
+      - value-01
+  metadata:
+    description: Controlled research case research.fixture.01.
+    split: dev
+    family: fixed-corpus-evidence
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - fixed-corpus-evidence
+    rights: *id001
+- id: research.fixture.02
+  input:
+    case_id: research.fixture.02
+    lane: research
+    corpus_path: bench/fixtures/v2/research/task-02.md
+    question: Return field 02 with evidence.
+  expected:
+    lane: research
+    claims:
+    - claim_id: claim-02
+      value: value-02
+      evidence_ids:
+      - research-evidence-02
+      required_excerpt_terms:
+      - field-02
+      - value-02
+  metadata:
+    description: Controlled research case research.fixture.02.
+    split: dev
+    family: fixed-corpus-evidence
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - fixed-corpus-evidence
+    rights: *id001
+- id: research.fixture.03
+  input:
+    case_id: research.fixture.03
+    lane: research
+    corpus_path: bench/fixtures/v2/research/task-03.md
+    question: Return field 03 with evidence.
+  expected:
+    lane: research
+    claims:
+    - claim_id: claim-03
+      value: value-03
+      evidence_ids:
+      - research-evidence-03
+      required_excerpt_terms:
+      - field-03
+      - value-03
+  metadata:
+    description: Controlled research case research.fixture.03.
+    split: dev
+    family: fixed-corpus-evidence
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - fixed-corpus-evidence
+    rights: *id001
+- id: research.fixture.04
+  input:
+    case_id: research.fixture.04
+    lane: research
+    corpus_path: bench/fixtures/v2/research/task-04.md
+    question: Return field 04 with evidence.
+  expected:
+    lane: research
+    claims:
+    - claim_id: claim-04
+      value: value-04
+      evidence_ids:
+      - research-evidence-04
+      required_excerpt_terms:
+      - field-04
+      - value-04
+  metadata:
+    description: Controlled research case research.fixture.04.
+    split: dev
+    family: fixed-corpus-evidence
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - fixed-corpus-evidence
+    rights: *id001
+- id: research.fixture.05
+  input:
+    case_id: research.fixture.05
+    lane: research
+    corpus_path: bench/fixtures/v2/research/task-05.md
+    question: Return field 05 with evidence.
+  expected:
+    lane: research
+    claims:
+    - claim_id: claim-05
+      value: value-05
+      evidence_ids:
+      - research-evidence-05
+      required_excerpt_terms:
+      - field-05
+      - value-05
+  metadata:
+    description: Controlled research case research.fixture.05.
+    split: dev
+    family: fixed-corpus-evidence
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - fixed-corpus-evidence
+    rights: *id001
+- id: research.fixture.06
+  input:
+    case_id: research.fixture.06
+    lane: research
+    corpus_path: bench/fixtures/v2/research/task-06.md
+    question: Return field 06 with evidence.
+  expected:
+    lane: research
+    claims:
+    - claim_id: claim-06
+      value: value-06
+      evidence_ids:
+      - research-evidence-06
+      required_excerpt_terms:
+      - field-06
+      - value-06
+  metadata:
+    description: Controlled research case research.fixture.06.
+    split: dev
+    family: fixed-corpus-evidence
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - fixed-corpus-evidence
+    rights: *id001
+- id: research.fixture.07
+  input:
+    case_id: research.fixture.07
+    lane: research
+    corpus_path: bench/fixtures/v2/research/task-07.md
+    question: Return field 07 with evidence.
+  expected:
+    lane: research
+    claims:
+    - claim_id: claim-07
+      value: value-07
+      evidence_ids:
+      - research-evidence-07
+      required_excerpt_terms:
+      - field-07
+      - value-07
+  metadata:
+    description: Controlled research case research.fixture.07.
+    split: dev
+    family: fixed-corpus-evidence
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - fixed-corpus-evidence
+    rights: *id001
+- id: research.fixture.08
+  input:
+    case_id: research.fixture.08
+    lane: research
+    corpus_path: bench/fixtures/v2/research/task-08.md
+    question: Return field 08 with evidence.
+  expected:
+    lane: research
+    claims:
+    - claim_id: claim-08
+      value: value-08
+      evidence_ids:
+      - research-evidence-08
+      required_excerpt_terms:
+      - field-08
+      - value-08
+  metadata:
+    description: Controlled research case research.fixture.08.
+    split: dev
+    family: fixed-corpus-evidence
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - fixed-corpus-evidence
+    rights: *id001
+- id: research.fixture.09
+  input:
+    case_id: research.fixture.09
+    lane: research
+    corpus_path: bench/fixtures/v2/research/task-09.md
+    question: Return field 09 with evidence.
+  expected:
+    lane: research
+    claims:
+    - claim_id: claim-09
+      value: value-09
+      evidence_ids:
+      - research-evidence-09
+      required_excerpt_terms:
+      - field-09
+      - value-09
+  metadata:
+    description: Controlled research case research.fixture.09.
+    split: dev
+    family: fixed-corpus-evidence
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - fixed-corpus-evidence
+    rights: *id001
+- id: research.fixture.10
+  input:
+    case_id: research.fixture.10
+    lane: research
+    corpus_path: bench/fixtures/v2/research/task-10.md
+    question: Return field 10 with evidence.
+  expected:
+    lane: research
+    claims:
+    - claim_id: claim-10
+      value: value-10
+      evidence_ids:
+      - research-evidence-10
+      required_excerpt_terms:
+      - field-10
+      - value-10
+  metadata:
+    description: Controlled research case research.fixture.10.
+    split: dev
+    family: fixed-corpus-evidence
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - fixed-corpus-evidence
+    rights: *id001
+- id: research.fixture.11
+  input:
+    case_id: research.fixture.11
+    lane: research
+    corpus_path: bench/fixtures/v2/research/task-11.md
+    question: Return field 11 with evidence.
+  expected:
+    lane: research
+    claims:
+    - claim_id: claim-11
+      value: value-11
+      evidence_ids:
+      - research-evidence-11
+      required_excerpt_terms:
+      - field-11
+      - value-11
+  metadata:
+    description: Controlled research case research.fixture.11.
+    split: dev
+    family: fixed-corpus-evidence
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - fixed-corpus-evidence
+    rights: *id001
+- id: research.fixture.12
+  input:
+    case_id: research.fixture.12
+    lane: research
+    corpus_path: bench/fixtures/v2/research/task-12.md
+    question: Return field 12 with evidence.
+  expected:
+    lane: research
+    claims:
+    - claim_id: claim-12
+      value: value-12
+      evidence_ids:
+      - research-evidence-12
+      required_excerpt_terms:
+      - field-12
+      - value-12
+  metadata:
+    description: Controlled research case research.fixture.12.
+    split: dev
+    family: fixed-corpus-evidence
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - fixed-corpus-evidence
+    rights: *id001
+- id: research.fixture.13
+  input:
+    case_id: research.fixture.13
+    lane: research
+    corpus_path: bench/fixtures/v2/research/task-13.md
+    question: Return field 13 with evidence.
+  expected:
+    lane: research
+    claims:
+    - claim_id: claim-13
+      value: value-13
+      evidence_ids:
+      - research-evidence-13
+      required_excerpt_terms:
+      - field-13
+      - value-13
+  metadata:
+    description: Controlled research case research.fixture.13.
+    split: dev
+    family: fixed-corpus-evidence
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - fixed-corpus-evidence
+    rights: *id001
+- id: research.fixture.14
+  input:
+    case_id: research.fixture.14
+    lane: research
+    corpus_path: bench/fixtures/v2/research/task-14.md
+    question: Return field 14 with evidence.
+  expected:
+    lane: research
+    claims:
+    - claim_id: claim-14
+      value: value-14
+      evidence_ids:
+      - research-evidence-14
+      required_excerpt_terms:
+      - field-14
+      - value-14
+  metadata:
+    description: Controlled research case research.fixture.14.
+    split: dev
+    family: fixed-corpus-evidence
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - fixed-corpus-evidence
+    rights: *id001
+- id: research.fixture.15
+  input:
+    case_id: research.fixture.15
+    lane: research
+    corpus_path: bench/fixtures/v2/research/task-15.md
+    question: Return field 15 with evidence.
+  expected:
+    lane: research
+    claims:
+    - claim_id: claim-15
+      value: value-15
+      evidence_ids:
+      - research-evidence-15
+      required_excerpt_terms:
+      - field-15
+      - value-15
+  metadata:
+    description: Controlled research case research.fixture.15.
+    split: dev
+    family: fixed-corpus-evidence
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - fixed-corpus-evidence
+    rights: *id001
+- id: research.fixture.16
+  input:
+    case_id: research.fixture.16
+    lane: research
+    corpus_path: bench/fixtures/v2/research/task-16.md
+    question: Return field 16 with evidence.
+  expected:
+    lane: research
+    claims:
+    - claim_id: claim-16
+      value: value-16
+      evidence_ids:
+      - research-evidence-16
+      required_excerpt_terms:
+      - field-16
+      - value-16
+  metadata:
+    description: Controlled research case research.fixture.16.
+    split: dev
+    family: fixed-corpus-evidence
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - fixed-corpus-evidence
+    rights: *id001
+- id: research.fixture.17
+  input:
+    case_id: research.fixture.17
+    lane: research
+    corpus_path: bench/fixtures/v2/research/task-17.md
+    question: Return field 17 with evidence.
+  expected:
+    lane: research
+    claims:
+    - claim_id: claim-17
+      value: value-17
+      evidence_ids:
+      - research-evidence-17
+      required_excerpt_terms:
+      - field-17
+      - value-17
+  metadata:
+    description: Controlled research case research.fixture.17.
+    split: dev
+    family: fixed-corpus-evidence
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - fixed-corpus-evidence
+    rights: *id001
+- id: research.fixture.18
+  input:
+    case_id: research.fixture.18
+    lane: research
+    corpus_path: bench/fixtures/v2/research/task-18.md
+    question: Return field 18 with evidence.
+  expected:
+    lane: research
+    claims:
+    - claim_id: claim-18
+      value: value-18
+      evidence_ids:
+      - research-evidence-18
+      required_excerpt_terms:
+      - field-18
+      - value-18
+  metadata:
+    description: Controlled research case research.fixture.18.
+    split: dev
+    family: fixed-corpus-evidence
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - fixed-corpus-evidence
+    rights: *id001
+- id: research.fixture.19
+  input:
+    case_id: research.fixture.19
+    lane: research
+    corpus_path: bench/fixtures/v2/research/task-19.md
+    question: Return field 19 with evidence.
+  expected:
+    lane: research
+    claims:
+    - claim_id: claim-19
+      value: value-19
+      evidence_ids:
+      - research-evidence-19
+      required_excerpt_terms:
+      - field-19
+      - value-19
+  metadata:
+    description: Controlled research case research.fixture.19.
+    split: dev
+    family: fixed-corpus-evidence
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - fixed-corpus-evidence
+    rights: *id001
+- id: research.fixture.20
+  input:
+    case_id: research.fixture.20
+    lane: research
+    corpus_path: bench/fixtures/v2/research/task-20.md
+    question: Return field 20 with evidence.
+  expected:
+    lane: research
+    claims:
+    - claim_id: claim-20
+      value: value-20
+      evidence_ids:
+      - research-evidence-20
+      required_excerpt_terms:
+      - field-20
+      - value-20
+  metadata:
+    description: Controlled research case research.fixture.20.
+    split: dev
+    family: fixed-corpus-evidence
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - fixed-corpus-evidence
+    rights: *id001
+- id: policy.private_target.01
+  input:
+    case_id: policy.private_target.01
+    lane: policy
+    scenario: private_target
+    target_url: https://127.0.0.1/private
+    fixture_path: bench/fixtures/v2/policy/robots.txt
+  expected:
+    lane: policy
+    expected_status: failed
+    required_error_terms:
+    - private target
+    maximum_request_count: 0
+    forbidden_output_terms:
+    - fixture-secret-value
+  metadata:
+    description: Controlled policy case policy.private_target.01.
+    split: dev
+    family: adversarial-policy
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - adversarial-policy
+    rights: *id001
+- id: policy.robots.02
+  input:
+    case_id: policy.robots.02
+    lane: policy
+    scenario: robots
+    target_url: null
+    fixture_path: bench/fixtures/v2/policy/robots.txt
+  expected:
+    lane: policy
+    expected_status: failed
+    required_error_terms:
+    - robots
+    maximum_request_count: 0
+    forbidden_output_terms:
+    - fixture-secret-value
+  metadata:
+    description: Controlled policy case policy.robots.02.
+    split: dev
+    family: adversarial-policy
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - adversarial-policy
+    rights: *id001
+- id: policy.zero_budget.03
+  input:
+    case_id: policy.zero_budget.03
+    lane: policy
+    scenario: zero_budget
+    target_url: null
+    fixture_path: bench/fixtures/v2/policy/robots.txt
+  expected:
+    lane: policy
+    expected_status: failed
+    required_error_terms:
+    - zero budget
+    maximum_request_count: 0
+    forbidden_output_terms:
+    - fixture-secret-value
+  metadata:
+    description: Controlled policy case policy.zero_budget.03.
+    split: dev
+    family: adversarial-policy
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - adversarial-policy
+    rights: *id001
+- id: policy.credential_leak.04
+  input:
+    case_id: policy.credential_leak.04
+    lane: policy
+    scenario: credential_leak
+    target_url: null
+    fixture_path: bench/fixtures/v2/policy/robots.txt
+  expected:
+    lane: policy
+    expected_status: completed
+    required_error_terms: []
+    maximum_request_count: 0
+    forbidden_output_terms:
+    - fixture-secret-value
+  metadata:
+    description: Controlled policy case policy.credential_leak.04.
+    split: dev
+    family: adversarial-policy
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - adversarial-policy
+    rights: *id001
+- id: policy.rights.05
+  input:
+    case_id: policy.rights.05
+    lane: policy
+    scenario: rights
+    target_url: null
+    fixture_path: bench/fixtures/v2/policy/robots.txt
+  expected:
+    lane: policy
+    expected_status: failed
+    required_error_terms:
+    - rights
+    maximum_request_count: 0
+    forbidden_output_terms:
+    - fixture-secret-value
+  metadata:
+    description: Controlled policy case policy.rights.05.
+    split: dev
+    family: adversarial-policy
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - adversarial-policy
+    rights: *id001
+- id: policy.redirect.06
+  input:
+    case_id: policy.redirect.06
+    lane: policy
+    scenario: redirect
+    target_url: null
+    fixture_path: bench/fixtures/v2/policy/robots.txt
+  expected:
+    lane: policy
+    expected_status: failed
+    required_error_terms:
+    - redirect
+    maximum_request_count: 0
+    forbidden_output_terms:
+    - fixture-secret-value
+  metadata:
+    description: Controlled policy case policy.redirect.06.
+    split: dev
+    family: adversarial-policy
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - adversarial-policy
+    rights: *id001
+- id: policy.artifact_escape.07
+  input:
+    case_id: policy.artifact_escape.07
+    lane: policy
+    scenario: artifact_escape
+    target_url: null
+    fixture_path: bench/fixtures/v2/policy/robots.txt
+  expected:
+    lane: policy
+    expected_status: failed
+    required_error_terms:
+    - artifact escape
+    maximum_request_count: 0
+    forbidden_output_terms:
+    - fixture-secret-value
+  metadata:
+    description: Controlled policy case policy.artifact_escape.07.
+    split: dev
+    family: adversarial-policy
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - adversarial-policy
+    rights: *id001
+- id: policy.malformed_config.08
+  input:
+    case_id: policy.malformed_config.08
+    lane: policy
+    scenario: malformed_config
+    target_url: null
+    fixture_path: bench/fixtures/v2/policy/robots.txt
+  expected:
+    lane: policy
+    expected_status: failed
+    required_error_terms:
+    - malformed config
+    maximum_request_count: 0
+    forbidden_output_terms:
+    - fixture-secret-value
+  metadata:
+    description: Controlled policy case policy.malformed_config.08.
+    split: dev
+    family: adversarial-policy
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - adversarial-policy
+    rights: *id001
+- id: policy.private_target.09
+  input:
+    case_id: policy.private_target.09
+    lane: policy
+    scenario: private_target
+    target_url: https://127.0.0.1/private
+    fixture_path: bench/fixtures/v2/policy/robots.txt
+  expected:
+    lane: policy
+    expected_status: failed
+    required_error_terms:
+    - private target
+    maximum_request_count: 0
+    forbidden_output_terms:
+    - fixture-secret-value
+  metadata:
+    description: Controlled policy case policy.private_target.09.
+    split: dev
+    family: adversarial-policy
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - adversarial-policy
+    rights: *id001
+- id: policy.robots.10
+  input:
+    case_id: policy.robots.10
+    lane: policy
+    scenario: robots
+    target_url: null
+    fixture_path: bench/fixtures/v2/policy/robots.txt
+  expected:
+    lane: policy
+    expected_status: failed
+    required_error_terms:
+    - robots
+    maximum_request_count: 0
+    forbidden_output_terms:
+    - fixture-secret-value
+  metadata:
+    description: Controlled policy case policy.robots.10.
+    split: dev
+    family: adversarial-policy
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - adversarial-policy
+    rights: *id001
+- id: policy.zero_budget.11
+  input:
+    case_id: policy.zero_budget.11
+    lane: policy
+    scenario: zero_budget
+    target_url: null
+    fixture_path: bench/fixtures/v2/policy/robots.txt
+  expected:
+    lane: policy
+    expected_status: failed
+    required_error_terms:
+    - zero budget
+    maximum_request_count: 0
+    forbidden_output_terms:
+    - fixture-secret-value
+  metadata:
+    description: Controlled policy case policy.zero_budget.11.
+    split: dev
+    family: adversarial-policy
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - adversarial-policy
+    rights: *id001
+- id: policy.credential_leak.12
+  input:
+    case_id: policy.credential_leak.12
+    lane: policy
+    scenario: credential_leak
+    target_url: null
+    fixture_path: bench/fixtures/v2/policy/robots.txt
+  expected:
+    lane: policy
+    expected_status: completed
+    required_error_terms: []
+    maximum_request_count: 0
+    forbidden_output_terms:
+    - fixture-secret-value
+  metadata:
+    description: Controlled policy case policy.credential_leak.12.
+    split: dev
+    family: adversarial-policy
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - adversarial-policy
+    rights: *id001
+- id: policy.rights.13
+  input:
+    case_id: policy.rights.13
+    lane: policy
+    scenario: rights
+    target_url: null
+    fixture_path: bench/fixtures/v2/policy/robots.txt
+  expected:
+    lane: policy
+    expected_status: failed
+    required_error_terms:
+    - rights
+    maximum_request_count: 0
+    forbidden_output_terms:
+    - fixture-secret-value
+  metadata:
+    description: Controlled policy case policy.rights.13.
+    split: dev
+    family: adversarial-policy
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - adversarial-policy
+    rights: *id001
+- id: policy.redirect.14
+  input:
+    case_id: policy.redirect.14
+    lane: policy
+    scenario: redirect
+    target_url: null
+    fixture_path: bench/fixtures/v2/policy/robots.txt
+  expected:
+    lane: policy
+    expected_status: failed
+    required_error_terms:
+    - redirect
+    maximum_request_count: 0
+    forbidden_output_terms:
+    - fixture-secret-value
+  metadata:
+    description: Controlled policy case policy.redirect.14.
+    split: dev
+    family: adversarial-policy
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - adversarial-policy
+    rights: *id001
+- id: policy.artifact_escape.15
+  input:
+    case_id: policy.artifact_escape.15
+    lane: policy
+    scenario: artifact_escape
+    target_url: null
+    fixture_path: bench/fixtures/v2/policy/robots.txt
+  expected:
+    lane: policy
+    expected_status: failed
+    required_error_terms:
+    - artifact escape
+    maximum_request_count: 0
+    forbidden_output_terms:
+    - fixture-secret-value
+  metadata:
+    description: Controlled policy case policy.artifact_escape.15.
+    split: dev
+    family: adversarial-policy
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - adversarial-policy
+    rights: *id001
+- id: policy.malformed_config.16
+  input:
+    case_id: policy.malformed_config.16
+    lane: policy
+    scenario: malformed_config
+    target_url: null
+    fixture_path: bench/fixtures/v2/policy/robots.txt
+  expected:
+    lane: policy
+    expected_status: failed
+    required_error_terms:
+    - malformed config
+    maximum_request_count: 0
+    forbidden_output_terms:
+    - fixture-secret-value
+  metadata:
+    description: Controlled policy case policy.malformed_config.16.
+    split: dev
+    family: adversarial-policy
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - adversarial-policy
+    rights: *id001
+- id: policy.private_target.17
+  input:
+    case_id: policy.private_target.17
+    lane: policy
+    scenario: private_target
+    target_url: https://127.0.0.1/private
+    fixture_path: bench/fixtures/v2/policy/robots.txt
+  expected:
+    lane: policy
+    expected_status: failed
+    required_error_terms:
+    - private target
+    maximum_request_count: 0
+    forbidden_output_terms:
+    - fixture-secret-value
+  metadata:
+    description: Controlled policy case policy.private_target.17.
+    split: dev
+    family: adversarial-policy
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - adversarial-policy
+    rights: *id001
+- id: policy.robots.18
+  input:
+    case_id: policy.robots.18
+    lane: policy
+    scenario: robots
+    target_url: null
+    fixture_path: bench/fixtures/v2/policy/robots.txt
+  expected:
+    lane: policy
+    expected_status: failed
+    required_error_terms:
+    - robots
+    maximum_request_count: 0
+    forbidden_output_terms:
+    - fixture-secret-value
+  metadata:
+    description: Controlled policy case policy.robots.18.
+    split: dev
+    family: adversarial-policy
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - adversarial-policy
+    rights: *id001
+- id: policy.zero_budget.19
+  input:
+    case_id: policy.zero_budget.19
+    lane: policy
+    scenario: zero_budget
+    target_url: null
+    fixture_path: bench/fixtures/v2/policy/robots.txt
+  expected:
+    lane: policy
+    expected_status: failed
+    required_error_terms:
+    - zero budget
+    maximum_request_count: 0
+    forbidden_output_terms:
+    - fixture-secret-value
+  metadata:
+    description: Controlled policy case policy.zero_budget.19.
+    split: dev
+    family: adversarial-policy
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - adversarial-policy
+    rights: *id001
+- id: policy.credential_leak.20
+  input:
+    case_id: policy.credential_leak.20
+    lane: policy
+    scenario: credential_leak
+    target_url: null
+    fixture_path: bench/fixtures/v2/policy/robots.txt
+  expected:
+    lane: policy
+    expected_status: completed
+    required_error_terms: []
+    maximum_request_count: 0
+    forbidden_output_terms:
+    - fixture-secret-value
+  metadata:
+    description: Controlled policy case policy.credential_leak.20.
+    split: dev
+    family: adversarial-policy
+    product_area: evaluation-lab
+    critical: true
+    live: false
+    tags:
+    - controlled
+    - adversarial-policy
+    rights: *id001
+fixture_manifest_sha256: 7f10af6e7477025da6f6a64c197a5922bfecb2af8c7f28386f8591ab98041a51

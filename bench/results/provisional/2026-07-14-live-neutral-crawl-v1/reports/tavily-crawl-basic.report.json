@@ -1,0 +1,1703 @@
+{
+  "schema_version": 1,
+  "manifest": {
+    "schema_version": 1,
+    "run_id": "2aa9565e52794724ab961c25f532f5de",
+    "created_at": "2026-07-14T21:41:28.165927+00:00",
+    "suite_name": "live-neutral-crawl",
+    "suite_version": "1.0.0",
+    "suite_sha256": "86955db1e0e681def7926a36c4e72af5b2be3205f8caba7a3bdc67e9f7b42582",
+    "system": "tavily-crawl-basic",
+    "adapter_version": "crawl-basic-2026-07-14",
+    "git_revision": "30b15ba373092824124a42e2719ff32b147318dd",
+    "python_version": "3.12.13",
+    "repeat": 3,
+    "max_concurrency": 1,
+    "command": [
+      "docpull-bench",
+      "run",
+      "bench/cases/live-neutral-crawl-v1.yaml",
+      "--adapter",
+      "tavily-crawl",
+      "--system",
+      "tavily-crawl-basic",
+      "--repeat",
+      "3",
+      "--max-concurrency",
+      "1",
+      "--max-cost-usd",
+      "0.576",
+      "--output-dir",
+      "bench/runs/crawl-v1-final"
+    ]
+  },
+  "observations": [
+    {
+      "schema_version": 1,
+      "case_id": "crawl.python-asyncio",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "system": "tavily-crawl-basic",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://docs.python.org/3/library/asyncio.html",
+          "title": "",
+          "content_chars": 5944,
+          "content_sha256": "69a2bc700c395eabe48eaa144ebb272ee098cc2a236946fc1bc97691fc8cd7b1"
+        }
+      ],
+      "selected_urls": [
+        "https://docs.python.org/3/library/asyncio.html"
+      ],
+      "elapsed_seconds": 0.4888774579994788,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Conservative Tavily Crawl ceiling: regular mapping plus basic extraction at the official $0.008 pay-as-you-go credit rate.",
+      "usage": {
+        "credits": 0.0,
+        "result_count": 1,
+        "max_pages": 8
+      },
+      "request_count": 1,
+      "adapter_version": "crawl-basic-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "crawl.python-asyncio",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "system": "tavily-crawl-basic",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://docs.python.org/3/library/asyncio.html",
+          "title": "",
+          "content_chars": 5944,
+          "content_sha256": "69a2bc700c395eabe48eaa144ebb272ee098cc2a236946fc1bc97691fc8cd7b1"
+        }
+      ],
+      "selected_urls": [
+        "https://docs.python.org/3/library/asyncio.html"
+      ],
+      "elapsed_seconds": 0.490645666999626,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Conservative Tavily Crawl ceiling: regular mapping plus basic extraction at the official $0.008 pay-as-you-go credit rate.",
+      "usage": {
+        "credits": 0.0,
+        "result_count": 1,
+        "max_pages": 8
+      },
+      "request_count": 1,
+      "adapter_version": "crawl-basic-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "crawl.python-asyncio",
+      "trial_index": 3,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "system": "tavily-crawl-basic",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://docs.python.org/3/library/asyncio.html",
+          "title": "",
+          "content_chars": 5944,
+          "content_sha256": "69a2bc700c395eabe48eaa144ebb272ee098cc2a236946fc1bc97691fc8cd7b1"
+        }
+      ],
+      "selected_urls": [
+        "https://docs.python.org/3/library/asyncio.html"
+      ],
+      "elapsed_seconds": 0.4990372499996738,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Conservative Tavily Crawl ceiling: regular mapping plus basic extraction at the official $0.008 pay-as-you-go credit rate.",
+      "usage": {
+        "credits": 0.0,
+        "result_count": 1,
+        "max_pages": 8
+      },
+      "request_count": 1,
+      "adapter_version": "crawl-basic-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "crawl.sqlite-language",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "system": "tavily-crawl-basic",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://www.sqlite.org/lang.html",
+          "title": "",
+          "content_chars": 3085,
+          "content_sha256": "50fe5b7a708ed537db1850ac5a75da200c0daff01501d22db7f406b871c9734e"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_createindex.html",
+          "title": "",
+          "content_chars": 5505,
+          "content_sha256": "d269cc0ade417f8115c8a50ca085d404cc8082176c8683d40517b471aea25b41"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_with.html",
+          "title": "",
+          "content_chars": 27522,
+          "content_sha256": "93551bf01788675e6deb00a7d3e8690c1d2c65c12a6a18c97673e4cf2ea78443"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_upsert.html",
+          "title": "",
+          "content_chars": 7852,
+          "content_sha256": "685d8a789893e09d788676584275ba9521d982f3c05bc11298ed5c2e54a2d041"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_droptrigger.html",
+          "title": "",
+          "content_chars": 935,
+          "content_sha256": "6877fcabee45b9a2d767af8e9cd67f47ff868cc3044ccb2646ca41da220d0320"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_createtable.html",
+          "title": "",
+          "content_chars": 23026,
+          "content_sha256": "1757b14f068846b48102fda199d0b998b9ddbbf29c1e07dc4f1d47971de3dc0c"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_mathfunc.html",
+          "title": "",
+          "content_chars": 5823,
+          "content_sha256": "acf1e6fa6344e59cf8536a9ae28c2891f03c9c46c548d541a3e4d7a7972c4b67"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_dropview.html",
+          "title": "",
+          "content_chars": 1208,
+          "content_sha256": "1659b1dc70c29663c7705bb16c057b806c10592284a2305734cb4af270fcbaec"
+        }
+      ],
+      "selected_urls": [
+        "https://www.sqlite.org/lang.html",
+        "https://www.sqlite.org/lang_createindex.html",
+        "https://www.sqlite.org/lang_with.html",
+        "https://www.sqlite.org/lang_upsert.html",
+        "https://www.sqlite.org/lang_droptrigger.html",
+        "https://www.sqlite.org/lang_createtable.html",
+        "https://www.sqlite.org/lang_mathfunc.html",
+        "https://www.sqlite.org/lang_dropview.html"
+      ],
+      "elapsed_seconds": 1.4491467910011124,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Conservative Tavily Crawl ceiling: regular mapping plus basic extraction at the official $0.008 pay-as-you-go credit rate.",
+      "usage": {
+        "credits": 3.0,
+        "result_count": 8,
+        "max_pages": 8
+      },
+      "request_count": 1,
+      "adapter_version": "crawl-basic-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "crawl.sqlite-language",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "system": "tavily-crawl-basic",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://www.sqlite.org/lang.html",
+          "title": "",
+          "content_chars": 3085,
+          "content_sha256": "50fe5b7a708ed537db1850ac5a75da200c0daff01501d22db7f406b871c9734e"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_dropview.html",
+          "title": "",
+          "content_chars": 1208,
+          "content_sha256": "1659b1dc70c29663c7705bb16c057b806c10592284a2305734cb4af270fcbaec"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_corefunc.html",
+          "title": "",
+          "content_chars": 29082,
+          "content_sha256": "a7f15a3b89b44b2bd7aacdb0afc68648c3b098e119e00756c74e1c77d61b9743"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_upsert.html",
+          "title": "",
+          "content_chars": 7852,
+          "content_sha256": "685d8a789893e09d788676584275ba9521d982f3c05bc11298ed5c2e54a2d041"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_conflict.html",
+          "title": "",
+          "content_chars": 5569,
+          "content_sha256": "13f5ed4d5e307c58ea8f949c83d36b6f5d1aa598cedd8bd3335b10914da79fb4"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_with.html",
+          "title": "",
+          "content_chars": 27522,
+          "content_sha256": "93551bf01788675e6deb00a7d3e8690c1d2c65c12a6a18c97673e4cf2ea78443"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_datefunc.html",
+          "title": "",
+          "content_chars": 20339,
+          "content_sha256": "6d10df5110d8a467e7dcd7c92b15d67a8bd5f1d35090a8ee21941b52e237a7ed"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_dropindex.html",
+          "title": "",
+          "content_chars": 361,
+          "content_sha256": "bbeae68bc0b8b08ed339476dae9147cefb0af604556163066cbbd200c4302fd0"
+        }
+      ],
+      "selected_urls": [
+        "https://www.sqlite.org/lang.html",
+        "https://www.sqlite.org/lang_dropview.html",
+        "https://www.sqlite.org/lang_corefunc.html",
+        "https://www.sqlite.org/lang_upsert.html",
+        "https://www.sqlite.org/lang_conflict.html",
+        "https://www.sqlite.org/lang_with.html",
+        "https://www.sqlite.org/lang_datefunc.html",
+        "https://www.sqlite.org/lang_dropindex.html"
+      ],
+      "elapsed_seconds": 2.54317354199884,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Conservative Tavily Crawl ceiling: regular mapping plus basic extraction at the official $0.008 pay-as-you-go credit rate.",
+      "usage": {
+        "credits": 3.0,
+        "result_count": 8,
+        "max_pages": 8
+      },
+      "request_count": 1,
+      "adapter_version": "crawl-basic-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "crawl.sqlite-language",
+      "trial_index": 3,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "system": "tavily-crawl-basic",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://www.sqlite.org/lang.html",
+          "title": "",
+          "content_chars": 3085,
+          "content_sha256": "50fe5b7a708ed537db1850ac5a75da200c0daff01501d22db7f406b871c9734e"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_droptrigger.html",
+          "title": "",
+          "content_chars": 935,
+          "content_sha256": "6877fcabee45b9a2d767af8e9cd67f47ff868cc3044ccb2646ca41da220d0320"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_expr.html",
+          "title": "",
+          "content_chars": 30749,
+          "content_sha256": "175ccae51ae97b232bd4e1648e69945a1d9e7309490ed6a000a63b44d976967a"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_createindex.html",
+          "title": "",
+          "content_chars": 5505,
+          "content_sha256": "d269cc0ade417f8115c8a50ca085d404cc8082176c8683d40517b471aea25b41"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_returning.html",
+          "title": "",
+          "content_chars": 10026,
+          "content_sha256": "dcd35552818fa8f4de745cbd983abbcf99e7d344455c6dbd4940eabf18e8ea10"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_createvtab.html",
+          "title": "",
+          "content_chars": 2134,
+          "content_sha256": "5fa405b942eafbd2bd4d577878d7f684e068621cc7bf0bbc600219bdc14e7cd4"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_upsert.html",
+          "title": "",
+          "content_chars": 7852,
+          "content_sha256": "685d8a789893e09d788676584275ba9521d982f3c05bc11298ed5c2e54a2d041"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_attach.html",
+          "title": "",
+          "content_chars": 3958,
+          "content_sha256": "e64a8bff6ef9b7053126cdfccbd64744cfade711c77178c6fc0d3580f93a3ea1"
+        }
+      ],
+      "selected_urls": [
+        "https://www.sqlite.org/lang.html",
+        "https://www.sqlite.org/lang_droptrigger.html",
+        "https://www.sqlite.org/lang_expr.html",
+        "https://www.sqlite.org/lang_createindex.html",
+        "https://www.sqlite.org/lang_returning.html",
+        "https://www.sqlite.org/lang_createvtab.html",
+        "https://www.sqlite.org/lang_upsert.html",
+        "https://www.sqlite.org/lang_attach.html"
+      ],
+      "elapsed_seconds": 3.004102458999114,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Conservative Tavily Crawl ceiling: regular mapping plus basic extraction at the official $0.008 pay-as-you-go credit rate.",
+      "usage": {
+        "credits": 2.0,
+        "result_count": 8,
+        "max_pages": 8
+      },
+      "request_count": 1,
+      "adapter_version": "crawl-basic-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "crawl.mdn-http",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "system": "tavily-crawl-basic",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP",
+          "title": "",
+          "content_chars": 9900,
+          "content_sha256": "58f3b3b8b8921ff1d1907b9d1507247cde563ea0b865734481e32cfb7e307706"
+        }
+      ],
+      "selected_urls": [
+        "https://developer.mozilla.org/en-US/docs/Web/HTTP"
+      ],
+      "elapsed_seconds": 0.46195045900094556,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Conservative Tavily Crawl ceiling: regular mapping plus basic extraction at the official $0.008 pay-as-you-go credit rate.",
+      "usage": {
+        "credits": 0.0,
+        "result_count": 1,
+        "max_pages": 8
+      },
+      "request_count": 1,
+      "adapter_version": "crawl-basic-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "crawl.mdn-http",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "system": "tavily-crawl-basic",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP",
+          "title": "",
+          "content_chars": 9900,
+          "content_sha256": "58f3b3b8b8921ff1d1907b9d1507247cde563ea0b865734481e32cfb7e307706"
+        }
+      ],
+      "selected_urls": [
+        "https://developer.mozilla.org/en-US/docs/Web/HTTP"
+      ],
+      "elapsed_seconds": 0.48169666699686786,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Conservative Tavily Crawl ceiling: regular mapping plus basic extraction at the official $0.008 pay-as-you-go credit rate.",
+      "usage": {
+        "credits": 1.0,
+        "result_count": 1,
+        "max_pages": 8
+      },
+      "request_count": 1,
+      "adapter_version": "crawl-basic-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "crawl.mdn-http",
+      "trial_index": 3,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "system": "tavily-crawl-basic",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP",
+          "title": "",
+          "content_chars": 9900,
+          "content_sha256": "58f3b3b8b8921ff1d1907b9d1507247cde563ea0b865734481e32cfb7e307706"
+        }
+      ],
+      "selected_urls": [
+        "https://developer.mozilla.org/en-US/docs/Web/HTTP"
+      ],
+      "elapsed_seconds": 0.48931679100132897,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Conservative Tavily Crawl ceiling: regular mapping plus basic extraction at the official $0.008 pay-as-you-go credit rate.",
+      "usage": {
+        "credits": 0.0,
+        "result_count": 1,
+        "max_pages": 8
+      },
+      "request_count": 1,
+      "adapter_version": "crawl-basic-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "crawl.docker-get-started",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "framework-tutorial-crawl",
+      "system": "tavily-crawl-basic",
+      "status": "failed",
+      "records": [],
+      "selected_urls": [],
+      "elapsed_seconds": 0.5681189579991042,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Conservative Tavily Crawl ceiling: regular mapping plus basic extraction at the official $0.008 pay-as-you-go credit rate.",
+      "usage": {
+        "credits": 0.0,
+        "result_count": 0,
+        "max_pages": 8
+      },
+      "request_count": 1,
+      "adapter_version": "crawl-basic-2026-07-14",
+      "error": "tavily-crawl-basic returned no non-empty records.",
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "crawl.docker-get-started",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "framework-tutorial-crawl",
+      "system": "tavily-crawl-basic",
+      "status": "failed",
+      "records": [],
+      "selected_urls": [],
+      "elapsed_seconds": 0.45652979200167465,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Conservative Tavily Crawl ceiling: regular mapping plus basic extraction at the official $0.008 pay-as-you-go credit rate.",
+      "usage": {
+        "credits": 0.0,
+        "result_count": 0,
+        "max_pages": 8
+      },
+      "request_count": 1,
+      "adapter_version": "crawl-basic-2026-07-14",
+      "error": "tavily-crawl-basic returned no non-empty records.",
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "crawl.docker-get-started",
+      "trial_index": 3,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "framework-tutorial-crawl",
+      "system": "tavily-crawl-basic",
+      "status": "failed",
+      "records": [],
+      "selected_urls": [],
+      "elapsed_seconds": 0.4647073329979321,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Conservative Tavily Crawl ceiling: regular mapping plus basic extraction at the official $0.008 pay-as-you-go credit rate.",
+      "usage": {
+        "credits": 0.0,
+        "result_count": 0,
+        "max_pages": 8
+      },
+      "request_count": 1,
+      "adapter_version": "crawl-basic-2026-07-14",
+      "error": "tavily-crawl-basic returned no non-empty records.",
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "crawl.go-docs",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "test",
+      "family": "language-reference-crawl",
+      "system": "tavily-crawl-basic",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://go.dev/doc/install",
+          "title": "",
+          "content_chars": 3390,
+          "content_sha256": "79a26ea0638dbfbba29b483e7e22179486dbdf475579a23a949120edde7d836a"
+        },
+        {
+          "url": "https://go.dev/doc/build-cover",
+          "title": "",
+          "content_chars": 13497,
+          "content_sha256": "79080525149fa5ac2a995e8a7f6b169cf442f77d83b8bd029691bf6c349fd83e"
+        },
+        {
+          "url": "https://go.dev/doc/diagnostics.html",
+          "title": "",
+          "content_chars": 15549,
+          "content_sha256": "1bd22cf0fceb8ab238246adf0934c21729469dd4a88ff1ad38038dc6de251d63"
+        },
+        {
+          "url": "https://go.dev/doc/faq",
+          "title": "",
+          "content_chars": 92197,
+          "content_sha256": "e02b9949abca539032e74be6f4ade4c03524df0c3d2a4329d1d0ac5f702748b0"
+        },
+        {
+          "url": "https://go.dev/doc/contribute",
+          "title": "",
+          "content_chars": 37872,
+          "content_sha256": "7fe62b2176727a50a17ad195115e609355566edd9a5eaba0de98bd45d5055eaf"
+        },
+        {
+          "url": "https://go.dev/doc/pgo",
+          "title": "",
+          "content_chars": 17300,
+          "content_sha256": "1bbd4cbd074f9bfe7883160561e8f7935733c97ca5428a8c50f15f26af58b93d"
+        },
+        {
+          "url": "https://go.dev/doc/asm",
+          "title": "",
+          "content_chars": 31218,
+          "content_sha256": "da2132fc252a9a92a1dec23ad02d271abf70ad39be60dea0ab68a56e4faf9173"
+        },
+        {
+          "url": "https://go.dev/doc/gc-guide",
+          "title": "",
+          "content_chars": 63965,
+          "content_sha256": "0e5192af929c557ca2954e25c4783ad88295a195829fd188c806c8989ab36974"
+        }
+      ],
+      "selected_urls": [
+        "https://go.dev/doc/install",
+        "https://go.dev/doc/build-cover",
+        "https://go.dev/doc/diagnostics.html",
+        "https://go.dev/doc/faq",
+        "https://go.dev/doc/contribute",
+        "https://go.dev/doc/pgo",
+        "https://go.dev/doc/asm",
+        "https://go.dev/doc/gc-guide"
+      ],
+      "elapsed_seconds": 1.6906555829991703,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Conservative Tavily Crawl ceiling: regular mapping plus basic extraction at the official $0.008 pay-as-you-go credit rate.",
+      "usage": {
+        "credits": 2.0,
+        "result_count": 8,
+        "max_pages": 8
+      },
+      "request_count": 1,
+      "adapter_version": "crawl-basic-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "crawl.go-docs",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "test",
+      "family": "language-reference-crawl",
+      "system": "tavily-crawl-basic",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://go.dev/doc/build-cover",
+          "title": "",
+          "content_chars": 13497,
+          "content_sha256": "79080525149fa5ac2a995e8a7f6b169cf442f77d83b8bd029691bf6c349fd83e"
+        },
+        {
+          "url": "https://go.dev/doc/diagnostics.html",
+          "title": "",
+          "content_chars": 15549,
+          "content_sha256": "1bd22cf0fceb8ab238246adf0934c21729469dd4a88ff1ad38038dc6de251d63"
+        },
+        {
+          "url": "https://go.dev/doc/gc-guide",
+          "title": "",
+          "content_chars": 63965,
+          "content_sha256": "0e5192af929c557ca2954e25c4783ad88295a195829fd188c806c8989ab36974"
+        },
+        {
+          "url": "https://go.dev/doc/faq",
+          "title": "",
+          "content_chars": 92197,
+          "content_sha256": "e02b9949abca539032e74be6f4ade4c03524df0c3d2a4329d1d0ac5f702748b0"
+        },
+        {
+          "url": "https://go.dev/doc/cmd",
+          "title": "",
+          "content_chars": 2278,
+          "content_sha256": "4cb5bda7e83c287e89521dbedf07c252f199c36ed4304d7e5e783537e103f8b6"
+        },
+        {
+          "url": "https://go.dev/doc/pgo",
+          "title": "",
+          "content_chars": 17300,
+          "content_sha256": "1bbd4cbd074f9bfe7883160561e8f7935733c97ca5428a8c50f15f26af58b93d"
+        },
+        {
+          "url": "https://go.dev/doc/contribute",
+          "title": "",
+          "content_chars": 37872,
+          "content_sha256": "7fe62b2176727a50a17ad195115e609355566edd9a5eaba0de98bd45d5055eaf"
+        },
+        {
+          "url": "https://go.dev/doc/install",
+          "title": "",
+          "content_chars": 3390,
+          "content_sha256": "79a26ea0638dbfbba29b483e7e22179486dbdf475579a23a949120edde7d836a"
+        }
+      ],
+      "selected_urls": [
+        "https://go.dev/doc/build-cover",
+        "https://go.dev/doc/diagnostics.html",
+        "https://go.dev/doc/gc-guide",
+        "https://go.dev/doc/faq",
+        "https://go.dev/doc/cmd",
+        "https://go.dev/doc/pgo",
+        "https://go.dev/doc/contribute",
+        "https://go.dev/doc/install"
+      ],
+      "elapsed_seconds": 1.3768683330017666,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Conservative Tavily Crawl ceiling: regular mapping plus basic extraction at the official $0.008 pay-as-you-go credit rate.",
+      "usage": {
+        "credits": 2.0,
+        "result_count": 8,
+        "max_pages": 8
+      },
+      "request_count": 1,
+      "adapter_version": "crawl-basic-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "crawl.go-docs",
+      "trial_index": 3,
+      "lane": "crawl",
+      "split": "test",
+      "family": "language-reference-crawl",
+      "system": "tavily-crawl-basic",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://go.dev/doc/comment",
+          "title": "",
+          "content_chars": 36478,
+          "content_sha256": "4ee09299f0b621e13b407ccf1ef19e52450d9a74c0b97e8704e703ae2a832956"
+        },
+        {
+          "url": "https://go.dev/doc/diagnostics.html",
+          "title": "",
+          "content_chars": 15549,
+          "content_sha256": "1bd22cf0fceb8ab238246adf0934c21729469dd4a88ff1ad38038dc6de251d63"
+        },
+        {
+          "url": "https://go.dev/doc/faq",
+          "title": "",
+          "content_chars": 92197,
+          "content_sha256": "e02b9949abca539032e74be6f4ade4c03524df0c3d2a4329d1d0ac5f702748b0"
+        },
+        {
+          "url": "https://go.dev/doc/install",
+          "title": "",
+          "content_chars": 3390,
+          "content_sha256": "79a26ea0638dbfbba29b483e7e22179486dbdf475579a23a949120edde7d836a"
+        },
+        {
+          "url": "https://go.dev/doc/gc-guide",
+          "title": "",
+          "content_chars": 63965,
+          "content_sha256": "0e5192af929c557ca2954e25c4783ad88295a195829fd188c806c8989ab36974"
+        },
+        {
+          "url": "https://go.dev/doc/asm",
+          "title": "",
+          "content_chars": 31218,
+          "content_sha256": "da2132fc252a9a92a1dec23ad02d271abf70ad39be60dea0ab68a56e4faf9173"
+        },
+        {
+          "url": "https://go.dev/doc/cmd",
+          "title": "",
+          "content_chars": 2278,
+          "content_sha256": "4cb5bda7e83c287e89521dbedf07c252f199c36ed4304d7e5e783537e103f8b6"
+        },
+        {
+          "url": "https://go.dev/doc/effective_go",
+          "title": "",
+          "content_chars": 97586,
+          "content_sha256": "04a89209d0336f68b8779ca7043c491231b09df6e74bb94931e87ccf8b23a328"
+        }
+      ],
+      "selected_urls": [
+        "https://go.dev/doc/comment",
+        "https://go.dev/doc/diagnostics.html",
+        "https://go.dev/doc/faq",
+        "https://go.dev/doc/install",
+        "https://go.dev/doc/gc-guide",
+        "https://go.dev/doc/asm",
+        "https://go.dev/doc/cmd",
+        "https://go.dev/doc/effective_go"
+      ],
+      "elapsed_seconds": 1.687876915999368,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Conservative Tavily Crawl ceiling: regular mapping plus basic extraction at the official $0.008 pay-as-you-go credit rate.",
+      "usage": {
+        "credits": 3.0,
+        "result_count": 8,
+        "max_pages": 8
+      },
+      "request_count": 1,
+      "adapter_version": "crawl-basic-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "crawl.rust-book",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "system": "tavily-crawl-basic",
+      "status": "failed",
+      "records": [],
+      "selected_urls": [],
+      "elapsed_seconds": 0.38595362499836483,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Conservative Tavily Crawl ceiling: regular mapping plus basic extraction at the official $0.008 pay-as-you-go credit rate.",
+      "usage": {
+        "credits": 0.0,
+        "result_count": 0,
+        "max_pages": 8
+      },
+      "request_count": 1,
+      "adapter_version": "crawl-basic-2026-07-14",
+      "error": "tavily-crawl-basic returned no non-empty records.",
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "crawl.rust-book",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "system": "tavily-crawl-basic",
+      "status": "failed",
+      "records": [],
+      "selected_urls": [],
+      "elapsed_seconds": 0.4657373749978433,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Conservative Tavily Crawl ceiling: regular mapping plus basic extraction at the official $0.008 pay-as-you-go credit rate.",
+      "usage": {
+        "credits": 0.0,
+        "result_count": 0,
+        "max_pages": 8
+      },
+      "request_count": 1,
+      "adapter_version": "crawl-basic-2026-07-14",
+      "error": "tavily-crawl-basic returned no non-empty records.",
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "crawl.rust-book",
+      "trial_index": 3,
+      "lane": "crawl",
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "system": "tavily-crawl-basic",
+      "status": "failed",
+      "records": [],
+      "selected_urls": [],
+      "elapsed_seconds": 0.4821100839981227,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Conservative Tavily Crawl ceiling: regular mapping plus basic extraction at the official $0.008 pay-as-you-go credit rate.",
+      "usage": {
+        "credits": 0.0,
+        "result_count": 0,
+        "max_pages": 8
+      },
+      "request_count": 1,
+      "adapter_version": "crawl-basic-2026-07-14",
+      "error": "tavily-crawl-basic returned no non-empty records.",
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "crawl.fastapi-tutorial",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "system": "tavily-crawl-basic",
+      "status": "failed",
+      "records": [],
+      "selected_urls": [],
+      "elapsed_seconds": 0.48571487499793875,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Conservative Tavily Crawl ceiling: regular mapping plus basic extraction at the official $0.008 pay-as-you-go credit rate.",
+      "usage": {
+        "credits": 0.0,
+        "result_count": 0,
+        "max_pages": 8
+      },
+      "request_count": 1,
+      "adapter_version": "crawl-basic-2026-07-14",
+      "error": "tavily-crawl-basic returned no non-empty records.",
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "crawl.fastapi-tutorial",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "system": "tavily-crawl-basic",
+      "status": "failed",
+      "records": [],
+      "selected_urls": [],
+      "elapsed_seconds": 0.49440154200055986,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Conservative Tavily Crawl ceiling: regular mapping plus basic extraction at the official $0.008 pay-as-you-go credit rate.",
+      "usage": {
+        "credits": 0.0,
+        "result_count": 0,
+        "max_pages": 8
+      },
+      "request_count": 1,
+      "adapter_version": "crawl-basic-2026-07-14",
+      "error": "tavily-crawl-basic returned no non-empty records.",
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "crawl.fastapi-tutorial",
+      "trial_index": 3,
+      "lane": "crawl",
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "system": "tavily-crawl-basic",
+      "status": "failed",
+      "records": [],
+      "selected_urls": [],
+      "elapsed_seconds": 0.5056632079977135,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Conservative Tavily Crawl ceiling: regular mapping plus basic extraction at the official $0.008 pay-as-you-go credit rate.",
+      "usage": {
+        "credits": 0.0,
+        "result_count": 0,
+        "max_pages": 8
+      },
+      "request_count": 1,
+      "adapter_version": "crawl-basic-2026-07-14",
+      "error": "tavily-crawl-basic returned no non-empty records.",
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "crawl.kubernetes-concepts",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "system": "tavily-crawl-basic",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://kubernetes.io/docs/concepts/extend-kubernetes",
+          "title": "",
+          "content_chars": 16992,
+          "content_sha256": "8f6682f23914da1821ca570a4d446a5f169ea7c87ffa220679dab100408f2c77"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/security",
+          "title": "",
+          "content_chars": 9101,
+          "content_sha256": "bd13ddeb8040a9f6d62dfad2d18b2a9e3ec758b191ac0d526e63a30df96e39f1"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/services-networking",
+          "title": "",
+          "content_chars": 6138,
+          "content_sha256": "6aa58c6111087e5894a14be35ebe025be9520891ac3e1ad495c4058f6eda3e7b"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/storage",
+          "title": "",
+          "content_chars": 2147,
+          "content_sha256": "afaffb7644153fb03189cc37e307630e7ada3fdebe39ca54115103c5ca9114f4"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/architecture",
+          "title": "",
+          "content_chars": 12999,
+          "content_sha256": "62e89aa111035f54f5eeb5e6d052e1bd89b9a870383c28efed08c01e418d4a6a"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/containers",
+          "title": "",
+          "content_chars": 4321,
+          "content_sha256": "2f4e5c8cf373e61363eae6ed1fcb0d767facdcf6f9f2cdac85475e0b0674597e"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/policy",
+          "title": "",
+          "content_chars": 4229,
+          "content_sha256": "7c9244935fd05598d6b96ef04bb167e84a11bde08ccc880b65a05b8d6d27e7ad"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/windows",
+          "title": "",
+          "content_chars": 2105,
+          "content_sha256": "fc7f42e09aead8c3095586cfce14781878391f03661ca6ada0b5175ed4fec635"
+        }
+      ],
+      "selected_urls": [
+        "https://kubernetes.io/docs/concepts/extend-kubernetes",
+        "https://kubernetes.io/docs/concepts/security",
+        "https://kubernetes.io/docs/concepts/services-networking",
+        "https://kubernetes.io/docs/concepts/storage",
+        "https://kubernetes.io/docs/concepts/architecture",
+        "https://kubernetes.io/docs/concepts/containers",
+        "https://kubernetes.io/docs/concepts/policy",
+        "https://kubernetes.io/docs/concepts/windows"
+      ],
+      "elapsed_seconds": 1.8161347919995023,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Conservative Tavily Crawl ceiling: regular mapping plus basic extraction at the official $0.008 pay-as-you-go credit rate.",
+      "usage": {
+        "credits": 2.0,
+        "result_count": 8,
+        "max_pages": 8
+      },
+      "request_count": 1,
+      "adapter_version": "crawl-basic-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "crawl.kubernetes-concepts",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "system": "tavily-crawl-basic",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://kubernetes.io/docs/concepts/containers",
+          "title": "",
+          "content_chars": 4321,
+          "content_sha256": "2f4e5c8cf373e61363eae6ed1fcb0d767facdcf6f9f2cdac85475e0b0674597e"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/policy",
+          "title": "",
+          "content_chars": 4229,
+          "content_sha256": "7c9244935fd05598d6b96ef04bb167e84a11bde08ccc880b65a05b8d6d27e7ad"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/scheduling-eviction",
+          "title": "",
+          "content_chars": 2380,
+          "content_sha256": "8f6fa3fb09ca08c1d25269e7082b6c39043068d5c01760d5fabb62374dda207a"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/configuration",
+          "title": "",
+          "content_chars": 1420,
+          "content_sha256": "8f7761bc07c1bb1f8f34b1ccde29411976b7a1619292e4f3bfc5eba848bf18f0"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/storage",
+          "title": "",
+          "content_chars": 2147,
+          "content_sha256": "afaffb7644153fb03189cc37e307630e7ada3fdebe39ca54115103c5ca9114f4"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/cluster-administration",
+          "title": "",
+          "content_chars": 3504,
+          "content_sha256": "a7e79bc7bcc8f86f4ceab780ac86686b3aa4e4dc815cbb092b2d08c85a161de1"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/architecture",
+          "title": "",
+          "content_chars": 12999,
+          "content_sha256": "62e89aa111035f54f5eeb5e6d052e1bd89b9a870383c28efed08c01e418d4a6a"
+        }
+      ],
+      "selected_urls": [
+        "https://kubernetes.io/docs/concepts/containers",
+        "https://kubernetes.io/docs/concepts/policy",
+        "https://kubernetes.io/docs/concepts/scheduling-eviction",
+        "https://kubernetes.io/docs/concepts/configuration",
+        "https://kubernetes.io/docs/concepts/storage",
+        "https://kubernetes.io/docs/concepts/cluster-administration",
+        "https://kubernetes.io/docs/concepts/architecture"
+      ],
+      "elapsed_seconds": 46.176827957999194,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Conservative Tavily Crawl ceiling: regular mapping plus basic extraction at the official $0.008 pay-as-you-go credit rate.",
+      "usage": {
+        "credits": 3.0,
+        "result_count": 7,
+        "max_pages": 8
+      },
+      "request_count": 1,
+      "adapter_version": "crawl-basic-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "crawl.kubernetes-concepts",
+      "trial_index": 3,
+      "lane": "crawl",
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "system": "tavily-crawl-basic",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://kubernetes.io/docs/concepts/extend-kubernetes",
+          "title": "",
+          "content_chars": 16992,
+          "content_sha256": "8f6682f23914da1821ca570a4d446a5f169ea7c87ffa220679dab100408f2c77"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/security",
+          "title": "",
+          "content_chars": 9101,
+          "content_sha256": "bd13ddeb8040a9f6d62dfad2d18b2a9e3ec758b191ac0d526e63a30df96e39f1"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/services-networking",
+          "title": "",
+          "content_chars": 6138,
+          "content_sha256": "6aa58c6111087e5894a14be35ebe025be9520891ac3e1ad495c4058f6eda3e7b"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/storage",
+          "title": "",
+          "content_chars": 2147,
+          "content_sha256": "afaffb7644153fb03189cc37e307630e7ada3fdebe39ca54115103c5ca9114f4"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/architecture",
+          "title": "",
+          "content_chars": 12999,
+          "content_sha256": "62e89aa111035f54f5eeb5e6d052e1bd89b9a870383c28efed08c01e418d4a6a"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/containers",
+          "title": "",
+          "content_chars": 4321,
+          "content_sha256": "2f4e5c8cf373e61363eae6ed1fcb0d767facdcf6f9f2cdac85475e0b0674597e"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/policy",
+          "title": "",
+          "content_chars": 4229,
+          "content_sha256": "7c9244935fd05598d6b96ef04bb167e84a11bde08ccc880b65a05b8d6d27e7ad"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/windows",
+          "title": "",
+          "content_chars": 2105,
+          "content_sha256": "fc7f42e09aead8c3095586cfce14781878391f03661ca6ada0b5175ed4fec635"
+        }
+      ],
+      "selected_urls": [
+        "https://kubernetes.io/docs/concepts/extend-kubernetes",
+        "https://kubernetes.io/docs/concepts/security",
+        "https://kubernetes.io/docs/concepts/services-networking",
+        "https://kubernetes.io/docs/concepts/storage",
+        "https://kubernetes.io/docs/concepts/architecture",
+        "https://kubernetes.io/docs/concepts/containers",
+        "https://kubernetes.io/docs/concepts/policy",
+        "https://kubernetes.io/docs/concepts/windows"
+      ],
+      "elapsed_seconds": 1.4945039580015873,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Conservative Tavily Crawl ceiling: regular mapping plus basic extraction at the official $0.008 pay-as-you-go credit rate.",
+      "usage": {
+        "credits": 2.0,
+        "result_count": 8,
+        "max_pages": 8
+      },
+      "request_count": 1,
+      "adapter_version": "crawl-basic-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    }
+  ],
+  "scores": [
+    {
+      "case_id": "crawl.python-asyncio",
+      "system": "tavily-crawl-basic",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "completed": false,
+      "passed": false,
+      "record_count": 1,
+      "content_chars": 5944,
+      "term_coverage": 1.0,
+      "url_recall": 0.3333333333333333,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 0.0,
+      "elapsed_seconds": 0.4888774579994788,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "crawl.python-asyncio",
+      "system": "tavily-crawl-basic",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "completed": false,
+      "passed": false,
+      "record_count": 1,
+      "content_chars": 5944,
+      "term_coverage": 1.0,
+      "url_recall": 0.3333333333333333,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 0.0,
+      "elapsed_seconds": 0.490645666999626,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "crawl.python-asyncio",
+      "system": "tavily-crawl-basic",
+      "trial_index": 3,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "completed": false,
+      "passed": false,
+      "record_count": 1,
+      "content_chars": 5944,
+      "term_coverage": 1.0,
+      "url_recall": 0.3333333333333333,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 0.0,
+      "elapsed_seconds": 0.4990372499996738,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "crawl.sqlite-language",
+      "system": "tavily-crawl-basic",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "completed": true,
+      "passed": false,
+      "record_count": 8,
+      "content_chars": 74956,
+      "term_coverage": 0.3333333333333333,
+      "url_recall": 0.3333333333333333,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 0.5555555555555555,
+      "elapsed_seconds": 1.4491467910011124,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "crawl.sqlite-language",
+      "system": "tavily-crawl-basic",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "completed": true,
+      "passed": false,
+      "record_count": 8,
+      "content_chars": 95018,
+      "term_coverage": 0.3333333333333333,
+      "url_recall": 0.3333333333333333,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 0.5555555555555555,
+      "elapsed_seconds": 2.54317354199884,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "crawl.sqlite-language",
+      "system": "tavily-crawl-basic",
+      "trial_index": 3,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "completed": true,
+      "passed": false,
+      "record_count": 8,
+      "content_chars": 64244,
+      "term_coverage": 0.3333333333333333,
+      "url_recall": 0.3333333333333333,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 0.5555555555555555,
+      "elapsed_seconds": 3.004102458999114,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "crawl.mdn-http",
+      "system": "tavily-crawl-basic",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "completed": false,
+      "passed": false,
+      "record_count": 1,
+      "content_chars": 9900,
+      "term_coverage": 1.0,
+      "url_recall": 0.3333333333333333,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 0.0,
+      "elapsed_seconds": 0.46195045900094556,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "crawl.mdn-http",
+      "system": "tavily-crawl-basic",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "completed": false,
+      "passed": false,
+      "record_count": 1,
+      "content_chars": 9900,
+      "term_coverage": 1.0,
+      "url_recall": 0.3333333333333333,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 0.0,
+      "elapsed_seconds": 0.48169666699686786,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "crawl.mdn-http",
+      "system": "tavily-crawl-basic",
+      "trial_index": 3,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "completed": false,
+      "passed": false,
+      "record_count": 1,
+      "content_chars": 9900,
+      "term_coverage": 1.0,
+      "url_recall": 0.3333333333333333,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 0.0,
+      "elapsed_seconds": 0.48931679100132897,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "crawl.docker-get-started",
+      "system": "tavily-crawl-basic",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "framework-tutorial-crawl",
+      "completed": false,
+      "passed": false,
+      "record_count": 0,
+      "content_chars": 0,
+      "term_coverage": 0.0,
+      "url_recall": 0.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 0.0,
+      "elapsed_seconds": 0.5681189579991042,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "crawl.docker-get-started",
+      "system": "tavily-crawl-basic",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "framework-tutorial-crawl",
+      "completed": false,
+      "passed": false,
+      "record_count": 0,
+      "content_chars": 0,
+      "term_coverage": 0.0,
+      "url_recall": 0.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 0.0,
+      "elapsed_seconds": 0.45652979200167465,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "crawl.docker-get-started",
+      "system": "tavily-crawl-basic",
+      "trial_index": 3,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "framework-tutorial-crawl",
+      "completed": false,
+      "passed": false,
+      "record_count": 0,
+      "content_chars": 0,
+      "term_coverage": 0.0,
+      "url_recall": 0.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 0.0,
+      "elapsed_seconds": 0.4647073329979321,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "crawl.go-docs",
+      "system": "tavily-crawl-basic",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "test",
+      "family": "language-reference-crawl",
+      "completed": true,
+      "passed": false,
+      "record_count": 8,
+      "content_chars": 274988,
+      "term_coverage": 0.3333333333333333,
+      "url_recall": 0.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 0.4444444444444444,
+      "elapsed_seconds": 1.6906555829991703,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "crawl.go-docs",
+      "system": "tavily-crawl-basic",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "test",
+      "family": "language-reference-crawl",
+      "completed": true,
+      "passed": false,
+      "record_count": 8,
+      "content_chars": 246048,
+      "term_coverage": 0.3333333333333333,
+      "url_recall": 0.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 0.4444444444444444,
+      "elapsed_seconds": 1.3768683330017666,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "crawl.go-docs",
+      "system": "tavily-crawl-basic",
+      "trial_index": 3,
+      "lane": "crawl",
+      "split": "test",
+      "family": "language-reference-crawl",
+      "completed": true,
+      "passed": false,
+      "record_count": 8,
+      "content_chars": 342661,
+      "term_coverage": 0.3333333333333333,
+      "url_recall": 0.3333333333333333,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 0.5555555555555555,
+      "elapsed_seconds": 1.687876915999368,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "crawl.rust-book",
+      "system": "tavily-crawl-basic",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "completed": false,
+      "passed": false,
+      "record_count": 0,
+      "content_chars": 0,
+      "term_coverage": 0.0,
+      "url_recall": 0.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 0.0,
+      "elapsed_seconds": 0.38595362499836483,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "crawl.rust-book",
+      "system": "tavily-crawl-basic",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "completed": false,
+      "passed": false,
+      "record_count": 0,
+      "content_chars": 0,
+      "term_coverage": 0.0,
+      "url_recall": 0.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 0.0,
+      "elapsed_seconds": 0.4657373749978433,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "crawl.rust-book",
+      "system": "tavily-crawl-basic",
+      "trial_index": 3,
+      "lane": "crawl",
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "completed": false,
+      "passed": false,
+      "record_count": 0,
+      "content_chars": 0,
+      "term_coverage": 0.0,
+      "url_recall": 0.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 0.0,
+      "elapsed_seconds": 0.4821100839981227,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "crawl.fastapi-tutorial",
+      "system": "tavily-crawl-basic",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "completed": false,
+      "passed": false,
+      "record_count": 0,
+      "content_chars": 0,
+      "term_coverage": 0.0,
+      "url_recall": 0.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 0.0,
+      "elapsed_seconds": 0.48571487499793875,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "crawl.fastapi-tutorial",
+      "system": "tavily-crawl-basic",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "completed": false,
+      "passed": false,
+      "record_count": 0,
+      "content_chars": 0,
+      "term_coverage": 0.0,
+      "url_recall": 0.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 0.0,
+      "elapsed_seconds": 0.49440154200055986,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "crawl.fastapi-tutorial",
+      "system": "tavily-crawl-basic",
+      "trial_index": 3,
+      "lane": "crawl",
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "completed": false,
+      "passed": false,
+      "record_count": 0,
+      "content_chars": 0,
+      "term_coverage": 0.0,
+      "url_recall": 0.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 0.0,
+      "elapsed_seconds": 0.5056632079977135,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "crawl.kubernetes-concepts",
+      "system": "tavily-crawl-basic",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "completed": true,
+      "passed": false,
+      "record_count": 8,
+      "content_chars": 58032,
+      "term_coverage": 0.6666666666666666,
+      "url_recall": 0.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 0.5555555555555555,
+      "elapsed_seconds": 1.8161347919995023,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "crawl.kubernetes-concepts",
+      "system": "tavily-crawl-basic",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "completed": true,
+      "passed": false,
+      "record_count": 7,
+      "content_chars": 31000,
+      "term_coverage": 0.3333333333333333,
+      "url_recall": 0.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 0.4444444444444444,
+      "elapsed_seconds": 46.176827957999194,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "crawl.kubernetes-concepts",
+      "system": "tavily-crawl-basic",
+      "trial_index": 3,
+      "lane": "crawl",
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "completed": true,
+      "passed": false,
+      "record_count": 8,
+      "content_chars": 58032,
+      "term_coverage": 0.6666666666666666,
+      "url_recall": 0.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 0.5555555555555555,
+      "elapsed_seconds": 1.4945039580015873,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound"
+    }
+  ],
+  "summary": {
+    "case_count": 8,
+    "case_runs": 24,
+    "repeat": 3,
+    "completed": 9,
+    "completion_rate": 0.375,
+    "pass_all_trials_rate": 0.0,
+    "pass_any_trial_rate": 0.0,
+    "mean_deterministic_quality": 0.19444444444444442,
+    "mean_elapsed_seconds": 2.8524896423327846,
+    "observed_cost_usd": 0.5760000000000001,
+    "cost_observed_runs": 24,
+    "cost_actual_runs": 0,
+    "cost_upper_bound_runs": 24,
+    "cost_unknown_runs": 0
+  }
+}

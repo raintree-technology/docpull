@@ -1,0 +1,965 @@
+schema_version: 2
+name: docpull-live-search
+version: 2.0.0
+description: Thirty manually dispatched live search queries across five source families.
+cases:
+- id: search.live.technical.01
+  input:
+    case_id: search.live.technical.01
+    lane: search
+    query: Python asyncio TaskGroup reference
+    max_results: 10
+    include_domains:
+    - docs.python.org
+  expected:
+    lane: search
+    relevant_urls:
+    - https://docs.python.org/3/library/asyncio-task.html
+    relevant_domains:
+    - docs.python.org
+    required_identifiers:
+    - TaskGroup
+  metadata:
+    description: Manual live technical search case.
+    split: dev
+    family: technical
+    product_area: live-search
+    critical: false
+    live: true
+    tags:
+    - manual
+    - live
+    - technical
+    reference_checked_at: '2026-07-14'
+    reference_expires_at: '2026-10-12'
+    rights:
+      redistribution: unknown
+      source: Manual reference URL; content is never redistributed.
+- id: search.live.technical.02
+  input:
+    case_id: search.live.technical.02
+    lane: search
+    query: Rust standard library Vec struct
+    max_results: 10
+    include_domains:
+    - doc.rust-lang.org
+  expected:
+    lane: search
+    relevant_urls:
+    - https://doc.rust-lang.org/std/vec/struct.Vec.html
+    relevant_domains:
+    - doc.rust-lang.org
+    required_identifiers:
+    - Vec<T>
+  metadata:
+    description: Manual live technical search case.
+    split: dev
+    family: technical
+    product_area: live-search
+    critical: false
+    live: true
+    tags:
+    - manual
+    - live
+    - technical
+    reference_checked_at: '2026-07-14'
+    reference_expires_at: '2026-10-12'
+    rights:
+      redistribution: unknown
+      source: Manual reference URL; content is never redistributed.
+- id: search.live.technical.03
+  input:
+    case_id: search.live.technical.03
+    lane: search
+    query: Kubernetes liveness readiness startup probes
+    max_results: 10
+    include_domains:
+    - kubernetes.io
+  expected:
+    lane: search
+    relevant_urls:
+    - https://kubernetes.io/docs/concepts/configuration/liveness-readiness-startup-probes/
+    relevant_domains:
+    - kubernetes.io
+    required_identifiers:
+    - startupProbe
+  metadata:
+    description: Manual live technical search case.
+    split: dev
+    family: technical
+    product_area: live-search
+    critical: false
+    live: true
+    tags:
+    - manual
+    - live
+    - technical
+    reference_checked_at: '2026-07-14'
+    reference_expires_at: '2026-10-12'
+    rights:
+      redistribution: unknown
+      source: Manual reference URL; content is never redistributed.
+- id: search.live.technical.04
+  input:
+    case_id: search.live.technical.04
+    lane: search
+    query: PostgreSQL JSON functions jsonb_path_query
+    max_results: 10
+    include_domains:
+    - www.postgresql.org
+  expected:
+    lane: search
+    relevant_urls:
+    - https://www.postgresql.org/docs/current/functions-json.html
+    relevant_domains:
+    - www.postgresql.org
+    required_identifiers:
+    - jsonb_path_query
+  metadata:
+    description: Manual live technical search case.
+    split: dev
+    family: technical
+    product_area: live-search
+    critical: false
+    live: true
+    tags:
+    - manual
+    - live
+    - technical
+    reference_checked_at: '2026-07-14'
+    reference_expires_at: '2026-10-12'
+    rights:
+      redistribution: unknown
+      source: Manual reference URL; content is never redistributed.
+- id: search.live.technical.05
+  input:
+    case_id: search.live.technical.05
+    lane: search
+    query: MDN AbortController API
+    max_results: 10
+    include_domains:
+    - developer.mozilla.org
+  expected:
+    lane: search
+    relevant_urls:
+    - https://developer.mozilla.org/en-US/docs/Web/API/AbortController
+    relevant_domains:
+    - developer.mozilla.org
+    required_identifiers:
+    - AbortController
+  metadata:
+    description: Manual live technical search case.
+    split: dev
+    family: technical
+    product_area: live-search
+    critical: false
+    live: true
+    tags:
+    - manual
+    - live
+    - technical
+    reference_checked_at: '2026-07-14'
+    reference_expires_at: '2026-10-12'
+    rights:
+      redistribution: unknown
+      source: Manual reference URL; content is never redistributed.
+- id: search.live.technical.06
+  input:
+    case_id: search.live.technical.06
+    lane: search
+    query: Node.js file system promises API
+    max_results: 10
+    include_domains:
+    - nodejs.org
+  expected:
+    lane: search
+    relevant_urls:
+    - https://nodejs.org/api/fs.html
+    relevant_domains:
+    - nodejs.org
+    required_identifiers:
+    - fsPromises
+  metadata:
+    description: Manual live technical search case.
+    split: dev
+    family: technical
+    product_area: live-search
+    critical: false
+    live: true
+    tags:
+    - manual
+    - live
+    - technical
+    reference_checked_at: '2026-07-14'
+    reference_expires_at: '2026-10-12'
+    rights:
+      redistribution: unknown
+      source: Manual reference URL; content is never redistributed.
+- id: search.live.standards.07
+  input:
+    case_id: search.live.standards.07
+    lane: search
+    query: RFC 9110 HTTP semantics
+    max_results: 10
+    include_domains:
+    - www.rfc-editor.org
+  expected:
+    lane: search
+    relevant_urls:
+    - https://www.rfc-editor.org/rfc/rfc9110.html
+    relevant_domains:
+    - www.rfc-editor.org
+    required_identifiers:
+    - RFC 9110
+  metadata:
+    description: Manual live standards search case.
+    split: dev
+    family: standards
+    product_area: live-search
+    critical: false
+    live: true
+    tags:
+    - manual
+    - live
+    - standards
+    reference_checked_at: '2026-07-14'
+    reference_expires_at: '2026-10-12'
+    rights:
+      redistribution: unknown
+      source: Manual reference URL; content is never redistributed.
+- id: search.live.standards.08
+  input:
+    case_id: search.live.standards.08
+    lane: search
+    query: RFC 3986 URI generic syntax
+    max_results: 10
+    include_domains:
+    - www.rfc-editor.org
+  expected:
+    lane: search
+    relevant_urls:
+    - https://www.rfc-editor.org/rfc/rfc3986.html
+    relevant_domains:
+    - www.rfc-editor.org
+    required_identifiers:
+    - RFC 3986
+  metadata:
+    description: Manual live standards search case.
+    split: dev
+    family: standards
+    product_area: live-search
+    critical: false
+    live: true
+    tags:
+    - manual
+    - live
+    - standards
+    reference_checked_at: '2026-07-14'
+    reference_expires_at: '2026-10-12'
+    rights:
+      redistribution: unknown
+      source: Manual reference URL; content is never redistributed.
+- id: search.live.standards.09
+  input:
+    case_id: search.live.standards.09
+    lane: search
+    query: W3C WCAG 2.2 recommendation
+    max_results: 10
+    include_domains:
+    - www.w3.org
+  expected:
+    lane: search
+    relevant_urls:
+    - https://www.w3.org/TR/WCAG22/
+    relevant_domains:
+    - www.w3.org
+    required_identifiers:
+    - WCAG 2.2
+  metadata:
+    description: Manual live standards search case.
+    split: dev
+    family: standards
+    product_area: live-search
+    critical: false
+    live: true
+    tags:
+    - manual
+    - live
+    - standards
+    reference_checked_at: '2026-07-14'
+    reference_expires_at: '2026-10-12'
+    rights:
+      redistribution: unknown
+      source: Manual reference URL; content is never redistributed.
+- id: search.live.standards.10
+  input:
+    case_id: search.live.standards.10
+    lane: search
+    query: WHATWG URL living standard
+    max_results: 10
+    include_domains:
+    - url.spec.whatwg.org
+  expected:
+    lane: search
+    relevant_urls:
+    - https://url.spec.whatwg.org/
+    relevant_domains:
+    - url.spec.whatwg.org
+    required_identifiers:
+    - URL Standard
+  metadata:
+    description: Manual live standards search case.
+    split: dev
+    family: standards
+    product_area: live-search
+    critical: false
+    live: true
+    tags:
+    - manual
+    - live
+    - standards
+    reference_checked_at: '2026-07-14'
+    reference_expires_at: '2026-10-12'
+    rights:
+      redistribution: unknown
+      source: Manual reference URL; content is never redistributed.
+- id: search.live.standards.11
+  input:
+    case_id: search.live.standards.11
+    lane: search
+    query: NIST FIPS 180-4 secure hash standard
+    max_results: 10
+    include_domains:
+    - csrc.nist.gov
+  expected:
+    lane: search
+    relevant_urls:
+    - https://csrc.nist.gov/pubs/fips/180-4/upd1/final
+    relevant_domains:
+    - csrc.nist.gov
+    required_identifiers:
+    - FIPS 180-4
+  metadata:
+    description: Manual live standards search case.
+    split: dev
+    family: standards
+    product_area: live-search
+    critical: false
+    live: true
+    tags:
+    - manual
+    - live
+    - standards
+    reference_checked_at: '2026-07-14'
+    reference_expires_at: '2026-10-12'
+    rights:
+      redistribution: unknown
+      source: Manual reference URL; content is never redistributed.
+- id: search.live.standards.12
+  input:
+    case_id: search.live.standards.12
+    lane: search
+    query: OpenAPI Specification 3.1.1
+    max_results: 10
+    include_domains:
+    - spec.openapis.org
+  expected:
+    lane: search
+    relevant_urls:
+    - https://spec.openapis.org/oas/v3.1.1.html
+    relevant_domains:
+    - spec.openapis.org
+    required_identifiers:
+    - 3.1.1
+  metadata:
+    description: Manual live standards search case.
+    split: dev
+    family: standards
+    product_area: live-search
+    critical: false
+    live: true
+    tags:
+    - manual
+    - live
+    - standards
+    reference_checked_at: '2026-07-14'
+    reference_expires_at: '2026-10-12'
+    rights:
+      redistribution: unknown
+      source: Manual reference URL; content is never redistributed.
+- id: search.live.security.13
+  input:
+    case_id: search.live.security.13
+    lane: search
+    query: NVD CVE-2021-44228
+    max_results: 10
+    include_domains:
+    - nvd.nist.gov
+  expected:
+    lane: search
+    relevant_urls:
+    - https://nvd.nist.gov/vuln/detail/CVE-2021-44228
+    relevant_domains:
+    - nvd.nist.gov
+    required_identifiers:
+    - CVE-2021-44228
+  metadata:
+    description: Manual live security search case.
+    split: dev
+    family: security
+    product_area: live-search
+    critical: false
+    live: true
+    tags:
+    - manual
+    - live
+    - security
+    reference_checked_at: '2026-07-14'
+    reference_expires_at: '2026-10-12'
+    rights:
+      redistribution: unknown
+      source: Manual reference URL; content is never redistributed.
+- id: search.live.security.14
+  input:
+    case_id: search.live.security.14
+    lane: search
+    query: NVD CVE-2024-3094
+    max_results: 10
+    include_domains:
+    - nvd.nist.gov
+  expected:
+    lane: search
+    relevant_urls:
+    - https://nvd.nist.gov/vuln/detail/CVE-2024-3094
+    relevant_domains:
+    - nvd.nist.gov
+    required_identifiers:
+    - CVE-2024-3094
+  metadata:
+    description: Manual live security search case.
+    split: dev
+    family: security
+    product_area: live-search
+    critical: false
+    live: true
+    tags:
+    - manual
+    - live
+    - security
+    reference_checked_at: '2026-07-14'
+    reference_expires_at: '2026-10-12'
+    rights:
+      redistribution: unknown
+      source: Manual reference URL; content is never redistributed.
+- id: search.live.security.15
+  input:
+    case_id: search.live.security.15
+    lane: search
+    query: OWASP SSRF prevention cheat sheet
+    max_results: 10
+    include_domains:
+    - cheatsheetseries.owasp.org
+  expected:
+    lane: search
+    relevant_urls:
+    - https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html
+    relevant_domains:
+    - cheatsheetseries.owasp.org
+    required_identifiers:
+    - SSRF
+  metadata:
+    description: Manual live security search case.
+    split: dev
+    family: security
+    product_area: live-search
+    critical: false
+    live: true
+    tags:
+    - manual
+    - live
+    - security
+    reference_checked_at: '2026-07-14'
+    reference_expires_at: '2026-10-12'
+    rights:
+      redistribution: unknown
+      source: Manual reference URL; content is never redistributed.
+- id: search.live.security.16
+  input:
+    case_id: search.live.security.16
+    lane: search
+    query: CISA known exploited vulnerabilities catalog
+    max_results: 10
+    include_domains:
+    - www.cisa.gov
+  expected:
+    lane: search
+    relevant_urls:
+    - https://www.cisa.gov/known-exploited-vulnerabilities-catalog
+    relevant_domains:
+    - www.cisa.gov
+    required_identifiers:
+    - Known Exploited Vulnerabilities
+  metadata:
+    description: Manual live security search case.
+    split: test
+    family: security
+    product_area: live-search
+    critical: false
+    live: true
+    tags:
+    - manual
+    - live
+    - security
+    reference_checked_at: '2026-07-14'
+    reference_expires_at: '2026-10-12'
+    rights:
+      redistribution: unknown
+      source: Manual reference URL; content is never redistributed.
+- id: search.live.security.17
+  input:
+    case_id: search.live.security.17
+    lane: search
+    query: GitHub advisory database GHSA-jfh8-c2jp-5v3q
+    max_results: 10
+    include_domains:
+    - github.com
+  expected:
+    lane: search
+    relevant_urls:
+    - https://github.com/advisories/GHSA-jfh8-c2jp-5v3q
+    relevant_domains:
+    - github.com
+    required_identifiers:
+    - GHSA-jfh8-c2jp-5v3q
+  metadata:
+    description: Manual live security search case.
+    split: test
+    family: security
+    product_area: live-search
+    critical: false
+    live: true
+    tags:
+    - manual
+    - live
+    - security
+    reference_checked_at: '2026-07-14'
+    reference_expires_at: '2026-10-12'
+    rights:
+      redistribution: unknown
+      source: Manual reference URL; content is never redistributed.
+- id: search.live.security.18
+  input:
+    case_id: search.live.security.18
+    lane: search
+    query: Python security response process
+    max_results: 10
+    include_domains:
+    - www.python.org
+  expected:
+    lane: search
+    relevant_urls:
+    - https://www.python.org/dev/security/
+    relevant_domains:
+    - www.python.org
+    required_identifiers:
+    - Python Security Response Team
+  metadata:
+    description: Manual live security search case.
+    split: test
+    family: security
+    product_area: live-search
+    critical: false
+    live: true
+    tags:
+    - manual
+    - live
+    - security
+    reference_checked_at: '2026-07-14'
+    reference_expires_at: '2026-10-12'
+    rights:
+      redistribution: unknown
+      source: Manual reference URL; content is never redistributed.
+- id: search.live.product.19
+  input:
+    case_id: search.live.product.19
+    lane: search
+    query: GitHub Actions workflow syntax
+    max_results: 10
+    include_domains:
+    - docs.github.com
+  expected:
+    lane: search
+    relevant_urls:
+    - https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax
+    relevant_domains:
+    - docs.github.com
+    required_identifiers:
+    - jobs.<job_id>
+  metadata:
+    description: Manual live product search case.
+    split: test
+    family: product
+    product_area: live-search
+    critical: false
+    live: true
+    tags:
+    - manual
+    - live
+    - product
+    reference_checked_at: '2026-07-14'
+    reference_expires_at: '2026-10-12'
+    rights:
+      redistribution: unknown
+      source: Manual reference URL; content is never redistributed.
+- id: search.live.product.20
+  input:
+    case_id: search.live.product.20
+    lane: search
+    query: Stripe API idempotent requests
+    max_results: 10
+    include_domains:
+    - docs.stripe.com
+  expected:
+    lane: search
+    relevant_urls:
+    - https://docs.stripe.com/api/idempotent_requests
+    relevant_domains:
+    - docs.stripe.com
+    required_identifiers:
+    - Idempotency-Key
+  metadata:
+    description: Manual live product search case.
+    split: test
+    family: product
+    product_area: live-search
+    critical: false
+    live: true
+    tags:
+    - manual
+    - live
+    - product
+    reference_checked_at: '2026-07-14'
+    reference_expires_at: '2026-10-12'
+    rights:
+      redistribution: unknown
+      source: Manual reference URL; content is never redistributed.
+- id: search.live.product.21
+  input:
+    case_id: search.live.product.21
+    lane: search
+    query: Cloudflare Workers platform limits
+    max_results: 10
+    include_domains:
+    - developers.cloudflare.com
+  expected:
+    lane: search
+    relevant_urls:
+    - https://developers.cloudflare.com/workers/platform/limits/
+    relevant_domains:
+    - developers.cloudflare.com
+    required_identifiers:
+    - CPU time
+  metadata:
+    description: Manual live product search case.
+    split: test
+    family: product
+    product_area: live-search
+    critical: false
+    live: true
+    tags:
+    - manual
+    - live
+    - product
+    reference_checked_at: '2026-07-14'
+    reference_expires_at: '2026-10-12'
+    rights:
+      redistribution: unknown
+      source: Manual reference URL; content is never redistributed.
+- id: search.live.product.22
+  input:
+    case_id: search.live.product.22
+    lane: search
+    query: Vercel Functions duration limits
+    max_results: 10
+    include_domains:
+    - vercel.com
+  expected:
+    lane: search
+    relevant_urls:
+    - https://vercel.com/docs/functions/limitations
+    relevant_domains:
+    - vercel.com
+    required_identifiers:
+    - maxDuration
+  metadata:
+    description: Manual live product search case.
+    split: test
+    family: product
+    product_area: live-search
+    critical: false
+    live: true
+    tags:
+    - manual
+    - live
+    - product
+    reference_checked_at: '2026-07-14'
+    reference_expires_at: '2026-10-12'
+    rights:
+      redistribution: unknown
+      source: Manual reference URL; content is never redistributed.
+- id: search.live.product.23
+  input:
+    case_id: search.live.product.23
+    lane: search
+    query: Docker Compose specification
+    max_results: 10
+    include_domains:
+    - docs.docker.com
+  expected:
+    lane: search
+    relevant_urls:
+    - https://docs.docker.com/reference/compose-file/
+    relevant_domains:
+    - docs.docker.com
+    required_identifiers:
+    - Compose Specification
+  metadata:
+    description: Manual live product search case.
+    split: test
+    family: product
+    product_area: live-search
+    critical: false
+    live: true
+    tags:
+    - manual
+    - live
+    - product
+    reference_checked_at: '2026-07-14'
+    reference_expires_at: '2026-10-12'
+    rights:
+      redistribution: unknown
+      source: Manual reference URL; content is never redistributed.
+- id: search.live.product.24
+  input:
+    case_id: search.live.product.24
+    lane: search
+    query: Terraform provider configuration
+    max_results: 10
+    include_domains:
+    - developer.hashicorp.com
+  expected:
+    lane: search
+    relevant_urls:
+    - https://developer.hashicorp.com/terraform/language/providers/configuration
+    relevant_domains:
+    - developer.hashicorp.com
+    required_identifiers:
+    - required_providers
+  metadata:
+    description: Manual live product search case.
+    split: test
+    family: product
+    product_area: live-search
+    critical: false
+    live: true
+    tags:
+    - manual
+    - live
+    - product
+    reference_checked_at: '2026-07-14'
+    reference_expires_at: '2026-10-12'
+    rights:
+      redistribution: unknown
+      source: Manual reference URL; content is never redistributed.
+- id: search.live.freshness.25
+  input:
+    case_id: search.live.freshness.25
+    lane: search
+    query: current Python releases downloads
+    max_results: 10
+    include_domains:
+    - www.python.org
+  expected:
+    lane: search
+    relevant_urls:
+    - https://www.python.org/downloads/
+    relevant_domains:
+    - www.python.org
+    required_identifiers:
+    - Python Releases
+  metadata:
+    description: Manual live freshness search case.
+    split: test
+    family: freshness
+    product_area: live-search
+    critical: false
+    live: true
+    tags:
+    - manual
+    - live
+    - freshness
+    reference_checked_at: '2026-07-14'
+    reference_expires_at: '2026-10-12'
+    rights:
+      redistribution: unknown
+      source: Manual reference URL; content is never redistributed.
+- id: search.live.freshness.26
+  input:
+    case_id: search.live.freshness.26
+    lane: search
+    query: current Node.js release schedule
+    max_results: 10
+    include_domains:
+    - github.com
+  expected:
+    lane: search
+    relevant_urls:
+    - https://github.com/nodejs/release#release-schedule
+    relevant_domains:
+    - github.com
+    required_identifiers:
+    - Release schedule
+  metadata:
+    description: Manual live freshness search case.
+    split: test
+    family: freshness
+    product_area: live-search
+    critical: false
+    live: true
+    tags:
+    - manual
+    - live
+    - freshness
+    reference_checked_at: '2026-07-14'
+    reference_expires_at: '2026-10-12'
+    rights:
+      redistribution: unknown
+      source: Manual reference URL; content is never redistributed.
+- id: search.live.freshness.27
+  input:
+    case_id: search.live.freshness.27
+    lane: search
+    query: latest Kubernetes releases
+    max_results: 10
+    include_domains:
+    - kubernetes.io
+  expected:
+    lane: search
+    relevant_urls:
+    - https://kubernetes.io/releases/
+    relevant_domains:
+    - kubernetes.io
+    required_identifiers:
+    - Release History
+  metadata:
+    description: Manual live freshness search case.
+    split: test
+    family: freshness
+    product_area: live-search
+    critical: false
+    live: true
+    tags:
+    - manual
+    - live
+    - freshness
+    reference_checked_at: '2026-07-14'
+    reference_expires_at: '2026-10-12'
+    rights:
+      redistribution: unknown
+      source: Manual reference URL; content is never redistributed.
+- id: search.live.freshness.28
+  input:
+    case_id: search.live.freshness.28
+    lane: search
+    query: latest GitHub changelog
+    max_results: 10
+    include_domains:
+    - github.blog
+  expected:
+    lane: search
+    relevant_urls:
+    - https://github.blog/changelog/
+    relevant_domains:
+    - github.blog
+    required_identifiers:
+    - Changelog
+  metadata:
+    description: Manual live freshness search case.
+    split: test
+    family: freshness
+    product_area: live-search
+    critical: false
+    live: true
+    tags:
+    - manual
+    - live
+    - freshness
+    reference_checked_at: '2026-07-14'
+    reference_expires_at: '2026-10-12'
+    rights:
+      redistribution: unknown
+      source: Manual reference URL; content is never redistributed.
+- id: search.live.freshness.29
+  input:
+    case_id: search.live.freshness.29
+    lane: search
+    query: Chrome releases stable channel
+    max_results: 10
+    include_domains:
+    - chromereleases.googleblog.com
+  expected:
+    lane: search
+    relevant_urls:
+    - https://chromereleases.googleblog.com/
+    relevant_domains:
+    - chromereleases.googleblog.com
+    required_identifiers:
+    - Stable Channel
+  metadata:
+    description: Manual live freshness search case.
+    split: test
+    family: freshness
+    product_area: live-search
+    critical: false
+    live: true
+    tags:
+    - manual
+    - live
+    - freshness
+    reference_checked_at: '2026-07-14'
+    reference_expires_at: '2026-10-12'
+    rights:
+      redistribution: unknown
+      source: Manual reference URL; content is never redistributed.
+- id: search.live.freshness.30
+  input:
+    case_id: search.live.freshness.30
+    lane: search
+    query: latest OpenSSL news
+    max_results: 10
+    include_domains:
+    - www.openssl.org
+  expected:
+    lane: search
+    relevant_urls:
+    - https://www.openssl.org/news/
+    relevant_domains:
+    - www.openssl.org
+    required_identifiers:
+    - News
+  metadata:
+    description: Manual live freshness search case.
+    split: test
+    family: freshness
+    product_area: live-search
+    critical: false
+    live: true
+    tags:
+    - manual
+    - live
+    - freshness
+    reference_checked_at: '2026-07-14'
+    reference_expires_at: '2026-10-12'
+    rights:
+      redistribution: unknown
+      source: Manual reference URL; content is never redistributed.

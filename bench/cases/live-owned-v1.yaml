@@ -1,0 +1,42 @@
+schema_version: 2
+name: live-owned-web-context
+version: 1.0.0-dev
+description: Live HTTPS smoke cases whose source content is owned by the DocPull project.
+cases:
+- id: live.extract.docpull-readme
+  input:
+    case_id: live.extract.docpull-readme
+    lane: extract
+    url: https://raw.githubusercontent.com/raintree-technology/docpull/main/README.md
+    include_domains:
+    - raw.githubusercontent.com
+    timeout_seconds: 60
+  expected:
+    minimum_records: 1
+    minimum_content_chars: 5000
+    required_terms:
+    - Context dependencies for AI agents
+    - docpull init
+    - MCP Server
+    required_urls:
+    - https://raw.githubusercontent.com/raintree-technology/docpull/main/README.md
+    allowed_domains:
+    - raw.githubusercontent.com
+    lane: extract
+  metadata:
+    description: Extract the current DocPull README from repository-owned HTTPS content.
+    split: dev
+    live: true
+    tags:
+    - live
+    - extraction
+    - markdown
+    - repository-owned
+    rights:
+      redistribution: allowed
+      source: DocPull repository content under the repository MIT license.
+    family: live
+    product_area: legacy-v1-migrated
+    critical: false
+    reference_checked_at: '2026-07-14'
+    reference_expires_at: '2026-10-12'

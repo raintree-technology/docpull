@@ -1,0 +1,44 @@
+{
+  "files": {
+    "COMPARISON.md": "d0c0b3cc123972292879e2400642b0a77d52736308120370fe2024b376af8265",
+    "METHODOLOGY.md": "8abbee739108d2ec5e2f4368d2143f2ced3ea1d3478e70c352df22fe1ce943b4",
+    "README.md": "90bd12ee180af171dd2af37cc73fcc60239d07659b022bb89a1a6a73cd30e4f4",
+    "comparison.json": "62f14db34a71d8ab548b44284bf3cf58d1f96f8313094f5951c58371555774d0",
+    "reports/docpull.report.json": "9afa3fc61613b3c362ad9db414b013f553742678c79e3b42128bcd30786bd440",
+    "reports/tavily-crawl-basic.report.json": "306e8836972b5c00997298b218e464a64599c56436fecb3ea3063624f1e96bab",
+    "reports/tavily-crawl-guided-advanced.report.json": "ca25c3b3f7de897b8c12b21a44f76243a4f5ac58a37cb612c4ec9a8261f20ac5",
+    "suite.yaml": "86955db1e0e681def7926a36c4e72af5b2be3205f8caba7a3bdc67e9f7b42582"
+  },
+  "generated_at": "2026-07-14T21:48:12.157931+00:00",
+  "packaging_platform": "macOS-26.5.2-arm64-arm-64bit",
+  "schema_version": 1,
+  "source_reports": [
+    {
+      "published_report": "reports/docpull.report.json",
+      "published_report_sha256": "9afa3fc61613b3c362ad9db414b013f553742678c79e3b42128bcd30786bd440",
+      "source_report_sha256": "592a61a86c2785702603530b547ddd2005cd647d520b1d1183bf77f360657b6f",
+      "system": "docpull"
+    },
+    {
+      "published_report": "reports/tavily-crawl-basic.report.json",
+      "published_report_sha256": "306e8836972b5c00997298b218e464a64599c56436fecb3ea3063624f1e96bab",
+      "source_report_sha256": "08a8a0f7557feac7df65ec5b1a78798bafea04730a6c70d1a2278151733b3146",
+      "system": "tavily-crawl-basic"
+    },
+    {
+      "published_report": "reports/tavily-crawl-guided-advanced.report.json",
+      "published_report_sha256": "ca25c3b3f7de897b8c12b21a44f76243a4f5ac58a37cb612c4ec9a8261f20ac5",
+      "source_report_sha256": "15d8a9c4396d8290789487e1cc74ca62f84fe5891cf65a50effdcdbb06e0b3ef",
+      "system": "tavily-crawl-guided-advanced"
+    }
+  ],
+  "suite_name": "live-neutral-crawl",
+  "suite_sha256": "86955db1e0e681def7926a36c4e72af5b2be3205f8caba7a3bdc67e9f7b42582",
+  "suite_version": "1.0.0",
+  "unavailable_systems": [
+    {
+      "reason": "Comparable Crawl endpoint documented, but no credential was configured; no requests were made.",
+      "system": "context.dev"
+    }
+  ]
+}

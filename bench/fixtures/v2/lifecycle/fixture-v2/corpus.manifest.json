@@ -1,0 +1,81 @@
+{
+  "document_count": 3,
+  "generated_at": "2026-07-14T00:00:00+00:00",
+  "output_contract_version": 3,
+  "record_count": 3,
+  "records": [
+    {
+      "content_hash": "588df9080a992308c217a800b86f036d350d19f143962d4bcda9d0e933a26661",
+      "document_id": "doc_1f6cf3d7bc001faa95ddfe61",
+      "output_path": "sources/01.md",
+      "rights": {
+        "allowed_use": {
+          "eval_generation": "allowed",
+          "internal_indexing": "allowed",
+          "model_training": "allowed",
+          "redistribution": "allowed"
+        },
+        "basis": "benchmark_authored_synthetic_content",
+        "obligations": [],
+        "status": "allowed"
+      },
+      "route": {
+        "bytes_downloaded": 78,
+        "name": "synthetic-fixture",
+        "status_code": 200
+      },
+      "source_type": "synthetic_fixture",
+      "title": "Authentication",
+      "url": "https://docs.example.test/auth"
+    },
+    {
+      "content_hash": "5ff1684dafd16d264000502bccc551fc1c38cdb4ac59ad1d708d63754be2c624",
+      "document_id": "doc_64b93d65f6c02fbb930c2a35",
+      "output_path": "sources/02.md",
+      "rights": {
+        "allowed_use": {
+          "eval_generation": "allowed",
+          "internal_indexing": "allowed",
+          "model_training": "allowed",
+          "redistribution": "allowed"
+        },
+        "basis": "benchmark_authored_synthetic_content",
+        "obligations": [],
+        "status": "allowed"
+      },
+      "route": {
+        "bytes_downloaded": 91,
+        "name": "synthetic-fixture",
+        "status_code": 200
+      },
+      "source_type": "synthetic_fixture",
+      "title": "Rate limits",
+      "url": "https://docs.example.test/rate-limits"
+    },
+    {
+      "content_hash": "52c278814b806d05dac1ac756c584fa723552c955a6172cacf6e3aa2cb42572f",
+      "document_id": "doc_ea5fa810ef8333c717792e0b",
+      "output_path": "sources/03.md",
+      "rights": {
+        "allowed_use": {
+          "eval_generation": "allowed",
+          "internal_indexing": "allowed",
+          "model_training": "allowed",
+          "redistribution": "allowed"
+        },
+        "basis": "benchmark_authored_synthetic_content",
+        "obligations": [],
+        "status": "allowed"
+      },
+      "route": {
+        "bytes_downloaded": 63,
+        "name": "synthetic-fixture",
+        "status_code": 200
+      },
+      "source_type": "synthetic_fixture",
+      "title": "Migration guide",
+      "url": "https://docs.example.test/migration"
+    }
+  ],
+  "schema_version": 3
+}

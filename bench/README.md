@@ -1,0 +1,93 @@
+# DocPull Evaluation Lab
+
+`bench/` is an isolated uv application for internal product decisions. It does
+not change DocPull's public CLI, SDK, MCP server, artifact contract, 10k
+benchmark, or legacy benchmark module.
+
+The lab is local-first, deterministic, content-free in reports, and fail-closed
+on paid work. Pydantic Evals schedules trials; the framework-neutral schema and
+canonical lane scorers remain authoritative.
+
+## Rules
+
+- Gold expectations stay in the harness and never cross an adapter boundary.
+- A case passes only when all required assertions pass.
+- Metrics remain separated by lane; there is no global score or winner.
+- Unsupported capability returns `unsupported`, not a fabricated failure.
+- Live gold expires and must be manually rechecked.
+- Hosted runs require both credentials and `--max-cost-usd`; paid retries are
+  disabled and the conservative full run is reserved before credentials are
+  read.
+- Portable reports contain sanitized URLs, hashes, lengths, timings, usage,
+  costs, statuses, and metric vectors—not fetched bodies.
+
+## Lanes and corpora
+
+| Lane | Controlled/live corpus |
+| --- | ---: |
+| Extract | 12 owned pages; 32-case historical live suite retained provisionally |
+| Crawl | 6 owned graphs; 8-site historical live suite retained provisionally |
+| Parse | 10 text, Markdown, DOCX, PDF, malformed, encrypted, and OCR-gated files |
+| Pack | 10 raw/agent/eval scenarios |
+| Structured | 12 fixed documents and JSON Schemas |
+| Lifecycle | 10 unified public-CLI checks |
+| Change | 12 controlled state transitions |
+| Retrieval | 100 frozen-pack queries, including 20 unanswerable |
+| Search | 30 manual live queries across five families |
+| Research | 20 fixed-corpus exact evidence tasks |
+| Policy | 20 controlled adversarial cases |
+
+## Local use
+
+```bash
+uv sync --project bench --locked --dev
+uv run --project bench --locked docpull-bench fixtures verify
+uv run --project bench --locked docpull-bench validate bench/cases/controlled-v2.yaml
+uv run --project bench --locked docpull-bench run bench/cases/controlled-v2.yaml \
+  --adapter replay --system fixture --version 2 \
+  --replay-dir bench/replays/controlled-v2 --output-dir bench/runs/controlled \
+  --network-isolation enforced
+uv run --project bench --locked docpull-bench lifecycle
+```
+
+The `lifecycle` command is an alias for `cases/lifecycle-v2.yaml` in the unified
+runner. Regenerate the owned corpus with
+`uv run --project bench python bench/scripts/generate_fixtures.py`; committed
+DOCX and PDF bytes must remain identical.
+
+## Providers
+
+Native comparable adapters exist for Tavily, Exa, and Parallel extract/search,
+Tavily and Context.dev crawl, and Context.dev Markdown extract. Prices come from
+`pricing/providers.yaml`, including dated official source URLs. No provider
+workflow is scheduled.
+
+```bash
+TAVILY_API_KEY=... uv run --project bench --locked docpull-bench run \
+  bench/cases/live-search-v2.yaml --adapter tavily-search \
+  --system tavily-search --max-cost-usd 0.48 --environment-label manual-owned
+```
+
+The command adapter receives only a minimal base environment plus explicit
+`--allow-env` names. Its output cannot override case, system, version, or timing
+identity.
+
+## Baselines and publication
+
+```bash
+docpull-bench baseline check REPORT bench/baselines/controlled-v2.fixture.json
+docpull-bench baseline update REPORT BASELINE --reason 'reviewed protocol change'
+docpull-bench compare REPORT_A REPORT_B --markdown COMPARISON.md
+docpull-bench publish SUITE REPORT_A REPORT_B --output-dir BUNDLE
+```
+
+Critical controlled pass→fail changes block. Performance changes above both 20%
+and the 100 ms/10 MiB floors are advisory. Publication emits data and
+manifest-derived methodology only; narrative findings are hand-reviewed.
+
+## WANDR
+
+`experimental/external-suites/wandr/lock.json` pins the optional WANDR checkout. Run
+`experimental/external-suites/wandr/check.sh check` only as a zero-call compatibility probe. WANDR's
+judge-based verifier conflicts with this lab's deterministic-only policy, so it
+is not a scored lane or claim source.

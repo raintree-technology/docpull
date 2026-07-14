@@ -1,0 +1,18 @@
+{
+  "adapter_version": "2",
+  "case_id": "lifecycle.context_ci",
+  "cost_basis": "Repository replay; no request.",
+  "cost_kind": "actual",
+  "cost_usd": 0,
+  "elapsed_seconds": 0.001,
+  "payload": {
+    "details": {
+      "network": "disabled"
+    },
+    "kind": "checks"
+  },
+  "request_count": 0,
+  "schema_version": 2,
+  "status": "completed",
+  "system": "fixture"
+}

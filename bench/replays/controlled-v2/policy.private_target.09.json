@@ -1,0 +1,13 @@
+{
+  "adapter_version": "2",
+  "case_id": "policy.private_target.09",
+  "cost_basis": "Repository replay; no request.",
+  "cost_kind": "actual",
+  "cost_usd": 0,
+  "elapsed_seconds": 0.001,
+  "error": "private target",
+  "request_count": 0,
+  "schema_version": 2,
+  "status": "failed",
+  "system": "fixture"
+}

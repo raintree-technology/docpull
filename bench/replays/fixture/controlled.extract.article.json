@@ -1,0 +1,27 @@
+{
+  "schema_version": 2,
+  "system": "fixture",
+  "status": "completed",
+  "cost_usd": 0.0,
+  "cost_kind": "actual",
+  "cost_basis": "Repository replay; no request.",
+  "adapter_version": "2",
+  "artifacts": {},
+  "case_id": "controlled.extract.article",
+  "payload": {
+    "kind": "content",
+    "records": [
+      {
+        "url": "http://127.0.0.1:8765/index.html",
+        "title": "Context Fixture Home",
+        "content": "# Context Fixture\n\nalpha-731 deterministic evidence from the stable root page. This repository-authored article is deliberately long enough for controlled extraction scoring and redistribution.",
+        "metadata": {}
+      }
+    ],
+    "selected_urls": [
+      "http://127.0.0.1:8765/index.html"
+    ]
+  },
+  "elapsed_seconds": 0.001,
+  "request_count": 0
+}

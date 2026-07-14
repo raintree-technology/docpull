@@ -1,0 +1,1422 @@
+{
+  "files": [
+    {
+      "bytes": 37,
+      "path": "v2/change/case-01/after.md",
+      "rights": "repository-authored-mit",
+      "sha256": "aa3239ee2319d2a2c21c641b3d209ae499c0d90edbfd06a3989f09f09cbdc3df"
+    },
+    {
+      "bytes": 35,
+      "path": "v2/change/case-01/before.md",
+      "rights": "repository-authored-mit",
+      "sha256": "914802005dfeaeeaecce5dd0e4b261f0f3fdbf0dcada2ec01690b3582db906e3"
+    },
+    {
+      "bytes": 37,
+      "path": "v2/change/case-02/after.md",
+      "rights": "repository-authored-mit",
+      "sha256": "0a716203e75362652bff2760b77b562c0a149e713a8bdf53491bc4c107552489"
+    },
+    {
+      "bytes": 35,
+      "path": "v2/change/case-02/before.md",
+      "rights": "repository-authored-mit",
+      "sha256": "bc032d69702231253cf0e1623b2fdb678a5b4f124abd48edfd644df8b11d2cc3"
+    },
+    {
+      "bytes": 37,
+      "path": "v2/change/case-03/after.md",
+      "rights": "repository-authored-mit",
+      "sha256": "a82118d59f7f0ac0b1ec1fac8a9d3524d3f5743b75df0ec566c81941220cd899"
+    },
+    {
+      "bytes": 35,
+      "path": "v2/change/case-03/before.md",
+      "rights": "repository-authored-mit",
+      "sha256": "a3643d1c845d7d6f4e4cffe7af77db780e88e937b0d5f78ed1688f3cab0a6f6a"
+    },
+    {
+      "bytes": 44,
+      "path": "v2/change/case-04/after.md",
+      "rights": "repository-authored-mit",
+      "sha256": "708578c3e2486e1263251844a595cb01be6d7457fa1b652b1795a55c2d2b5ff6"
+    },
+    {
+      "bytes": 35,
+      "path": "v2/change/case-04/before.md",
+      "rights": "repository-authored-mit",
+      "sha256": "726f03a78d86f9552ef99ef6e266cc85a650126bc235d5b7ce4b9b7fed756f86"
+    },
+    {
+      "bytes": 37,
+      "path": "v2/change/case-05/after.md",
+      "rights": "repository-authored-mit",
+      "sha256": "5e6fc8b4029945cb9bd6f81aa61adebd2c42ca3e35eb09648d452960e541bcdb"
+    },
+    {
+      "bytes": 35,
+      "path": "v2/change/case-05/before.md",
+      "rights": "repository-authored-mit",
+      "sha256": "ef77668144d32ef732e021b87c7fddf63b35fc42ef0a070e0d75b415dd7061af"
+    },
+    {
+      "bytes": 37,
+      "path": "v2/change/case-06/after.md",
+      "rights": "repository-authored-mit",
+      "sha256": "e7a31815b11a46f48ee29c1cb029e8026aa2be90ef310e34bc10d0a5062a377e"
+    },
+    {
+      "bytes": 35,
+      "path": "v2/change/case-06/before.md",
+      "rights": "repository-authored-mit",
+      "sha256": "24f3d78f4e200055e91f4271acc5d156fe57866bc741293aedb330d38bf5af91"
+    },
+    {
+      "bytes": 37,
+      "path": "v2/change/case-07/after.md",
+      "rights": "repository-authored-mit",
+      "sha256": "8999fb37cba4b13dd0111a1a93ef161a9b0477a26199e071b2cee4cc23370065"
+    },
+    {
+      "bytes": 35,
+      "path": "v2/change/case-07/before.md",
+      "rights": "repository-authored-mit",
+      "sha256": "1b58a5d84f98e49fca6103b99b113934578fe732c66cf2e80032bdafbb3e0017"
+    },
+    {
+      "bytes": 44,
+      "path": "v2/change/case-08/after.md",
+      "rights": "repository-authored-mit",
+      "sha256": "3024d80558ff2e4762c7ca9dbe713501ffab4aeb786cf1a9eb68241e17d5ebf1"
+    },
+    {
+      "bytes": 35,
+      "path": "v2/change/case-08/before.md",
+      "rights": "repository-authored-mit",
+      "sha256": "e5b9a576e7d9a904a9058229afea63494d2041716c9749db99fcab65e8131a75"
+    },
+    {
+      "bytes": 37,
+      "path": "v2/change/case-09/after.md",
+      "rights": "repository-authored-mit",
+      "sha256": "5354f0e6dde77ead4c118d439b69ecdccb15f75ab350e18945d0c3f5c6243608"
+    },
+    {
+      "bytes": 35,
+      "path": "v2/change/case-09/before.md",
+      "rights": "repository-authored-mit",
+      "sha256": "983c24468b4c7d4eda3557afda3d6080081162fc942c68df73c3586800e2fbe2"
+    },
+    {
+      "bytes": 37,
+      "path": "v2/change/case-10/after.md",
+      "rights": "repository-authored-mit",
+      "sha256": "fe6fde70a65124b52b34e95ec8e432261ca498c64e63e2d279685053db6f14db"
+    },
+    {
+      "bytes": 35,
+      "path": "v2/change/case-10/before.md",
+      "rights": "repository-authored-mit",
+      "sha256": "08076db47dd9f91ebb5adcb5b3efe6349ef5596d46aeda85aadcdd46ff6e1e0b"
+    },
+    {
+      "bytes": 37,
+      "path": "v2/change/case-11/after.md",
+      "rights": "repository-authored-mit",
+      "sha256": "829f9d61043c08c5a68726bbf059d1195597f99b66c2fa2aa8727d01ac2c119a"
+    },
+    {
+      "bytes": 35,
+      "path": "v2/change/case-11/before.md",
+      "rights": "repository-authored-mit",
+      "sha256": "d8f58e8b987ac8c7ce31663ce54629226bc4eab7021079697dd418a0856e212e"
+    },
+    {
+      "bytes": 44,
+      "path": "v2/change/case-12/after.md",
+      "rights": "repository-authored-mit",
+      "sha256": "444a251d0b9f450c095ad9049563afb3fa3259dd7e81727bcf1079a7398a0191"
+    },
+    {
+      "bytes": 35,
+      "path": "v2/change/case-12/before.md",
+      "rights": "repository-authored-mit",
+      "sha256": "9e65affe8dd1cf4642203d80ed7d571d6ec041a48e9d94b8bc9193a13081eed5"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-001.md",
+      "rights": "repository-authored-mit",
+      "sha256": "8815dfe1d02357a8a0471108aec2a9e2c629522afe448270f2a0b2cc7b7ffcbe"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-002.md",
+      "rights": "repository-authored-mit",
+      "sha256": "3a22249c44255f75c88b2591a29e768a2468efb53382d7968cdfa16904d3edf7"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-003.md",
+      "rights": "repository-authored-mit",
+      "sha256": "108eb5cf6c3932009a827f80e06d8edb955f8562653ba13b495a53de6e619e04"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-004.md",
+      "rights": "repository-authored-mit",
+      "sha256": "ba3c7989f26c0b9bdc342bb7ff8a84ccbb73ef8a2dbfa7609fc274a3a8adfc88"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-005.md",
+      "rights": "repository-authored-mit",
+      "sha256": "e659362e4e55b3a48d74ae51f18e36ed8843f26daf65d6cd0ca02bbcfa37aa10"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-006.md",
+      "rights": "repository-authored-mit",
+      "sha256": "9dad70ff855386c0813110647e1992d69ce972c499a2e3cc3bc08fb31259d9dd"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-007.md",
+      "rights": "repository-authored-mit",
+      "sha256": "a3d21ac9c86dd5ea3c543b020b0b566450fca562656f51766d9dc22d11f954a7"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-008.md",
+      "rights": "repository-authored-mit",
+      "sha256": "fdc47de6a9ad825025a6f3ef0c3380536b0bce026d677b9fe98ae5e0d5971001"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-009.md",
+      "rights": "repository-authored-mit",
+      "sha256": "179c2e089d7eff79e6a0654d70b1b5c215015d484391bbfc88f133a66ab9f62e"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-010.md",
+      "rights": "repository-authored-mit",
+      "sha256": "d315ab96ca4f8a38603516bed3683b3c4c3e73bed3dfd684de22130cb8cbdd66"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-011.md",
+      "rights": "repository-authored-mit",
+      "sha256": "0ef95ae4d4b1702a4d0e2408b851aecac0dee38d72e0bc1f1b585b47a98d279d"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-012.md",
+      "rights": "repository-authored-mit",
+      "sha256": "e4b41cb5c05d1324691cb2990898584a244ed871bceea3f4c1ff85ac60ae8ea2"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-013.md",
+      "rights": "repository-authored-mit",
+      "sha256": "28cb9cc892aaba1272826b7572c80438fda06470c9797fab183e154ecba943bf"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-014.md",
+      "rights": "repository-authored-mit",
+      "sha256": "f57ab1e107f434dc5cc8d1f34017979597aad8bbdaa3b5bddc3b43fdbec0be5b"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-015.md",
+      "rights": "repository-authored-mit",
+      "sha256": "3c5df66b4f5c7f3250814bbccb2eac7a8542077ff8294d5539fe974987f31586"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-016.md",
+      "rights": "repository-authored-mit",
+      "sha256": "a3a299332645ba50a5ba9d907661821feeeb402713e32fe76e2543ddee144610"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-017.md",
+      "rights": "repository-authored-mit",
+      "sha256": "58cb7a318fa995967cd14be2b9683547667fe11ff40e71631a1d832139cb6776"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-018.md",
+      "rights": "repository-authored-mit",
+      "sha256": "195ec746f9c5dcbea0f9deced4673bae88f57b9ec5231fed624749f21e23dd46"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-019.md",
+      "rights": "repository-authored-mit",
+      "sha256": "9a0ee34e72baedac03b119bd5170cad39c00544323caf3447e36259a8b417dd9"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-020.md",
+      "rights": "repository-authored-mit",
+      "sha256": "444857f97b48d88786c0e0bd06d8d2dd56fadebf54736cdd1d17ddf5f5649ff8"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-021.md",
+      "rights": "repository-authored-mit",
+      "sha256": "f4fa1a57e5564f84f8a5df3febb622caa869390f2d4797145bb1ae403ba85fbd"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-022.md",
+      "rights": "repository-authored-mit",
+      "sha256": "ad630f83edfaf2cb8fac8b1c340ed24d76aa1c6be7cd9eb312e85024c5c0a1b3"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-023.md",
+      "rights": "repository-authored-mit",
+      "sha256": "4f98db01254cbee68c6a6e9dafc85642071d3a808e8785fea50ba7ef2d8a4b1c"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-024.md",
+      "rights": "repository-authored-mit",
+      "sha256": "c1d03cef6c8a2ec42c8ce29dd7939df7dc81a73defb0f8030a8d512f0187e6bb"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-025.md",
+      "rights": "repository-authored-mit",
+      "sha256": "0d78d9f9e322b84b80d73ccad9ef82f23f8d62b94ff21ee261cc523a4f976fb0"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-026.md",
+      "rights": "repository-authored-mit",
+      "sha256": "beb3a63870af3febe1cba6eb873c3a5955853521a163cffb19660481e37d55e4"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-027.md",
+      "rights": "repository-authored-mit",
+      "sha256": "3c6bf17785a12495c433725774c04d5ad121924bc15c86976aaf4b9d71789ef2"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-028.md",
+      "rights": "repository-authored-mit",
+      "sha256": "b1701d964631a2852e074c072d70c9070d765dbe174dd02b90d3721a22403b1d"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-029.md",
+      "rights": "repository-authored-mit",
+      "sha256": "a7dd71aa6fe50baa8c83a05302ef21737db5f6272f069c5e93c822f349b302bc"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-030.md",
+      "rights": "repository-authored-mit",
+      "sha256": "4b19f9bb3dd519cd131f02c49bdb07d7780d9210ec678d9af318b45928c7bf47"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-031.md",
+      "rights": "repository-authored-mit",
+      "sha256": "169c2a437d966e8b5f368ce8ebac9549c9549ad8b77fcaf1b7aff91f07550fb8"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-032.md",
+      "rights": "repository-authored-mit",
+      "sha256": "fed7d95d67a8594a16666d0373260acdd2bb9dbbd34105d388dff738cef04bea"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-033.md",
+      "rights": "repository-authored-mit",
+      "sha256": "3f929c9cc51ca501fa69c38a6c565dd63aba34aeb834412b26071cf1c0dd60db"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-034.md",
+      "rights": "repository-authored-mit",
+      "sha256": "d06338fcf3bb0c8550392f030297c4f1fdd7d4c79a23cd60b1877b77cda3a010"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-035.md",
+      "rights": "repository-authored-mit",
+      "sha256": "56d65da8d1e698f3e64d39d45b97afe96fe09136a52cd21197323b5388d84f51"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-036.md",
+      "rights": "repository-authored-mit",
+      "sha256": "132fbaf6d007f2487aa1834ff364da896885a48457709a421f2ff3b93a507f50"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-037.md",
+      "rights": "repository-authored-mit",
+      "sha256": "1ac556cbacea261eae84e12f70079d3fe1b3b2a13796b3eacd9e2a3575bd265c"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-038.md",
+      "rights": "repository-authored-mit",
+      "sha256": "4c9fb561322f90d23e10ad5ec6388251df1cb3dae8eeda6850dd7dc65e893148"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-039.md",
+      "rights": "repository-authored-mit",
+      "sha256": "c8ec8247233482e95cddedb929faf3fbbed835071c7a049fbdaf5a618f34524f"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-040.md",
+      "rights": "repository-authored-mit",
+      "sha256": "cca6a85ef4686134a6e4a47606ffe4bba10c8a30574e5832d683c5d7f01d4f10"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-041.md",
+      "rights": "repository-authored-mit",
+      "sha256": "dc641f6d169056e2ace938beb85ce0b4ddd92dfb20f716b4975031493dbae3f3"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-042.md",
+      "rights": "repository-authored-mit",
+      "sha256": "63c5aa92258d2900556f2391287bbca4c5ce99c922d62cd6dce8e29608ff90a3"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-043.md",
+      "rights": "repository-authored-mit",
+      "sha256": "26882f73119f2eb49325bdb7ed6b4327b09a7e60e89ca805f82ebad9736cffb3"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-044.md",
+      "rights": "repository-authored-mit",
+      "sha256": "4eb49993d6a33bac26f4af7cd19740f35e485c225060f5f5499c6ea54796d314"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-045.md",
+      "rights": "repository-authored-mit",
+      "sha256": "6d1438567e51697e7d7339a27217e03b732bc394a13374bce928fd0c3bafd9ac"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-046.md",
+      "rights": "repository-authored-mit",
+      "sha256": "8e814f25213399fee0ad1031e4500d588b1561faef4230e5cabc8d84d66885f1"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-047.md",
+      "rights": "repository-authored-mit",
+      "sha256": "0c4a86f3a11573390bed0127e2dcf744db2de1cdd9a171d53d6d43d26350382b"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-048.md",
+      "rights": "repository-authored-mit",
+      "sha256": "685f2f808d8240c1686d54916b0a44da465778520c4998aa688dca824c5475ea"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-049.md",
+      "rights": "repository-authored-mit",
+      "sha256": "1fe63c3be16ab76bc3f394919674c400d23972acdf8c1cd79ee3e740a630ea8d"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-050.md",
+      "rights": "repository-authored-mit",
+      "sha256": "94929c783e692f0974a261123cf2a106272a1941881eabf97e1fa6ffce97c58e"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-051.md",
+      "rights": "repository-authored-mit",
+      "sha256": "d0fa2163b71a22b1ccedadbe0979dab2580c0bb95bdc9ad3c790bf4576bd77bd"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-052.md",
+      "rights": "repository-authored-mit",
+      "sha256": "2273828f1776b6900a6dbd04bf06a725cb62fe81824f93dfebe8df61c0cb30ad"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-053.md",
+      "rights": "repository-authored-mit",
+      "sha256": "b80dfdfba220cd390d2c1666bfff39cd0b3a5a3fa905064a3353efbaafed26a2"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-054.md",
+      "rights": "repository-authored-mit",
+      "sha256": "3bbcbb5e09a9baa3e02d9358ad6c92870773bef98d61cef246582352dbbcc675"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-055.md",
+      "rights": "repository-authored-mit",
+      "sha256": "dcd8e71f3f7c762ae247fb859b8d5c5a85245bc50197ec01a6bb204c7770c2ba"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-056.md",
+      "rights": "repository-authored-mit",
+      "sha256": "bb803f833ceaeacd14666415573acae8d317d9d9e275a46bf334f67659fd9e5c"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-057.md",
+      "rights": "repository-authored-mit",
+      "sha256": "071e55a87f04f94f8c0011e0ce2e700ecc90fbfe971132bd72398d7ebc116642"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-058.md",
+      "rights": "repository-authored-mit",
+      "sha256": "09713c8897dc162f6e42994432828b02fe41276332934ad531f851b38f544451"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-059.md",
+      "rights": "repository-authored-mit",
+      "sha256": "d7064bf3fe92052af1bb67fa2819be208eda13ba325ce0bcc9817aaf6c61eaa4"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-060.md",
+      "rights": "repository-authored-mit",
+      "sha256": "e1f09b278ca470e4fe342b07723f5f7e3a205b6397f974145fa83b8181460c8c"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-061.md",
+      "rights": "repository-authored-mit",
+      "sha256": "0c143e76ac93457d8e31f470438f05eb769ff34024879c0a02329b6a8bfbc8c1"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-062.md",
+      "rights": "repository-authored-mit",
+      "sha256": "1b90468b4ce0a6756734f69446d23ce07adc8d18b11eb848ab527fca1ee91a66"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-063.md",
+      "rights": "repository-authored-mit",
+      "sha256": "abfe4ffe8fcefef6897a4348facd8d092899a7ba3eec0a9f1055b81feda72e5f"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-064.md",
+      "rights": "repository-authored-mit",
+      "sha256": "c3e76e9bd58b554c81b225765f8abe0fff8154ad480de38189230247f5a3bd65"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-065.md",
+      "rights": "repository-authored-mit",
+      "sha256": "eec38290f4e1ad301a9c55369e6855246d953997f2142233f0a19fc02ede98a8"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-066.md",
+      "rights": "repository-authored-mit",
+      "sha256": "d5b4138944ef5255a004648f24568482237d89c138068a1f73bae1a95278be20"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-067.md",
+      "rights": "repository-authored-mit",
+      "sha256": "d292175f7fb2653fc2151f6964b507955b2c0ffce3ec8a77c952c9a3ab621df8"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-068.md",
+      "rights": "repository-authored-mit",
+      "sha256": "50881fe905b46053db685c80d6148f7903156599889fd435965851d6ae2d60e2"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-069.md",
+      "rights": "repository-authored-mit",
+      "sha256": "2731c1e9ef909b43722b8dba7716c3ff7dda610e5f75736bd4300efe4c2c451f"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-070.md",
+      "rights": "repository-authored-mit",
+      "sha256": "670705979b1932480b47cc51fefe0d2c88b187aaf37628ba5c93e03e30c87103"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-071.md",
+      "rights": "repository-authored-mit",
+      "sha256": "a0cefb6b9d594d04d2ce8941a12659d70032dc271870664d2e7616ac39ebeaad"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-072.md",
+      "rights": "repository-authored-mit",
+      "sha256": "9b30e213aca83920cee574766e63ac70896ff0dda0064777d19e010ac67ff1c0"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-073.md",
+      "rights": "repository-authored-mit",
+      "sha256": "470ed67e1ba9209b855ac7af98fa9ca735058c3d8b5d4f6d834e6de4dcca9e93"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-074.md",
+      "rights": "repository-authored-mit",
+      "sha256": "f3571f6081ac5bc8ebb81d2f30f80ea4137602fab90f722cf549faf317460a62"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-075.md",
+      "rights": "repository-authored-mit",
+      "sha256": "0754d741eae1f8336c3bf6560e110d3fcc356ee5238d33ccbd86131c77644c2f"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-076.md",
+      "rights": "repository-authored-mit",
+      "sha256": "1cd75f95535d7507e5806c6832299b7fa9c892c4d14efc5b513579878dfe55ae"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-077.md",
+      "rights": "repository-authored-mit",
+      "sha256": "4517387ca36bffc803db1ab11867aa9ebca919b52c4da923417574ed00dfae21"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-078.md",
+      "rights": "repository-authored-mit",
+      "sha256": "07efe11cd6345f841f5c1359f460d55163cf834ddb51e051dc2c86e57a98cdb2"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-079.md",
+      "rights": "repository-authored-mit",
+      "sha256": "79bbebfb4f0c7277278c9b0d3a6f6f6b8267caa3b1a753715236c8ea9f43ffe2"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/corpus/record-080.md",
+      "rights": "repository-authored-mit",
+      "sha256": "82765c9d0f286da63c45808b25931bb7dbb2da3769eed2decd5d85846c0366ef"
+    },
+    {
+      "bytes": 214,
+      "path": "v2/crawl/graph-01/1.html",
+      "rights": "repository-authored-mit",
+      "sha256": "94b7358843a8de57db585a1a46dbdcad47c0eae2191682a94f3fffee98e3c2b0"
+    },
+    {
+      "bytes": 214,
+      "path": "v2/crawl/graph-01/2.html",
+      "rights": "repository-authored-mit",
+      "sha256": "475dd2e4838a068e888f975cc20268e0cd7d16d6f283e65f476ac3d7a1fb3a58"
+    },
+    {
+      "bytes": 214,
+      "path": "v2/crawl/graph-01/3.html",
+      "rights": "repository-authored-mit",
+      "sha256": "c6c31c1601f72f2f1e0e6480cff985608c3afefa7262e3448432275224fcd482"
+    },
+    {
+      "bytes": 214,
+      "path": "v2/crawl/graph-02/1.html",
+      "rights": "repository-authored-mit",
+      "sha256": "7179f801ba73ae1f24ad53db19190f4b95d471778a36efd151382207ee52994a"
+    },
+    {
+      "bytes": 214,
+      "path": "v2/crawl/graph-02/2.html",
+      "rights": "repository-authored-mit",
+      "sha256": "b61ada5fae48531bdd1859af8e4effa4ab5f1d846ffc8b15dbd18c9d7d24433d"
+    },
+    {
+      "bytes": 214,
+      "path": "v2/crawl/graph-02/3.html",
+      "rights": "repository-authored-mit",
+      "sha256": "c2165fdc02ad59b8f88b19540c9b77c2d613fc453c759422b0d2b9e33c243e68"
+    },
+    {
+      "bytes": 214,
+      "path": "v2/crawl/graph-03/1.html",
+      "rights": "repository-authored-mit",
+      "sha256": "ac1cceb1e9773a8db57a62fc2eb446efb5515c59afd06ca8454e001c0d53c472"
+    },
+    {
+      "bytes": 214,
+      "path": "v2/crawl/graph-03/2.html",
+      "rights": "repository-authored-mit",
+      "sha256": "caf6b6d8342ad64ceb114e1cc487040668a187a5d97281808fce48195e47ec5d"
+    },
+    {
+      "bytes": 214,
+      "path": "v2/crawl/graph-03/3.html",
+      "rights": "repository-authored-mit",
+      "sha256": "fde06edeb86218add1d4e62eb51f7f76a3dba9c3ba472d5accd09878400bcdc6"
+    },
+    {
+      "bytes": 214,
+      "path": "v2/crawl/graph-04/1.html",
+      "rights": "repository-authored-mit",
+      "sha256": "e1a4e178767bab17c0fdaaca0b2a5f2cbf93b0e95a4f26328965985256a305bd"
+    },
+    {
+      "bytes": 214,
+      "path": "v2/crawl/graph-04/2.html",
+      "rights": "repository-authored-mit",
+      "sha256": "412660d4817efd1e74d9c858bd67130932565f051f74176f1deb6ac4dda5873f"
+    },
+    {
+      "bytes": 214,
+      "path": "v2/crawl/graph-04/3.html",
+      "rights": "repository-authored-mit",
+      "sha256": "63af5bb4765da4d81c84729070ca5f1bbeaf925b25fee4d88d10a10abdb0ce00"
+    },
+    {
+      "bytes": 214,
+      "path": "v2/crawl/graph-05/1.html",
+      "rights": "repository-authored-mit",
+      "sha256": "f4b760da51d07c87e6d6d59dabcca56387fb6c636b8460ce7959b423e4fc046c"
+    },
+    {
+      "bytes": 214,
+      "path": "v2/crawl/graph-05/2.html",
+      "rights": "repository-authored-mit",
+      "sha256": "242a9debe2965f2d84240305bf0f5ab353d3254f91ed46b0f5569d364710a247"
+    },
+    {
+      "bytes": 214,
+      "path": "v2/crawl/graph-05/3.html",
+      "rights": "repository-authored-mit",
+      "sha256": "9f91ac87fa23a178742112d3e3a682bf4f216ad7cac3ca848c037e46e71b5967"
+    },
+    {
+      "bytes": 214,
+      "path": "v2/crawl/graph-06/1.html",
+      "rights": "repository-authored-mit",
+      "sha256": "c448a5fadff9b893ce453319ae0d64e4516f56356c7378fa6338d846b9edcf8c"
+    },
+    {
+      "bytes": 214,
+      "path": "v2/crawl/graph-06/2.html",
+      "rights": "repository-authored-mit",
+      "sha256": "2e255429a741ce77eca4b5f9299c92d1997f05e1092856457029d0b620f63817"
+    },
+    {
+      "bytes": 214,
+      "path": "v2/crawl/graph-06/3.html",
+      "rights": "repository-authored-mit",
+      "sha256": "8e222f5f27202448ad23eb9e1b7e2f6634e601a328bf1662d7e6267fafa07abd"
+    },
+    {
+      "bytes": 320,
+      "path": "v2/extract/01.html",
+      "rights": "repository-authored-mit",
+      "sha256": "32b98b4628f632fccce637b548d0e4ddd6981cefb3279a627c91a29b0d4a1fac"
+    },
+    {
+      "bytes": 320,
+      "path": "v2/extract/02.html",
+      "rights": "repository-authored-mit",
+      "sha256": "11bfe1cad1b96430ed283a28632c050e19ff190b6ec5decf293c6f924fbf573e"
+    },
+    {
+      "bytes": 320,
+      "path": "v2/extract/03.html",
+      "rights": "repository-authored-mit",
+      "sha256": "dde5737dcab179c8a4537656f45fa8e1b5d9293fb3029bfab127841b5de00f2d"
+    },
+    {
+      "bytes": 320,
+      "path": "v2/extract/04.html",
+      "rights": "repository-authored-mit",
+      "sha256": "39780e2c2fbbe9f4975c591bed1f52bf69e7cd3a6d09aabfaea719ce25326e74"
+    },
+    {
+      "bytes": 320,
+      "path": "v2/extract/05.html",
+      "rights": "repository-authored-mit",
+      "sha256": "824c161ae0a365a48e3ca358365b3d57821e6e5e22c86d738aef63249abdd84d"
+    },
+    {
+      "bytes": 320,
+      "path": "v2/extract/06.html",
+      "rights": "repository-authored-mit",
+      "sha256": "b67642ba90f559f35f8e0af780e65db967b9bc8b4e93e2b4e3d5d20e277a6dc1"
+    },
+    {
+      "bytes": 320,
+      "path": "v2/extract/07.html",
+      "rights": "repository-authored-mit",
+      "sha256": "74391ba7d4a2101ae13081372294c2ca670673b615af41f2a466f72db1213424"
+    },
+    {
+      "bytes": 320,
+      "path": "v2/extract/08.html",
+      "rights": "repository-authored-mit",
+      "sha256": "8babac7a9dc878a741a2689c83a9c297851c2f1593d41146585791218f254ca4"
+    },
+    {
+      "bytes": 320,
+      "path": "v2/extract/09.html",
+      "rights": "repository-authored-mit",
+      "sha256": "53963cb9a45a2ccdc58c595562ff52c6ea8bc6972102df917e4041f0d4cad94d"
+    },
+    {
+      "bytes": 320,
+      "path": "v2/extract/10.html",
+      "rights": "repository-authored-mit",
+      "sha256": "9cfb08941ac60d500c2f1e731fa48429c5547e6c60c52b0c1cada40585341a9a"
+    },
+    {
+      "bytes": 320,
+      "path": "v2/extract/11.html",
+      "rights": "repository-authored-mit",
+      "sha256": "faa1806826e3e12fc1e956dee9784024d9a2fb27662965f8a76f3fe9294da256"
+    },
+    {
+      "bytes": 320,
+      "path": "v2/extract/12.html",
+      "rights": "repository-authored-mit",
+      "sha256": "f033887e1b370336e3038e77f392e0bc5db4f3f68ad77bea38ab3570ffeb2481"
+    },
+    {
+      "bytes": 384,
+      "path": "v2/lifecycle/fixture-v1/acquisition.routes.json",
+      "rights": "repository-authored-mit",
+      "sha256": "c767927af7fb6cabe4f7e68c820b9fa9d96eda4ae87f85bbf291f34b510a44fc"
+    },
+    {
+      "bytes": 2491,
+      "path": "v2/lifecycle/fixture-v1/corpus.manifest.json",
+      "rights": "repository-authored-mit",
+      "sha256": "58808ca8a6822c90472e051863a368284cbaf804f05004824a79670fa74ce081"
+    },
+    {
+      "bytes": 3152,
+      "path": "v2/lifecycle/fixture-v1/documents.ndjson",
+      "rights": "repository-authored-mit",
+      "sha256": "46c9951e68f8d10bcc55488db0dfa464dc6a75be09936d54b7380923f0b660bd"
+    },
+    {
+      "bytes": 1010,
+      "path": "v2/lifecycle/fixture-v1/fixture.pack.json",
+      "rights": "repository-authored-mit",
+      "sha256": "cafd9d4eda906f028a2dcfc4c379c5f54b4b10836920093bd886575527bb49c5"
+    },
+    {
+      "bytes": 79,
+      "path": "v2/lifecycle/fixture-v1/sources/01.md",
+      "rights": "repository-authored-mit",
+      "sha256": "8b9f990667e2462b042839e4a2d43fa5aab2526ab1318d20bd8e154e81f37c36"
+    },
+    {
+      "bytes": 70,
+      "path": "v2/lifecycle/fixture-v1/sources/02.md",
+      "rights": "repository-authored-mit",
+      "sha256": "2816a865ff34f28d8d5c41daf61755c6ebaba5c4a34f723f355b432869263543"
+    },
+    {
+      "bytes": 68,
+      "path": "v2/lifecycle/fixture-v1/sources/03.md",
+      "rights": "repository-authored-mit",
+      "sha256": "e3faacb39ede6784634a644683edd4669a3912610249c349a75aa84aedb6241e"
+    },
+    {
+      "bytes": 381,
+      "path": "v2/lifecycle/fixture-v1/sources.md",
+      "rights": "repository-authored-mit",
+      "sha256": "0b2b1b1cf4104b0b7da0c2a63c3807de74072b0d54b9381c328e1dfecfe6ddf1"
+    },
+    {
+      "bytes": 384,
+      "path": "v2/lifecycle/fixture-v2/acquisition.routes.json",
+      "rights": "repository-authored-mit",
+      "sha256": "c767927af7fb6cabe4f7e68c820b9fa9d96eda4ae87f85bbf291f34b510a44fc"
+    },
+    {
+      "bytes": 2491,
+      "path": "v2/lifecycle/fixture-v2/corpus.manifest.json",
+      "rights": "repository-authored-mit",
+      "sha256": "ef86be8c56814f8c88c30f59324ab591b4112a05f3278bd7c94bf7d01febbe01"
+    },
+    {
+      "bytes": 3170,
+      "path": "v2/lifecycle/fixture-v2/documents.ndjson",
+      "rights": "repository-authored-mit",
+      "sha256": "110e4f0517f63c285358dbeb7996ea67d76206a34b351b0fe627b43f22b33ab0"
+    },
+    {
+      "bytes": 1010,
+      "path": "v2/lifecycle/fixture-v2/fixture.pack.json",
+      "rights": "repository-authored-mit",
+      "sha256": "d78c3d51fefbc04a85c7c4c07f2f21dadae98f15189fac3457c24b06ef06baa2"
+    },
+    {
+      "bytes": 79,
+      "path": "v2/lifecycle/fixture-v2/sources/01.md",
+      "rights": "repository-authored-mit",
+      "sha256": "8b9f990667e2462b042839e4a2d43fa5aab2526ab1318d20bd8e154e81f37c36"
+    },
+    {
+      "bytes": 92,
+      "path": "v2/lifecycle/fixture-v2/sources/02.md",
+      "rights": "repository-authored-mit",
+      "sha256": "9d9a722ed4789ac56fad408df8a4ce49639c9e3ea5c4702cab53dbbd13bf2fa0"
+    },
+    {
+      "bytes": 64,
+      "path": "v2/lifecycle/fixture-v2/sources/03.md",
+      "rights": "repository-authored-mit",
+      "sha256": "48330459fd48274b89b8d16b982b4d578b26fa079971f9d3c37e81bd685999c0"
+    },
+    {
+      "bytes": 381,
+      "path": "v2/lifecycle/fixture-v2/sources.md",
+      "rights": "repository-authored-mit",
+      "sha256": "501a5d6d9f1cfcef376bdc3f62fa1f7aa5606ddc2f831fb5da1d8c36154f377c"
+    },
+    {
+      "bytes": 24,
+      "path": "v2/packs/pack-01/citations.json",
+      "rights": "repository-authored-mit",
+      "sha256": "f304d22821174cb5f7a52900ecb484f6ad72095f20f48ff05cda72633c5d61bf"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/packs/pack-01/pack.yaml",
+      "rights": "repository-authored-mit",
+      "sha256": "2b754e24b6650c698ec7bda9097dd653d4d30ca3f69283ec3074143f4c31b819"
+    },
+    {
+      "bytes": 45,
+      "path": "v2/packs/pack-01/records.ndjson",
+      "rights": "repository-authored-mit",
+      "sha256": "5f62ee83601b158992f880dedd07813c104207a963d2a5f84d850ba24a223d92"
+    },
+    {
+      "bytes": 24,
+      "path": "v2/packs/pack-02/citations.json",
+      "rights": "repository-authored-mit",
+      "sha256": "afb531b968e754fa1094edf546f95df6ddbb9059356ca7de7fb0ee2bf81b2fa2"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/packs/pack-02/pack.yaml",
+      "rights": "repository-authored-mit",
+      "sha256": "da7a8df44fc931ca8505e0a542ba114b327d058d4380a2123e4fec8e8ffa0996"
+    },
+    {
+      "bytes": 45,
+      "path": "v2/packs/pack-02/records.ndjson",
+      "rights": "repository-authored-mit",
+      "sha256": "e3ed470bbad0eea4726b6cc5f938396ff86a2eca8333c5becc9fae1eb27c2072"
+    },
+    {
+      "bytes": 24,
+      "path": "v2/packs/pack-03/citations.json",
+      "rights": "repository-authored-mit",
+      "sha256": "60ee3ef6cb837629c04a2ae80669000879c0bd77b1baa52c3151b2beb6bb5b1d"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/packs/pack-03/pack.yaml",
+      "rights": "repository-authored-mit",
+      "sha256": "8168976a90565ca0269beb49247007349f374cc5b2fc029bed6d6c51f5c8cf54"
+    },
+    {
+      "bytes": 45,
+      "path": "v2/packs/pack-03/records.ndjson",
+      "rights": "repository-authored-mit",
+      "sha256": "044d9dce171b1fa678899bba155f28de1aea45c4c6f10b1791fcff8d82c89c32"
+    },
+    {
+      "bytes": 24,
+      "path": "v2/packs/pack-04/citations.json",
+      "rights": "repository-authored-mit",
+      "sha256": "644380b9ce1c3e118b617fde8150882baf33e2c1118eeec2bb0e7444676cd362"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/packs/pack-04/pack.yaml",
+      "rights": "repository-authored-mit",
+      "sha256": "eab41d4e60a3a68d602d64fcb0074f152a09458205a9e5ad2cab58456e6a5779"
+    },
+    {
+      "bytes": 45,
+      "path": "v2/packs/pack-04/records.ndjson",
+      "rights": "repository-authored-mit",
+      "sha256": "6b8c503668d531531e078257a2e69cb196354b1dbba478c88002af9928d479fe"
+    },
+    {
+      "bytes": 24,
+      "path": "v2/packs/pack-05/citations.json",
+      "rights": "repository-authored-mit",
+      "sha256": "e6d6ecb9eccce5f330e42832f116085a2799ccfeeb4b2686ee4a2ccfb619582e"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/packs/pack-05/pack.yaml",
+      "rights": "repository-authored-mit",
+      "sha256": "712825702f1df547ecea97f926d1a490d01fd9aba91dae1c2689d90d006cb91b"
+    },
+    {
+      "bytes": 45,
+      "path": "v2/packs/pack-05/records.ndjson",
+      "rights": "repository-authored-mit",
+      "sha256": "2d6a6877e00bc221e50b3d9d11960564cdfa8f9e9bf0ec58fde3b2b5e0038c67"
+    },
+    {
+      "bytes": 24,
+      "path": "v2/packs/pack-06/citations.json",
+      "rights": "repository-authored-mit",
+      "sha256": "2694cb944724fab57daa78fdd4c3bc385b49544a2821c652bc7e2c049851252b"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/packs/pack-06/pack.yaml",
+      "rights": "repository-authored-mit",
+      "sha256": "ed9ef4b13cacfeb3281d446ab2cff51125f80ca242ec609077b86b72382ce2a9"
+    },
+    {
+      "bytes": 45,
+      "path": "v2/packs/pack-06/records.ndjson",
+      "rights": "repository-authored-mit",
+      "sha256": "02d928d1ae1cf416438b8a594bd74b54cfa54260e2b7099c26d62433efbd778b"
+    },
+    {
+      "bytes": 24,
+      "path": "v2/packs/pack-07/citations.json",
+      "rights": "repository-authored-mit",
+      "sha256": "c05ed5bee18dc3123fedca2dc4d2efb9cc758bc2ca1c5b060aa75b162a5c4709"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/packs/pack-07/pack.yaml",
+      "rights": "repository-authored-mit",
+      "sha256": "9a3498b71972758b1dcf8aab219c4719dc8f31fe7f6138507a3ad461c7d44bbc"
+    },
+    {
+      "bytes": 45,
+      "path": "v2/packs/pack-07/records.ndjson",
+      "rights": "repository-authored-mit",
+      "sha256": "0f07a713915cee5a4894982a7480a54029e50b872a9dfdd8a069a575d7e203c6"
+    },
+    {
+      "bytes": 24,
+      "path": "v2/packs/pack-08/citations.json",
+      "rights": "repository-authored-mit",
+      "sha256": "022fc787e239b792dda5c3fc5bb3bb4c16803e4b5370fdb835aecd91ceb86e38"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/packs/pack-08/pack.yaml",
+      "rights": "repository-authored-mit",
+      "sha256": "f2fca8cd6e3d790dcd2c896ee59d276c290f55d8f843dec3f60928f052344a49"
+    },
+    {
+      "bytes": 45,
+      "path": "v2/packs/pack-08/records.ndjson",
+      "rights": "repository-authored-mit",
+      "sha256": "0c5e1deae05aa5da98c017908fa6eb8d0adc886ca5d24063efa9e1769a9be7c6"
+    },
+    {
+      "bytes": 24,
+      "path": "v2/packs/pack-09/citations.json",
+      "rights": "repository-authored-mit",
+      "sha256": "551a423aa16e4d4f4fb3489388df948429eed11af60f82ac2c0319cc299ce6ae"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/packs/pack-09/pack.yaml",
+      "rights": "repository-authored-mit",
+      "sha256": "1b13c58c1003c1068366c9c2ebed612ee65004ed38261e0ca0210e02a7ca61d4"
+    },
+    {
+      "bytes": 45,
+      "path": "v2/packs/pack-09/records.ndjson",
+      "rights": "repository-authored-mit",
+      "sha256": "648173865568f8ea8f437bc5da2a9c233ef109eb3eef117d104ef2a20ebfcfe3"
+    },
+    {
+      "bytes": 24,
+      "path": "v2/packs/pack-10/citations.json",
+      "rights": "repository-authored-mit",
+      "sha256": "af8f33bbf9f4357926277f1701e2c8a14f063241e89096ff64892ab1887310b1"
+    },
+    {
+      "bytes": 40,
+      "path": "v2/packs/pack-10/pack.yaml",
+      "rights": "repository-authored-mit",
+      "sha256": "ff59587e93995177bb1eb0ed55064fbd9d85f69abde26f9be6053672c29aa3d5"
+    },
+    {
+      "bytes": 45,
+      "path": "v2/packs/pack-10/records.ndjson",
+      "rights": "repository-authored-mit",
+      "sha256": "9610375f830b0ce5d30083611103f2c2885c4ff3d71f8d6d9e0ce72eccc98cf7"
+    },
+    {
+      "bytes": 59,
+      "path": "v2/parse/01-plain.txt",
+      "rights": "repository-authored-mit",
+      "sha256": "ce2f7ab95d4f31f4a0e4ac2a19838a1beeca0f77097a8152649719d9d69d27cc"
+    },
+    {
+      "bytes": 57,
+      "path": "v2/parse/02-markdown.md",
+      "rights": "repository-authored-mit",
+      "sha256": "bb13e067b24e5e27f8c660bebdbd995d7cf029f55d4c160de045e5b338681f3f"
+    },
+    {
+      "bytes": 1440,
+      "path": "v2/parse/03-document.docx",
+      "rights": "repository-authored-mit",
+      "sha256": "18c459409f408eac5af097d3d11e772dd8c0eddb18b9f99023d240a8e21c0cd0"
+    },
+    {
+      "bytes": 663,
+      "path": "v2/parse/04-text.pdf",
+      "rights": "repository-authored-mit",
+      "sha256": "b76003be492c0d635f2575a6d66cff1c8df36f94b5d9a30122a1d40e29e7319a"
+    },
+    {
+      "bytes": 663,
+      "path": "v2/parse/05-table.pdf",
+      "rights": "repository-authored-mit",
+      "sha256": "3e7dd4793ef6b1079ac7ffbffff4934430f2a429674c84e7ff139911f2d77405"
+    },
+    {
+      "bytes": 55,
+      "path": "v2/parse/06-code.txt",
+      "rights": "repository-authored-mit",
+      "sha256": "3168332fca7c13565c5fa6f42b700e942ef90120363ff1e6fe98c306d7cc0531"
+    },
+    {
+      "bytes": 46,
+      "path": "v2/parse/07-malformed.pdf",
+      "rights": "repository-authored-mit",
+      "sha256": "6f575090014a4c715121810e41dde3963b68c2f4a4d674a6361d1eaf94460398"
+    },
+    {
+      "bytes": 55,
+      "path": "v2/parse/08-encrypted.pdf",
+      "rights": "repository-authored-mit",
+      "sha256": "47d8191394b72458d03f5dfeaba5a16096d2ac8e2f1e8cb1429ea5ba7782db17"
+    },
+    {
+      "bytes": 614,
+      "path": "v2/parse/09-ocr-gated.pdf",
+      "rights": "repository-authored-mit",
+      "sha256": "88c4b3a2043998c570d8cbe06b4df65df8b7545061609cbf0b41e16dc01f6407"
+    },
+    {
+      "bytes": 64,
+      "path": "v2/parse/10-unicode.md",
+      "rights": "repository-authored-mit",
+      "sha256": "94c58d0793b3ec2c2c05c80bdc1317b2bfa023a9d3a96afda0add1b133298317"
+    },
+    {
+      "bytes": 34,
+      "path": "v2/policy/redirect-target.html",
+      "rights": "repository-authored-mit",
+      "sha256": "1a5e021b8db83656928deef817c91df82aea00bc7413517ed0d17c40e0e21fd8"
+    },
+    {
+      "bytes": 33,
+      "path": "v2/policy/robots.txt",
+      "rights": "repository-authored-mit",
+      "sha256": "8b18c8fdd67d2f3754c03510020c7920271a5f77072de69097b29bc9cdc7732f"
+    },
+    {
+      "bytes": 43,
+      "path": "v2/research/task-01.md",
+      "rights": "repository-authored-mit",
+      "sha256": "a866d01309f7efdffe07395c0d21846783e1f5c568d7d391e3e47e13c6a9583f"
+    },
+    {
+      "bytes": 43,
+      "path": "v2/research/task-02.md",
+      "rights": "repository-authored-mit",
+      "sha256": "e49dcd411ec0024f4a7e23cc571fb8c545862abe5b506a663927b071cdc427f7"
+    },
+    {
+      "bytes": 43,
+      "path": "v2/research/task-03.md",
+      "rights": "repository-authored-mit",
+      "sha256": "24774c55b08869b70c63fffa799000086259c7868dc95376ea5e7a104be1c8ca"
+    },
+    {
+      "bytes": 43,
+      "path": "v2/research/task-04.md",
+      "rights": "repository-authored-mit",
+      "sha256": "07606e971e73fe63ff868ed9bd5f3c873a3f669062d866ed4af8543ab6280075"
+    },
+    {
+      "bytes": 43,
+      "path": "v2/research/task-05.md",
+      "rights": "repository-authored-mit",
+      "sha256": "cbda23f811010a3abfe2b55373bcadab999bac2a5b25906434dd21c7ba53a50e"
+    },
+    {
+      "bytes": 43,
+      "path": "v2/research/task-06.md",
+      "rights": "repository-authored-mit",
+      "sha256": "148256eeb2adaccde581e4fd585612850ab98a2ac61a99f818b4029bcb3f6640"
+    },
+    {
+      "bytes": 43,
+      "path": "v2/research/task-07.md",
+      "rights": "repository-authored-mit",
+      "sha256": "466a996cc3d12de9e9e3ded73752a7b51effaded62c31ec78a8e91b02c2bd56b"
+    },
+    {
+      "bytes": 43,
+      "path": "v2/research/task-08.md",
+      "rights": "repository-authored-mit",
+      "sha256": "920fb55f01840cf7a3824888139a02b3ca0a2ca8491d3bc185701c60058b60bc"
+    },
+    {
+      "bytes": 43,
+      "path": "v2/research/task-09.md",
+      "rights": "repository-authored-mit",
+      "sha256": "37231de98c186fc26752bf78e6c01939376ec8c08b93661914e67ece72bcf621"
+    },
+    {
+      "bytes": 43,
+      "path": "v2/research/task-10.md",
+      "rights": "repository-authored-mit",
+      "sha256": "34a990edfa265b8f83597aec62cf58a521d017449bd0833889e965e3bde8eee6"
+    },
+    {
+      "bytes": 43,
+      "path": "v2/research/task-11.md",
+      "rights": "repository-authored-mit",
+      "sha256": "90b538e0b3b910e20e2a2ad626d361c86b5a6091642e571bca3d96351ceb138b"
+    },
+    {
+      "bytes": 43,
+      "path": "v2/research/task-12.md",
+      "rights": "repository-authored-mit",
+      "sha256": "5cde6e87c5c5a13077d4cf96d9ff0a09dfa3a39338e96aa89e928266b9391b69"
+    },
+    {
+      "bytes": 43,
+      "path": "v2/research/task-13.md",
+      "rights": "repository-authored-mit",
+      "sha256": "16e34b2045e8374847db8b72d77c4d5345d4cb734e4d753d07cdba5b00155dfb"
+    },
+    {
+      "bytes": 43,
+      "path": "v2/research/task-14.md",
+      "rights": "repository-authored-mit",
+      "sha256": "d193743e09e1d62117ab1df927524a7a44a91a5aae5df2d61b0c54971e97f27b"
+    },
+    {
+      "bytes": 43,
+      "path": "v2/research/task-15.md",
+      "rights": "repository-authored-mit",
+      "sha256": "c735eb96e888b95618350eea1ee9eab6b574c7a1ff1ad40ace3ad874ec9a6de3"
+    },
+    {
+      "bytes": 43,
+      "path": "v2/research/task-16.md",
+      "rights": "repository-authored-mit",
+      "sha256": "169050704b68eb379694e2b6b97392c28752a95e95fca7f443285fdc02111006"
+    },
+    {
+      "bytes": 43,
+      "path": "v2/research/task-17.md",
+      "rights": "repository-authored-mit",
+      "sha256": "2640e6ab043f68c9be0862ca146d67421ff6d3e6b40987a9b9afccb8441e1ad2"
+    },
+    {
+      "bytes": 43,
+      "path": "v2/research/task-18.md",
+      "rights": "repository-authored-mit",
+      "sha256": "186a4b05c309459afd9dee0d44470bc229473e3fcf1e494a9a0c58d8fa93913d"
+    },
+    {
+      "bytes": 43,
+      "path": "v2/research/task-19.md",
+      "rights": "repository-authored-mit",
+      "sha256": "68a6bbdc67d17d1aa7fa269da935337f27a9fe6ffad5295f7ec1b946e55534a1"
+    },
+    {
+      "bytes": 43,
+      "path": "v2/research/task-20.md",
+      "rights": "repository-authored-mit",
+      "sha256": "0aea047b66df320880354f180e3eee8700316d3c44dfa2e4f6842472ca2471e8"
+    },
+    {
+      "bytes": 286,
+      "path": "v2/structured/case-01/schema.json",
+      "rights": "repository-authored-mit",
+      "sha256": "df57e878b0173ecd947b4c9b623cb5276a29c2c513b74ddf69c93a2c68f1f386"
+    },
+    {
+      "bytes": 41,
+      "path": "v2/structured/case-01/source.md",
+      "rights": "repository-authored-mit",
+      "sha256": "c7c04466c293c774d5cb5f331bcac5ea59275a684f1488c9f3fe71399f8893e1"
+    },
+    {
+      "bytes": 286,
+      "path": "v2/structured/case-02/schema.json",
+      "rights": "repository-authored-mit",
+      "sha256": "df57e878b0173ecd947b4c9b623cb5276a29c2c513b74ddf69c93a2c68f1f386"
+    },
+    {
+      "bytes": 41,
+      "path": "v2/structured/case-02/source.md",
+      "rights": "repository-authored-mit",
+      "sha256": "41ff303180a78c593667e491786c65a5c43ee209ba77774d7f54281a4704ba89"
+    },
+    {
+      "bytes": 286,
+      "path": "v2/structured/case-03/schema.json",
+      "rights": "repository-authored-mit",
+      "sha256": "df57e878b0173ecd947b4c9b623cb5276a29c2c513b74ddf69c93a2c68f1f386"
+    },
+    {
+      "bytes": 41,
+      "path": "v2/structured/case-03/source.md",
+      "rights": "repository-authored-mit",
+      "sha256": "e1804d36e1de8cc6cb658fc4c8e8eacb5ae6c8c9a8f4a6692b43b65c752622ca"
+    },
+    {
+      "bytes": 286,
+      "path": "v2/structured/case-04/schema.json",
+      "rights": "repository-authored-mit",
+      "sha256": "df57e878b0173ecd947b4c9b623cb5276a29c2c513b74ddf69c93a2c68f1f386"
+    },
+    {
+      "bytes": 41,
+      "path": "v2/structured/case-04/source.md",
+      "rights": "repository-authored-mit",
+      "sha256": "f4583752dbf6a17bd0f19a21b0c54fbc9a2d977e968993467c7b2282b22e0d53"
+    },
+    {
+      "bytes": 286,
+      "path": "v2/structured/case-05/schema.json",
+      "rights": "repository-authored-mit",
+      "sha256": "df57e878b0173ecd947b4c9b623cb5276a29c2c513b74ddf69c93a2c68f1f386"
+    },
+    {
+      "bytes": 41,
+      "path": "v2/structured/case-05/source.md",
+      "rights": "repository-authored-mit",
+      "sha256": "6ccace019e0efb467cb8448832a0bcfbae94f08e16e53efcb8b1e7365659ce79"
+    },
+    {
+      "bytes": 286,
+      "path": "v2/structured/case-06/schema.json",
+      "rights": "repository-authored-mit",
+      "sha256": "df57e878b0173ecd947b4c9b623cb5276a29c2c513b74ddf69c93a2c68f1f386"
+    },
+    {
+      "bytes": 41,
+      "path": "v2/structured/case-06/source.md",
+      "rights": "repository-authored-mit",
+      "sha256": "48e962a616c65c90f116648f87173458cf4a6064a72df62e74652ebe2fd3696f"
+    },
+    {
+      "bytes": 286,
+      "path": "v2/structured/case-07/schema.json",
+      "rights": "repository-authored-mit",
+      "sha256": "df57e878b0173ecd947b4c9b623cb5276a29c2c513b74ddf69c93a2c68f1f386"
+    },
+    {
+      "bytes": 41,
+      "path": "v2/structured/case-07/source.md",
+      "rights": "repository-authored-mit",
+      "sha256": "e6654e0adb05352aca8b03de8356e3be644a979d18d236a2be84962d5ce5cd89"
+    },
+    {
+      "bytes": 286,
+      "path": "v2/structured/case-08/schema.json",
+      "rights": "repository-authored-mit",
+      "sha256": "df57e878b0173ecd947b4c9b623cb5276a29c2c513b74ddf69c93a2c68f1f386"
+    },
+    {
+      "bytes": 41,
+      "path": "v2/structured/case-08/source.md",
+      "rights": "repository-authored-mit",
+      "sha256": "93554a5a5bbff87d34f4b8e0f8a174d38751c4cfd66f0f6612897ea2ca485d33"
+    },
+    {
+      "bytes": 286,
+      "path": "v2/structured/case-09/schema.json",
+      "rights": "repository-authored-mit",
+      "sha256": "df57e878b0173ecd947b4c9b623cb5276a29c2c513b74ddf69c93a2c68f1f386"
+    },
+    {
+      "bytes": 41,
+      "path": "v2/structured/case-09/source.md",
+      "rights": "repository-authored-mit",
+      "sha256": "ff9cf1f688ec81c7d7527356cd981295ccc1b1268f2196624c45943df45ace08"
+    },
+    {
+      "bytes": 286,
+      "path": "v2/structured/case-10/schema.json",
+      "rights": "repository-authored-mit",
+      "sha256": "df57e878b0173ecd947b4c9b623cb5276a29c2c513b74ddf69c93a2c68f1f386"
+    },
+    {
+      "bytes": 42,
+      "path": "v2/structured/case-10/source.md",
+      "rights": "repository-authored-mit",
+      "sha256": "d9af40ef799ba8da933186fb5ebd9d5d2c6588efef39fe384318a30dbe899816"
+    },
+    {
+      "bytes": 286,
+      "path": "v2/structured/case-11/schema.json",
+      "rights": "repository-authored-mit",
+      "sha256": "df57e878b0173ecd947b4c9b623cb5276a29c2c513b74ddf69c93a2c68f1f386"
+    },
+    {
+      "bytes": 42,
+      "path": "v2/structured/case-11/source.md",
+      "rights": "repository-authored-mit",
+      "sha256": "fb3a75c93e98ae2ec8f510ea39140830ede4b046df73b1a0ef2b7db4135e1207"
+    },
+    {
+      "bytes": 286,
+      "path": "v2/structured/case-12/schema.json",
+      "rights": "repository-authored-mit",
+      "sha256": "df57e878b0173ecd947b4c9b623cb5276a29c2c513b74ddf69c93a2c68f1f386"
+    },
+    {
+      "bytes": 42,
+      "path": "v2/structured/case-12/source.md",
+      "rights": "repository-authored-mit",
+      "sha256": "02f3c3ac91faaba9c94e69d40edc7118b011ccebbe5bd1ed8f0f4a6b0b4f4bd9"
+    }
+  ],
+  "generator": "bench/scripts/generate_fixtures.py",
+  "schema_version": 1
+}

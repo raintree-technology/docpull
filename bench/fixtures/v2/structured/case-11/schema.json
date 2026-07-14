@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "count": {
+      "type": "integer"
+    },
+    "identifier": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "identifier",
+    "count"
+  ],
+  "type": "object"
+}

@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "checked_at": "2026-07-14T14:02:24-07:00",
+  "commit": "67c56475463baad6d8998657f798756ea1f80d4d",
+  "docker_server_version": "29.6.1",
+  "upstream_check": "passed",
+  "smoke_preflight": "blocked",
+  "missing_requirements": [
+    "OPENAI_API_KEY",
+    "PERPLEXITY_API_KEY"
+  ],
+  "paid_calls_made": 0,
+  "scored": false,
+  "notes": "Pinned consistency probe only. WANDR's judge-based verifier is outside the deterministic benchmark policy."
+}

@@ -1,0 +1,14 @@
+{
+  "files": {
+    "METHODOLOGY.md": "fbe6bdd45531400233052e6b668f616ebd830850120828e37b8e54b9a68e3681",
+    "README.md": "dc3af4061bcf0a2048c9499faa987013749fc81f6811b14a356004c736daaba1",
+    "REPORT.md": "c02aae02b1f0dc222f4127c30185f740d5c6f1f8470841c246cb9ca2cfab9481",
+    "report.json": "9b2e8e089249ce90d6a2bfd4ebd946043b0b0c64ba48ace127dd225649fb752e"
+  },
+  "generated_at": "2026-07-14T21:28:17.387039+00:00",
+  "schema_version": 1,
+  "suite_name": "context-lifecycle",
+  "suite_version": "1.0.0",
+  "system": "docpull",
+  "system_version": "6.0.1"
+}
