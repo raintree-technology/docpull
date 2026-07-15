@@ -72,6 +72,41 @@ def test_release_build_fails_closed_on_nonempty_output(tmp_path: Path) -> None:
         module._build(ROOT, output, epoch=1700000000)
 
 
+def test_release_clean_removes_only_recognized_artifacts(tmp_path: Path) -> None:
+    module = _load_module()
+    output = tmp_path / "dist"
+    output.mkdir()
+    (output / "docpull-6.0.1-py3-none-any.whl").write_bytes(b"wheel")
+    (output / "docpull-6.0.1.tar.gz").write_bytes(b"sdist")
+
+    module._clean_release_artifacts(output)
+
+    assert list(output.iterdir()) == []
+
+
+@pytest.mark.parametrize("unexpected", ["notes.txt", "other-1.0.whl", "docpull-cache"])
+def test_release_clean_refuses_unknown_entries_transactionally(
+    tmp_path: Path,
+    unexpected: str,
+) -> None:
+    module = _load_module()
+    output = tmp_path / "dist"
+    output.mkdir()
+    artifact = output / "docpull-6.0.1.tar.gz"
+    artifact.write_bytes(b"sdist")
+    unknown = output / unexpected
+    if unexpected == "docpull-cache":
+        unknown.mkdir()
+    else:
+        unknown.write_bytes(b"user data")
+
+    with pytest.raises(ValueError, match="refusing to clean"):
+        module._clean_release_artifacts(output)
+
+    assert artifact.exists()
+    assert unknown.exists()
+
+
 def test_sdist_canonicalization_removes_host_metadata(tmp_path: Path) -> None:
     module = _load_module()
 

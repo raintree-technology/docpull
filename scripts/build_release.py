@@ -21,6 +21,11 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--outdir", type=Path, default=Path("dist"))
     parser.add_argument("--epoch", type=int, help="Override SOURCE_DATE_EPOCH")
     parser.add_argument(
+        "--clean",
+        action="store_true",
+        help="Remove only recognized DocPull wheel/sdist files from the output directory first",
+    )
+    parser.add_argument(
         "--verify-reproducible",
         action="store_true",
         help="Build a second time and require byte-identical artifacts",
@@ -150,12 +155,43 @@ def _file_sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _clean_release_artifacts(output_dir: Path) -> None:
+    """Remove prior DocPull distributions while refusing ambiguous or unsafe entries."""
+    if output_dir.is_symlink():
+        raise ValueError(f"release output directory must not be a symlink: {output_dir}")
+    if not output_dir.exists():
+        return
+    if not output_dir.is_dir():
+        raise ValueError(f"release output path must be a directory: {output_dir}")
+    entries = list(output_dir.iterdir())
+    unexpected = [
+        path.name
+        for path in entries
+        if path.is_symlink()
+        or not path.is_file()
+        or not path.name.startswith("docpull-")
+        or not (path.name.endswith(".whl") or path.name.endswith(".tar.gz"))
+    ]
+    if unexpected:
+        names = ", ".join(sorted(unexpected))
+        raise ValueError(f"refusing to clean unrecognized release output entries: {names}")
+    for path in entries:
+        path.unlink()
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     repo = Path(__file__).resolve().parents[1]
-    output_dir = args.outdir.expanduser().resolve()
-    epoch = _source_date_epoch(repo, args.epoch)
     try:
+        output_path = args.outdir.expanduser()
+        if not output_path.is_absolute():
+            output_path = repo / output_path
+        if output_path.is_symlink():
+            raise ValueError(f"release output directory must not be a symlink: {output_path}")
+        output_dir = output_path.resolve()
+        epoch = _source_date_epoch(repo, args.epoch)
+        if args.clean:
+            _clean_release_artifacts(output_dir)
         artifacts = _build(repo, output_dir, epoch=epoch)
         if args.verify_reproducible:
             with tempfile.TemporaryDirectory(prefix="docpull-release-replay-") as temporary:
