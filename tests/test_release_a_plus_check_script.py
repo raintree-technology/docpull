@@ -44,8 +44,26 @@ def test_release_a_plus_plan_mode_is_side_effect_free() -> None:
     assert completed.returncode == 0
     payload = json.loads(completed.stdout)
     assert "Core fetch/output" in payload["areas"]
+    assert "Web/docs copy" not in payload["areas"]
     assert "claim_audit" in payload["commands"]
+    assert not any(command.startswith("web_") for command in payload["commands"])
     assert "--full-mcp" in payload["smoke_command"]
+
+
+def test_release_a_plus_activates_web_gates_only_when_web_package_exists(tmp_path: Path) -> None:
+    module = _load_scorecard_module()
+
+    without_web = module._active_area_gates(tmp_path)
+    assert "Web/docs copy" not in without_web
+    assert "web_bun_audit" not in without_web["Security/static quality"]
+
+    web = tmp_path / "web"
+    web.mkdir()
+    (web / "package.json").write_text("{}\n", encoding="utf-8")
+
+    with_web = module._active_area_gates(tmp_path)
+    assert with_web["Web/docs copy"] == ("claim_audit", "web_typecheck", "web_lint", "web_build")
+    assert "web_bun_audit" in with_web["Security/static quality"]
 
 
 def test_release_a_plus_writes_reports_from_existing_smoke(tmp_path: Path) -> None:
