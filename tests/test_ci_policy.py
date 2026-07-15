@@ -25,6 +25,9 @@ ACTION_PIN_EXCEPTIONS = {
     # supported stable entrypoint for the OIDC publish flow.
     ("pypa/gh-action-pypi-publish", "release/v1"),
 }
+APPROVED_ACTION_SHAS = {
+    "actions/setup-python": "ece7cb06caefa5fff74198d8649806c4678c61a1",
+}
 
 
 def project_version() -> str:
@@ -53,6 +56,19 @@ def test_github_actions_are_pinned_to_full_commit_shas() -> None:
                 and (match.group(1), match.group(2)) not in ACTION_PIN_EXCEPTIONS
                 and not FULL_SHA_RE.fullmatch(match.group(2))
             ):
+                offenders.append(f"{path.relative_to(REPO_ROOT)}:{lineno}: {match.group(0)}")
+
+    assert offenders == []
+
+
+def test_critical_github_actions_use_approved_resolvable_shas() -> None:
+    offenders: list[str] = []
+    for path in sorted(WORKFLOW_DIR.glob("*.yml")):
+        for lineno, line in enumerate(path.read_text().splitlines(), start=1):
+            match = USE_RE.search(line)
+            if match is None or match.group(1) not in APPROVED_ACTION_SHAS:
+                continue
+            if match.group(2) != APPROVED_ACTION_SHAS[match.group(1)]:
                 offenders.append(f"{path.relative_to(REPO_ROOT)}:{lineno}: {match.group(0)}")
 
     assert offenders == []
