@@ -3,12 +3,16 @@ repos:
     rev: v6.0.0
     hooks:
       - id: trailing-whitespace
+        # Published and provisional evidence is immutable after hashing.
+        exclude: ^bench/results/
       - id: end-of-file-fixer
+        exclude: ^bench/results/
       - id: check-yaml
       - id: check-added-large-files
       - id: check-merge-conflict
       - id: debug-statements
       - id: mixed-line-ending
+        exclude: ^bench/results/
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.14.7

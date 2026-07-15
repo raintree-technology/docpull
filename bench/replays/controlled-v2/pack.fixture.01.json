@@ -1,0 +1,31 @@
+{
+  "adapter_version": "2",
+  "case_id": "pack.fixture.01",
+  "cost_basis": "Repository replay; no request.",
+  "cost_kind": "actual",
+  "cost_usd": 0,
+  "elapsed_seconds": 0.001,
+  "payload": {
+    "contract_level": "raw",
+    "files": [
+      "pack.yaml",
+      "records.ndjson",
+      "citations.json"
+    ],
+    "kind": "pack",
+    "records": [
+      {
+        "content": "pack evidence content",
+        "metadata": {},
+        "url": "fixture://pack"
+      }
+    ],
+    "stable_identities": [
+      "stable-identity"
+    ]
+  },
+  "request_count": 0,
+  "schema_version": 2,
+  "status": "completed",
+  "system": "fixture"
+}

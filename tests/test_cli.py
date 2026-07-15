@@ -257,6 +257,14 @@ def test_run_fetcher_populates_dense_config_options(tmp_path, monkeypatch):
             "trafilatura",
             "--no-special-cases",
             "--strict-js-required",
+            "--remote-documents",
+            "pdf",
+            "--remote-document-backend",
+            "pypdf",
+            "--remote-document-timeout-seconds",
+            "45",
+            "--remote-document-memory-mib",
+            "768",
             "--proxy",
             "http://proxy.example:8080",
             "--user-agent",
@@ -298,6 +306,10 @@ def test_run_fetcher_populates_dense_config_options(tmp_path, monkeypatch):
     assert config.crawl.exclude_paths == ["/admin/*"]
     assert config.content_filter.streaming_dedup is True
     assert config.content_filter.extractor == "trafilatura"
+    assert config.content_filter.remote_documents == "pdf"
+    assert config.content_filter.remote_document_backend == "pypdf"
+    assert config.content_filter.remote_document_timeout_seconds == 45
+    assert config.content_filter.remote_document_memory_mib == 768
     assert config.content_filter.enable_special_cases is False
     assert config.content_filter.strict_js_required is True
     assert config.network.proxy == "http://proxy.example:8080"

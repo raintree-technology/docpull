@@ -14,7 +14,7 @@ Usage:
             print(event)
 """
 
-__version__ = "6.0.1"
+__version__ = "6.1.0"
 
 from .cache import CacheManager, StreamingDeduplicator
 from .context_ci import CIThresholds, ContextCIError, run_context_ci

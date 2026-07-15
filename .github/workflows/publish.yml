@@ -81,7 +81,7 @@ jobs:
           python -m pip install -r requirements-release.txt
 
       - name: Build distributions
-        run: python -m build --no-isolation
+        run: python scripts/build_release.py --verify-reproducible
 
       - name: Verify wheel and sdist
         run: python -m twine check dist/*

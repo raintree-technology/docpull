@@ -1,0 +1,3100 @@
+{
+  "schema_version": 2,
+  "manifest": {
+    "schema_version": 2,
+    "run_id": "5fcdf42c234d4f1db5abc7280d418912",
+    "created_at": "2026-07-15T00:46:36.783679+00:00",
+    "suite_name": "live-neutral-crawl",
+    "suite_version": "1.0.0",
+    "suite_sha256": "897d2a54e8f4c3f9f5954ee3107c789a6445944d0f3049b64b455ca3d3e0ec2c",
+    "fixture_manifest_sha256": null,
+    "protocol_sha256": "fbde4f4a0782d9e8a085e7b12cba464a4bbbfdd7a0b8daded026212977c33c40",
+    "system": "docpull",
+    "adapter_version": "6.0.1",
+    "adapter_config_sha256": "414a4dbb98a2cb67ec62cedffb683ec277de8ec24369f11c9f03b634d89e3c1f",
+    "git_revision": "fcac51d1b6b670466303a45524bedf8ff157892f",
+    "git_dirty": true,
+    "dependency_lock_sha256": "b7465c512ffac93ecea81e54dce47ea257369b74f74dd290a843f29f74e44ea1",
+    "python_version": "3.12.13",
+    "operating_system": "Darwin",
+    "architecture": "arm64",
+    "environment_label": "local-macos-live-2026-07-14",
+    "network_isolation": "open",
+    "cache_policy": "disabled",
+    "retry_policy": "docpull_public_defaults",
+    "pricing_snapshot": null,
+    "repeat": 2,
+    "max_concurrency": 1,
+    "command": [
+      "docpull-bench",
+      "run",
+      "bench/cases/live-neutral-crawl-v1.yaml",
+      "--adapter",
+      "docpull",
+      "--system",
+      "docpull",
+      "--repeat",
+      "2",
+      "--max-concurrency",
+      "1",
+      "--output-dir",
+      "bench/runs/live-2026-07-14/crawl",
+      "--environment-label",
+      "local-macos-live-2026-07-14",
+      "--network-isolation",
+      "open"
+    ]
+  },
+  "observations": [
+    {
+      "schema_version": 2,
+      "case_id": "crawl.python-asyncio",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "critical": false,
+      "system": "docpull",
+      "status": "completed",
+      "payload_summary": {
+        "kind": "content",
+        "record_count": 8,
+        "selected_urls": [
+          "https://docs.python.org/3/library/asyncio.html",
+          "https://docs.python.org/3/library/asyncio-runner.html",
+          "https://docs.python.org/3/library/asyncio-stream.html",
+          "https://docs.python.org/3/library/asyncio-subprocess.html",
+          "https://docs.python.org/3/library/asyncio-queue.html",
+          "https://docs.python.org/3/library/asyncio-sync.html",
+          "https://docs.python.org/3/library/asyncio-graph.html",
+          "https://docs.python.org/3/library/asyncio-task.html"
+        ]
+      },
+      "records": [
+        {
+          "url": "https://docs.python.org/3/library/asyncio.html",
+          "title_sha256": "aaaf479b17e6218a141d2a9eba6af5a496d003990ce588ed31ad0faede94eff8",
+          "content_chars": 5557,
+          "content_sha256": "ebecdfb87e65aba0676d15c80422fdb8353114cf1d9c205202c0431604a3cb55"
+        },
+        {
+          "url": "https://docs.python.org/3/library/asyncio-runner.html",
+          "title_sha256": "e3c889428b2278a8d4e2ed8b0a828eab42c854330eff0a904d10b89cabc82cb1",
+          "content_chars": 7826,
+          "content_sha256": "c4ecc8d14f2d93304746168eb0503bba011792baf23f99f395d566455a5b30aa"
+        },
+        {
+          "url": "https://docs.python.org/3/library/asyncio-stream.html",
+          "title_sha256": "bfd297afbf9e7430b593e447b64fcfb36eb3bcf5237bc30319ba13e46b31bce7",
+          "content_chars": 18125,
+          "content_sha256": "131368f9de4af4385b9369d8dce7a92df184fd6fec67aaa8fa9362b53ea7385a"
+        },
+        {
+          "url": "https://docs.python.org/3/library/asyncio-subprocess.html",
+          "title_sha256": "74e2b2209cb2410a13a490ea1b9fc5ce71f188acb8d8a7d9bd61d38d71fd960e",
+          "content_chars": 13428,
+          "content_sha256": "4095da17d03b8e1b81df563a881ca1ff089f35b9af463dd37f97d55584a3d522"
+        },
+        {
+          "url": "https://docs.python.org/3/library/asyncio-queue.html",
+          "title_sha256": "be77db1156d1f1b555249e6dfa14d2d3e1d7b288f7e3f887696bf6208dde867e",
+          "content_chars": 7022,
+          "content_sha256": "db3171b199d09e7bd547e691af0f9d943ef969e64e8ff20663fbad2dbbbad1d8"
+        },
+        {
+          "url": "https://docs.python.org/3/library/asyncio-sync.html",
+          "title_sha256": "0991b569063fb25d21fe3f62a84dfb451fe58e0dc7d372c166b9794fc973c03c",
+          "content_chars": 12196,
+          "content_sha256": "f032b09f78bac2bc2a5a1cca2d0b7c519fe926073ea56a33456892284cf60442"
+        },
+        {
+          "url": "https://docs.python.org/3/library/asyncio-graph.html",
+          "title_sha256": "08b82d8bd43d6f4a213ddf01edefee1ab2d07e81e17bfeea3d63700a5146a6ff",
+          "content_chars": 5981,
+          "content_sha256": "0eeaa2058c945985e429c8780b005e3b6d95559b98e96255e9e06021c5dec7bd"
+        },
+        {
+          "url": "https://docs.python.org/3/library/asyncio-task.html",
+          "title_sha256": "b740a551e4e2df6dde857e2a3d1ab7fa10c2fd8c8fde1c709f481150aac940a8",
+          "content_chars": 54480,
+          "content_sha256": "a878043d9e58c8b9d97c445460dd7f0b04172d30aa2444d35a1906678aa8c1d0"
+        }
+      ],
+      "elapsed_seconds": 3.316212749999977,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "cost_basis": "No paid provider or cloud route was enabled.",
+      "usage": {},
+      "request_count": 0,
+      "attempt_count": 1,
+      "adapter_version": "6.0.1",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 2,
+      "case_id": "crawl.python-asyncio",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "critical": false,
+      "system": "docpull",
+      "status": "completed",
+      "payload_summary": {
+        "kind": "content",
+        "record_count": 8,
+        "selected_urls": [
+          "https://docs.python.org/3/library/asyncio-runner.html",
+          "https://docs.python.org/3/library/asyncio.html",
+          "https://docs.python.org/3/library/asyncio-task.html",
+          "https://docs.python.org/3/library/asyncio-stream.html",
+          "https://docs.python.org/3/library/asyncio-subprocess.html",
+          "https://docs.python.org/3/library/asyncio-queue.html",
+          "https://docs.python.org/3/library/asyncio-sync.html",
+          "https://docs.python.org/3/library/asyncio-graph.html"
+        ]
+      },
+      "records": [
+        {
+          "url": "https://docs.python.org/3/library/asyncio-runner.html",
+          "title_sha256": "e3c889428b2278a8d4e2ed8b0a828eab42c854330eff0a904d10b89cabc82cb1",
+          "content_chars": 7826,
+          "content_sha256": "c4ecc8d14f2d93304746168eb0503bba011792baf23f99f395d566455a5b30aa"
+        },
+        {
+          "url": "https://docs.python.org/3/library/asyncio.html",
+          "title_sha256": "aaaf479b17e6218a141d2a9eba6af5a496d003990ce588ed31ad0faede94eff8",
+          "content_chars": 5557,
+          "content_sha256": "ebecdfb87e65aba0676d15c80422fdb8353114cf1d9c205202c0431604a3cb55"
+        },
+        {
+          "url": "https://docs.python.org/3/library/asyncio-task.html",
+          "title_sha256": "b740a551e4e2df6dde857e2a3d1ab7fa10c2fd8c8fde1c709f481150aac940a8",
+          "content_chars": 54480,
+          "content_sha256": "a878043d9e58c8b9d97c445460dd7f0b04172d30aa2444d35a1906678aa8c1d0"
+        },
+        {
+          "url": "https://docs.python.org/3/library/asyncio-stream.html",
+          "title_sha256": "bfd297afbf9e7430b593e447b64fcfb36eb3bcf5237bc30319ba13e46b31bce7",
+          "content_chars": 18125,
+          "content_sha256": "131368f9de4af4385b9369d8dce7a92df184fd6fec67aaa8fa9362b53ea7385a"
+        },
+        {
+          "url": "https://docs.python.org/3/library/asyncio-subprocess.html",
+          "title_sha256": "74e2b2209cb2410a13a490ea1b9fc5ce71f188acb8d8a7d9bd61d38d71fd960e",
+          "content_chars": 13428,
+          "content_sha256": "4095da17d03b8e1b81df563a881ca1ff089f35b9af463dd37f97d55584a3d522"
+        },
+        {
+          "url": "https://docs.python.org/3/library/asyncio-queue.html",
+          "title_sha256": "be77db1156d1f1b555249e6dfa14d2d3e1d7b288f7e3f887696bf6208dde867e",
+          "content_chars": 7022,
+          "content_sha256": "db3171b199d09e7bd547e691af0f9d943ef969e64e8ff20663fbad2dbbbad1d8"
+        },
+        {
+          "url": "https://docs.python.org/3/library/asyncio-sync.html",
+          "title_sha256": "0991b569063fb25d21fe3f62a84dfb451fe58e0dc7d372c166b9794fc973c03c",
+          "content_chars": 12196,
+          "content_sha256": "f032b09f78bac2bc2a5a1cca2d0b7c519fe926073ea56a33456892284cf60442"
+        },
+        {
+          "url": "https://docs.python.org/3/library/asyncio-graph.html",
+          "title_sha256": "08b82d8bd43d6f4a213ddf01edefee1ab2d07e81e17bfeea3d63700a5146a6ff",
+          "content_chars": 5981,
+          "content_sha256": "0eeaa2058c945985e429c8780b005e3b6d95559b98e96255e9e06021c5dec7bd"
+        }
+      ],
+      "elapsed_seconds": 3.2894203329997254,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "cost_basis": "No paid provider or cloud route was enabled.",
+      "usage": {},
+      "request_count": 0,
+      "attempt_count": 1,
+      "adapter_version": "6.0.1",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 2,
+      "case_id": "crawl.sqlite-language",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "critical": false,
+      "system": "docpull",
+      "status": "completed",
+      "payload_summary": {
+        "kind": "content",
+        "record_count": 8,
+        "selected_urls": [
+          "https://www.sqlite.org/lang.html",
+          "https://www.sqlite.org/lang_keywords.html",
+          "https://www.sqlite.org/lang_aggfunc.html",
+          "https://www.sqlite.org/lang_analyze.html",
+          "https://www.sqlite.org/lang_altertable.html",
+          "https://www.sqlite.org/lang_attach.html",
+          "https://www.sqlite.org/lang_transaction.html",
+          "https://www.sqlite.org/lang_comment.html"
+        ]
+      },
+      "records": [
+        {
+          "url": "https://www.sqlite.org/lang.html",
+          "title_sha256": "2c69c01827d1739821d78408a776198721319a2da8b65c4f5857dba660952f7e",
+          "content_chars": 4234,
+          "content_sha256": "79182f093f001f0c6e00ec473e476566d4f12143cd40949f1446b005df92a7f5"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_keywords.html",
+          "title_sha256": "ef216339ef6c994f43d445f1a962e3b75dbef52bc32f06727e0d637397df7064",
+          "content_chars": 4869,
+          "content_sha256": "6f2db9d54e94bd4399a2219fc79820f74802d8325987b166d2e11981cdd80670"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_aggfunc.html",
+          "title_sha256": "fefd67a32aa102a7015ab13f345e16006ad77060eef032fd1707d06877a1cc2d",
+          "content_chars": 13426,
+          "content_sha256": "d9e3635fbe50e7534b3b94219c3df5caa3841e8aef50b12ac8a71bb6ddbf5104"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_analyze.html",
+          "title_sha256": "217acdbed6242ff0c4b45c2d2d20fabf7819587af3f045b0bbcd500b6f9c5107",
+          "content_chars": 15397,
+          "content_sha256": "d14f1b1506276106112007f39c7ed6e1b9fd8e1cd77253599f3c6a2f9f4354dd"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_altertable.html",
+          "title_sha256": "18fe2016fea59dc69f3d1391d957282b50f5f93674e668ed7abfb5703f02f573",
+          "content_chars": 20979,
+          "content_sha256": "b067654b24aa74f24e54c9eafb9f0543e7bce47d6f176a80bfe474d6e8ac0b60"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_attach.html",
+          "title_sha256": "122048947d3b4e83b851c4ad582e461690a5368f0f5bef6b18a7c8eaa70c34d4",
+          "content_chars": 4943,
+          "content_sha256": "dd0a80d540c3cf72a307902a972d1d8d0a5eb443d20c12ba5ce5c058f05d6d5f"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_transaction.html",
+          "title_sha256": "eec26ddd9a408449f8e06c622c11d61b94341b04fae5eac8d755c477b8294624",
+          "content_chars": 9747,
+          "content_sha256": "f55cbea6ce17e7162a1f847b903d1a243d42df5e48c13a23c753e69c8a730d2a"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_comment.html",
+          "title_sha256": "fa09ad2018232b455dafc437e3604c83accd423ef6ee51d00a26b8c74b156072",
+          "content_chars": 1148,
+          "content_sha256": "af48a705c60ecd0dcc5b6c61359a2133d4f6e729f51a0132a21f11af11d4ad85"
+        }
+      ],
+      "elapsed_seconds": 3.8343802920026064,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "cost_basis": "No paid provider or cloud route was enabled.",
+      "usage": {},
+      "request_count": 0,
+      "attempt_count": 1,
+      "adapter_version": "6.0.1",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 2,
+      "case_id": "crawl.sqlite-language",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "critical": false,
+      "system": "docpull",
+      "status": "completed",
+      "payload_summary": {
+        "kind": "content",
+        "record_count": 8,
+        "selected_urls": [
+          "https://www.sqlite.org/lang.html",
+          "https://www.sqlite.org/lang_keywords.html",
+          "https://www.sqlite.org/lang_aggfunc.html",
+          "https://www.sqlite.org/lang_analyze.html",
+          "https://www.sqlite.org/lang_attach.html",
+          "https://www.sqlite.org/lang_transaction.html",
+          "https://www.sqlite.org/lang_altertable.html",
+          "https://www.sqlite.org/lang_comment.html"
+        ]
+      },
+      "records": [
+        {
+          "url": "https://www.sqlite.org/lang.html",
+          "title_sha256": "2c69c01827d1739821d78408a776198721319a2da8b65c4f5857dba660952f7e",
+          "content_chars": 4234,
+          "content_sha256": "79182f093f001f0c6e00ec473e476566d4f12143cd40949f1446b005df92a7f5"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_keywords.html",
+          "title_sha256": "ef216339ef6c994f43d445f1a962e3b75dbef52bc32f06727e0d637397df7064",
+          "content_chars": 4869,
+          "content_sha256": "6f2db9d54e94bd4399a2219fc79820f74802d8325987b166d2e11981cdd80670"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_aggfunc.html",
+          "title_sha256": "fefd67a32aa102a7015ab13f345e16006ad77060eef032fd1707d06877a1cc2d",
+          "content_chars": 13426,
+          "content_sha256": "d9e3635fbe50e7534b3b94219c3df5caa3841e8aef50b12ac8a71bb6ddbf5104"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_analyze.html",
+          "title_sha256": "217acdbed6242ff0c4b45c2d2d20fabf7819587af3f045b0bbcd500b6f9c5107",
+          "content_chars": 15397,
+          "content_sha256": "d14f1b1506276106112007f39c7ed6e1b9fd8e1cd77253599f3c6a2f9f4354dd"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_attach.html",
+          "title_sha256": "122048947d3b4e83b851c4ad582e461690a5368f0f5bef6b18a7c8eaa70c34d4",
+          "content_chars": 4943,
+          "content_sha256": "dd0a80d540c3cf72a307902a972d1d8d0a5eb443d20c12ba5ce5c058f05d6d5f"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_transaction.html",
+          "title_sha256": "eec26ddd9a408449f8e06c622c11d61b94341b04fae5eac8d755c477b8294624",
+          "content_chars": 9747,
+          "content_sha256": "f55cbea6ce17e7162a1f847b903d1a243d42df5e48c13a23c753e69c8a730d2a"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_altertable.html",
+          "title_sha256": "18fe2016fea59dc69f3d1391d957282b50f5f93674e668ed7abfb5703f02f573",
+          "content_chars": 20979,
+          "content_sha256": "b067654b24aa74f24e54c9eafb9f0543e7bce47d6f176a80bfe474d6e8ac0b60"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_comment.html",
+          "title_sha256": "fa09ad2018232b455dafc437e3604c83accd423ef6ee51d00a26b8c74b156072",
+          "content_chars": 1148,
+          "content_sha256": "af48a705c60ecd0dcc5b6c61359a2133d4f6e729f51a0132a21f11af11d4ad85"
+        }
+      ],
+      "elapsed_seconds": 6.392377332998876,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "cost_basis": "No paid provider or cloud route was enabled.",
+      "usage": {},
+      "request_count": 0,
+      "attempt_count": 1,
+      "adapter_version": "6.0.1",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 2,
+      "case_id": "crawl.mdn-http",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "critical": false,
+      "system": "docpull",
+      "status": "completed",
+      "payload_summary": {
+        "kind": "content",
+        "record_count": 8,
+        "selected_urls": [
+          "https://developer.mozilla.org/en-US/docs/Web/HTTP",
+          "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Cookies",
+          "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Overview",
+          "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides",
+          "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Session",
+          "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Messages",
+          "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/MIME_types",
+          "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Evolution_of_HTTP"
+        ]
+      },
+      "records": [
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP",
+          "title_sha256": "388fc1a0f67fa56fe9a147604370edb2fd7a46eed0de8a791b7a079645877a54",
+          "content_chars": 16524,
+          "content_sha256": "fe07ac8bd2eadd6bfcb651b6357e634c0af49712ac6d1e4b41dc13cd43369fd6"
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Cookies",
+          "title_sha256": "a50d22057db42574f9e25d2f7a9409d59306ab8c4f0e4c6f94c7da7ff3bc5b3b",
+          "content_chars": 26782,
+          "content_sha256": "12a5f71d8f770320196871e5634074deeee2fe585be05ec2342982c46769eb99"
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Overview",
+          "title_sha256": "7c7a8345abac6124c70fcef1dad9f70ea9099760bbbf3405d7fa55afd81d9b6c",
+          "content_chars": 19254,
+          "content_sha256": "6f9a719bbedae720f6782881205b835785fcfd14e05e2a291211bbdde1ac5314"
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides",
+          "title_sha256": "14a743ff013e331ace37b1e95f6ea334b785d4e6adda1b0f222ce47a1910db30",
+          "content_chars": 12911,
+          "content_sha256": "d292036acef1a3deccc163e99b5346a2a88998da62c75bbf4371847512298c21"
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Session",
+          "title_sha256": "11a6eb001c22c6c5c24f094ed2a977896d36634dd48a49e850598d2203997f25",
+          "content_chars": 9537,
+          "content_sha256": "ac608c4ef6d53d31ce51ab1c18c016a944637d3e323f87fa62909f0fe73c4d56"
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Messages",
+          "title_sha256": "918dd5fdf904e1474c788ad919a1baf863825a640b56e4ff94f440d8fec18627",
+          "content_chars": 22447,
+          "content_sha256": "aa5d72b93bf4be0083a4d14a43533f63b1277db11c007d92eb90e52af98c0b21"
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/MIME_types",
+          "title_sha256": "57c2cdfc82c8da606186ea94a8cd4371a9cf5678adf4ccebe908050e1f8a7b0c",
+          "content_chars": 25551,
+          "content_sha256": "3a20e0a0fb57b1848ee2329d849a2ae3198a51128c07e51b382fb9d5979068e1"
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Evolution_of_HTTP",
+          "title_sha256": "a60055acd2063543e279935b66ef58a4006854507cb7c00b7985ddb9932bdd8d",
+          "content_chars": 20745,
+          "content_sha256": "1266caa7f3ceb741f5696f9be34f47a834b44564ba2b382324bc00d0eda1afdb"
+        }
+      ],
+      "elapsed_seconds": 5.1854644999984885,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "cost_basis": "No paid provider or cloud route was enabled.",
+      "usage": {},
+      "request_count": 0,
+      "attempt_count": 1,
+      "adapter_version": "6.0.1",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 2,
+      "case_id": "crawl.mdn-http",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "critical": false,
+      "system": "docpull",
+      "status": "completed",
+      "payload_summary": {
+        "kind": "content",
+        "record_count": 8,
+        "selected_urls": [
+          "https://developer.mozilla.org/en-US/docs/Web/HTTP",
+          "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Cookies",
+          "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides",
+          "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Evolution_of_HTTP",
+          "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Session",
+          "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Messages",
+          "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/MIME_types",
+          "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Overview"
+        ]
+      },
+      "records": [
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP",
+          "title_sha256": "388fc1a0f67fa56fe9a147604370edb2fd7a46eed0de8a791b7a079645877a54",
+          "content_chars": 16524,
+          "content_sha256": "fe07ac8bd2eadd6bfcb651b6357e634c0af49712ac6d1e4b41dc13cd43369fd6"
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Cookies",
+          "title_sha256": "a50d22057db42574f9e25d2f7a9409d59306ab8c4f0e4c6f94c7da7ff3bc5b3b",
+          "content_chars": 26782,
+          "content_sha256": "12a5f71d8f770320196871e5634074deeee2fe585be05ec2342982c46769eb99"
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides",
+          "title_sha256": "14a743ff013e331ace37b1e95f6ea334b785d4e6adda1b0f222ce47a1910db30",
+          "content_chars": 12911,
+          "content_sha256": "d292036acef1a3deccc163e99b5346a2a88998da62c75bbf4371847512298c21"
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Evolution_of_HTTP",
+          "title_sha256": "a60055acd2063543e279935b66ef58a4006854507cb7c00b7985ddb9932bdd8d",
+          "content_chars": 20745,
+          "content_sha256": "1266caa7f3ceb741f5696f9be34f47a834b44564ba2b382324bc00d0eda1afdb"
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Session",
+          "title_sha256": "11a6eb001c22c6c5c24f094ed2a977896d36634dd48a49e850598d2203997f25",
+          "content_chars": 9537,
+          "content_sha256": "ac608c4ef6d53d31ce51ab1c18c016a944637d3e323f87fa62909f0fe73c4d56"
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Messages",
+          "title_sha256": "918dd5fdf904e1474c788ad919a1baf863825a640b56e4ff94f440d8fec18627",
+          "content_chars": 22447,
+          "content_sha256": "aa5d72b93bf4be0083a4d14a43533f63b1277db11c007d92eb90e52af98c0b21"
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/MIME_types",
+          "title_sha256": "57c2cdfc82c8da606186ea94a8cd4371a9cf5678adf4ccebe908050e1f8a7b0c",
+          "content_chars": 25551,
+          "content_sha256": "3a20e0a0fb57b1848ee2329d849a2ae3198a51128c07e51b382fb9d5979068e1"
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Overview",
+          "title_sha256": "7c7a8345abac6124c70fcef1dad9f70ea9099760bbbf3405d7fa55afd81d9b6c",
+          "content_chars": 19254,
+          "content_sha256": "6f9a719bbedae720f6782881205b835785fcfd14e05e2a291211bbdde1ac5314"
+        }
+      ],
+      "elapsed_seconds": 2.3076502080002683,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "cost_basis": "No paid provider or cloud route was enabled.",
+      "usage": {},
+      "request_count": 0,
+      "attempt_count": 1,
+      "adapter_version": "6.0.1",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 2,
+      "case_id": "crawl.docker-get-started",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "framework-tutorial-crawl",
+      "critical": false,
+      "system": "docpull",
+      "status": "completed",
+      "payload_summary": {
+        "kind": "content",
+        "record_count": 8,
+        "selected_urls": [
+          "https://docs.docker.com/get-started/introduction/get-docker-desktop/",
+          "https://docs.docker.com/get-started/introduction/develop-with-containers/",
+          "https://docs.docker.com/get-started/docker-concepts/building-images/understanding-image-layers/",
+          "https://docs.docker.com/get-started/docker-concepts/running-containers/publishing-ports/",
+          "https://docs.docker.com/get-started/docker-concepts/running-containers/overriding-container-defaults/",
+          "https://docs.docker.com/get-started/introduction/build-and-push-first-image/",
+          "https://docs.docker.com/get-started/docker-concepts/building-images/writing-a-dockerfile/",
+          "https://docs.docker.com/get-started/docker-concepts/building-images/build-tag-and-publish-an-image/"
+        ]
+      },
+      "records": [
+        {
+          "url": "https://docs.docker.com/get-started/introduction/get-docker-desktop/",
+          "title_sha256": "d437608993b7d9994099908478007993eb9926d5669333846d2ef057b1efce6c",
+          "content_chars": 3936,
+          "content_sha256": "595b652181f3b44a0c9da576f8c3ae35e8cb3254fd299e97d54d0bdcd9d6fa09"
+        },
+        {
+          "url": "https://docs.docker.com/get-started/introduction/develop-with-containers/",
+          "title_sha256": "511fe4d78851cc544c7b8e68911104fb7b501ae30e2d88ffe98c0f074f11c8b3",
+          "content_chars": 8794,
+          "content_sha256": "f49a312a84f9079ac22475034bbf82c92da13bc2ded53e7b6190ec5dde3918a0"
+        },
+        {
+          "url": "https://docs.docker.com/get-started/docker-concepts/building-images/understanding-image-layers/",
+          "title_sha256": "b21dad801b0172f34629686223dc8ba71d83f8c9b45ed4d76f9a54720c9b6956",
+          "content_chars": 10836,
+          "content_sha256": "d255e2c8e7d146e9c94a7b9cfd37ed168ba6111b151f7526b299bf23fee2dc97"
+        },
+        {
+          "url": "https://docs.docker.com/get-started/docker-concepts/running-containers/publishing-ports/",
+          "title_sha256": "0a80a8f812f60d343b664b5d3338085b90aa8c818de89a459086637d21602bb4",
+          "content_chars": 6559,
+          "content_sha256": "126f0a4ca8bf5deb8c624b69c55388fd3b18625f7617527f89c30fb709c64f1f"
+        },
+        {
+          "url": "https://docs.docker.com/get-started/docker-concepts/running-containers/overriding-container-defaults/",
+          "title_sha256": "3363abbc0679b19bc8b6999703ec3b02f40016cafcf5c3075260cbdd48c16442",
+          "content_chars": 11594,
+          "content_sha256": "3e0f6cafa5f7f443ed2c28577093f2f940c3cdc513217d79d3e31eae488ba6ca"
+        },
+        {
+          "url": "https://docs.docker.com/get-started/introduction/build-and-push-first-image/",
+          "title_sha256": "494ed189ba14c688cd104c30d5062b682c14b3e84c9d5099d1691f05b4879f40",
+          "content_chars": 10634,
+          "content_sha256": "7a3bcdf6e881424fbdde769338ba1d63d7deb87315e7815b1357f2f2be30c7cb"
+        },
+        {
+          "url": "https://docs.docker.com/get-started/docker-concepts/building-images/writing-a-dockerfile/",
+          "title_sha256": "4bbfee6dd95872c7f88ba06c6eee3ad1fb841e28ce4e7a828335b0154905c8b4",
+          "content_chars": 6356,
+          "content_sha256": "795bd231a2c984b5f964f72d81b89b8b6272da62325ae8be1673410cd4d1598f"
+        },
+        {
+          "url": "https://docs.docker.com/get-started/docker-concepts/building-images/build-tag-and-publish-an-image/",
+          "title_sha256": "2e4b87421e05026c73244466893aa5dbe7d3316fb0e10b53e159246f608ff44e",
+          "content_chars": 11196,
+          "content_sha256": "e907d553a56f70a62b0f64fdf12a90220aa5dfb0399012c79dadf590bdfd47bf"
+        }
+      ],
+      "elapsed_seconds": 1.6846031669992954,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "cost_basis": "No paid provider or cloud route was enabled.",
+      "usage": {},
+      "request_count": 0,
+      "attempt_count": 1,
+      "adapter_version": "6.0.1",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 2,
+      "case_id": "crawl.docker-get-started",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "framework-tutorial-crawl",
+      "critical": false,
+      "system": "docpull",
+      "status": "completed",
+      "payload_summary": {
+        "kind": "content",
+        "record_count": 8,
+        "selected_urls": [
+          "https://docs.docker.com/get-started/introduction/get-docker-desktop/",
+          "https://docs.docker.com/get-started/docker-concepts/running-containers/publishing-ports/",
+          "https://docs.docker.com/get-started/docker-concepts/building-images/understanding-image-layers/",
+          "https://docs.docker.com/get-started/introduction/develop-with-containers/",
+          "https://docs.docker.com/get-started/docker-concepts/running-containers/overriding-container-defaults/",
+          "https://docs.docker.com/get-started/docker-concepts/building-images/writing-a-dockerfile/",
+          "https://docs.docker.com/get-started/introduction/build-and-push-first-image/",
+          "https://docs.docker.com/get-started/docker-concepts/building-images/build-tag-and-publish-an-image/"
+        ]
+      },
+      "records": [
+        {
+          "url": "https://docs.docker.com/get-started/introduction/get-docker-desktop/",
+          "title_sha256": "d437608993b7d9994099908478007993eb9926d5669333846d2ef057b1efce6c",
+          "content_chars": 3936,
+          "content_sha256": "595b652181f3b44a0c9da576f8c3ae35e8cb3254fd299e97d54d0bdcd9d6fa09"
+        },
+        {
+          "url": "https://docs.docker.com/get-started/docker-concepts/running-containers/publishing-ports/",
+          "title_sha256": "0a80a8f812f60d343b664b5d3338085b90aa8c818de89a459086637d21602bb4",
+          "content_chars": 6559,
+          "content_sha256": "126f0a4ca8bf5deb8c624b69c55388fd3b18625f7617527f89c30fb709c64f1f"
+        },
+        {
+          "url": "https://docs.docker.com/get-started/docker-concepts/building-images/understanding-image-layers/",
+          "title_sha256": "b21dad801b0172f34629686223dc8ba71d83f8c9b45ed4d76f9a54720c9b6956",
+          "content_chars": 10836,
+          "content_sha256": "d255e2c8e7d146e9c94a7b9cfd37ed168ba6111b151f7526b299bf23fee2dc97"
+        },
+        {
+          "url": "https://docs.docker.com/get-started/introduction/develop-with-containers/",
+          "title_sha256": "511fe4d78851cc544c7b8e68911104fb7b501ae30e2d88ffe98c0f074f11c8b3",
+          "content_chars": 8794,
+          "content_sha256": "f49a312a84f9079ac22475034bbf82c92da13bc2ded53e7b6190ec5dde3918a0"
+        },
+        {
+          "url": "https://docs.docker.com/get-started/docker-concepts/running-containers/overriding-container-defaults/",
+          "title_sha256": "3363abbc0679b19bc8b6999703ec3b02f40016cafcf5c3075260cbdd48c16442",
+          "content_chars": 11594,
+          "content_sha256": "3e0f6cafa5f7f443ed2c28577093f2f940c3cdc513217d79d3e31eae488ba6ca"
+        },
+        {
+          "url": "https://docs.docker.com/get-started/docker-concepts/building-images/writing-a-dockerfile/",
+          "title_sha256": "4bbfee6dd95872c7f88ba06c6eee3ad1fb841e28ce4e7a828335b0154905c8b4",
+          "content_chars": 6356,
+          "content_sha256": "795bd231a2c984b5f964f72d81b89b8b6272da62325ae8be1673410cd4d1598f"
+        },
+        {
+          "url": "https://docs.docker.com/get-started/introduction/build-and-push-first-image/",
+          "title_sha256": "494ed189ba14c688cd104c30d5062b682c14b3e84c9d5099d1691f05b4879f40",
+          "content_chars": 10634,
+          "content_sha256": "7a3bcdf6e881424fbdde769338ba1d63d7deb87315e7815b1357f2f2be30c7cb"
+        },
+        {
+          "url": "https://docs.docker.com/get-started/docker-concepts/building-images/build-tag-and-publish-an-image/",
+          "title_sha256": "2e4b87421e05026c73244466893aa5dbe7d3316fb0e10b53e159246f608ff44e",
+          "content_chars": 11196,
+          "content_sha256": "e907d553a56f70a62b0f64fdf12a90220aa5dfb0399012c79dadf590bdfd47bf"
+        }
+      ],
+      "elapsed_seconds": 1.5807037499980652,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "cost_basis": "No paid provider or cloud route was enabled.",
+      "usage": {},
+      "request_count": 0,
+      "attempt_count": 1,
+      "adapter_version": "6.0.1",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 2,
+      "case_id": "crawl.go-docs",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "test",
+      "family": "language-reference-crawl",
+      "critical": false,
+      "system": "docpull",
+      "status": "completed",
+      "payload_summary": {
+        "kind": "content",
+        "record_count": 8,
+        "selected_urls": [
+          "https://go.dev/doc/",
+          "https://go.dev/doc/devel/release",
+          "https://go.dev/ref/spec",
+          "https://go.dev/doc/effective_go",
+          "https://go.dev/doc/install",
+          "https://go.dev/doc/tutorial/getting-started.html",
+          "https://go.dev/doc/tutorial/create-module.html",
+          "https://go.dev/doc/tutorial/workspaces.html"
+        ]
+      },
+      "records": [
+        {
+          "url": "https://go.dev/doc/",
+          "title_sha256": "48ecdc351e868d8e13369d62410b8badd525189630937e4f23cf249637cb3209",
+          "content_chars": 14779,
+          "content_sha256": "4b9d42544836ea8f84c9cc72a26f119462143ca2b4d1930e59d0688bf15f9aa3"
+        },
+        {
+          "url": "https://go.dev/doc/devel/release",
+          "title_sha256": "b960ebc266238063b1f913e1d67b3b28ef48f80a313a1d459aedc4ab012f4c3c",
+          "content_chars": 84296,
+          "content_sha256": "ee2b2ce11a442855365be1704a71dcb90ef28d246f82f1f7a07a388656888027"
+        },
+        {
+          "url": "https://go.dev/ref/spec",
+          "title_sha256": "d1fe0133aa635e9c7f7bc0231c71b5800e75a94aaf2b775a46f2358416fc166a",
+          "content_chars": 237147,
+          "content_sha256": "d2ecdc577cf807a95a58df8da1ed35a56f1b4956eddeb332e5ecbabdda8ce1ab"
+        },
+        {
+          "url": "https://go.dev/doc/effective_go",
+          "title_sha256": "7081a27c1f3ad770a6c4e62550628854d2ed604dd59b7fe07f818660102f2fac",
+          "content_chars": 102474,
+          "content_sha256": "0d6171e18f9f5356731f15b893a305aa88c57b037bc2e0e629b40fb01c4b08a9"
+        },
+        {
+          "url": "https://go.dev/doc/install",
+          "title_sha256": "2cde0cd291c787d6626a4a95facf76b0757a8df20ea2a2ea94f0d600114f616a",
+          "content_chars": 5020,
+          "content_sha256": "1951ca05a780093f4117bc65a1ebef58c02ae9257fe622ab975c22eb8a0d69c9"
+        },
+        {
+          "url": "https://go.dev/doc/tutorial/getting-started.html",
+          "title_sha256": "9f8c447c9c20cf87a6730ff82021ddd761e79f56fbdda8869184ce4dad943a70",
+          "content_chars": 6354,
+          "content_sha256": "3afc211f69afb08646e5b47dd6a0fc0fbcac598c4deb67341e07f8404d43e821"
+        },
+        {
+          "url": "https://go.dev/doc/tutorial/create-module.html",
+          "title_sha256": "7ddf0df74cc89da12d1f6ea02dbdf70985ba835203740cbc7db6f596ed0e1abf",
+          "content_chars": 6489,
+          "content_sha256": "f60cea9fce2e2487c9c11122164b066939b9eaa86f252ff3e689ef4f9902a155"
+        },
+        {
+          "url": "https://go.dev/doc/tutorial/workspaces.html",
+          "title_sha256": "6a26ee60b9c35b7bcc13b38ae5d9266c168698cd981d69304de77c075fcf8d56",
+          "content_chars": 8196,
+          "content_sha256": "0136c025fce4f133e1e53924ace78bd036cde8cf80c2bd798980469ede131bde"
+        }
+      ],
+      "elapsed_seconds": 7.413402542002586,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "cost_basis": "No paid provider or cloud route was enabled.",
+      "usage": {},
+      "request_count": 0,
+      "attempt_count": 1,
+      "adapter_version": "6.0.1",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 2,
+      "case_id": "crawl.go-docs",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "test",
+      "family": "language-reference-crawl",
+      "critical": false,
+      "system": "docpull",
+      "status": "completed",
+      "payload_summary": {
+        "kind": "content",
+        "record_count": 8,
+        "selected_urls": [
+          "https://go.dev/doc/",
+          "https://go.dev/doc/devel/release",
+          "https://go.dev/ref/spec",
+          "https://go.dev/doc/effective_go",
+          "https://go.dev/doc/install",
+          "https://go.dev/doc/tutorial/getting-started.html",
+          "https://go.dev/doc/tutorial/create-module.html",
+          "https://go.dev/doc/tutorial/workspaces.html"
+        ]
+      },
+      "records": [
+        {
+          "url": "https://go.dev/doc/",
+          "title_sha256": "48ecdc351e868d8e13369d62410b8badd525189630937e4f23cf249637cb3209",
+          "content_chars": 14779,
+          "content_sha256": "4b9d42544836ea8f84c9cc72a26f119462143ca2b4d1930e59d0688bf15f9aa3"
+        },
+        {
+          "url": "https://go.dev/doc/devel/release",
+          "title_sha256": "b960ebc266238063b1f913e1d67b3b28ef48f80a313a1d459aedc4ab012f4c3c",
+          "content_chars": 84296,
+          "content_sha256": "ee2b2ce11a442855365be1704a71dcb90ef28d246f82f1f7a07a388656888027"
+        },
+        {
+          "url": "https://go.dev/ref/spec",
+          "title_sha256": "d1fe0133aa635e9c7f7bc0231c71b5800e75a94aaf2b775a46f2358416fc166a",
+          "content_chars": 237147,
+          "content_sha256": "d2ecdc577cf807a95a58df8da1ed35a56f1b4956eddeb332e5ecbabdda8ce1ab"
+        },
+        {
+          "url": "https://go.dev/doc/effective_go",
+          "title_sha256": "7081a27c1f3ad770a6c4e62550628854d2ed604dd59b7fe07f818660102f2fac",
+          "content_chars": 102474,
+          "content_sha256": "0d6171e18f9f5356731f15b893a305aa88c57b037bc2e0e629b40fb01c4b08a9"
+        },
+        {
+          "url": "https://go.dev/doc/install",
+          "title_sha256": "2cde0cd291c787d6626a4a95facf76b0757a8df20ea2a2ea94f0d600114f616a",
+          "content_chars": 5020,
+          "content_sha256": "1951ca05a780093f4117bc65a1ebef58c02ae9257fe622ab975c22eb8a0d69c9"
+        },
+        {
+          "url": "https://go.dev/doc/tutorial/getting-started.html",
+          "title_sha256": "9f8c447c9c20cf87a6730ff82021ddd761e79f56fbdda8869184ce4dad943a70",
+          "content_chars": 6354,
+          "content_sha256": "3afc211f69afb08646e5b47dd6a0fc0fbcac598c4deb67341e07f8404d43e821"
+        },
+        {
+          "url": "https://go.dev/doc/tutorial/create-module.html",
+          "title_sha256": "7ddf0df74cc89da12d1f6ea02dbdf70985ba835203740cbc7db6f596ed0e1abf",
+          "content_chars": 6489,
+          "content_sha256": "f60cea9fce2e2487c9c11122164b066939b9eaa86f252ff3e689ef4f9902a155"
+        },
+        {
+          "url": "https://go.dev/doc/tutorial/workspaces.html",
+          "title_sha256": "6a26ee60b9c35b7bcc13b38ae5d9266c168698cd981d69304de77c075fcf8d56",
+          "content_chars": 8196,
+          "content_sha256": "0136c025fce4f133e1e53924ace78bd036cde8cf80c2bd798980469ede131bde"
+        }
+      ],
+      "elapsed_seconds": 6.785372624999582,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "cost_basis": "No paid provider or cloud route was enabled.",
+      "usage": {},
+      "request_count": 0,
+      "attempt_count": 1,
+      "adapter_version": "6.0.1",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 2,
+      "case_id": "crawl.rust-book",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "critical": false,
+      "system": "docpull",
+      "status": "completed",
+      "payload_summary": {
+        "kind": "content",
+        "record_count": 6,
+        "selected_urls": [
+          "https://doc.rust-lang.org/book/",
+          "https://doc.rust-lang.org/book/appendix-05-editions.html",
+          "https://doc.rust-lang.org/book/appendix-06-translation.html",
+          "https://doc.rust-lang.org/book/print.html",
+          "https://doc.rust-lang.org/book/ch01-01-installation.html",
+          "https://doc.rust-lang.org/book/foreword.html"
+        ]
+      },
+      "records": [
+        {
+          "url": "https://doc.rust-lang.org/book/",
+          "title_sha256": "e6a7fbc181ebcde919eaa64af36e837e300d44de10556fa976d5ff3eabe5c669",
+          "content_chars": 1188,
+          "content_sha256": "580db5f07eef947793a659363da675e468b37ed6533707a728a207e6df7e53e7"
+        },
+        {
+          "url": "https://doc.rust-lang.org/book/appendix-05-editions.html",
+          "title_sha256": "7241b5e3fec98638d247875cbd557944e0c82f91115112196b73988200adc735",
+          "content_chars": 3014,
+          "content_sha256": "5b7adfc82a0842a3c97d985475296d8a5a57bf89143f7d897cbdc8c06217687b"
+        },
+        {
+          "url": "https://doc.rust-lang.org/book/appendix-06-translation.html",
+          "title_sha256": "921937fa87d0b74f26263206571a3bdc97b991cc40aa3b12eed30491c5500e91",
+          "content_chars": 1908,
+          "content_sha256": "7c6c1b9990fb6750df057e886bb2e6f926c423289a37429cd96cef54541d5c19"
+        },
+        {
+          "url": "https://doc.rust-lang.org/book/print.html",
+          "title_sha256": "aa84621b6d9e0b7bb59858c18107c89fbac09bd111f1725892b281030dca6591",
+          "content_chars": 1345801,
+          "content_sha256": "af327c3c463a97b111871da1930d4e3f004dc1449af6d1d74b6e9900b9f451a7"
+        },
+        {
+          "url": "https://doc.rust-lang.org/book/ch01-01-installation.html",
+          "title_sha256": "8d135ac5cabf8de0e16071c87658fb3197fd6f5febbbbb5ebae74f5d2f1b61de",
+          "content_chars": 5659,
+          "content_sha256": "99f7c38621a1b71e07655a26a90a8872c0fefea9247e7ad7d20d366a561696fe"
+        },
+        {
+          "url": "https://doc.rust-lang.org/book/foreword.html",
+          "title_sha256": "e569f77a5ce19941df016ea4876c35851bee24db9a4b2ffba737bc98343957a7",
+          "content_chars": 2782,
+          "content_sha256": "d6e44a99602338cec349f9e5bc074dfe572ccb8551a83d5ea6c0a35b536737ea"
+        }
+      ],
+      "elapsed_seconds": 3.082053750000341,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "cost_basis": "No paid provider or cloud route was enabled.",
+      "usage": {},
+      "request_count": 0,
+      "attempt_count": 1,
+      "adapter_version": "6.0.1",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 2,
+      "case_id": "crawl.rust-book",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "critical": false,
+      "system": "docpull",
+      "status": "completed",
+      "payload_summary": {
+        "kind": "content",
+        "record_count": 6,
+        "selected_urls": [
+          "https://doc.rust-lang.org/book/",
+          "https://doc.rust-lang.org/book/appendix-05-editions.html",
+          "https://doc.rust-lang.org/book/appendix-06-translation.html",
+          "https://doc.rust-lang.org/book/ch01-01-installation.html",
+          "https://doc.rust-lang.org/book/foreword.html",
+          "https://doc.rust-lang.org/book/print.html"
+        ]
+      },
+      "records": [
+        {
+          "url": "https://doc.rust-lang.org/book/",
+          "title_sha256": "e6a7fbc181ebcde919eaa64af36e837e300d44de10556fa976d5ff3eabe5c669",
+          "content_chars": 1188,
+          "content_sha256": "580db5f07eef947793a659363da675e468b37ed6533707a728a207e6df7e53e7"
+        },
+        {
+          "url": "https://doc.rust-lang.org/book/appendix-05-editions.html",
+          "title_sha256": "7241b5e3fec98638d247875cbd557944e0c82f91115112196b73988200adc735",
+          "content_chars": 3014,
+          "content_sha256": "5b7adfc82a0842a3c97d985475296d8a5a57bf89143f7d897cbdc8c06217687b"
+        },
+        {
+          "url": "https://doc.rust-lang.org/book/appendix-06-translation.html",
+          "title_sha256": "921937fa87d0b74f26263206571a3bdc97b991cc40aa3b12eed30491c5500e91",
+          "content_chars": 1908,
+          "content_sha256": "7c6c1b9990fb6750df057e886bb2e6f926c423289a37429cd96cef54541d5c19"
+        },
+        {
+          "url": "https://doc.rust-lang.org/book/ch01-01-installation.html",
+          "title_sha256": "8d135ac5cabf8de0e16071c87658fb3197fd6f5febbbbb5ebae74f5d2f1b61de",
+          "content_chars": 5659,
+          "content_sha256": "99f7c38621a1b71e07655a26a90a8872c0fefea9247e7ad7d20d366a561696fe"
+        },
+        {
+          "url": "https://doc.rust-lang.org/book/foreword.html",
+          "title_sha256": "e569f77a5ce19941df016ea4876c35851bee24db9a4b2ffba737bc98343957a7",
+          "content_chars": 2782,
+          "content_sha256": "d6e44a99602338cec349f9e5bc074dfe572ccb8551a83d5ea6c0a35b536737ea"
+        },
+        {
+          "url": "https://doc.rust-lang.org/book/print.html",
+          "title_sha256": "aa84621b6d9e0b7bb59858c18107c89fbac09bd111f1725892b281030dca6591",
+          "content_chars": 1345801,
+          "content_sha256": "af327c3c463a97b111871da1930d4e3f004dc1449af6d1d74b6e9900b9f451a7"
+        }
+      ],
+      "elapsed_seconds": 2.5753637079978944,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "cost_basis": "No paid provider or cloud route was enabled.",
+      "usage": {},
+      "request_count": 0,
+      "attempt_count": 1,
+      "adapter_version": "6.0.1",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 2,
+      "case_id": "crawl.fastapi-tutorial",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "critical": false,
+      "system": "docpull",
+      "status": "completed",
+      "payload_summary": {
+        "kind": "content",
+        "record_count": 8,
+        "selected_urls": [
+          "https://fastapi.tiangolo.com/tutorial/",
+          "https://fastapi.tiangolo.com/tutorial/first-steps/",
+          "https://fastapi.tiangolo.com/tutorial/query-params/",
+          "https://fastapi.tiangolo.com/tutorial/path-params/",
+          "https://fastapi.tiangolo.com/tutorial/body/",
+          "https://fastapi.tiangolo.com/tutorial/path-params-numeric-validations/",
+          "https://fastapi.tiangolo.com/tutorial/query-params-str-validations/",
+          "https://fastapi.tiangolo.com/tutorial/query-param-models/"
+        ]
+      },
+      "records": [
+        {
+          "url": "https://fastapi.tiangolo.com/tutorial/",
+          "title_sha256": "9483fd95035cdc40c7cd0d84707637de971f77d627108b601f797e649b343736",
+          "content_chars": 5267,
+          "content_sha256": "ff3e623e2b32c267b5e73d850b11d8f54be1b8b61e825522f24b6641749be4f9"
+        },
+        {
+          "url": "https://fastapi.tiangolo.com/tutorial/first-steps/",
+          "title_sha256": "f3d1504055f946a12433a3036f5c9f309f81ccf236dc9be1ce73ca9ca6bed891",
+          "content_chars": 13369,
+          "content_sha256": "d04a20e40c92491169964e067474da35c22a08959ca2b04e0d58e7926733fd7c"
+        },
+        {
+          "url": "https://fastapi.tiangolo.com/tutorial/query-params/",
+          "title_sha256": "aaae5fa96e9d204ee529349fa6f835025a1aed0df5a80945f693766a8b969c55",
+          "content_chars": 5859,
+          "content_sha256": "c49bdff5a9a009b6ca99f5ab92042e28ce5e9dc0843a3d91f440c2b64f5cded8"
+        },
+        {
+          "url": "https://fastapi.tiangolo.com/tutorial/path-params/",
+          "title_sha256": "8820049c307ea09ed21ac6014580536543c1b404c9f4a594c52c239e201acc6a",
+          "content_chars": 11200,
+          "content_sha256": "e4960217e75ae9401e290e8dfa729084f994b1832bd3ca60a70658f70392ae9e"
+        },
+        {
+          "url": "https://fastapi.tiangolo.com/tutorial/body/",
+          "title_sha256": "20fa79fdbe158dc099a3d706f6057496b20f0bfe0355b8b4936bfd06014beae3",
+          "content_chars": 8277,
+          "content_sha256": "278822bfeea8d793514ccd1af3a5f72dde37b34dfd3106c5994c41978fdbec37"
+        },
+        {
+          "url": "https://fastapi.tiangolo.com/tutorial/path-params-numeric-validations/",
+          "title_sha256": "62e8beffc072f3df1686019fd963e67c9d27d81cfb3b1daedd5e25adb1d198a2",
+          "content_chars": 12087,
+          "content_sha256": "01fb36a0c7dc4d1db9a89c9882bb8ea18dd807d53465741a586a0f5bfe36f995"
+        },
+        {
+          "url": "https://fastapi.tiangolo.com/tutorial/query-params-str-validations/",
+          "title_sha256": "07b57d83a58a233bf3e8f456e0528dbfb2d2f1f351f9c4a59c53485462931c03",
+          "content_chars": 29340,
+          "content_sha256": "c4feefcdbcd32e1be987ef9c34e28e93cf6ec03cefd919dfe9c9bb522f44132e"
+        },
+        {
+          "url": "https://fastapi.tiangolo.com/tutorial/query-param-models/",
+          "title_sha256": "53a744b9f445e59f5b0fa527a2faacb1cff99740c5a3718ac4466a2fc0ac4d30",
+          "content_chars": 3991,
+          "content_sha256": "bbea0301ae10178376dc398fac3a31964f39fbebf8b0dedfbb3f96a3ad72330b"
+        }
+      ],
+      "elapsed_seconds": 1.5292821660004847,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "cost_basis": "No paid provider or cloud route was enabled.",
+      "usage": {},
+      "request_count": 0,
+      "attempt_count": 1,
+      "adapter_version": "6.0.1",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 2,
+      "case_id": "crawl.fastapi-tutorial",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "critical": false,
+      "system": "docpull",
+      "status": "completed",
+      "payload_summary": {
+        "kind": "content",
+        "record_count": 8,
+        "selected_urls": [
+          "https://fastapi.tiangolo.com/tutorial/",
+          "https://fastapi.tiangolo.com/tutorial/query-params/",
+          "https://fastapi.tiangolo.com/tutorial/path-params/",
+          "https://fastapi.tiangolo.com/tutorial/first-steps/",
+          "https://fastapi.tiangolo.com/tutorial/body/",
+          "https://fastapi.tiangolo.com/tutorial/path-params-numeric-validations/",
+          "https://fastapi.tiangolo.com/tutorial/query-params-str-validations/",
+          "https://fastapi.tiangolo.com/tutorial/query-param-models/"
+        ]
+      },
+      "records": [
+        {
+          "url": "https://fastapi.tiangolo.com/tutorial/",
+          "title_sha256": "9483fd95035cdc40c7cd0d84707637de971f77d627108b601f797e649b343736",
+          "content_chars": 5267,
+          "content_sha256": "ff3e623e2b32c267b5e73d850b11d8f54be1b8b61e825522f24b6641749be4f9"
+        },
+        {
+          "url": "https://fastapi.tiangolo.com/tutorial/query-params/",
+          "title_sha256": "aaae5fa96e9d204ee529349fa6f835025a1aed0df5a80945f693766a8b969c55",
+          "content_chars": 5859,
+          "content_sha256": "c49bdff5a9a009b6ca99f5ab92042e28ce5e9dc0843a3d91f440c2b64f5cded8"
+        },
+        {
+          "url": "https://fastapi.tiangolo.com/tutorial/path-params/",
+          "title_sha256": "8820049c307ea09ed21ac6014580536543c1b404c9f4a594c52c239e201acc6a",
+          "content_chars": 11200,
+          "content_sha256": "e4960217e75ae9401e290e8dfa729084f994b1832bd3ca60a70658f70392ae9e"
+        },
+        {
+          "url": "https://fastapi.tiangolo.com/tutorial/first-steps/",
+          "title_sha256": "f3d1504055f946a12433a3036f5c9f309f81ccf236dc9be1ce73ca9ca6bed891",
+          "content_chars": 13369,
+          "content_sha256": "d04a20e40c92491169964e067474da35c22a08959ca2b04e0d58e7926733fd7c"
+        },
+        {
+          "url": "https://fastapi.tiangolo.com/tutorial/body/",
+          "title_sha256": "20fa79fdbe158dc099a3d706f6057496b20f0bfe0355b8b4936bfd06014beae3",
+          "content_chars": 8277,
+          "content_sha256": "278822bfeea8d793514ccd1af3a5f72dde37b34dfd3106c5994c41978fdbec37"
+        },
+        {
+          "url": "https://fastapi.tiangolo.com/tutorial/path-params-numeric-validations/",
+          "title_sha256": "62e8beffc072f3df1686019fd963e67c9d27d81cfb3b1daedd5e25adb1d198a2",
+          "content_chars": 12087,
+          "content_sha256": "01fb36a0c7dc4d1db9a89c9882bb8ea18dd807d53465741a586a0f5bfe36f995"
+        },
+        {
+          "url": "https://fastapi.tiangolo.com/tutorial/query-params-str-validations/",
+          "title_sha256": "07b57d83a58a233bf3e8f456e0528dbfb2d2f1f351f9c4a59c53485462931c03",
+          "content_chars": 29340,
+          "content_sha256": "c4feefcdbcd32e1be987ef9c34e28e93cf6ec03cefd919dfe9c9bb522f44132e"
+        },
+        {
+          "url": "https://fastapi.tiangolo.com/tutorial/query-param-models/",
+          "title_sha256": "53a744b9f445e59f5b0fa527a2faacb1cff99740c5a3718ac4466a2fc0ac4d30",
+          "content_chars": 3991,
+          "content_sha256": "bbea0301ae10178376dc398fac3a31964f39fbebf8b0dedfbb3f96a3ad72330b"
+        }
+      ],
+      "elapsed_seconds": 1.4857275409995054,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "cost_basis": "No paid provider or cloud route was enabled.",
+      "usage": {},
+      "request_count": 0,
+      "attempt_count": 1,
+      "adapter_version": "6.0.1",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 2,
+      "case_id": "crawl.kubernetes-concepts",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "critical": false,
+      "system": "docpull",
+      "status": "completed",
+      "payload_summary": {
+        "kind": "content",
+        "record_count": 8,
+        "selected_urls": [
+          "https://kubernetes.io/docs/concepts/security/cloud-native-security/",
+          "https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/",
+          "https://kubernetes.io/docs/concepts/workloads/controllers/deployment/",
+          "https://kubernetes.io/docs/concepts/containers/images/",
+          "https://kubernetes.io/docs/concepts/overview/components/",
+          "https://kubernetes.io/docs/concepts/scheduling-eviction/kube-scheduler/",
+          "https://kubernetes.io/docs/concepts/extend-kubernetes/compute-storage-net/network-plugins/",
+          "https://kubernetes.io/docs/concepts/policy/limit-range/"
+        ]
+      },
+      "records": [
+        {
+          "url": "https://kubernetes.io/docs/concepts/security/cloud-native-security/",
+          "title_sha256": "484dce86a96a219b611b2ccdc7779ce13d16a1efef04c90bbae366517e09eeba",
+          "content_chars": 12711,
+          "content_sha256": "2fd7143adcb78a3d2d87a3be73b99edeaab808e680528ed372590ed67819d6f5"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/",
+          "title_sha256": "f365b436ddcba03e381328d4e5665c9ac527ed7d0e45db06c078e54661122504",
+          "content_chars": 23941,
+          "content_sha256": "b7f08e9f91a724896b2f95662125a10919b375d1523cfd8ef8b4cab0ebd5f8a9"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/workloads/controllers/deployment/",
+          "title_sha256": "842a4697fd0dddaa2ffb9e593abdfcc1963640b7e3b28eb5e5ae1624a18eaf46",
+          "content_chars": 61550,
+          "content_sha256": "616c69619c0a9141c6d126937f78252539f2b7764316f76ec8249dbdeebbb973"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/containers/images/",
+          "title_sha256": "be7e2f20129365c2899b2c11bfc465541e61b1858f45bf0248cf99b9271bc707",
+          "content_chars": 30509,
+          "content_sha256": "6b130172e682192d159825c086cbdc77c4171d3e11a1733eb0d8e56be7198658"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/overview/components/",
+          "title_sha256": "69f682b10c66df941d6ed31ab7aef30c3c6b0fe0514dd9477eea87a13ca84d39",
+          "content_chars": 5001,
+          "content_sha256": "12e76efb0a030a02c12c7fe445241aee1aa8ebfe984bf16c39abe9a7e975540c"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/scheduling-eviction/kube-scheduler/",
+          "title_sha256": "eebd4ae06d3d451f991dbb7e53fe599bb5e4125eaab4a2c52ad2293cde3b803d",
+          "content_chars": 6237,
+          "content_sha256": "b27aed3ecca05630416157bafbee20245719eb7f96d5f29b1834979b79521228"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/extend-kubernetes/compute-storage-net/network-plugins/",
+          "title_sha256": "06cc8568992c3865e2371a0e784d5bd5bab0598993cb92874862fea7a59c54f0",
+          "content_chars": 6557,
+          "content_sha256": "92c06be8fd3a6d258a92e0232f9ddca08437bc0b22fa2da2e8f7d9a23008e9ab"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/policy/limit-range/",
+          "title_sha256": "23ee2ba17b2cdb8710c55be0e2f88aef4e46633c968fee55777b95bee8158ead",
+          "content_chars": 9444,
+          "content_sha256": "ad1be0f401c9a45ea41db97fde766058f90b841ffa59b61b6c73f4877c2d9c56"
+        }
+      ],
+      "elapsed_seconds": 4.489597749998211,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "cost_basis": "No paid provider or cloud route was enabled.",
+      "usage": {},
+      "request_count": 0,
+      "attempt_count": 1,
+      "adapter_version": "6.0.1",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 2,
+      "case_id": "crawl.kubernetes-concepts",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "critical": false,
+      "system": "docpull",
+      "status": "completed",
+      "payload_summary": {
+        "kind": "content",
+        "record_count": 8,
+        "selected_urls": [
+          "https://kubernetes.io/docs/concepts/security/cloud-native-security/",
+          "https://kubernetes.io/docs/concepts/containers/images/",
+          "https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/",
+          "https://kubernetes.io/docs/concepts/workloads/controllers/deployment/",
+          "https://kubernetes.io/docs/concepts/overview/components/",
+          "https://kubernetes.io/docs/concepts/scheduling-eviction/kube-scheduler/",
+          "https://kubernetes.io/docs/concepts/policy/limit-range/",
+          "https://kubernetes.io/docs/concepts/extend-kubernetes/compute-storage-net/network-plugins/"
+        ]
+      },
+      "records": [
+        {
+          "url": "https://kubernetes.io/docs/concepts/security/cloud-native-security/",
+          "title_sha256": "484dce86a96a219b611b2ccdc7779ce13d16a1efef04c90bbae366517e09eeba",
+          "content_chars": 12711,
+          "content_sha256": "2fd7143adcb78a3d2d87a3be73b99edeaab808e680528ed372590ed67819d6f5"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/containers/images/",
+          "title_sha256": "be7e2f20129365c2899b2c11bfc465541e61b1858f45bf0248cf99b9271bc707",
+          "content_chars": 30509,
+          "content_sha256": "6b130172e682192d159825c086cbdc77c4171d3e11a1733eb0d8e56be7198658"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/",
+          "title_sha256": "f365b436ddcba03e381328d4e5665c9ac527ed7d0e45db06c078e54661122504",
+          "content_chars": 23941,
+          "content_sha256": "b7f08e9f91a724896b2f95662125a10919b375d1523cfd8ef8b4cab0ebd5f8a9"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/workloads/controllers/deployment/",
+          "title_sha256": "842a4697fd0dddaa2ffb9e593abdfcc1963640b7e3b28eb5e5ae1624a18eaf46",
+          "content_chars": 61550,
+          "content_sha256": "616c69619c0a9141c6d126937f78252539f2b7764316f76ec8249dbdeebbb973"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/overview/components/",
+          "title_sha256": "69f682b10c66df941d6ed31ab7aef30c3c6b0fe0514dd9477eea87a13ca84d39",
+          "content_chars": 5001,
+          "content_sha256": "12e76efb0a030a02c12c7fe445241aee1aa8ebfe984bf16c39abe9a7e975540c"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/scheduling-eviction/kube-scheduler/",
+          "title_sha256": "eebd4ae06d3d451f991dbb7e53fe599bb5e4125eaab4a2c52ad2293cde3b803d",
+          "content_chars": 6237,
+          "content_sha256": "b27aed3ecca05630416157bafbee20245719eb7f96d5f29b1834979b79521228"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/policy/limit-range/",
+          "title_sha256": "23ee2ba17b2cdb8710c55be0e2f88aef4e46633c968fee55777b95bee8158ead",
+          "content_chars": 9444,
+          "content_sha256": "ad1be0f401c9a45ea41db97fde766058f90b841ffa59b61b6c73f4877c2d9c56"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/extend-kubernetes/compute-storage-net/network-plugins/",
+          "title_sha256": "06cc8568992c3865e2371a0e784d5bd5bab0598993cb92874862fea7a59c54f0",
+          "content_chars": 6557,
+          "content_sha256": "92c06be8fd3a6d258a92e0232f9ddca08437bc0b22fa2da2e8f7d9a23008e9ab"
+        }
+      ],
+      "elapsed_seconds": 3.936899665997771,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "cost_basis": "No paid provider or cloud route was enabled.",
+      "usage": {},
+      "request_count": 0,
+      "attempt_count": 1,
+      "adapter_version": "6.0.1",
+      "error": null,
+      "artifacts": {}
+    }
+  ],
+  "scores": [
+    {
+      "case_id": "crawl.python-asyncio",
+      "system": "docpull",
+      "trial_index": 1,
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "critical": false,
+      "completed": true,
+      "passed": true,
+      "required_check_rate": 1.0,
+      "assertions": [
+        {
+          "name": "status.completed",
+          "passed": true,
+          "actual": "completed",
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "records.minimum",
+          "passed": true,
+          "actual": 8,
+          "expected": 5,
+          "detail": null
+        },
+        {
+          "name": "content.minimum_chars",
+          "passed": true,
+          "actual": 124615,
+          "expected": 20000,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:b1e1a3d63d1e1e1ab5f2d31ed97ac25e6218a372b6bf8d11a03b9c83d8568bad",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:ec4c93adb907273ec2660a5c0ca3094b0603abd925a38af5beec25e654c5cdb7",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:c5d2de3f68e5311ce75d84a13ff583da1bf22cd82859a854af61dff1b04f9c7b",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:eb33d36da592855b5796694f3ce252b91bcbc19ea06f926195e4f54065760e27",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:8648139190e534786d6204dff7161d395d89e1688db509a72c2f161c4389e645",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:dc7a45a9f79bd4eee598086aad87066bae2659c279032881173bee0fe566e764",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "urls.allowed_domains",
+          "passed": true,
+          "actual": 1.0,
+          "expected": 1.0,
+          "detail": null
+        },
+        {
+          "name": "records.maximum_duplicate_rate",
+          "passed": true,
+          "actual": 0.0,
+          "expected": 1.0,
+          "detail": null
+        }
+      ],
+      "metrics": {
+        "record_count": 8,
+        "content_chars": 124615,
+        "term_coverage": 1.0,
+        "forbidden_term_cleanliness": 1.0,
+        "url_recall": 1.0,
+        "domain_precision": 1.0,
+        "duplicate_rate": 0.0
+      },
+      "elapsed_seconds": 3.316212749999977,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "status": "completed",
+      "lane": "crawl"
+    },
+    {
+      "case_id": "crawl.python-asyncio",
+      "system": "docpull",
+      "trial_index": 2,
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "critical": false,
+      "completed": true,
+      "passed": true,
+      "required_check_rate": 1.0,
+      "assertions": [
+        {
+          "name": "status.completed",
+          "passed": true,
+          "actual": "completed",
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "records.minimum",
+          "passed": true,
+          "actual": 8,
+          "expected": 5,
+          "detail": null
+        },
+        {
+          "name": "content.minimum_chars",
+          "passed": true,
+          "actual": 124615,
+          "expected": 20000,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:b1e1a3d63d1e1e1ab5f2d31ed97ac25e6218a372b6bf8d11a03b9c83d8568bad",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:ec4c93adb907273ec2660a5c0ca3094b0603abd925a38af5beec25e654c5cdb7",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:c5d2de3f68e5311ce75d84a13ff583da1bf22cd82859a854af61dff1b04f9c7b",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:eb33d36da592855b5796694f3ce252b91bcbc19ea06f926195e4f54065760e27",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:8648139190e534786d6204dff7161d395d89e1688db509a72c2f161c4389e645",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:dc7a45a9f79bd4eee598086aad87066bae2659c279032881173bee0fe566e764",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "urls.allowed_domains",
+          "passed": true,
+          "actual": 1.0,
+          "expected": 1.0,
+          "detail": null
+        },
+        {
+          "name": "records.maximum_duplicate_rate",
+          "passed": true,
+          "actual": 0.0,
+          "expected": 1.0,
+          "detail": null
+        }
+      ],
+      "metrics": {
+        "record_count": 8,
+        "content_chars": 124615,
+        "term_coverage": 1.0,
+        "forbidden_term_cleanliness": 1.0,
+        "url_recall": 1.0,
+        "domain_precision": 1.0,
+        "duplicate_rate": 0.0
+      },
+      "elapsed_seconds": 3.2894203329997254,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "status": "completed",
+      "lane": "crawl"
+    },
+    {
+      "case_id": "crawl.sqlite-language",
+      "system": "docpull",
+      "trial_index": 1,
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "critical": false,
+      "completed": true,
+      "passed": false,
+      "required_check_rate": 0.9090909090909091,
+      "assertions": [
+        {
+          "name": "status.completed",
+          "passed": true,
+          "actual": "completed",
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "records.minimum",
+          "passed": true,
+          "actual": 8,
+          "expected": 5,
+          "detail": null
+        },
+        {
+          "name": "content.minimum_chars",
+          "passed": true,
+          "actual": 74743,
+          "expected": 20000,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:97c2aa171b5a85199090a90237b73f71fd34a3afb89779300deec19ff90856c8",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:8c6e5779190acc89b92b7c3e11c6e63aa94cb50fba5bcbe518749de056687a2a",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:f8d95b2ada8f59f8f2f7607d5d36365339aac22fba721d4ddd759783dc602654",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:f4e27cf031502cf57b0a76b16b1b04c62e518980434d99d3a9b08880552eedd7",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:fbbe8a457e79190dc2e7f4e8a809dd7f170155849764a23e68f8c43122fef2bb",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:ea2a39fa56649580d31dcb2bbbd4345cd059ba240e2d2200b72ed2f8334db5cf",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "urls.allowed_domains",
+          "passed": true,
+          "actual": 1.0,
+          "expected": 1.0,
+          "detail": null
+        },
+        {
+          "name": "records.maximum_duplicate_rate",
+          "passed": true,
+          "actual": 0.0,
+          "expected": 1.0,
+          "detail": null
+        }
+      ],
+      "metrics": {
+        "record_count": 8,
+        "content_chars": 74743,
+        "term_coverage": 0.6666666666666666,
+        "forbidden_term_cleanliness": 1.0,
+        "url_recall": 1.0,
+        "domain_precision": 1.0,
+        "duplicate_rate": 0.0
+      },
+      "elapsed_seconds": 3.8343802920026064,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "status": "completed",
+      "lane": "crawl"
+    },
+    {
+      "case_id": "crawl.sqlite-language",
+      "system": "docpull",
+      "trial_index": 2,
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "critical": false,
+      "completed": true,
+      "passed": false,
+      "required_check_rate": 0.9090909090909091,
+      "assertions": [
+        {
+          "name": "status.completed",
+          "passed": true,
+          "actual": "completed",
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "records.minimum",
+          "passed": true,
+          "actual": 8,
+          "expected": 5,
+          "detail": null
+        },
+        {
+          "name": "content.minimum_chars",
+          "passed": true,
+          "actual": 74743,
+          "expected": 20000,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:97c2aa171b5a85199090a90237b73f71fd34a3afb89779300deec19ff90856c8",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:8c6e5779190acc89b92b7c3e11c6e63aa94cb50fba5bcbe518749de056687a2a",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:f8d95b2ada8f59f8f2f7607d5d36365339aac22fba721d4ddd759783dc602654",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:f4e27cf031502cf57b0a76b16b1b04c62e518980434d99d3a9b08880552eedd7",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:fbbe8a457e79190dc2e7f4e8a809dd7f170155849764a23e68f8c43122fef2bb",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:ea2a39fa56649580d31dcb2bbbd4345cd059ba240e2d2200b72ed2f8334db5cf",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "urls.allowed_domains",
+          "passed": true,
+          "actual": 1.0,
+          "expected": 1.0,
+          "detail": null
+        },
+        {
+          "name": "records.maximum_duplicate_rate",
+          "passed": true,
+          "actual": 0.0,
+          "expected": 1.0,
+          "detail": null
+        }
+      ],
+      "metrics": {
+        "record_count": 8,
+        "content_chars": 74743,
+        "term_coverage": 0.6666666666666666,
+        "forbidden_term_cleanliness": 1.0,
+        "url_recall": 1.0,
+        "domain_precision": 1.0,
+        "duplicate_rate": 0.0
+      },
+      "elapsed_seconds": 6.392377332998876,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "status": "completed",
+      "lane": "crawl"
+    },
+    {
+      "case_id": "crawl.mdn-http",
+      "system": "docpull",
+      "trial_index": 1,
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "critical": false,
+      "completed": true,
+      "passed": true,
+      "required_check_rate": 1.0,
+      "assertions": [
+        {
+          "name": "status.completed",
+          "passed": true,
+          "actual": "completed",
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "records.minimum",
+          "passed": true,
+          "actual": 8,
+          "expected": 5,
+          "detail": null
+        },
+        {
+          "name": "content.minimum_chars",
+          "passed": true,
+          "actual": 153751,
+          "expected": 30000,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:1ce579b389b2d306c0767dd6088c8501989239b73e66b2d1076d373d431928ac",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:39f99965ca686f95b46bd622456286bc182b671da9d6995a76d0218e5d6972ff",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:eaa4a020751a5c9c98a4f52594699c9b5b9f150de54b8fc639865c2e614b98d8",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:59e2ed660294603a108e5c39013b2d39fffb768408e3b551daf4b5da5a40a83d",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:df35fd04b143019402bac6f648283e1869ca3987116e041ab16606a48a67bb4b",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:e47b60754748a593db89cbe0d44a62b15034bb0f17af8db900d7d155019fccd4",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "urls.allowed_domains",
+          "passed": true,
+          "actual": 1.0,
+          "expected": 1.0,
+          "detail": null
+        },
+        {
+          "name": "records.maximum_duplicate_rate",
+          "passed": true,
+          "actual": 0.0,
+          "expected": 1.0,
+          "detail": null
+        }
+      ],
+      "metrics": {
+        "record_count": 8,
+        "content_chars": 153751,
+        "term_coverage": 1.0,
+        "forbidden_term_cleanliness": 1.0,
+        "url_recall": 1.0,
+        "domain_precision": 1.0,
+        "duplicate_rate": 0.0
+      },
+      "elapsed_seconds": 5.1854644999984885,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "status": "completed",
+      "lane": "crawl"
+    },
+    {
+      "case_id": "crawl.mdn-http",
+      "system": "docpull",
+      "trial_index": 2,
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "critical": false,
+      "completed": true,
+      "passed": true,
+      "required_check_rate": 1.0,
+      "assertions": [
+        {
+          "name": "status.completed",
+          "passed": true,
+          "actual": "completed",
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "records.minimum",
+          "passed": true,
+          "actual": 8,
+          "expected": 5,
+          "detail": null
+        },
+        {
+          "name": "content.minimum_chars",
+          "passed": true,
+          "actual": 153751,
+          "expected": 30000,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:1ce579b389b2d306c0767dd6088c8501989239b73e66b2d1076d373d431928ac",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:39f99965ca686f95b46bd622456286bc182b671da9d6995a76d0218e5d6972ff",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:eaa4a020751a5c9c98a4f52594699c9b5b9f150de54b8fc639865c2e614b98d8",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:59e2ed660294603a108e5c39013b2d39fffb768408e3b551daf4b5da5a40a83d",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:df35fd04b143019402bac6f648283e1869ca3987116e041ab16606a48a67bb4b",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:e47b60754748a593db89cbe0d44a62b15034bb0f17af8db900d7d155019fccd4",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "urls.allowed_domains",
+          "passed": true,
+          "actual": 1.0,
+          "expected": 1.0,
+          "detail": null
+        },
+        {
+          "name": "records.maximum_duplicate_rate",
+          "passed": true,
+          "actual": 0.0,
+          "expected": 1.0,
+          "detail": null
+        }
+      ],
+      "metrics": {
+        "record_count": 8,
+        "content_chars": 153751,
+        "term_coverage": 1.0,
+        "forbidden_term_cleanliness": 1.0,
+        "url_recall": 1.0,
+        "domain_precision": 1.0,
+        "duplicate_rate": 0.0
+      },
+      "elapsed_seconds": 2.3076502080002683,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "status": "completed",
+      "lane": "crawl"
+    },
+    {
+      "case_id": "crawl.docker-get-started",
+      "system": "docpull",
+      "trial_index": 1,
+      "split": "dev",
+      "family": "framework-tutorial-crawl",
+      "critical": false,
+      "completed": true,
+      "passed": true,
+      "required_check_rate": 1.0,
+      "assertions": [
+        {
+          "name": "status.completed",
+          "passed": true,
+          "actual": "completed",
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "records.minimum",
+          "passed": true,
+          "actual": 8,
+          "expected": 5,
+          "detail": null
+        },
+        {
+          "name": "content.minimum_chars",
+          "passed": true,
+          "actual": 69905,
+          "expected": 20000,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:c4a6c83a400aa7480d2b7763ee73cf91a15125a75587946f3b3f9658669e4f9c",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:09b6c21c0f50ab269ad7d3f8c98edc5a7209522509434ba760a38be32455172f",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:e6ee83c6cb1d7b7fcae1c4509970407d44763bbb572a70a1195912c88fc8e722",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:60283338fee3ec054be4e5d95328d16616c4f8eeb735282bb1d987edce7c2952",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:63a3913d648022d8c0024273ffbfc25d99d73fb48e3ee7346ec9aa526af39718",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:0fb7f5c10e2dc7a9e5df62ed20a42fdeaed95ff3af42d64ea220e09a49812841",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "urls.allowed_domains",
+          "passed": true,
+          "actual": 1.0,
+          "expected": 1.0,
+          "detail": null
+        },
+        {
+          "name": "records.maximum_duplicate_rate",
+          "passed": true,
+          "actual": 0.0,
+          "expected": 1.0,
+          "detail": null
+        }
+      ],
+      "metrics": {
+        "record_count": 8,
+        "content_chars": 69905,
+        "term_coverage": 1.0,
+        "forbidden_term_cleanliness": 1.0,
+        "url_recall": 1.0,
+        "domain_precision": 1.0,
+        "duplicate_rate": 0.0
+      },
+      "elapsed_seconds": 1.6846031669992954,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "status": "completed",
+      "lane": "crawl"
+    },
+    {
+      "case_id": "crawl.docker-get-started",
+      "system": "docpull",
+      "trial_index": 2,
+      "split": "dev",
+      "family": "framework-tutorial-crawl",
+      "critical": false,
+      "completed": true,
+      "passed": true,
+      "required_check_rate": 1.0,
+      "assertions": [
+        {
+          "name": "status.completed",
+          "passed": true,
+          "actual": "completed",
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "records.minimum",
+          "passed": true,
+          "actual": 8,
+          "expected": 5,
+          "detail": null
+        },
+        {
+          "name": "content.minimum_chars",
+          "passed": true,
+          "actual": 69905,
+          "expected": 20000,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:c4a6c83a400aa7480d2b7763ee73cf91a15125a75587946f3b3f9658669e4f9c",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:09b6c21c0f50ab269ad7d3f8c98edc5a7209522509434ba760a38be32455172f",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:e6ee83c6cb1d7b7fcae1c4509970407d44763bbb572a70a1195912c88fc8e722",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:60283338fee3ec054be4e5d95328d16616c4f8eeb735282bb1d987edce7c2952",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:63a3913d648022d8c0024273ffbfc25d99d73fb48e3ee7346ec9aa526af39718",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:0fb7f5c10e2dc7a9e5df62ed20a42fdeaed95ff3af42d64ea220e09a49812841",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "urls.allowed_domains",
+          "passed": true,
+          "actual": 1.0,
+          "expected": 1.0,
+          "detail": null
+        },
+        {
+          "name": "records.maximum_duplicate_rate",
+          "passed": true,
+          "actual": 0.0,
+          "expected": 1.0,
+          "detail": null
+        }
+      ],
+      "metrics": {
+        "record_count": 8,
+        "content_chars": 69905,
+        "term_coverage": 1.0,
+        "forbidden_term_cleanliness": 1.0,
+        "url_recall": 1.0,
+        "domain_precision": 1.0,
+        "duplicate_rate": 0.0
+      },
+      "elapsed_seconds": 1.5807037499980652,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "status": "completed",
+      "lane": "crawl"
+    },
+    {
+      "case_id": "crawl.go-docs",
+      "system": "docpull",
+      "trial_index": 1,
+      "split": "test",
+      "family": "language-reference-crawl",
+      "critical": false,
+      "completed": true,
+      "passed": true,
+      "required_check_rate": 1.0,
+      "assertions": [
+        {
+          "name": "status.completed",
+          "passed": true,
+          "actual": "completed",
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "records.minimum",
+          "passed": true,
+          "actual": 8,
+          "expected": 5,
+          "detail": null
+        },
+        {
+          "name": "content.minimum_chars",
+          "passed": true,
+          "actual": 464755,
+          "expected": 30000,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:6bca165cc1174c7c86a65abfa4663a4c939b6694b8c4a5a08cde9f93a01bb352",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:48fa0b0a9d39daaa82c3474df1180ce1054f7ea8eb32107c8e3e8919987b1759",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:10244246d395080ebf22adf2916956678fd6647cc94df91c3e9c817fcb9a9b6b",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:3f4be4138e8609715789c6cbac2cbb2f361acfc7e78f2b3a0ba80abf613e5496",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:5ba657a1b59eaea19f425c7b99a6c5e0842e7988126a3751d02dcd03befc68ba",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:5d82dc9a454dc245a9c2c6f7318c3dc7ecc584aff60ddccd5711f93cba6105cf",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "urls.allowed_domains",
+          "passed": true,
+          "actual": 1.0,
+          "expected": 1.0,
+          "detail": null
+        },
+        {
+          "name": "records.maximum_duplicate_rate",
+          "passed": true,
+          "actual": 0.0,
+          "expected": 1.0,
+          "detail": null
+        }
+      ],
+      "metrics": {
+        "record_count": 8,
+        "content_chars": 464755,
+        "term_coverage": 1.0,
+        "forbidden_term_cleanliness": 1.0,
+        "url_recall": 1.0,
+        "domain_precision": 1.0,
+        "duplicate_rate": 0.0
+      },
+      "elapsed_seconds": 7.413402542002586,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "status": "completed",
+      "lane": "crawl"
+    },
+    {
+      "case_id": "crawl.go-docs",
+      "system": "docpull",
+      "trial_index": 2,
+      "split": "test",
+      "family": "language-reference-crawl",
+      "critical": false,
+      "completed": true,
+      "passed": true,
+      "required_check_rate": 1.0,
+      "assertions": [
+        {
+          "name": "status.completed",
+          "passed": true,
+          "actual": "completed",
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "records.minimum",
+          "passed": true,
+          "actual": 8,
+          "expected": 5,
+          "detail": null
+        },
+        {
+          "name": "content.minimum_chars",
+          "passed": true,
+          "actual": 464755,
+          "expected": 30000,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:6bca165cc1174c7c86a65abfa4663a4c939b6694b8c4a5a08cde9f93a01bb352",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:48fa0b0a9d39daaa82c3474df1180ce1054f7ea8eb32107c8e3e8919987b1759",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:10244246d395080ebf22adf2916956678fd6647cc94df91c3e9c817fcb9a9b6b",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:3f4be4138e8609715789c6cbac2cbb2f361acfc7e78f2b3a0ba80abf613e5496",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:5ba657a1b59eaea19f425c7b99a6c5e0842e7988126a3751d02dcd03befc68ba",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:5d82dc9a454dc245a9c2c6f7318c3dc7ecc584aff60ddccd5711f93cba6105cf",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "urls.allowed_domains",
+          "passed": true,
+          "actual": 1.0,
+          "expected": 1.0,
+          "detail": null
+        },
+        {
+          "name": "records.maximum_duplicate_rate",
+          "passed": true,
+          "actual": 0.0,
+          "expected": 1.0,
+          "detail": null
+        }
+      ],
+      "metrics": {
+        "record_count": 8,
+        "content_chars": 464755,
+        "term_coverage": 1.0,
+        "forbidden_term_cleanliness": 1.0,
+        "url_recall": 1.0,
+        "domain_precision": 1.0,
+        "duplicate_rate": 0.0
+      },
+      "elapsed_seconds": 6.785372624999582,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "status": "completed",
+      "lane": "crawl"
+    },
+    {
+      "case_id": "crawl.rust-book",
+      "system": "docpull",
+      "trial_index": 1,
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "critical": false,
+      "completed": true,
+      "passed": true,
+      "required_check_rate": 1.0,
+      "assertions": [
+        {
+          "name": "status.completed",
+          "passed": true,
+          "actual": "completed",
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "records.minimum",
+          "passed": true,
+          "actual": 6,
+          "expected": 5,
+          "detail": null
+        },
+        {
+          "name": "content.minimum_chars",
+          "passed": true,
+          "actual": 1360352,
+          "expected": 12000,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:6aa8c23898e151632078c750e6169c08590a303e114156c2b73c074c24037796",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:561f0a3d84e3c5cf22f379912b7513b40c4e08edd60dc8b936a407db52b9579c",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:4ec5d59a585b99d542c05e08e61fdada3245978de910743d5333253142ee8908",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:e247e75ada8cb835493898aafe22e5f069fe501a8ac9694e795bb2c6c1dd2ba7",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:89c47e72f4f20c2238dcc47715002862e43df8ecfc48733160b2931e51fac8c9",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:5f6e6a555f869b3725667170e5067ff6961611dedb499bcf1e2d3d2c6f9bd8fc",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "urls.allowed_domains",
+          "passed": true,
+          "actual": 1.0,
+          "expected": 1.0,
+          "detail": null
+        },
+        {
+          "name": "records.maximum_duplicate_rate",
+          "passed": true,
+          "actual": 0.0,
+          "expected": 1.0,
+          "detail": null
+        }
+      ],
+      "metrics": {
+        "record_count": 6,
+        "content_chars": 1360352,
+        "term_coverage": 1.0,
+        "forbidden_term_cleanliness": 1.0,
+        "url_recall": 1.0,
+        "domain_precision": 1.0,
+        "duplicate_rate": 0.0
+      },
+      "elapsed_seconds": 3.082053750000341,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "status": "completed",
+      "lane": "crawl"
+    },
+    {
+      "case_id": "crawl.rust-book",
+      "system": "docpull",
+      "trial_index": 2,
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "critical": false,
+      "completed": true,
+      "passed": true,
+      "required_check_rate": 1.0,
+      "assertions": [
+        {
+          "name": "status.completed",
+          "passed": true,
+          "actual": "completed",
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "records.minimum",
+          "passed": true,
+          "actual": 6,
+          "expected": 5,
+          "detail": null
+        },
+        {
+          "name": "content.minimum_chars",
+          "passed": true,
+          "actual": 1360352,
+          "expected": 12000,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:6aa8c23898e151632078c750e6169c08590a303e114156c2b73c074c24037796",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:561f0a3d84e3c5cf22f379912b7513b40c4e08edd60dc8b936a407db52b9579c",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:4ec5d59a585b99d542c05e08e61fdada3245978de910743d5333253142ee8908",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:e247e75ada8cb835493898aafe22e5f069fe501a8ac9694e795bb2c6c1dd2ba7",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:89c47e72f4f20c2238dcc47715002862e43df8ecfc48733160b2931e51fac8c9",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:5f6e6a555f869b3725667170e5067ff6961611dedb499bcf1e2d3d2c6f9bd8fc",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "urls.allowed_domains",
+          "passed": true,
+          "actual": 1.0,
+          "expected": 1.0,
+          "detail": null
+        },
+        {
+          "name": "records.maximum_duplicate_rate",
+          "passed": true,
+          "actual": 0.0,
+          "expected": 1.0,
+          "detail": null
+        }
+      ],
+      "metrics": {
+        "record_count": 6,
+        "content_chars": 1360352,
+        "term_coverage": 1.0,
+        "forbidden_term_cleanliness": 1.0,
+        "url_recall": 1.0,
+        "domain_precision": 1.0,
+        "duplicate_rate": 0.0
+      },
+      "elapsed_seconds": 2.5753637079978944,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "status": "completed",
+      "lane": "crawl"
+    },
+    {
+      "case_id": "crawl.fastapi-tutorial",
+      "system": "docpull",
+      "trial_index": 1,
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "critical": false,
+      "completed": true,
+      "passed": true,
+      "required_check_rate": 1.0,
+      "assertions": [
+        {
+          "name": "status.completed",
+          "passed": true,
+          "actual": "completed",
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "records.minimum",
+          "passed": true,
+          "actual": 8,
+          "expected": 5,
+          "detail": null
+        },
+        {
+          "name": "content.minimum_chars",
+          "passed": true,
+          "actual": 89390,
+          "expected": 20000,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:c7d9c7e23dba42077fce391346b6dfc8722923f907e766fca5997389c0cb3c16",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:ba2680e9b3122235ec76233cfbe242b01b4abdf24503b6af5522cec3ffae989e",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:7f07c8b7eadc73f2755c60efb1d9d7ac0f094dd7c1dba3069d3be0214be10fb6",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:6634008cc0069f6528f5c6a79d0b3f98169d3156a378c4336e9c96c626251455",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:2cdbc329c377e57a3fef165dad7b33d23b9598644f5e232a2089e66ccab5c8ea",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:a106cd5ebeea2961ab8d1ad42db31a448b5c9311e980b049564cb36b66044854",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "urls.allowed_domains",
+          "passed": true,
+          "actual": 1.0,
+          "expected": 1.0,
+          "detail": null
+        },
+        {
+          "name": "records.maximum_duplicate_rate",
+          "passed": true,
+          "actual": 0.0,
+          "expected": 1.0,
+          "detail": null
+        }
+      ],
+      "metrics": {
+        "record_count": 8,
+        "content_chars": 89390,
+        "term_coverage": 1.0,
+        "forbidden_term_cleanliness": 1.0,
+        "url_recall": 1.0,
+        "domain_precision": 1.0,
+        "duplicate_rate": 0.0
+      },
+      "elapsed_seconds": 1.5292821660004847,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "status": "completed",
+      "lane": "crawl"
+    },
+    {
+      "case_id": "crawl.fastapi-tutorial",
+      "system": "docpull",
+      "trial_index": 2,
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "critical": false,
+      "completed": true,
+      "passed": true,
+      "required_check_rate": 1.0,
+      "assertions": [
+        {
+          "name": "status.completed",
+          "passed": true,
+          "actual": "completed",
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "records.minimum",
+          "passed": true,
+          "actual": 8,
+          "expected": 5,
+          "detail": null
+        },
+        {
+          "name": "content.minimum_chars",
+          "passed": true,
+          "actual": 89390,
+          "expected": 20000,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:c7d9c7e23dba42077fce391346b6dfc8722923f907e766fca5997389c0cb3c16",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:ba2680e9b3122235ec76233cfbe242b01b4abdf24503b6af5522cec3ffae989e",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:7f07c8b7eadc73f2755c60efb1d9d7ac0f094dd7c1dba3069d3be0214be10fb6",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:6634008cc0069f6528f5c6a79d0b3f98169d3156a378c4336e9c96c626251455",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:2cdbc329c377e57a3fef165dad7b33d23b9598644f5e232a2089e66ccab5c8ea",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:a106cd5ebeea2961ab8d1ad42db31a448b5c9311e980b049564cb36b66044854",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "urls.allowed_domains",
+          "passed": true,
+          "actual": 1.0,
+          "expected": 1.0,
+          "detail": null
+        },
+        {
+          "name": "records.maximum_duplicate_rate",
+          "passed": true,
+          "actual": 0.0,
+          "expected": 1.0,
+          "detail": null
+        }
+      ],
+      "metrics": {
+        "record_count": 8,
+        "content_chars": 89390,
+        "term_coverage": 1.0,
+        "forbidden_term_cleanliness": 1.0,
+        "url_recall": 1.0,
+        "domain_precision": 1.0,
+        "duplicate_rate": 0.0
+      },
+      "elapsed_seconds": 1.4857275409995054,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "status": "completed",
+      "lane": "crawl"
+    },
+    {
+      "case_id": "crawl.kubernetes-concepts",
+      "system": "docpull",
+      "trial_index": 1,
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "critical": false,
+      "completed": true,
+      "passed": true,
+      "required_check_rate": 1.0,
+      "assertions": [
+        {
+          "name": "status.completed",
+          "passed": true,
+          "actual": "completed",
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "records.minimum",
+          "passed": true,
+          "actual": 8,
+          "expected": 5,
+          "detail": null
+        },
+        {
+          "name": "content.minimum_chars",
+          "passed": true,
+          "actual": 155950,
+          "expected": 20000,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:2294a8c9606d7367684b6159133fc5ee55f03f9b05e10eb23ccd2af84b7f0d4d",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:01366d7dabda289fd567b8afa93a1fdc0be11b962254a027caec2e4be5a94c16",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:21b2eed1e328a2c62fe4c17d51188bdea73450f29956dc5c8c95429313ddd72c",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:cb6952ad5a8ac8a37b7d70fd2acbddf9c1ab729e20b208f4dd982f48fead54b1",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:6a7a1f3dc1324368067ac095ae142621845921b667c4a9663def8e7d6191249d",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:4b5ae5aa6ab24aa40a7ab028f4be686a7a62f83ac576f517ddf3d47c5890c608",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "urls.allowed_domains",
+          "passed": true,
+          "actual": 1.0,
+          "expected": 1.0,
+          "detail": null
+        },
+        {
+          "name": "records.maximum_duplicate_rate",
+          "passed": true,
+          "actual": 0.0,
+          "expected": 1.0,
+          "detail": null
+        }
+      ],
+      "metrics": {
+        "record_count": 8,
+        "content_chars": 155950,
+        "term_coverage": 1.0,
+        "forbidden_term_cleanliness": 1.0,
+        "url_recall": 1.0,
+        "domain_precision": 1.0,
+        "duplicate_rate": 0.0
+      },
+      "elapsed_seconds": 4.489597749998211,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "status": "completed",
+      "lane": "crawl"
+    },
+    {
+      "case_id": "crawl.kubernetes-concepts",
+      "system": "docpull",
+      "trial_index": 2,
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "critical": false,
+      "completed": true,
+      "passed": true,
+      "required_check_rate": 1.0,
+      "assertions": [
+        {
+          "name": "status.completed",
+          "passed": true,
+          "actual": "completed",
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "records.minimum",
+          "passed": true,
+          "actual": 8,
+          "expected": 5,
+          "detail": null
+        },
+        {
+          "name": "content.minimum_chars",
+          "passed": true,
+          "actual": 155950,
+          "expected": 20000,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:2294a8c9606d7367684b6159133fc5ee55f03f9b05e10eb23ccd2af84b7f0d4d",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:01366d7dabda289fd567b8afa93a1fdc0be11b962254a027caec2e4be5a94c16",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:21b2eed1e328a2c62fe4c17d51188bdea73450f29956dc5c8c95429313ddd72c",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:cb6952ad5a8ac8a37b7d70fd2acbddf9c1ab729e20b208f4dd982f48fead54b1",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:6a7a1f3dc1324368067ac095ae142621845921b667c4a9663def8e7d6191249d",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:4b5ae5aa6ab24aa40a7ab028f4be686a7a62f83ac576f517ddf3d47c5890c608",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "urls.allowed_domains",
+          "passed": true,
+          "actual": 1.0,
+          "expected": 1.0,
+          "detail": null
+        },
+        {
+          "name": "records.maximum_duplicate_rate",
+          "passed": true,
+          "actual": 0.0,
+          "expected": 1.0,
+          "detail": null
+        }
+      ],
+      "metrics": {
+        "record_count": 8,
+        "content_chars": 155950,
+        "term_coverage": 1.0,
+        "forbidden_term_cleanliness": 1.0,
+        "url_recall": 1.0,
+        "domain_precision": 1.0,
+        "duplicate_rate": 0.0
+      },
+      "elapsed_seconds": 3.936899665997771,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "status": "completed",
+      "lane": "crawl"
+    }
+  ],
+  "summary": {
+    "case_count": 8,
+    "case_runs": 16,
+    "repeat": 2,
+    "completed": 16,
+    "unsupported": 0,
+    "completion_rate": 1.0,
+    "trial_pass_rate": 0.875,
+    "pass_all_trials_rate": 0.875,
+    "pass_any_trial_rate": 0.875,
+    "trial_stability_rate": 1.0,
+    "mean_required_check_rate": 0.9886363636363636,
+    "mean_elapsed_seconds": 3.680532005062105,
+    "observed_cost_usd": 0.0,
+    "cost_observed_runs": 16,
+    "cost_actual_runs": 16,
+    "cost_estimated_runs": 0,
+    "cost_upper_bound_runs": 0,
+    "cost_unknown_runs": 0
+  }
+}

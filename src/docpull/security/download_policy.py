@@ -275,10 +275,21 @@ class SafeDownloadPolicy:
 
     max_sniff_bytes = 8192
 
+    def __init__(self, *, allowed_remote_document_types: set[str] | None = None) -> None:
+        self.allowed_remote_document_types = frozenset(
+            content_type_base(value) for value in (allowed_remote_document_types or set())
+        )
+
+    @property
+    def allows_pdf(self) -> bool:
+        return "application/pdf" in self.allowed_remote_document_types
+
     def validate_request_url(self, url: str) -> None:
         """Fail before the request for URLs that clearly target unsafe files."""
         parsed = urlparse(url)
         extension = _first_dangerous_extension(parsed.path)
+        if extension == ".pdf" and self.allows_pdf:
+            extension = None
         if extension is not None:
             raise UnsafeDownloadError(
                 f"Disallowed download URL extension '{extension}' for {url}. "
@@ -302,11 +313,17 @@ class SafeDownloadPolicy:
             lowered = disposition.lower()
             filename = _filename_from_content_disposition(disposition)
             if "attachment" in lowered:
-                raise UnsafeDownloadError(
-                    f"Refusing attachment response from {url}; docpull only fetches inline web/text content."
-                )
+                attachment_type = content_type_base(content_type or _header_get(headers, "Content-Type"))
+                if attachment_type not in self.allowed_remote_document_types:
+                    raise UnsafeDownloadError(
+                        f"Refusing attachment response from {url}; "
+                        "docpull only fetches inline web/text content unless an explicit "
+                        "remote-document type is enabled."
+                    )
             if filename:
                 extension = _first_dangerous_extension(filename)
+                if extension == ".pdf" and self.allows_pdf:
+                    extension = None
                 if extension is not None:
                     raise UnsafeDownloadError(
                         f"Refusing response from {url}; Content-Disposition filename "
@@ -314,6 +331,8 @@ class SafeDownloadPolicy:
                     )
 
         base_type = content_type_base(content_type or _header_get(headers, "Content-Type"))
+        if base_type in self.allowed_remote_document_types:
+            return
         if base_type in _DANGEROUS_CONTENT_TYPES:
             raise UnsafeDownloadError(f"Disallowed content type '{base_type}' for {url}.")
         if base_type and base_type not in ALLOWED_DOCUMENT_CONTENT_TYPES:
@@ -330,6 +349,8 @@ class SafeDownloadPolicy:
         for signature in _DANGEROUS_MAGIC_SIGNATURES:
             end = signature.offset + len(signature.prefix)
             if len(body_prefix) >= end and body_prefix[signature.offset : end] == signature.prefix:
+                if signature.name == "PDF document" and self.allows_pdf:
+                    return
                 raise UnsafeDownloadError(f"Disallowed {signature.name} body while fetching {url}.")
 
         if _looks_like_svg_document(body_prefix):

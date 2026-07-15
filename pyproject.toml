@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "docpull"
-version = "6.0.1"
+version = "6.1.0"
 dynamic = []
 description = "Declare, sync, diff, and lock context dependencies for AI agents"
 readme = {file = "README.md", content-type = "text/markdown"}
@@ -123,13 +123,19 @@ parquet = [
     "pyarrow>=16.0.0",
 ]
 markitdown = [
-    "markitdown>=0.1.0",
+    "pypdf>=6.14.2",
+    "markitdown[docx,pdf]>=0.1.0",
 ]
 unstructured = [
+    "pypdf>=6.14.2",
     "unstructured[all-docs]>=0.16.0",
 ]
+pdf = [
+    "pypdf>=6.14.2",
+]
 parse = [
-    "markitdown>=0.1.0",
+    "pypdf>=6.14.2",
+    "markitdown[docx,pdf]>=0.1.0",
     "unstructured[all-docs]>=0.16.0",
 ]
 presidio = [
@@ -154,7 +160,8 @@ all = [
     "starlette>=1.3.1",
     "uvicorn>=0.30.0",
     "pyarrow>=16.0.0",
-    "markitdown>=0.1.0",
+    "pypdf>=6.14.2",
+    "markitdown[docx,pdf]>=0.1.0",
     "unstructured[all-docs]>=0.16.0",
     "presidio-analyzer>=2.2.0",
     "e2b>=2.0.0",
@@ -179,8 +186,8 @@ dev = [
 docpull = "docpull.cli:main"
 
 [project.urls]
-Homepage = "https://docpull.raintree.technology"
-Documentation = "https://docpull.raintree.technology"
+Homepage = "https://github.com/raintree-technology/docpull"
+Documentation = "https://github.com/raintree-technology/docpull#readme"
 Repository = "https://github.com/raintree-technology/docpull"
 "Source Code" = "https://github.com/raintree-technology/docpull"
 "Bug Tracker" = "https://github.com/raintree-technology/docpull/issues"

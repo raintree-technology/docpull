@@ -1,0 +1,100 @@
+schema_version: 1
+as_of: "2026-07-14"
+method: public_first_party_documentation_review
+interpretation: >-
+  documented means a first-party source describes the capability. not_documented
+  means this review did not find a first-party product contract and must not be
+  restated as unsupported.
+capabilities:
+  - id: fixed_url_markdown
+    docpull: documented
+    tavily: documented
+    exa: documented
+    parallel: documented
+    context_dev: documented
+    firecrawl: documented
+  - id: bounded_site_crawl
+    docpull: documented
+    tavily: documented
+    exa: not_documented
+    parallel: not_documented
+    context_dev: documented
+    firecrawl: documented
+  - id: proprietary_open_web_search
+    docpull: out_of_scope_without_provider
+    tavily: documented
+    exa: documented
+    parallel: documented
+    context_dev: documented
+    firecrawl: documented
+  - id: cited_research_or_answer
+    docpull: documented_local_workflow
+    tavily: documented
+    exa: documented
+    parallel: documented
+    context_dev: documented_structured_query
+    firecrawl: documented
+  - id: scheduled_change_monitor
+    docpull: documented_local_cron_workflow
+    tavily: not_documented
+    exa: documented_websets_scope
+    parallel: documented
+    context_dev: documented
+    firecrawl: documented
+  - id: local_context_lockfile
+    docpull: documented
+    tavily: not_documented
+    exa: not_documented
+    parallel: not_documented
+    context_dev: not_documented
+    firecrawl: not_documented
+  - id: versioned_local_artifact_contract
+    docpull: documented
+    tavily: not_documented
+    exa: not_documented
+    parallel: not_documented
+    context_dev: not_documented
+    firecrawl: not_documented
+  - id: offline_cited_pack_retrieval
+    docpull: documented
+    tavily: not_documented
+    exa: not_documented
+    parallel: not_documented
+    context_dev: not_documented
+    firecrawl: not_documented
+  - id: context_ci_gates
+    docpull: documented
+    tavily: not_documented
+    exa: not_documented
+    parallel: not_documented
+    context_dev: not_documented
+    firecrawl: not_documented
+  - id: managed_browser_proxy_access
+    docpull: explicit_opt_in_adapter_not_hosted
+    tavily: managed_extraction_documented
+    exa: managed_livecrawl_documented
+    parallel: managed_extraction_documented
+    context_dev: documented_proxy_escalation_and_country
+    firecrawl: documented_proxy_modes
+sources:
+  docpull:
+    - ../../README.md
+    - ../../docs/context-pack-contract-v3.md
+    - ../../docs/context-ci.md
+  tavily:
+    - https://docs.tavily.com/llms.txt
+    - https://docs.tavily.com/documentation/api-credits
+  exa:
+    - https://exa.ai/docs/llms.txt
+    - https://exa.ai/docs/reference/contents-retrieval
+    - https://exa.ai/docs/reference/answer
+  parallel:
+    - https://docs.parallel.ai/llms.txt
+    - https://docs.parallel.ai/getting-started/pricing
+    - https://docs.parallel.ai/api-reference/monitor/create-monitor
+  context_dev:
+    - https://docs.context.dev/llms.txt
+    - https://docs.context.dev/changelog
+  firecrawl:
+    - https://docs.firecrawl.dev/llms.txt
+    - https://www.firecrawl.dev/pricing

@@ -1,0 +1,27 @@
+{
+  "adapter_version": "2",
+  "case_id": "research.fixture.16",
+  "cost_basis": "Repository replay; no request.",
+  "cost_kind": "actual",
+  "cost_usd": 0,
+  "elapsed_seconds": 0.001,
+  "payload": {
+    "claims": [
+      {
+        "claim_id": "claim-16",
+        "evidence_ids": [
+          "research-evidence-16"
+        ],
+        "excerpts": [
+          "field-16 value-16"
+        ],
+        "value": "value-16"
+      }
+    ],
+    "kind": "research"
+  },
+  "request_count": 0,
+  "schema_version": 2,
+  "status": "completed",
+  "system": "fixture"
+}

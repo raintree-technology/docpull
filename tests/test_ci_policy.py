@@ -9,6 +9,8 @@ import sys
 from pathlib import Path
 from unittest import mock
 
+import yaml
+
 from docpull.mcp.sources import default_docs_dir
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -24,6 +26,9 @@ ACTION_PIN_EXCEPTIONS = {
     # the resolved commit SHA in this repository; release/v1 is the upstream
     # supported stable entrypoint for the OIDC publish flow.
     ("pypa/gh-action-pypi-publish", "release/v1"),
+}
+APPROVED_ACTION_SHAS = {
+    "actions/setup-python": "ece7cb06caefa5fff74198d8649806c4678c61a1",
 }
 
 
@@ -53,6 +58,19 @@ def test_github_actions_are_pinned_to_full_commit_shas() -> None:
                 and (match.group(1), match.group(2)) not in ACTION_PIN_EXCEPTIONS
                 and not FULL_SHA_RE.fullmatch(match.group(2))
             ):
+                offenders.append(f"{path.relative_to(REPO_ROOT)}:{lineno}: {match.group(0)}")
+
+    assert offenders == []
+
+
+def test_critical_github_actions_use_approved_resolvable_shas() -> None:
+    offenders: list[str] = []
+    for path in sorted(WORKFLOW_DIR.glob("*.yml")):
+        for lineno, line in enumerate(path.read_text().splitlines(), start=1):
+            match = USE_RE.search(line)
+            if match is None or match.group(1) not in APPROVED_ACTION_SHAS:
+                continue
+            if match.group(2) != APPROVED_ACTION_SHAS[match.group(1)]:
                 offenders.append(f"{path.relative_to(REPO_ROOT)}:{lineno}: {match.group(0)}")
 
     assert offenders == []
@@ -97,7 +115,7 @@ def test_ci_builds_checks_and_smoke_installs_distribution() -> None:
     assert "\n  package:\n" in ci
     assert "python scripts/sync_release_metadata.py --check" in ci
     assert "python -m pip install -r requirements-release.txt" in ci
-    assert "python -m build --no-isolation" in ci
+    assert "python scripts/build_release.py --verify-reproducible" in ci
     assert "python -m twine check dist/*" in ci
     assert "python -m venv .pkg-smoke" in ci
     assert ".pkg-smoke/bin/python -m pip install dist/*.whl" in ci
@@ -109,7 +127,7 @@ def test_publish_workflow_builds_artifact_before_unlocked_release_gates() -> Non
     build_section, gate_and_publish = publish.split("\n  release-gates:\n", 1)
     gate_section, publish_section = gate_and_publish.split("\n  publish:\n", 1)
 
-    assert "python -m build --no-isolation" in build_section
+    assert "python scripts/build_release.py --verify-reproducible" in build_section
     assert "actions/upload-artifact" in build_section
     assert "if-no-files-found: error" in build_section
     assert "retention-days: 7" in build_section
@@ -159,6 +177,15 @@ def test_security_and_publish_bandit_scan_scripts() -> None:
     assert "python -m bandit -q -c pyproject.toml -r src scripts" in publish
 
 
+def test_security_workflow_uses_patched_release_backend() -> None:
+    security = (WORKFLOW_DIR / "security.yml").read_text()
+    release_requirements = (REPO_ROOT / "requirements-release.txt").read_text()
+
+    assert "setuptools==83.0.0" in security
+    assert "setuptools==83.0.0" in release_requirements
+    assert "working-directory: web" not in security
+
+
 def test_workflows_use_module_entrypoints_for_python_tooling() -> None:
     raw_tool_prefixes = (
         "ruff ",
@@ -186,6 +213,14 @@ def test_pre_commit_mypy_uses_project_interpreter_wrapper() -> None:
 
     assert "entry: python3 scripts/precommit_mypy.py" in config
     assert "entry: mypy src" not in config
+
+
+def test_pre_commit_mutators_preserve_hashed_benchmark_results() -> None:
+    config = yaml.safe_load((REPO_ROOT / ".pre-commit-config.yaml").read_text())
+    hooks = {hook["id"]: hook for repository in config["repos"] for hook in repository["hooks"]}
+
+    for hook_id in ("trailing-whitespace", "end-of-file-fixer", "mixed-line-ending"):
+        assert hooks[hook_id]["exclude"] == r"^bench/results/"
 
 
 def test_local_make_gates_include_generated_metadata_check() -> None:
@@ -225,6 +260,15 @@ def test_plugin_manifest_versions_match_project_version() -> None:
     ):
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         assert manifest["version"] == project_version()
+
+
+def test_mcp_registry_manifest_versions_match_project_version() -> None:
+    manifest = json.loads((REPO_ROOT / "server.json").read_text(encoding="utf-8"))
+
+    assert manifest["version"] == project_version()
+    assert len(manifest["packages"]) == 1
+    assert manifest["packages"][0]["identifier"] == "docpull"
+    assert manifest["packages"][0]["version"] == project_version()
 
 
 def test_generated_release_metadata_is_synchronized() -> None:

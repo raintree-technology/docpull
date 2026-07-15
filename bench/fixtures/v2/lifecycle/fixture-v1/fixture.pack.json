@@ -1,0 +1,41 @@
+{
+  "artifacts": {
+    "acquisition_routes": "acquisition.routes.json",
+    "corpus_manifest": "corpus.manifest.json",
+    "documents_ndjson": "documents.ndjson",
+    "sources": "sources.md"
+  },
+  "extract_error_count": 0,
+  "objective": "Keep an agent synchronized with a controlled API documentation corpus.",
+  "provider": "synthetic-fixture",
+  "record_count": 3,
+  "request_options": {
+    "source_policy": {
+      "include_domains": [
+        "docs.example.test"
+      ]
+    }
+  },
+  "schema_version": 3,
+  "sources": [
+    {
+      "index": 1,
+      "path": "sources/01.md",
+      "title": "Authentication",
+      "url": "https://docs.example.test/auth"
+    },
+    {
+      "index": 2,
+      "path": "sources/02.md",
+      "title": "Rate limits",
+      "url": "https://docs.example.test/rate-limits"
+    },
+    {
+      "index": 3,
+      "path": "sources/03.md",
+      "title": "Deprecated API",
+      "url": "https://docs.example.test/deprecated"
+    }
+  ],
+  "workflow": "context-lifecycle-benchmark"
+}

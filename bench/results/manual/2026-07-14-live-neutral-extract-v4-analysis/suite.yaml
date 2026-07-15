@@ -1,0 +1,1107 @@
+schema_version: 2
+name: live-neutral-extract
+version: 1.0.0
+description: Neutral fixed-URL extraction benchmark spanning technical documentation,
+  standards, raw text, long-form pages, PDFs, modern web pages, and one explicitly
+  separated managed-access challenge. Gold terms were manually checked against first-party
+  sources on 2026-07-14. Dev and test domains do not overlap.
+cases:
+- id: dev.docs.python-control-flow
+  input:
+    case_id: dev.docs.python-control-flow
+    lane: extract
+    url: https://docs.python.org/3.13/tutorial/controlflow.html
+    include_domains:
+    - docs.python.org
+    timeout_seconds: 90
+  expected:
+    minimum_records: 1
+    minimum_content_chars: 8000
+    required_terms:
+    - More Control Flow Tools
+    - arithmetic progressions
+    - match Statements
+    allowed_domains:
+    - docs.python.org
+    lane: extract
+  metadata:
+    description: Versioned Sphinx tutorial page with code and nested sections.
+    split: dev
+    family: technical-docs
+    live: true
+    tags:
+    - html
+    - sphinx
+    - code
+    reference_checked_at: '2026-07-14'
+    rights:
+      redistribution: allowed_with_conditions
+      source: Python documentation under the PSF License Agreement.
+    product_area: legacy-v1-migrated
+    critical: false
+    reference_expires_at: '2026-10-12'
+- id: dev.docs.sqlite-select
+  input:
+    case_id: dev.docs.sqlite-select
+    lane: extract
+    url: https://www.sqlite.org/lang_select.html
+    include_domains:
+    - sqlite.org
+    timeout_seconds: 90
+  expected:
+    minimum_records: 1
+    minimum_content_chars: 10000
+    required_terms:
+    - Simple Select Processing
+    - Compound Select Statements
+    - LIMIT clause
+    allowed_domains:
+    - sqlite.org
+    lane: extract
+  metadata:
+    description: Large reference page containing railroad diagrams and dense SQL prose.
+    split: dev
+    family: long-reference
+    live: true
+    tags:
+    - html
+    - long
+    - diagrams
+    reference_checked_at: '2026-07-14'
+    rights:
+      redistribution: allowed
+      source: SQLite documentation dedicated to the public domain.
+    product_area: legacy-v1-migrated
+    critical: false
+    reference_expires_at: '2026-10-12'
+- id: dev.docs.git-rebase
+  input:
+    case_id: dev.docs.git-rebase
+    lane: extract
+    url: https://git-scm.com/docs/git-rebase
+    include_domains:
+    - git-scm.com
+    timeout_seconds: 90
+  expected:
+    minimum_records: 1
+    minimum_content_chars: 5000
+    required_terms:
+    - git-rebase
+    - INTERACTIVE MODE
+    - RECOVERING FROM UPSTREAM REBASE
+    allowed_domains:
+    - git-scm.com
+    lane: extract
+  metadata:
+    description: Long manual page with options, code blocks, and version navigation.
+    split: dev
+    family: long-reference
+    live: true
+    tags:
+    - html
+    - manual
+    - code
+    reference_checked_at: '2026-07-14'
+    rights:
+      redistribution: unknown
+      source: Git project documentation; benchmark reports do not redistribute page
+        content.
+    product_area: legacy-v1-migrated
+    critical: false
+    reference_expires_at: '2026-10-12'
+- id: dev.docs.kubernetes-object-names
+  input:
+    case_id: dev.docs.kubernetes-object-names
+    lane: extract
+    url: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/
+    include_domains:
+    - kubernetes.io
+    timeout_seconds: 90
+  expected:
+    minimum_records: 1
+    minimum_content_chars: 2000
+    required_terms:
+    - Object Names and IDs
+    - Names
+    - UIDs
+    allowed_domains:
+    - kubernetes.io
+    lane: extract
+  metadata:
+    description: Hugo documentation page with navigation, callouts, and anchors.
+    split: dev
+    family: technical-docs
+    live: true
+    tags:
+    - html
+    - hugo
+    - callouts
+    reference_checked_at: '2026-07-14'
+    rights:
+      redistribution: allowed_with_conditions
+      source: Kubernetes website content under CC BY 4.0.
+    product_area: legacy-v1-migrated
+    critical: false
+    reference_expires_at: '2026-10-12'
+- id: dev.docs.mdn-using-fetch
+  input:
+    case_id: dev.docs.mdn-using-fetch
+    lane: extract
+    url: https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
+    include_domains:
+    - developer.mozilla.org
+    timeout_seconds: 90
+  expected:
+    minimum_records: 1
+    minimum_content_chars: 4000
+    required_terms:
+    - Using the Fetch API
+    - Checking response status
+    - Setting a body
+    allowed_domains:
+    - developer.mozilla.org
+    lane: extract
+  metadata:
+    description: Content-heavy reference article with examples and broad site chrome.
+    split: dev
+    family: technical-docs
+    live: true
+    tags:
+    - html
+    - reference
+    - code
+    reference_checked_at: '2026-07-14'
+    rights:
+      redistribution: allowed_with_conditions
+      source: MDN content under CC BY-SA 2.5 or later terms noted by MDN.
+    product_area: legacy-v1-migrated
+    critical: false
+    reference_expires_at: '2026-10-12'
+- id: dev.standard.wcag-22
+  input:
+    case_id: dev.standard.wcag-22
+    lane: extract
+    url: https://www.w3.org/TR/WCAG22/
+    include_domains:
+    - w3.org
+    timeout_seconds: 120
+  expected:
+    minimum_records: 1
+    minimum_content_chars: 20000
+    required_terms:
+    - Web Content Accessibility Guidelines (WCAG) 2.2
+    - Perceivable
+    - Robust
+    allowed_domains:
+    - w3.org
+    lane: extract
+  metadata:
+    description: Large normative W3C recommendation with deeply nested requirements.
+    split: dev
+    family: standards
+    live: true
+    tags:
+    - html
+    - standard
+    - long
+    reference_checked_at: '2026-07-14'
+    rights:
+      redistribution: allowed_with_conditions
+      source: W3C document governed by the W3C Document License.
+    product_area: legacy-v1-migrated
+    critical: false
+    reference_expires_at: '2026-10-12'
+- id: dev.standard.rfc9110-html
+  input:
+    case_id: dev.standard.rfc9110-html
+    lane: extract
+    url: https://www.rfc-editor.org/rfc/rfc9110.html
+    include_domains:
+    - rfc-editor.org
+    timeout_seconds: 120
+  expected:
+    minimum_records: 1
+    minimum_content_chars: 20000
+    required_terms:
+    - HTTP Semantics
+    - Field Values
+    - Content Negotiation
+    allowed_domains:
+    - rfc-editor.org
+    lane: extract
+  metadata:
+    description: Very long standards HTML with cross-references and formal terminology.
+    split: dev
+    family: standards
+    live: true
+    tags:
+    - html
+    - rfc
+    - long
+    reference_checked_at: '2026-07-14'
+    rights:
+      redistribution: allowed_with_conditions
+      source: IETF Trust Legal Provisions apply to RFC 9110.
+    product_area: legacy-v1-migrated
+    critical: false
+    reference_expires_at: '2026-10-12'
+- id: dev.raw.cpython-readme
+  input:
+    case_id: dev.raw.cpython-readme
+    lane: extract
+    url: https://raw.githubusercontent.com/python/cpython/v3.13.5/README.rst
+    include_domains:
+    - raw.githubusercontent.com
+    timeout_seconds: 60
+  expected:
+    minimum_records: 1
+    minimum_content_chars: 3000
+    required_terms:
+    - This is Python version 3.13.5
+    - General Information
+    - Build Instructions
+    allowed_domains:
+    - raw.githubusercontent.com
+    lane: extract
+  metadata:
+    description: Immutable tagged reStructuredText source served as plain text.
+    split: dev
+    family: raw-text
+    live: true
+    tags:
+    - text
+    - rst
+    - immutable
+    reference_checked_at: '2026-07-14'
+    rights:
+      redistribution: allowed_with_conditions
+      source: CPython source under the PSF License Agreement.
+    product_area: legacy-v1-migrated
+    critical: false
+    reference_expires_at: '2026-10-12'
+- id: dev.raw.kubernetes-readme
+  input:
+    case_id: dev.raw.kubernetes-readme
+    lane: extract
+    url: https://raw.githubusercontent.com/kubernetes/kubernetes/v1.33.1/README.md
+    include_domains:
+    - raw.githubusercontent.com
+    timeout_seconds: 60
+  expected:
+    minimum_records: 1
+    minimum_content_chars: 1500
+    required_terms:
+    - Kubernetes
+    - K8s
+    - To start using K8s
+    allowed_domains:
+    - raw.githubusercontent.com
+    lane: extract
+  metadata:
+    description: Immutable tagged Markdown README served as plain text.
+    split: dev
+    family: raw-text
+    live: true
+    tags:
+    - text
+    - markdown
+    - immutable
+    reference_checked_at: '2026-07-14'
+    rights:
+      redistribution: allowed
+      source: Kubernetes source under Apache License 2.0.
+    product_area: legacy-v1-migrated
+    critical: false
+    reference_expires_at: '2026-10-12'
+- id: dev.long.wikipedia-grace-hopper
+  input:
+    case_id: dev.long.wikipedia-grace-hopper
+    lane: extract
+    url: https://en.wikipedia.org/wiki/Grace_Hopper
+    include_domains:
+    - en.wikipedia.org
+    timeout_seconds: 90
+  expected:
+    minimum_records: 1
+    minimum_content_chars: 10000
+    required_terms:
+    - Grace Hopper
+    - Harvard Mark I
+    - COBOL
+    allowed_domains:
+    - en.wikipedia.org
+    lane: extract
+  metadata:
+    description: Long encyclopedic article with infoboxes, citations, and navigation
+      noise.
+    split: dev
+    family: long-form
+    live: true
+    tags:
+    - html
+    - article
+    - infobox
+    reference_checked_at: '2026-07-14'
+    rights:
+      redistribution: allowed_with_conditions
+      source: Wikipedia text under CC BY-SA 4.0 and GFDL terms.
+    product_area: legacy-v1-migrated
+    critical: false
+    reference_expires_at: '2026-10-12'
+- id: dev.research.attention-abstract
+  input:
+    case_id: dev.research.attention-abstract
+    lane: extract
+    url: https://arxiv.org/abs/1706.03762
+    include_domains:
+    - arxiv.org
+    timeout_seconds: 90
+  expected:
+    minimum_records: 1
+    minimum_content_chars: 1500
+    required_terms:
+    - Attention Is All You Need
+    - Transformer
+    - machine translation
+    allowed_domains:
+    - arxiv.org
+    lane: extract
+  metadata:
+    description: Research landing page with abstract, author metadata, and links.
+    split: dev
+    family: long-form
+    live: true
+    tags:
+    - html
+    - paper
+    - metadata
+    reference_checked_at: '2026-07-14'
+    rights:
+      redistribution: unknown
+      source: arXiv abstract page; reports contain only scores, hashes, and lengths.
+    product_area: legacy-v1-migrated
+    critical: false
+    reference_expires_at: '2026-10-12'
+- id: dev.pdf.attention-paper
+  input:
+    case_id: dev.pdf.attention-paper
+    lane: extract
+    url: https://arxiv.org/pdf/1706.03762
+    include_domains:
+    - arxiv.org
+    timeout_seconds: 180
+  expected:
+    minimum_records: 1
+    minimum_content_chars: 10000
+    required_terms:
+    - Attention Is All You Need
+    - Transformer
+    - machine translation
+    allowed_domains:
+    - arxiv.org
+    lane: extract
+  metadata:
+    description: Multi-column research PDF with equations, tables, and references.
+    split: dev
+    family: pdf
+    live: true
+    tags:
+    - pdf
+    - paper
+    - multicolumn
+    reference_checked_at: '2026-07-14'
+    rights:
+      redistribution: unknown
+      source: arXiv-hosted paper; reports contain only scores, hashes, and lengths.
+    product_area: legacy-v1-migrated
+    critical: false
+    reference_expires_at: '2026-10-12'
+- id: dev.modern.nextjs-installation
+  input:
+    case_id: dev.modern.nextjs-installation
+    lane: extract
+    url: https://nextjs.org/docs/app/getting-started/installation
+    include_domains:
+    - nextjs.org
+    timeout_seconds: 120
+  expected:
+    minimum_records: 1
+    minimum_content_chars: 2000
+    required_terms:
+    - Installation
+    - System requirements
+    - create-next-app
+    allowed_domains:
+    - nextjs.org
+    lane: extract
+  metadata:
+    description: Modern Next.js documentation page with a large rendered navigation
+      surface.
+    split: dev
+    family: modern-web
+    live: true
+    tags:
+    - html
+    - nextjs
+    - modern
+    reference_checked_at: '2026-07-14'
+    rights:
+      redistribution: allowed
+      source: Next.js documentation source in the MIT-licensed Next.js repository.
+    product_area: legacy-v1-migrated
+    critical: false
+    reference_expires_at: '2026-10-12'
+- id: dev.access.pypi-pydantic
+  input:
+    case_id: dev.access.pypi-pydantic
+    lane: extract
+    url: https://pypi.org/project/pydantic/2.11.7/
+    include_domains:
+    - pypi.org
+    timeout_seconds: 120
+  expected:
+    minimum_records: 1
+    minimum_content_chars: 1000
+    required_terms:
+    - Pydantic
+    - Data validation
+    - 2.11.7
+    forbidden_terms:
+    - Client Challenge
+    - Please enable JavaScript to proceed
+    allowed_domains:
+    - pypi.org
+    lane: extract
+  metadata:
+    description: Public package page that returned a JavaScript client challenge during
+      source verification; reported only in the managed-access slice.
+    split: dev
+    family: managed-access
+    live: true
+    tags:
+    - html
+    - bot-challenge
+    - javascript
+    reference_checked_at: '2026-07-14'
+    rights:
+      redistribution: unknown
+      source: Public PyPI package metadata; reports do not redistribute page content.
+    product_area: legacy-v1-migrated
+    critical: false
+    reference_expires_at: '2026-10-12'
+- id: dev.raw.openapi-petstore
+  input:
+    case_id: dev.raw.openapi-petstore
+    lane: extract
+    url: https://raw.githubusercontent.com/OAI/OpenAPI-Specification/3.1.0/examples/v3.0/petstore.yaml
+    include_domains:
+    - raw.githubusercontent.com
+    timeout_seconds: 60
+  expected:
+    minimum_records: 1
+    minimum_content_chars: 500
+    required_terms:
+    - 'openapi: 3.0.0'
+    - Swagger Petstore
+    - /pets
+    allowed_domains:
+    - raw.githubusercontent.com
+    lane: extract
+  metadata:
+    description: Immutable tagged OpenAPI YAML example served as plain text.
+    split: dev
+    family: raw-text
+    live: true
+    tags:
+    - text
+    - yaml
+    - openapi
+    - immutable
+    reference_checked_at: '2026-07-14'
+    rights:
+      redistribution: allowed
+      source: OpenAPI Specification repository under Apache License 2.0.
+    product_area: legacy-v1-migrated
+    critical: false
+    reference_expires_at: '2026-10-12'
+- id: dev.raw.rfc8259-text
+  input:
+    case_id: dev.raw.rfc8259-text
+    lane: extract
+    url: https://www.rfc-editor.org/rfc/rfc8259.txt
+    include_domains:
+    - rfc-editor.org
+    timeout_seconds: 90
+  expected:
+    minimum_records: 1
+    minimum_content_chars: 10000
+    required_terms:
+    - The JavaScript Object Notation (JSON) Data Interchange Format
+    - Interoperability Considerations
+    - Parsers
+    allowed_domains:
+    - rfc-editor.org
+    lane: extract
+  metadata:
+    description: Plain-text RFC with form-feed pagination and fixed-width formatting.
+    split: dev
+    family: standards
+    live: true
+    tags:
+    - text
+    - rfc
+    - pagination
+    reference_checked_at: '2026-07-14'
+    rights:
+      redistribution: allowed_with_conditions
+      source: IETF Trust Legal Provisions apply to RFC 8259.
+    product_area: legacy-v1-migrated
+    critical: false
+    reference_expires_at: '2026-10-12'
+- id: test.docs.django-tutorial
+  input:
+    case_id: test.docs.django-tutorial
+    lane: extract
+    url: https://docs.djangoproject.com/en/5.2/intro/tutorial01/
+    include_domains:
+    - docs.djangoproject.com
+    timeout_seconds: 90
+  expected:
+    minimum_records: 1
+    minimum_content_chars: 4000
+    required_terms:
+    - Writing your first Django app
+    - Creating a project
+    - The development server
+    allowed_domains:
+    - docs.djangoproject.com
+    lane: extract
+  metadata:
+    description: Versioned Sphinx tutorial with code, callouts, and navigation.
+    split: test
+    family: technical-docs
+    live: true
+    tags:
+    - html
+    - sphinx
+    - code
+    reference_checked_at: '2026-07-14'
+    rights:
+      redistribution: allowed
+      source: Django documentation under the BSD 3-Clause License.
+    product_area: legacy-v1-migrated
+    critical: false
+    reference_expires_at: '2026-10-12'
+- id: test.docs.go-spec
+  input:
+    case_id: test.docs.go-spec
+    lane: extract
+    url: https://go.dev/ref/spec
+    include_domains:
+    - go.dev
+    timeout_seconds: 120
+  expected:
+    minimum_records: 1
+    minimum_content_chars: 10000
+    required_terms:
+    - The Go Programming Language Specification
+    - Lexical elements
+    - Declarations and scope
+    allowed_domains:
+    - go.dev
+    lane: extract
+  metadata:
+    description: Long language specification with grammar, code, and anchors.
+    split: test
+    family: standards
+    live: true
+    tags:
+    - html
+    - specification
+    - code
+    reference_checked_at: '2026-07-14'
+    rights:
+      redistribution: allowed
+      source: Go documentation under the BSD 3-Clause License.
+    product_area: legacy-v1-migrated
+    critical: false
+    reference_expires_at: '2026-10-12'
+- id: test.docs.node-filesystem
+  input:
+    case_id: test.docs.node-filesystem
+    lane: extract
+    url: https://nodejs.org/docs/latest-v22.x/api/fs.html
+    include_domains:
+    - nodejs.org
+    timeout_seconds: 120
+  expected:
+    minimum_records: 1
+    minimum_content_chars: 10000
+    required_terms:
+    - File system
+    - Callback API
+    - Promises API
+    allowed_domains:
+    - nodejs.org
+    lane: extract
+  metadata:
+    description: Very long generated API reference with stability markers and code.
+    split: test
+    family: long-reference
+    live: true
+    tags:
+    - html
+    - api-reference
+    - long
+    reference_checked_at: '2026-07-14'
+    rights:
+      redistribution: allowed
+      source: Node.js documentation in the MIT-licensed Node.js repository.
+    product_area: legacy-v1-migrated
+    critical: false
+    reference_expires_at: '2026-10-12'
+- id: test.docs.postgresql-tutorial
+  input:
+    case_id: test.docs.postgresql-tutorial
+    lane: extract
+    url: https://www.postgresql.org/docs/17/tutorial-arch.html
+    include_domains:
+    - postgresql.org
+    timeout_seconds: 90
+  expected:
+    minimum_records: 1
+    minimum_content_chars: 3000
+    required_terms:
+    - Architectural Fundamentals
+    - client/server model
+    - multiple concurrent connections
+    allowed_domains:
+    - postgresql.org
+    lane: extract
+  metadata:
+    description: Versioned database tutorial page with multi-level documentation chrome.
+    split: test
+    family: technical-docs
+    live: true
+    tags:
+    - html
+    - database
+    - tutorial
+    reference_checked_at: '2026-07-14'
+    rights:
+      redistribution: allowed
+      source: PostgreSQL documentation under the PostgreSQL License.
+    product_area: legacy-v1-migrated
+    critical: false
+    reference_expires_at: '2026-10-12'
+- id: test.docs.rust-ownership
+  input:
+    case_id: test.docs.rust-ownership
+    lane: extract
+    url: https://doc.rust-lang.org/book/ch04-01-what-is-ownership.html
+    include_domains:
+    - doc.rust-lang.org
+    timeout_seconds: 90
+  expected:
+    minimum_records: 1
+    minimum_content_chars: 5000
+    required_terms:
+    - What Is Ownership?
+    - The Stack and the Heap
+    - Ownership Rules
+    allowed_domains:
+    - doc.rust-lang.org
+    lane: extract
+  metadata:
+    description: mdBook chapter with code, side navigation, and semantic headings.
+    split: test
+    family: technical-docs
+    live: true
+    tags:
+    - html
+    - mdbook
+    - code
+    reference_checked_at: '2026-07-14'
+    rights:
+      redistribution: allowed
+      source: The Rust Programming Language under MIT or Apache 2.0.
+    product_area: legacy-v1-migrated
+    critical: false
+    reference_expires_at: '2026-10-12'
+- id: test.docs.docker-overview
+  input:
+    case_id: test.docs.docker-overview
+    lane: extract
+    url: https://docs.docker.com/get-started/docker-overview/
+    include_domains:
+    - docs.docker.com
+    timeout_seconds: 120
+  expected:
+    minimum_records: 1
+    minimum_content_chars: 5000
+    required_terms:
+    - What is Docker?
+    - The Docker daemon
+    - Docker registries
+    allowed_domains:
+    - docs.docker.com
+    lane: extract
+  metadata:
+    description: Modern documentation page with extensive navigation and embedded
+      UI scripts.
+    split: test
+    family: modern-web
+    live: true
+    tags:
+    - html
+    - modern
+    - navigation
+    reference_checked_at: '2026-07-14'
+    rights:
+      redistribution: allowed_with_conditions
+      source: Docker documentation source under Apache License 2.0 where indicated.
+    product_area: legacy-v1-migrated
+    critical: false
+    reference_expires_at: '2026-10-12'
+- id: test.standard.json-schema-core
+  input:
+    case_id: test.standard.json-schema-core
+    lane: extract
+    url: https://json-schema.org/draft/2020-12/json-schema-core
+    include_domains:
+    - json-schema.org
+    timeout_seconds: 120
+  expected:
+    minimum_records: 1
+    minimum_content_chars: 10000
+    required_terms:
+    - JSON Schema Core
+    - Core Vocabulary
+    - Schema Identification
+    allowed_domains:
+    - json-schema.org
+    lane: extract
+  metadata:
+    description: Long technical specification with formal vocabulary and anchors.
+    split: test
+    family: standards
+    live: true
+    tags:
+    - html
+    - specification
+    - long
+    reference_checked_at: '2026-07-14'
+    rights:
+      redistribution: unknown
+      source: JSON Schema specification; reports contain no source body.
+    product_area: legacy-v1-migrated
+    critical: false
+    reference_expires_at: '2026-10-12'
+- id: test.standard.openapi-310
+  input:
+    case_id: test.standard.openapi-310
+    lane: extract
+    url: https://spec.openapis.org/oas/v3.1.0.html
+    include_domains:
+    - spec.openapis.org
+    timeout_seconds: 120
+  expected:
+    minimum_records: 1
+    minimum_content_chars: 10000
+    required_terms:
+    - OpenAPI Specification
+    - Paths Object
+    - Security Requirement Object
+    allowed_domains:
+    - spec.openapis.org
+    lane: extract
+  metadata:
+    description: Versioned long-form API standard with tables and schema fragments.
+    split: test
+    family: standards
+    live: true
+    tags:
+    - html
+    - specification
+    - tables
+    reference_checked_at: '2026-07-14'
+    rights:
+      redistribution: allowed
+      source: OpenAPI Specification under Apache License 2.0.
+    product_area: legacy-v1-migrated
+    critical: false
+    reference_expires_at: '2026-10-12'
+- id: test.standard.ecmascript-lexical
+  input:
+    case_id: test.standard.ecmascript-lexical
+    lane: extract
+    url: https://tc39.es/ecma262/2024/multipage/ecmascript-language-lexical-grammar.html
+    include_domains:
+    - tc39.es
+    timeout_seconds: 120
+  expected:
+    minimum_records: 1
+    minimum_content_chars: 10000
+    required_terms:
+    - 'ECMAScript Language: Lexical Grammar'
+    - White Space
+    - Numeric Literals
+    allowed_domains:
+    - tc39.es
+    lane: extract
+  metadata:
+    description: Dense generated standards page containing grammar productions and
+      algorithms.
+    split: test
+    family: standards
+    live: true
+    tags:
+    - html
+    - specification
+    - grammar
+    reference_checked_at: '2026-07-14'
+    rights:
+      redistribution: allowed_with_conditions
+      source: ECMA-262 governed by the Ecma copyright and software notice.
+    product_area: legacy-v1-migrated
+    critical: false
+    reference_expires_at: '2026-10-12'
+- id: test.docs.serde
+  input:
+    case_id: test.docs.serde
+    lane: extract
+    url: https://docs.rs/serde/1.0.219/serde/
+    include_domains:
+    - docs.rs
+    timeout_seconds: 90
+  expected:
+    minimum_records: 1
+    minimum_content_chars: 2000
+    required_terms:
+    - Serialization framework
+    - Serialize
+    - Deserialize
+    allowed_domains:
+    - docs.rs
+    lane: extract
+  metadata:
+    description: Versioned rustdoc crate landing page with source navigation.
+    split: test
+    family: technical-docs
+    live: true
+    tags:
+    - html
+    - rustdoc
+    - api-reference
+    reference_checked_at: '2026-07-14'
+    rights:
+      redistribution: allowed
+      source: Serde documentation under MIT or Apache 2.0.
+    product_area: legacy-v1-migrated
+    critical: false
+    reference_expires_at: '2026-10-12'
+- id: test.docs.numpy-beginners
+  input:
+    case_id: test.docs.numpy-beginners
+    lane: extract
+    url: https://numpy.org/doc/2.2/user/absolute_beginners.html
+    include_domains:
+    - numpy.org
+    timeout_seconds: 90
+  expected:
+    minimum_records: 1
+    minimum_content_chars: 5000
+    required_terms:
+    - 'NumPy: the absolute basics for beginners'
+    - How to create a basic array
+    - Broadcasting
+    allowed_domains:
+    - numpy.org
+    lane: extract
+  metadata:
+    description: Versioned PyData Sphinx tutorial with equations, code, and navigation.
+    split: test
+    family: technical-docs
+    live: true
+    tags:
+    - html
+    - sphinx
+    - scientific
+    reference_checked_at: '2026-07-14'
+    rights:
+      redistribution: allowed
+      source: NumPy documentation under the BSD 3-Clause License.
+    product_area: legacy-v1-migrated
+    critical: false
+    reference_expires_at: '2026-10-12'
+- id: test.docs.fastapi-first-steps
+  input:
+    case_id: test.docs.fastapi-first-steps
+    lane: extract
+    url: https://fastapi.tiangolo.com/tutorial/first-steps/
+    include_domains:
+    - fastapi.tiangolo.com
+    timeout_seconds: 90
+  expected:
+    minimum_records: 1
+    minimum_content_chars: 5000
+    required_terms:
+    - First Steps
+    - Interactive API docs
+    - OpenAPI
+    allowed_domains:
+    - fastapi.tiangolo.com
+    lane: extract
+  metadata:
+    description: Material for MkDocs tutorial with code tabs, sponsors, and annotations.
+    split: test
+    family: technical-docs
+    live: true
+    tags:
+    - html
+    - mkdocs
+    - code
+    reference_checked_at: '2026-07-14'
+    rights:
+      redistribution: allowed
+      source: FastAPI documentation under the MIT License.
+    product_area: legacy-v1-migrated
+    critical: false
+    reference_expires_at: '2026-10-12'
+- id: test.docs.ruff-tutorial
+  input:
+    case_id: test.docs.ruff-tutorial
+    lane: extract
+    url: https://docs.astral.sh/ruff/tutorial/
+    include_domains:
+    - docs.astral.sh
+    timeout_seconds: 90
+  expected:
+    minimum_records: 1
+    minimum_content_chars: 3000
+    required_terms:
+    - Tutorial
+    - Getting Started
+    - Configuration
+    allowed_domains:
+    - docs.astral.sh
+    lane: extract
+  metadata:
+    description: Modern MkDocs documentation with tabs and code snippets.
+    split: test
+    family: technical-docs
+    live: true
+    tags:
+    - html
+    - mkdocs
+    - code
+    reference_checked_at: '2026-07-14'
+    rights:
+      redistribution: allowed
+      source: Ruff documentation under the MIT License.
+    product_area: legacy-v1-migrated
+    critical: false
+    reference_expires_at: '2026-10-12'
+- id: test.docs.nginx-beginners
+  input:
+    case_id: test.docs.nginx-beginners
+    lane: extract
+    url: https://nginx.org/en/docs/beginners_guide.html
+    include_domains:
+    - nginx.org
+    timeout_seconds: 90
+  expected:
+    minimum_records: 1
+    minimum_content_chars: 3000
+    required_terms:
+    - Beginner’s Guide
+    - Configuration File’s Structure
+    - Serving Static Content
+    allowed_domains:
+    - nginx.org
+    lane: extract
+  metadata:
+    description: Compact hand-authored guide with configuration snippets.
+    split: test
+    family: technical-docs
+    live: true
+    tags:
+    - html
+    - guide
+    - code
+    reference_checked_at: '2026-07-14'
+    rights:
+      redistribution: unknown
+      source: nginx.org documentation; reports contain no source body.
+    product_area: legacy-v1-migrated
+    critical: false
+    reference_expires_at: '2026-10-12'
+- id: test.docs.curl-manpage
+  input:
+    case_id: test.docs.curl-manpage
+    lane: extract
+    url: https://curl.se/docs/manpage.html
+    include_domains:
+    - curl.se
+    timeout_seconds: 120
+  expected:
+    minimum_records: 1
+    minimum_content_chars: 10000
+    required_terms:
+    - curl - transfer a URL
+    - PROTOCOLS
+    - EXIT CODES
+    allowed_domains:
+    - curl.se
+    lane: extract
+  metadata:
+    description: Very long generated command manual with hundreds of options.
+    split: test
+    family: long-reference
+    live: true
+    tags:
+    - html
+    - manual
+    - long
+    reference_checked_at: '2026-07-14'
+    rights:
+      redistribution: allowed
+      source: curl documentation under the curl license.
+    product_area: legacy-v1-migrated
+    critical: false
+    reference_expires_at: '2026-10-12'
+- id: test.pdf.ray-paper
+  input:
+    case_id: test.pdf.ray-paper
+    lane: extract
+    url: https://www.usenix.org/system/files/osdi18-moritz.pdf
+    include_domains:
+    - usenix.org
+    timeout_seconds: 180
+  expected:
+    minimum_records: 1
+    minimum_content_chars: 10000
+    required_terms:
+    - 'Ray: A Distributed Framework'
+    - reinforcement learning
+    - distributed systems
+    allowed_domains:
+    - usenix.org
+    lane: extract
+  metadata:
+    description: Multi-column conference paper PDF with figures, tables, and references.
+    split: test
+    family: pdf
+    live: true
+    tags:
+    - pdf
+    - paper
+    - multicolumn
+    reference_checked_at: '2026-07-14'
+    rights:
+      redistribution: unknown
+      source: USENIX-hosted proceedings paper; reports contain only scores, hashes,
+        and lengths.
+    product_area: legacy-v1-migrated
+    critical: false
+    reference_expires_at: '2026-10-12'

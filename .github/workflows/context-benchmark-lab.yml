@@ -1,0 +1,112 @@
+name: DocPull Evaluation Lab
+
+on:
+  pull_request:
+    paths:
+      - "bench/**"
+      - "src/docpull/**"
+      - "pyproject.toml"
+      - "requirements-release.txt"
+      - ".github/workflows/context-benchmark-lab.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  UV_VERSION: "0.11.6"
+
+jobs:
+  controlled:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: "3.12"
+
+      - name: Install uv and locked benchmark dependencies
+        run: |
+          python -m pip install "uv==$UV_VERSION"
+          uv sync --project bench --locked --dev
+
+      - name: Static and contract checks
+        run: |
+          uv run --project bench --locked ruff check bench
+          uv run --project bench --locked ruff format --check bench
+          uv run --project bench --locked mypy --config-file bench/pyproject.toml bench/src
+          uv run --project bench --locked pytest -q bench/tests
+          uv run --project bench --locked docpull-bench fixtures verify
+          for suite in bench/cases/*.yaml; do
+            uv run --project bench --locked docpull-bench validate "$suite"
+          done
+
+      - name: Build controlled benchmark image
+        run: docker build --file bench/Dockerfile --tag docpull-bench:ci .
+
+      - name: Run full controlled corpus with network disabled
+        run: |
+          mkdir -p bench/runs/ci
+          docker run --rm --network none \
+            --volume "$PWD/bench/runs/ci:/workspace/bench/runs/ci" \
+            docpull-bench:ci docpull-bench run bench/cases/controlled-v2.yaml \
+            --adapter replay --system fixture --version 2 \
+            --replay-dir bench/replays/controlled-v2 \
+            --output-dir bench/runs/ci --environment-label ci-container \
+            --network-isolation enforced
+
+      - name: Check controlled baseline
+        run: |
+          report="$(find bench/runs/ci -name report.json -print -quit)"
+          uv run --project bench --locked docpull-bench baseline check \
+            "$report" bench/baselines/controlled-v2.fixture.json
+
+      - name: Public-CLI lifecycle checks
+        run: uv run --project bench --locked docpull-bench lifecycle --output-dir bench/runs/lifecycle
+
+      - name: Set up Node 24
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24"
+
+      - name: Install root validation dependencies
+        run: |
+          npm install --global bun@1.3.11
+          bun install --frozen-lockfile
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[all,dev]" -r requirements-release.txt
+
+      - name: Validate repository
+        run: |
+          python scripts/sync_release_metadata.py --check
+          python -m ruff check .
+          python -m ruff format --check .
+          python -m mypy src
+          python -m pytest -q
+          bun run --cwd mcp typecheck
+          bun run --cwd mcp test
+          python scripts/build_release.py --verify-reproducible
+
+      - name: Upload portable controlled reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: controlled-evaluation-reports
+          path: |
+            bench/runs/ci/*/report.json
+            bench/runs/ci/*/observations.ndjson
+            bench/runs/ci/*/scores.ndjson
+            bench/runs/lifecycle/*/report.json
+            bench/runs/lifecycle/*/observations.ndjson
+            bench/runs/lifecycle/*/scores.ndjson
+          if-no-files-found: error
+          retention-days: 14

@@ -1,0 +1,43 @@
+{
+  "analysis_version": "v3-ops-quality-slice-holm-paired-bootstrap",
+  "files": {
+    "COMPARISON.md": "07f832b76243a5ef614e3b9b81afbb0593ead5bd70077daa1ab39589534089e7",
+    "METHODOLOGY.md": "845058f0ada673569019e3679f73175e0a11fa787b5364c6c10b37d066698ae7",
+    "README.md": "b81bd0e9c7d7446c8db7e39745ec4ed23265eee11011bb75cf56f51f922f93ab",
+    "comparison.json": "022e38617d395d602e722dd3aeeafde5e7737d5846e3368a7efde97fda5985a0",
+    "reports/docpull.report.json": "f416694a253ee4ae0d64dea847090012858a7aa7a1ddd50e703298a17934f732",
+    "reports/firecrawl-crawl.report.json": "da4b3acf6dcbe0de9113798a4b6de84b1e261ac49a8d01589bc4eaafb3fe1031",
+    "reports/tavily-crawl-basic.report.json": "8b23841263aeded6d4f53f9bb6f24aaa5946ef92e44a175bfc997cf6d74784a9",
+    "suite.yaml": "897d2a54e8f4c3f9f5954ee3107c789a6445944d0f3049b64b455ca3d3e0ec2c"
+  },
+  "generated_at": "2026-07-15T02:50:52.876787+00:00",
+  "protocol_sha256": "fbde4f4a0782d9e8a085e7b12cba464a4bbbfdd7a0b8daded026212977c33c40",
+  "schema_version": 2,
+  "scorer_version": "v2-unversioned",
+  "source_report_set_sha256": "f2a49ade1b929435eb8d27288c918a9421973fd528fdd0ac9d6336b56876b748",
+  "source_reports": [
+    {
+      "published_path": "reports/docpull.report.json",
+      "published_sha256": "f416694a253ee4ae0d64dea847090012858a7aa7a1ddd50e703298a17934f732",
+      "source_sha256": "a97003c652edd10f1a32035884638a95e1010902741dce173471772e6bbc9960",
+      "system": "docpull"
+    },
+    {
+      "published_path": "reports/firecrawl-crawl.report.json",
+      "published_sha256": "da4b3acf6dcbe0de9113798a4b6de84b1e261ac49a8d01589bc4eaafb3fe1031",
+      "source_sha256": "8fae0c09a4cc1300f22c7739f75b77d141a88308091734dd30b85ac4909a5414",
+      "system": "firecrawl-crawl"
+    },
+    {
+      "published_path": "reports/tavily-crawl-basic.report.json",
+      "published_sha256": "8b23841263aeded6d4f53f9bb6f24aaa5946ef92e44a175bfc997cf6d74784a9",
+      "source_sha256": "b32000d726864c7f2759fd8598faf3f135c94b95cc730d1001820933b17a0fba",
+      "system": "tavily-crawl-basic"
+    }
+  ],
+  "status": "provisional-not-current-evidence-not-for-marketing",
+  "suite_name": "live-neutral-crawl",
+  "suite_sha256": "897d2a54e8f4c3f9f5954ee3107c789a6445944d0f3049b64b455ca3d3e0ec2c",
+  "suite_version": "1.0.0",
+  "unavailable_systems": []
+}

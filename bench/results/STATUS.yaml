@@ -1,0 +1,30 @@
+schema_version: 1
+registry_updated_at: "2026-07-14"
+authority: >-
+  This overlay classifies result bundles without changing any file inside a
+  bundle. A bundle status must be read together with this registry.
+bundles:
+  - path: manual/2026-07-14-live-neutral-extract-v5-current-v3
+    publication_manifest_sha256: "ce7e547a6d8f5afbb18d2a5b82cad7e07032c585bb49a147a77d968014fc63a4"
+    status: data-only-development-evidence
+    comparative_claim_eligible: false
+    sealed_holdout: false
+    suite_classification: public-development-suite
+    tested_subject_claim: development-tree
+    source_revision: "3f17d75a"
+    source_tree_clean: false
+    released_version_representative: false
+    released_version: "6.0.1"
+    limitations:
+      - scorer-tuned-after-observing-results
+      - product-tuned-after-observing-results
+      - generated-from-dirty-tree
+      - not-reproducible-as-released-docpull-6.0.1
+      - not-an-external-sealed-holdout
+    permitted_uses:
+      - engineering-diagnosis
+      - historical-data-validation
+    prohibited_uses:
+      - comparative-superiority-claim
+      - release-performance-claim
+      - claim-readiness-evidence

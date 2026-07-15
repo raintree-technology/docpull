@@ -34,6 +34,7 @@ from ..pipeline.steps import (
     SqliteSaveStep,
     ValidateStep,
 )
+from ..security.download_policy import SafeDownloadPolicy
 from ..security.robots import RobotsChecker
 from ..security.url_validator import UrlValidator
 
@@ -331,6 +332,9 @@ class Fetcher:
             if self.config.content_filter.max_file_size is not None
             else AsyncHttpClient.MAX_CONTENT_SIZE
         )
+        allowed_remote_document_types = (
+            {"application/pdf"} if self.config.content_filter.remote_documents == "pdf" else set()
+        )
         self._http_client = AsyncHttpClient(
             rate_limiter=self._rate_limiter,
             max_retries=self.config.network.max_retries,
@@ -344,6 +348,9 @@ class Fetcher:
             auth_scope_hosts=auth_scope_hosts,
             require_pinned_dns=self.config.network.require_pinned_dns,
             log_retry_warnings=self.config.network.log_retry_warnings,
+            download_policy=SafeDownloadPolicy(
+                allowed_remote_document_types=allowed_remote_document_types,
+            ),
         )
         await self._http_client.__aenter__()
 
@@ -396,6 +403,7 @@ class Fetcher:
                     http_client=self._http_client,
                     cache_manager=self._cache_manager,
                     skip_unchanged=self.config.cache.skip_unchanged,
+                    allowed_remote_document_types=allowed_remote_document_types,
                 )
             )
             if render_mode == "fallback":
@@ -417,6 +425,10 @@ class Fetcher:
                 use_ensemble=self.config.content_filter.extractor == "ensemble",
                 strict_js_required=self.config.content_filter.strict_js_required,
                 clean_inline_xbrl=self.config.content_filter.clean_inline_xbrl,
+                remote_documents=self.config.content_filter.remote_documents,
+                remote_document_backend=self.config.content_filter.remote_document_backend,
+                remote_document_timeout_seconds=(self.config.content_filter.remote_document_timeout_seconds),
+                remote_document_memory_mib=self.config.content_filter.remote_document_memory_mib,
             )
         )
 

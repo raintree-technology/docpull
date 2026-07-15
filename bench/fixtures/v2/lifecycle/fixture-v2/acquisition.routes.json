@@ -1,0 +1,20 @@
+{
+  "schema_version": 3,
+  "generated_at": "2026-07-14T00:00:00+00:00",
+  "output_contract_version": 3,
+  "routes": [
+    {
+      "route": "local-fetch",
+      "output_format": "ndjson",
+      "fetched_count": 3,
+      "record_count": 3,
+      "domain_count": 1,
+      "skip_counts": {
+        "robots_disallowed": 0
+      }
+    }
+  ],
+  "domains": {
+    "docs.example.test": 3
+  }
+}

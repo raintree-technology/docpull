@@ -200,8 +200,8 @@ TOOL_DOC_TARGETS: tuple[_BenchmarkTarget, ...] = (
     _BenchmarkTarget(
         id="docpull_docs",
         label="DocPull docs",
-        url="https://docpull.raintree.technology",
-        include_domains=("docpull.raintree.technology",),
+        url="https://github.com/raintree-technology/docpull",
+        include_domains=("github.com",),
         objective="Build an agent context pack for DocPull documentation",
         queries=("DocPull documentation CLI provider benchmark docs",),
         freshness_terms=("changelog", "release", "benchmark"),

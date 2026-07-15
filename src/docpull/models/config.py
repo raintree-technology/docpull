@@ -140,6 +140,28 @@ class ContentFilterConfig(BaseModel):
         False,
         description="Remove hidden Inline XBRL boilerplate before content extraction",
     )
+    remote_documents: Literal["off", "pdf"] = Field(
+        "off",
+        description=(
+            "Explicitly allow selected remote document types to be downloaded and parsed locally. "
+            "Off by default; never enables browser or cloud parsing."
+        ),
+    )
+    remote_document_backend: Literal["auto", "pypdf", "markitdown", "unstructured"] = Field(
+        "auto",
+        description="Local parser backend used when remote_documents is enabled",
+    )
+    remote_document_timeout_seconds: int = Field(
+        60,
+        ge=1,
+        le=3600,
+        description="Wall-time limit for the isolated remote-document parser process",
+    )
+    remote_document_memory_mib: int = Field(
+        1024,
+        ge=64,
+        description="Address-space limit for the isolated remote-document parser process",
+    )
 
     model_config = {"extra": "forbid"}
 

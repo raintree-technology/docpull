@@ -1,0 +1,26 @@
+{
+  "adapter_version": "2",
+  "case_id": "extract.fixture.05",
+  "cost_basis": "Repository replay; no request.",
+  "cost_kind": "actual",
+  "cost_usd": 0,
+  "elapsed_seconds": 0.001,
+  "payload": {
+    "kind": "content",
+    "records": [
+      {
+        "content": "extract-marker-05\ndeterministic evidence\nEvidence Heading 05 x x x x x x x x x x x x x x x x x x x x x",
+        "metadata": {},
+        "title": "extract.fixture.05",
+        "url": "https://raintree-technology.github.io/docpull/bench-fixtures/v2/extract/05.html"
+      }
+    ],
+    "selected_urls": [
+      "https://raintree-technology.github.io/docpull/bench-fixtures/v2/extract/05.html"
+    ]
+  },
+  "request_count": 0,
+  "schema_version": 2,
+  "status": "completed",
+  "system": "fixture"
+}

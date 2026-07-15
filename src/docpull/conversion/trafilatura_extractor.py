@@ -63,7 +63,7 @@ class TrafilaturaExtractor:
         if result is None:
             logger.debug("trafilatura returned no content for %s", url)
             return ""
-        return result.strip() + "\n"
+        return str(result).strip() + "\n"
 
 
 __all__ = ["TrafilaturaExtractor"]

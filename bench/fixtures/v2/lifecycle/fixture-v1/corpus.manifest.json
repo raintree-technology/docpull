@@ -1,0 +1,81 @@
+{
+  "document_count": 3,
+  "generated_at": "2026-07-14T00:00:00+00:00",
+  "output_contract_version": 3,
+  "record_count": 3,
+  "records": [
+    {
+      "content_hash": "588df9080a992308c217a800b86f036d350d19f143962d4bcda9d0e933a26661",
+      "document_id": "doc_1f6cf3d7bc001faa95ddfe61",
+      "output_path": "sources/01.md",
+      "rights": {
+        "allowed_use": {
+          "eval_generation": "allowed",
+          "internal_indexing": "allowed",
+          "model_training": "allowed",
+          "redistribution": "allowed"
+        },
+        "basis": "benchmark_authored_synthetic_content",
+        "obligations": [],
+        "status": "allowed"
+      },
+      "route": {
+        "bytes_downloaded": 78,
+        "name": "synthetic-fixture",
+        "status_code": 200
+      },
+      "source_type": "synthetic_fixture",
+      "title": "Authentication",
+      "url": "https://docs.example.test/auth"
+    },
+    {
+      "content_hash": "63dc380c6ac1219270e0a17c10c378af45117765dc7b062deff62376ddb8a8d6",
+      "document_id": "doc_1792f4c39a5b9e7a693b5f60",
+      "output_path": "sources/02.md",
+      "rights": {
+        "allowed_use": {
+          "eval_generation": "allowed",
+          "internal_indexing": "allowed",
+          "model_training": "allowed",
+          "redistribution": "allowed"
+        },
+        "basis": "benchmark_authored_synthetic_content",
+        "obligations": [],
+        "status": "allowed"
+      },
+      "route": {
+        "bytes_downloaded": 69,
+        "name": "synthetic-fixture",
+        "status_code": 200
+      },
+      "source_type": "synthetic_fixture",
+      "title": "Rate limits",
+      "url": "https://docs.example.test/rate-limits"
+    },
+    {
+      "content_hash": "52f91308241ba0f3dc07b68d6631a27d4ce7766f589c325157e9afcc992f3610",
+      "document_id": "doc_9f77466cfba9272e810819e4",
+      "output_path": "sources/03.md",
+      "rights": {
+        "allowed_use": {
+          "eval_generation": "allowed",
+          "internal_indexing": "allowed",
+          "model_training": "allowed",
+          "redistribution": "allowed"
+        },
+        "basis": "benchmark_authored_synthetic_content",
+        "obligations": [],
+        "status": "allowed"
+      },
+      "route": {
+        "bytes_downloaded": 67,
+        "name": "synthetic-fixture",
+        "status_code": 200
+      },
+      "source_type": "synthetic_fixture",
+      "title": "Deprecated API",
+      "url": "https://docs.example.test/deprecated"
+    }
+  ],
+  "schema_version": 3
+}

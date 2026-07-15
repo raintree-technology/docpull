@@ -1,0 +1,2603 @@
+{
+  "schema_version": 2,
+  "manifest": {
+    "schema_version": 2,
+    "run_id": "b250dc8ff17149108cfb14702cab6f5a",
+    "created_at": "2026-07-15T00:48:57.799427+00:00",
+    "suite_name": "live-neutral-crawl",
+    "suite_version": "1.0.0",
+    "suite_sha256": "897d2a54e8f4c3f9f5954ee3107c789a6445944d0f3049b64b455ca3d3e0ec2c",
+    "fixture_manifest_sha256": null,
+    "protocol_sha256": "fbde4f4a0782d9e8a085e7b12cba464a4bbbfdd7a0b8daded026212977c33c40",
+    "system": "tavily-crawl-basic",
+    "adapter_version": "crawl-basic-v2",
+    "adapter_config_sha256": "17abb793b1be1b2ad6c90f096b92f33dac51a0e517a5e16c6acefed08eb9e57d",
+    "git_revision": "fcac51d1b6b670466303a45524bedf8ff157892f",
+    "git_dirty": true,
+    "dependency_lock_sha256": "b7465c512ffac93ecea81e54dce47ea257369b74f74dd290a843f29f74e44ea1",
+    "python_version": "3.12.13",
+    "operating_system": "Darwin",
+    "architecture": "arm64",
+    "environment_label": "local-macos-live-2026-07-14",
+    "network_isolation": "open",
+    "cache_policy": "provider_managed",
+    "retry_policy": "max_attempts=1",
+    "pricing_snapshot": "2026-07-14-official-list-prices",
+    "repeat": 2,
+    "max_concurrency": 1,
+    "command": [
+      "docpull-bench",
+      "run",
+      "bench/cases/live-neutral-crawl-v1.yaml",
+      "--adapter",
+      "tavily-crawl",
+      "--system",
+      "tavily-crawl-basic",
+      "--repeat",
+      "2",
+      "--max-concurrency",
+      "1",
+      "--max-cost-usd",
+      "0.384",
+      "--output-dir",
+      "bench/runs/live-2026-07-14/crawl",
+      "--environment-label",
+      "local-macos-live-2026-07-14",
+      "--network-isolation",
+      "open"
+    ]
+  },
+  "observations": [
+    {
+      "schema_version": 2,
+      "case_id": "crawl.python-asyncio",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "critical": false,
+      "system": "tavily-crawl-basic",
+      "status": "completed",
+      "payload_summary": {
+        "kind": "content",
+        "record_count": 1,
+        "selected_urls": [
+          "https://docs.python.org/3/library/asyncio.html"
+        ]
+      },
+      "records": [
+        {
+          "url": "https://docs.python.org/3/library/asyncio.html",
+          "title_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "content_chars": 5944,
+          "content_sha256": "69a2bc700c395eabe48eaa144ebb272ee098cc2a236946fc1bc97691fc8cd7b1"
+        }
+      ],
+      "elapsed_seconds": 0.508238958002039,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "cost_basis": "2026-07-14-official-list-prices: Tavily mapping-plus-extraction ceiling.",
+      "usage": {
+        "credits": 0.0,
+        "result_count": 1
+      },
+      "request_count": 1,
+      "attempt_count": 1,
+      "adapter_version": "crawl-basic-v2",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 2,
+      "case_id": "crawl.python-asyncio",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "critical": false,
+      "system": "tavily-crawl-basic",
+      "status": "completed",
+      "payload_summary": {
+        "kind": "content",
+        "record_count": 1,
+        "selected_urls": [
+          "https://docs.python.org/3/library/asyncio.html"
+        ]
+      },
+      "records": [
+        {
+          "url": "https://docs.python.org/3/library/asyncio.html",
+          "title_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "content_chars": 5944,
+          "content_sha256": "69a2bc700c395eabe48eaa144ebb272ee098cc2a236946fc1bc97691fc8cd7b1"
+        }
+      ],
+      "elapsed_seconds": 0.5063458330005233,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "cost_basis": "2026-07-14-official-list-prices: Tavily mapping-plus-extraction ceiling.",
+      "usage": {
+        "credits": 1.0,
+        "result_count": 1
+      },
+      "request_count": 1,
+      "attempt_count": 1,
+      "adapter_version": "crawl-basic-v2",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 2,
+      "case_id": "crawl.sqlite-language",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "critical": false,
+      "system": "tavily-crawl-basic",
+      "status": "completed",
+      "payload_summary": {
+        "kind": "content",
+        "record_count": 8,
+        "selected_urls": [
+          "https://www.sqlite.org/lang.html",
+          "https://www.sqlite.org/lang_attach.html",
+          "https://www.sqlite.org/lang_droptrigger.html",
+          "https://www.sqlite.org/lang_expr.html",
+          "https://www.sqlite.org/lang_createindex.html",
+          "https://www.sqlite.org/lang_returning.html",
+          "https://www.sqlite.org/lang_createvtab.html",
+          "https://www.sqlite.org/lang_upsert.html"
+        ]
+      },
+      "records": [
+        {
+          "url": "https://www.sqlite.org/lang.html",
+          "title_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "content_chars": 3085,
+          "content_sha256": "50fe5b7a708ed537db1850ac5a75da200c0daff01501d22db7f406b871c9734e"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_attach.html",
+          "title_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "content_chars": 4288,
+          "content_sha256": "93892535c359c33c09a518ef4be1d7fd0433cffdb06c4860766a6923db59deda"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_droptrigger.html",
+          "title_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "content_chars": 935,
+          "content_sha256": "6877fcabee45b9a2d767af8e9cd67f47ff868cc3044ccb2646ca41da220d0320"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_expr.html",
+          "title_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "content_chars": 30749,
+          "content_sha256": "175ccae51ae97b232bd4e1648e69945a1d9e7309490ed6a000a63b44d976967a"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_createindex.html",
+          "title_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "content_chars": 5505,
+          "content_sha256": "d269cc0ade417f8115c8a50ca085d404cc8082176c8683d40517b471aea25b41"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_returning.html",
+          "title_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "content_chars": 10026,
+          "content_sha256": "dcd35552818fa8f4de745cbd983abbcf99e7d344455c6dbd4940eabf18e8ea10"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_createvtab.html",
+          "title_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "content_chars": 2134,
+          "content_sha256": "5fa405b942eafbd2bd4d577878d7f684e068621cc7bf0bbc600219bdc14e7cd4"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_upsert.html",
+          "title_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "content_chars": 7852,
+          "content_sha256": "685d8a789893e09d788676584275ba9521d982f3c05bc11298ed5c2e54a2d041"
+        }
+      ],
+      "elapsed_seconds": 1.6151946249992761,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "cost_basis": "2026-07-14-official-list-prices: Tavily mapping-plus-extraction ceiling.",
+      "usage": {
+        "credits": 2.0,
+        "result_count": 8
+      },
+      "request_count": 1,
+      "attempt_count": 1,
+      "adapter_version": "crawl-basic-v2",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 2,
+      "case_id": "crawl.sqlite-language",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "critical": false,
+      "system": "tavily-crawl-basic",
+      "status": "completed",
+      "payload_summary": {
+        "kind": "content",
+        "record_count": 8,
+        "selected_urls": [
+          "https://www.sqlite.org/lang.html",
+          "https://www.sqlite.org/lang_attach.html",
+          "https://www.sqlite.org/lang_with.html",
+          "https://www.sqlite.org/lang_update.html",
+          "https://www.sqlite.org/lang_corefunc.html",
+          "https://www.sqlite.org/lang_keywords.html",
+          "https://www.sqlite.org/lang_createindex.html",
+          "https://www.sqlite.org/lang_reindex.html"
+        ]
+      },
+      "records": [
+        {
+          "url": "https://www.sqlite.org/lang.html",
+          "title_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "content_chars": 3085,
+          "content_sha256": "50fe5b7a708ed537db1850ac5a75da200c0daff01501d22db7f406b871c9734e"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_attach.html",
+          "title_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "content_chars": 4288,
+          "content_sha256": "93892535c359c33c09a518ef4be1d7fd0433cffdb06c4860766a6923db59deda"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_with.html",
+          "title_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "content_chars": 27522,
+          "content_sha256": "93551bf01788675e6deb00a7d3e8690c1d2c65c12a6a18c97673e4cf2ea78443"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_update.html",
+          "title_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "content_chars": 10570,
+          "content_sha256": "f6ddf24c68def7dfd174fa6ecd4ceefab014e7c16e396e44c961a5546074e241"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_corefunc.html",
+          "title_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "content_chars": 29082,
+          "content_sha256": "a7f15a3b89b44b2bd7aacdb0afc68648c3b098e119e00756c74e1c77d61b9743"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_keywords.html",
+          "title_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "content_chars": 4778,
+          "content_sha256": "52c0ca1a1bf7e5cecb9001c2270fb34c4d13fd24e39f6fdb60904f8d649dbbd9"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_createindex.html",
+          "title_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "content_chars": 5505,
+          "content_sha256": "d269cc0ade417f8115c8a50ca085d404cc8082176c8683d40517b471aea25b41"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_reindex.html",
+          "title_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "content_chars": 1729,
+          "content_sha256": "4b8076d94f29f92553f823742492c193a5b0b60afa0aa277824eb0e19261cc61"
+        }
+      ],
+      "elapsed_seconds": 1.4540910409996286,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "cost_basis": "2026-07-14-official-list-prices: Tavily mapping-plus-extraction ceiling.",
+      "usage": {
+        "credits": 3.0,
+        "result_count": 8
+      },
+      "request_count": 1,
+      "attempt_count": 1,
+      "adapter_version": "crawl-basic-v2",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 2,
+      "case_id": "crawl.mdn-http",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "critical": false,
+      "system": "tavily-crawl-basic",
+      "status": "completed",
+      "payload_summary": {
+        "kind": "content",
+        "record_count": 1,
+        "selected_urls": [
+          "https://developer.mozilla.org/en-US/docs/Web/HTTP"
+        ]
+      },
+      "records": [
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP",
+          "title_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "content_chars": 9900,
+          "content_sha256": "58f3b3b8b8921ff1d1907b9d1507247cde563ea0b865734481e32cfb7e307706"
+        }
+      ],
+      "elapsed_seconds": 0.5471722500005853,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "cost_basis": "2026-07-14-official-list-prices: Tavily mapping-plus-extraction ceiling.",
+      "usage": {
+        "credits": 0.0,
+        "result_count": 1
+      },
+      "request_count": 1,
+      "attempt_count": 1,
+      "adapter_version": "crawl-basic-v2",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 2,
+      "case_id": "crawl.mdn-http",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "critical": false,
+      "system": "tavily-crawl-basic",
+      "status": "completed",
+      "payload_summary": {
+        "kind": "content",
+        "record_count": 1,
+        "selected_urls": [
+          "https://developer.mozilla.org/en-US/docs/Web/HTTP"
+        ]
+      },
+      "records": [
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP",
+          "title_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "content_chars": 9900,
+          "content_sha256": "58f3b3b8b8921ff1d1907b9d1507247cde563ea0b865734481e32cfb7e307706"
+        }
+      ],
+      "elapsed_seconds": 0.5079418750028708,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "cost_basis": "2026-07-14-official-list-prices: Tavily mapping-plus-extraction ceiling.",
+      "usage": {
+        "credits": 0.0,
+        "result_count": 1
+      },
+      "request_count": 1,
+      "attempt_count": 1,
+      "adapter_version": "crawl-basic-v2",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 2,
+      "case_id": "crawl.docker-get-started",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "framework-tutorial-crawl",
+      "critical": false,
+      "system": "tavily-crawl-basic",
+      "status": "failed",
+      "payload_summary": {},
+      "records": [],
+      "elapsed_seconds": 0.48069320899958257,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "cost_basis": "2026-07-14-official-list-prices: Tavily mapping-plus-extraction ceiling.",
+      "usage": {
+        "credits": 0.0,
+        "result_count": 0
+      },
+      "request_count": 1,
+      "attempt_count": 1,
+      "adapter_version": "crawl-basic-v2",
+      "error": "tavily-crawl-basic returned no normalized results.",
+      "artifacts": {}
+    },
+    {
+      "schema_version": 2,
+      "case_id": "crawl.docker-get-started",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "framework-tutorial-crawl",
+      "critical": false,
+      "system": "tavily-crawl-basic",
+      "status": "failed",
+      "payload_summary": {},
+      "records": [],
+      "elapsed_seconds": 0.4385520830001042,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "cost_basis": "2026-07-14-official-list-prices: Tavily mapping-plus-extraction ceiling.",
+      "usage": {
+        "credits": 0.0,
+        "result_count": 0
+      },
+      "request_count": 1,
+      "attempt_count": 1,
+      "adapter_version": "crawl-basic-v2",
+      "error": "tavily-crawl-basic returned no normalized results.",
+      "artifacts": {}
+    },
+    {
+      "schema_version": 2,
+      "case_id": "crawl.go-docs",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "test",
+      "family": "language-reference-crawl",
+      "critical": false,
+      "system": "tavily-crawl-basic",
+      "status": "completed",
+      "payload_summary": {
+        "kind": "content",
+        "record_count": 8,
+        "selected_urls": [
+          "https://go.dev/doc/install",
+          "https://go.dev/doc/build-cover",
+          "https://go.dev/doc/diagnostics.html",
+          "https://go.dev/doc/faq",
+          "https://go.dev/doc/contribute",
+          "https://go.dev/doc/pgo",
+          "https://go.dev/doc/asm",
+          "https://go.dev/doc/gc-guide"
+        ]
+      },
+      "records": [
+        {
+          "url": "https://go.dev/doc/install",
+          "title_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "content_chars": 3390,
+          "content_sha256": "79a26ea0638dbfbba29b483e7e22179486dbdf475579a23a949120edde7d836a"
+        },
+        {
+          "url": "https://go.dev/doc/build-cover",
+          "title_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "content_chars": 13497,
+          "content_sha256": "79080525149fa5ac2a995e8a7f6b169cf442f77d83b8bd029691bf6c349fd83e"
+        },
+        {
+          "url": "https://go.dev/doc/diagnostics.html",
+          "title_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "content_chars": 15549,
+          "content_sha256": "1bd22cf0fceb8ab238246adf0934c21729469dd4a88ff1ad38038dc6de251d63"
+        },
+        {
+          "url": "https://go.dev/doc/faq",
+          "title_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "content_chars": 92197,
+          "content_sha256": "e02b9949abca539032e74be6f4ade4c03524df0c3d2a4329d1d0ac5f702748b0"
+        },
+        {
+          "url": "https://go.dev/doc/contribute",
+          "title_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "content_chars": 37872,
+          "content_sha256": "7fe62b2176727a50a17ad195115e609355566edd9a5eaba0de98bd45d5055eaf"
+        },
+        {
+          "url": "https://go.dev/doc/pgo",
+          "title_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "content_chars": 17300,
+          "content_sha256": "1bbd4cbd074f9bfe7883160561e8f7935733c97ca5428a8c50f15f26af58b93d"
+        },
+        {
+          "url": "https://go.dev/doc/asm",
+          "title_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "content_chars": 31218,
+          "content_sha256": "da2132fc252a9a92a1dec23ad02d271abf70ad39be60dea0ab68a56e4faf9173"
+        },
+        {
+          "url": "https://go.dev/doc/gc-guide",
+          "title_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "content_chars": 63965,
+          "content_sha256": "0e5192af929c557ca2954e25c4783ad88295a195829fd188c806c8989ab36974"
+        }
+      ],
+      "elapsed_seconds": 1.3761113750006189,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "cost_basis": "2026-07-14-official-list-prices: Tavily mapping-plus-extraction ceiling.",
+      "usage": {
+        "credits": 3.0,
+        "result_count": 8
+      },
+      "request_count": 1,
+      "attempt_count": 1,
+      "adapter_version": "crawl-basic-v2",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 2,
+      "case_id": "crawl.go-docs",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "test",
+      "family": "language-reference-crawl",
+      "critical": false,
+      "system": "tavily-crawl-basic",
+      "status": "completed",
+      "payload_summary": {
+        "kind": "content",
+        "record_count": 8,
+        "selected_urls": [
+          "https://go.dev/doc/cmd",
+          "https://go.dev/doc/asm",
+          "https://go.dev/doc/build-cover",
+          "https://go.dev/doc/install",
+          "https://go.dev/doc/diagnostics.html",
+          "https://go.dev/doc/comment",
+          "https://go.dev/doc/effective_go",
+          "https://go.dev/doc/gc-guide"
+        ]
+      },
+      "records": [
+        {
+          "url": "https://go.dev/doc/cmd",
+          "title_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "content_chars": 2278,
+          "content_sha256": "4cb5bda7e83c287e89521dbedf07c252f199c36ed4304d7e5e783537e103f8b6"
+        },
+        {
+          "url": "https://go.dev/doc/asm",
+          "title_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "content_chars": 31218,
+          "content_sha256": "da2132fc252a9a92a1dec23ad02d271abf70ad39be60dea0ab68a56e4faf9173"
+        },
+        {
+          "url": "https://go.dev/doc/build-cover",
+          "title_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "content_chars": 13497,
+          "content_sha256": "79080525149fa5ac2a995e8a7f6b169cf442f77d83b8bd029691bf6c349fd83e"
+        },
+        {
+          "url": "https://go.dev/doc/install",
+          "title_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "content_chars": 3390,
+          "content_sha256": "79a26ea0638dbfbba29b483e7e22179486dbdf475579a23a949120edde7d836a"
+        },
+        {
+          "url": "https://go.dev/doc/diagnostics.html",
+          "title_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "content_chars": 15549,
+          "content_sha256": "1bd22cf0fceb8ab238246adf0934c21729469dd4a88ff1ad38038dc6de251d63"
+        },
+        {
+          "url": "https://go.dev/doc/comment",
+          "title_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "content_chars": 36478,
+          "content_sha256": "4ee09299f0b621e13b407ccf1ef19e52450d9a74c0b97e8704e703ae2a832956"
+        },
+        {
+          "url": "https://go.dev/doc/effective_go",
+          "title_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "content_chars": 97586,
+          "content_sha256": "04a89209d0336f68b8779ca7043c491231b09df6e74bb94931e87ccf8b23a328"
+        },
+        {
+          "url": "https://go.dev/doc/gc-guide",
+          "title_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "content_chars": 63965,
+          "content_sha256": "0e5192af929c557ca2954e25c4783ad88295a195829fd188c806c8989ab36974"
+        }
+      ],
+      "elapsed_seconds": 2.0417607920026057,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "cost_basis": "2026-07-14-official-list-prices: Tavily mapping-plus-extraction ceiling.",
+      "usage": {
+        "credits": 2.0,
+        "result_count": 8
+      },
+      "request_count": 1,
+      "attempt_count": 1,
+      "adapter_version": "crawl-basic-v2",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 2,
+      "case_id": "crawl.rust-book",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "critical": false,
+      "system": "tavily-crawl-basic",
+      "status": "failed",
+      "payload_summary": {},
+      "records": [],
+      "elapsed_seconds": 0.38997275000292575,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "cost_basis": "2026-07-14-official-list-prices: Tavily mapping-plus-extraction ceiling.",
+      "usage": {
+        "credits": 0.0,
+        "result_count": 0
+      },
+      "request_count": 1,
+      "attempt_count": 1,
+      "adapter_version": "crawl-basic-v2",
+      "error": "tavily-crawl-basic returned no normalized results.",
+      "artifacts": {}
+    },
+    {
+      "schema_version": 2,
+      "case_id": "crawl.rust-book",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "critical": false,
+      "system": "tavily-crawl-basic",
+      "status": "failed",
+      "payload_summary": {},
+      "records": [],
+      "elapsed_seconds": 0.370101207998232,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "cost_basis": "2026-07-14-official-list-prices: Tavily mapping-plus-extraction ceiling.",
+      "usage": {
+        "credits": 0.0,
+        "result_count": 0
+      },
+      "request_count": 1,
+      "attempt_count": 1,
+      "adapter_version": "crawl-basic-v2",
+      "error": "tavily-crawl-basic returned no normalized results.",
+      "artifacts": {}
+    },
+    {
+      "schema_version": 2,
+      "case_id": "crawl.fastapi-tutorial",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "critical": false,
+      "system": "tavily-crawl-basic",
+      "status": "failed",
+      "payload_summary": {},
+      "records": [],
+      "elapsed_seconds": 0.5058703340000648,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "cost_basis": "2026-07-14-official-list-prices: Tavily mapping-plus-extraction ceiling.",
+      "usage": {
+        "credits": 0.0,
+        "result_count": 0
+      },
+      "request_count": 1,
+      "attempt_count": 1,
+      "adapter_version": "crawl-basic-v2",
+      "error": "tavily-crawl-basic returned no normalized results.",
+      "artifacts": {}
+    },
+    {
+      "schema_version": 2,
+      "case_id": "crawl.fastapi-tutorial",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "critical": false,
+      "system": "tavily-crawl-basic",
+      "status": "failed",
+      "payload_summary": {},
+      "records": [],
+      "elapsed_seconds": 0.491918750001787,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "cost_basis": "2026-07-14-official-list-prices: Tavily mapping-plus-extraction ceiling.",
+      "usage": {
+        "credits": 0.0,
+        "result_count": 0
+      },
+      "request_count": 1,
+      "attempt_count": 1,
+      "adapter_version": "crawl-basic-v2",
+      "error": "tavily-crawl-basic returned no normalized results.",
+      "artifacts": {}
+    },
+    {
+      "schema_version": 2,
+      "case_id": "crawl.kubernetes-concepts",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "critical": false,
+      "system": "tavily-crawl-basic",
+      "status": "completed",
+      "payload_summary": {
+        "kind": "content",
+        "record_count": 7,
+        "selected_urls": [
+          "https://kubernetes.io/docs/concepts/containers",
+          "https://kubernetes.io/docs/concepts/policy",
+          "https://kubernetes.io/docs/concepts/scheduling-eviction",
+          "https://kubernetes.io/docs/concepts/configuration",
+          "https://kubernetes.io/docs/concepts/storage",
+          "https://kubernetes.io/docs/concepts/cluster-administration",
+          "https://kubernetes.io/docs/concepts/architecture"
+        ]
+      },
+      "records": [
+        {
+          "url": "https://kubernetes.io/docs/concepts/containers",
+          "title_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "content_chars": 4321,
+          "content_sha256": "2f4e5c8cf373e61363eae6ed1fcb0d767facdcf6f9f2cdac85475e0b0674597e"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/policy",
+          "title_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "content_chars": 4229,
+          "content_sha256": "7c9244935fd05598d6b96ef04bb167e84a11bde08ccc880b65a05b8d6d27e7ad"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/scheduling-eviction",
+          "title_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "content_chars": 2380,
+          "content_sha256": "8f6fa3fb09ca08c1d25269e7082b6c39043068d5c01760d5fabb62374dda207a"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/configuration",
+          "title_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "content_chars": 1420,
+          "content_sha256": "8f7761bc07c1bb1f8f34b1ccde29411976b7a1619292e4f3bfc5eba848bf18f0"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/storage",
+          "title_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "content_chars": 2147,
+          "content_sha256": "afaffb7644153fb03189cc37e307630e7ada3fdebe39ca54115103c5ca9114f4"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/cluster-administration",
+          "title_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "content_chars": 3504,
+          "content_sha256": "a7e79bc7bcc8f86f4ceab780ac86686b3aa4e4dc815cbb092b2d08c85a161de1"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/architecture",
+          "title_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "content_chars": 12999,
+          "content_sha256": "62e89aa111035f54f5eeb5e6d052e1bd89b9a870383c28efed08c01e418d4a6a"
+        }
+      ],
+      "elapsed_seconds": 24.40935937500035,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "cost_basis": "2026-07-14-official-list-prices: Tavily mapping-plus-extraction ceiling.",
+      "usage": {
+        "credits": 2.0,
+        "result_count": 7
+      },
+      "request_count": 1,
+      "attempt_count": 1,
+      "adapter_version": "crawl-basic-v2",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 2,
+      "case_id": "crawl.kubernetes-concepts",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "critical": false,
+      "system": "tavily-crawl-basic",
+      "status": "completed",
+      "payload_summary": {
+        "kind": "content",
+        "record_count": 8,
+        "selected_urls": [
+          "https://kubernetes.io/docs/concepts/windows",
+          "https://kubernetes.io/docs/concepts/security",
+          "https://kubernetes.io/docs/concepts/cluster-administration",
+          "https://kubernetes.io/docs/concepts/architecture",
+          "https://kubernetes.io/docs/concepts/containers",
+          "https://kubernetes.io/docs/concepts/workloads",
+          "https://kubernetes.io/docs/concepts/services-networking",
+          "https://kubernetes.io/docs/concepts/overview"
+        ]
+      },
+      "records": [
+        {
+          "url": "https://kubernetes.io/docs/concepts/windows",
+          "title_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "content_chars": 2105,
+          "content_sha256": "fc7f42e09aead8c3095586cfce14781878391f03661ca6ada0b5175ed4fec635"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/security",
+          "title_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "content_chars": 9101,
+          "content_sha256": "bd13ddeb8040a9f6d62dfad2d18b2a9e3ec758b191ac0d526e63a30df96e39f1"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/cluster-administration",
+          "title_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "content_chars": 3504,
+          "content_sha256": "a7e79bc7bcc8f86f4ceab780ac86686b3aa4e4dc815cbb092b2d08c85a161de1"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/architecture",
+          "title_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "content_chars": 12999,
+          "content_sha256": "62e89aa111035f54f5eeb5e6d052e1bd89b9a870383c28efed08c01e418d4a6a"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/containers",
+          "title_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "content_chars": 4321,
+          "content_sha256": "2f4e5c8cf373e61363eae6ed1fcb0d767facdcf6f9f2cdac85475e0b0674597e"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/workloads",
+          "title_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "content_chars": 4484,
+          "content_sha256": "bd68dd5d53353b52c04be70d5f2c78dca22be3156bd415f0142f05a0d954ca9c"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/services-networking",
+          "title_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "content_chars": 6138,
+          "content_sha256": "6aa58c6111087e5894a14be35ebe025be9520891ac3e1ad495c4058f6eda3e7b"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/overview",
+          "title_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "content_chars": 124007,
+          "content_sha256": "5a436783eb23ee20d375e61f7347e57bfa89c45395a54b78442725c6d2a61e64"
+        }
+      ],
+      "elapsed_seconds": 2.4278987500001676,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "cost_basis": "2026-07-14-official-list-prices: Tavily mapping-plus-extraction ceiling.",
+      "usage": {
+        "credits": 2.0,
+        "result_count": 8
+      },
+      "request_count": 1,
+      "attempt_count": 1,
+      "adapter_version": "crawl-basic-v2",
+      "error": null,
+      "artifacts": {}
+    }
+  ],
+  "scores": [
+    {
+      "case_id": "crawl.python-asyncio",
+      "system": "tavily-crawl-basic",
+      "trial_index": 1,
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "critical": false,
+      "completed": true,
+      "passed": false,
+      "required_check_rate": 0.6363636363636364,
+      "assertions": [
+        {
+          "name": "status.completed",
+          "passed": true,
+          "actual": "completed",
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "records.minimum",
+          "passed": false,
+          "actual": 1,
+          "expected": 5,
+          "detail": null
+        },
+        {
+          "name": "content.minimum_chars",
+          "passed": false,
+          "actual": 5944,
+          "expected": 20000,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:b1e1a3d63d1e1e1ab5f2d31ed97ac25e6218a372b6bf8d11a03b9c83d8568bad",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:ec4c93adb907273ec2660a5c0ca3094b0603abd925a38af5beec25e654c5cdb7",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:c5d2de3f68e5311ce75d84a13ff583da1bf22cd82859a854af61dff1b04f9c7b",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:eb33d36da592855b5796694f3ce252b91bcbc19ea06f926195e4f54065760e27",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:8648139190e534786d6204dff7161d395d89e1688db509a72c2f161c4389e645",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:dc7a45a9f79bd4eee598086aad87066bae2659c279032881173bee0fe566e764",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "urls.allowed_domains",
+          "passed": true,
+          "actual": 1.0,
+          "expected": 1.0,
+          "detail": null
+        },
+        {
+          "name": "records.maximum_duplicate_rate",
+          "passed": true,
+          "actual": 0.0,
+          "expected": 1.0,
+          "detail": null
+        }
+      ],
+      "metrics": {
+        "record_count": 1,
+        "content_chars": 5944,
+        "term_coverage": 1.0,
+        "forbidden_term_cleanliness": 1.0,
+        "url_recall": 0.3333333333333333,
+        "domain_precision": 1.0,
+        "duplicate_rate": 0.0
+      },
+      "elapsed_seconds": 0.508238958002039,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "status": "completed",
+      "lane": "crawl"
+    },
+    {
+      "case_id": "crawl.python-asyncio",
+      "system": "tavily-crawl-basic",
+      "trial_index": 2,
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "critical": false,
+      "completed": true,
+      "passed": false,
+      "required_check_rate": 0.6363636363636364,
+      "assertions": [
+        {
+          "name": "status.completed",
+          "passed": true,
+          "actual": "completed",
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "records.minimum",
+          "passed": false,
+          "actual": 1,
+          "expected": 5,
+          "detail": null
+        },
+        {
+          "name": "content.minimum_chars",
+          "passed": false,
+          "actual": 5944,
+          "expected": 20000,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:b1e1a3d63d1e1e1ab5f2d31ed97ac25e6218a372b6bf8d11a03b9c83d8568bad",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:ec4c93adb907273ec2660a5c0ca3094b0603abd925a38af5beec25e654c5cdb7",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:c5d2de3f68e5311ce75d84a13ff583da1bf22cd82859a854af61dff1b04f9c7b",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:eb33d36da592855b5796694f3ce252b91bcbc19ea06f926195e4f54065760e27",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:8648139190e534786d6204dff7161d395d89e1688db509a72c2f161c4389e645",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:dc7a45a9f79bd4eee598086aad87066bae2659c279032881173bee0fe566e764",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "urls.allowed_domains",
+          "passed": true,
+          "actual": 1.0,
+          "expected": 1.0,
+          "detail": null
+        },
+        {
+          "name": "records.maximum_duplicate_rate",
+          "passed": true,
+          "actual": 0.0,
+          "expected": 1.0,
+          "detail": null
+        }
+      ],
+      "metrics": {
+        "record_count": 1,
+        "content_chars": 5944,
+        "term_coverage": 1.0,
+        "forbidden_term_cleanliness": 1.0,
+        "url_recall": 0.3333333333333333,
+        "domain_precision": 1.0,
+        "duplicate_rate": 0.0
+      },
+      "elapsed_seconds": 0.5063458330005233,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "status": "completed",
+      "lane": "crawl"
+    },
+    {
+      "case_id": "crawl.sqlite-language",
+      "system": "tavily-crawl-basic",
+      "trial_index": 1,
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "critical": false,
+      "completed": true,
+      "passed": false,
+      "required_check_rate": 0.6363636363636364,
+      "assertions": [
+        {
+          "name": "status.completed",
+          "passed": true,
+          "actual": "completed",
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "records.minimum",
+          "passed": true,
+          "actual": 8,
+          "expected": 5,
+          "detail": null
+        },
+        {
+          "name": "content.minimum_chars",
+          "passed": true,
+          "actual": 64574,
+          "expected": 20000,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:97c2aa171b5a85199090a90237b73f71fd34a3afb89779300deec19ff90856c8",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:8c6e5779190acc89b92b7c3e11c6e63aa94cb50fba5bcbe518749de056687a2a",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:f8d95b2ada8f59f8f2f7607d5d36365339aac22fba721d4ddd759783dc602654",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:ea2a39fa56649580d31dcb2bbbd4345cd059ba240e2d2200b72ed2f8334db5cf",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:fbbe8a457e79190dc2e7f4e8a809dd7f170155849764a23e68f8c43122fef2bb",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:f4e27cf031502cf57b0a76b16b1b04c62e518980434d99d3a9b08880552eedd7",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "urls.allowed_domains",
+          "passed": true,
+          "actual": 1.0,
+          "expected": 1.0,
+          "detail": null
+        },
+        {
+          "name": "records.maximum_duplicate_rate",
+          "passed": true,
+          "actual": 0.0,
+          "expected": 1.0,
+          "detail": null
+        }
+      ],
+      "metrics": {
+        "record_count": 8,
+        "content_chars": 64574,
+        "term_coverage": 0.3333333333333333,
+        "forbidden_term_cleanliness": 1.0,
+        "url_recall": 0.3333333333333333,
+        "domain_precision": 1.0,
+        "duplicate_rate": 0.0
+      },
+      "elapsed_seconds": 1.6151946249992761,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "status": "completed",
+      "lane": "crawl"
+    },
+    {
+      "case_id": "crawl.sqlite-language",
+      "system": "tavily-crawl-basic",
+      "trial_index": 2,
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "critical": false,
+      "completed": true,
+      "passed": false,
+      "required_check_rate": 0.6363636363636364,
+      "assertions": [
+        {
+          "name": "status.completed",
+          "passed": true,
+          "actual": "completed",
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "records.minimum",
+          "passed": true,
+          "actual": 8,
+          "expected": 5,
+          "detail": null
+        },
+        {
+          "name": "content.minimum_chars",
+          "passed": true,
+          "actual": 86559,
+          "expected": 20000,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:97c2aa171b5a85199090a90237b73f71fd34a3afb89779300deec19ff90856c8",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:8c6e5779190acc89b92b7c3e11c6e63aa94cb50fba5bcbe518749de056687a2a",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:f8d95b2ada8f59f8f2f7607d5d36365339aac22fba721d4ddd759783dc602654",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:ea2a39fa56649580d31dcb2bbbd4345cd059ba240e2d2200b72ed2f8334db5cf",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:fbbe8a457e79190dc2e7f4e8a809dd7f170155849764a23e68f8c43122fef2bb",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:f4e27cf031502cf57b0a76b16b1b04c62e518980434d99d3a9b08880552eedd7",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "urls.allowed_domains",
+          "passed": true,
+          "actual": 1.0,
+          "expected": 1.0,
+          "detail": null
+        },
+        {
+          "name": "records.maximum_duplicate_rate",
+          "passed": true,
+          "actual": 0.0,
+          "expected": 1.0,
+          "detail": null
+        }
+      ],
+      "metrics": {
+        "record_count": 8,
+        "content_chars": 86559,
+        "term_coverage": 0.3333333333333333,
+        "forbidden_term_cleanliness": 1.0,
+        "url_recall": 0.3333333333333333,
+        "domain_precision": 1.0,
+        "duplicate_rate": 0.0
+      },
+      "elapsed_seconds": 1.4540910409996286,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "status": "completed",
+      "lane": "crawl"
+    },
+    {
+      "case_id": "crawl.mdn-http",
+      "system": "tavily-crawl-basic",
+      "trial_index": 1,
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "critical": false,
+      "completed": true,
+      "passed": false,
+      "required_check_rate": 0.6363636363636364,
+      "assertions": [
+        {
+          "name": "status.completed",
+          "passed": true,
+          "actual": "completed",
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "records.minimum",
+          "passed": false,
+          "actual": 1,
+          "expected": 5,
+          "detail": null
+        },
+        {
+          "name": "content.minimum_chars",
+          "passed": false,
+          "actual": 9900,
+          "expected": 30000,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:1ce579b389b2d306c0767dd6088c8501989239b73e66b2d1076d373d431928ac",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:39f99965ca686f95b46bd622456286bc182b671da9d6995a76d0218e5d6972ff",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:eaa4a020751a5c9c98a4f52594699c9b5b9f150de54b8fc639865c2e614b98d8",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:59e2ed660294603a108e5c39013b2d39fffb768408e3b551daf4b5da5a40a83d",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:df35fd04b143019402bac6f648283e1869ca3987116e041ab16606a48a67bb4b",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:e47b60754748a593db89cbe0d44a62b15034bb0f17af8db900d7d155019fccd4",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "urls.allowed_domains",
+          "passed": true,
+          "actual": 1.0,
+          "expected": 1.0,
+          "detail": null
+        },
+        {
+          "name": "records.maximum_duplicate_rate",
+          "passed": true,
+          "actual": 0.0,
+          "expected": 1.0,
+          "detail": null
+        }
+      ],
+      "metrics": {
+        "record_count": 1,
+        "content_chars": 9900,
+        "term_coverage": 1.0,
+        "forbidden_term_cleanliness": 1.0,
+        "url_recall": 0.3333333333333333,
+        "domain_precision": 1.0,
+        "duplicate_rate": 0.0
+      },
+      "elapsed_seconds": 0.5471722500005853,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "status": "completed",
+      "lane": "crawl"
+    },
+    {
+      "case_id": "crawl.mdn-http",
+      "system": "tavily-crawl-basic",
+      "trial_index": 2,
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "critical": false,
+      "completed": true,
+      "passed": false,
+      "required_check_rate": 0.6363636363636364,
+      "assertions": [
+        {
+          "name": "status.completed",
+          "passed": true,
+          "actual": "completed",
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "records.minimum",
+          "passed": false,
+          "actual": 1,
+          "expected": 5,
+          "detail": null
+        },
+        {
+          "name": "content.minimum_chars",
+          "passed": false,
+          "actual": 9900,
+          "expected": 30000,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:1ce579b389b2d306c0767dd6088c8501989239b73e66b2d1076d373d431928ac",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:39f99965ca686f95b46bd622456286bc182b671da9d6995a76d0218e5d6972ff",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:eaa4a020751a5c9c98a4f52594699c9b5b9f150de54b8fc639865c2e614b98d8",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:59e2ed660294603a108e5c39013b2d39fffb768408e3b551daf4b5da5a40a83d",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:df35fd04b143019402bac6f648283e1869ca3987116e041ab16606a48a67bb4b",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:e47b60754748a593db89cbe0d44a62b15034bb0f17af8db900d7d155019fccd4",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "urls.allowed_domains",
+          "passed": true,
+          "actual": 1.0,
+          "expected": 1.0,
+          "detail": null
+        },
+        {
+          "name": "records.maximum_duplicate_rate",
+          "passed": true,
+          "actual": 0.0,
+          "expected": 1.0,
+          "detail": null
+        }
+      ],
+      "metrics": {
+        "record_count": 1,
+        "content_chars": 9900,
+        "term_coverage": 1.0,
+        "forbidden_term_cleanliness": 1.0,
+        "url_recall": 0.3333333333333333,
+        "domain_precision": 1.0,
+        "duplicate_rate": 0.0
+      },
+      "elapsed_seconds": 0.5079418750028708,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "status": "completed",
+      "lane": "crawl"
+    },
+    {
+      "case_id": "crawl.docker-get-started",
+      "system": "tavily-crawl-basic",
+      "trial_index": 1,
+      "split": "dev",
+      "family": "framework-tutorial-crawl",
+      "critical": false,
+      "completed": false,
+      "passed": false,
+      "required_check_rate": 0.18181818181818182,
+      "assertions": [
+        {
+          "name": "status.completed",
+          "passed": false,
+          "actual": "failed",
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "records.minimum",
+          "passed": false,
+          "actual": 0,
+          "expected": 5,
+          "detail": null
+        },
+        {
+          "name": "content.minimum_chars",
+          "passed": false,
+          "actual": 0,
+          "expected": 20000,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:c4a6c83a400aa7480d2b7763ee73cf91a15125a75587946f3b3f9658669e4f9c",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:09b6c21c0f50ab269ad7d3f8c98edc5a7209522509434ba760a38be32455172f",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:e6ee83c6cb1d7b7fcae1c4509970407d44763bbb572a70a1195912c88fc8e722",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:60283338fee3ec054be4e5d95328d16616c4f8eeb735282bb1d987edce7c2952",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:0fb7f5c10e2dc7a9e5df62ed20a42fdeaed95ff3af42d64ea220e09a49812841",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:63a3913d648022d8c0024273ffbfc25d99d73fb48e3ee7346ec9aa526af39718",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "urls.allowed_domains",
+          "passed": true,
+          "actual": 1.0,
+          "expected": 1.0,
+          "detail": null
+        },
+        {
+          "name": "records.maximum_duplicate_rate",
+          "passed": true,
+          "actual": 0.0,
+          "expected": 1.0,
+          "detail": null
+        }
+      ],
+      "metrics": {
+        "record_count": 0,
+        "content_chars": 0,
+        "term_coverage": 0.0,
+        "forbidden_term_cleanliness": 1.0,
+        "url_recall": 0.0,
+        "domain_precision": 1.0,
+        "duplicate_rate": 0.0
+      },
+      "elapsed_seconds": 0.48069320899958257,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "status": "failed",
+      "lane": "crawl"
+    },
+    {
+      "case_id": "crawl.docker-get-started",
+      "system": "tavily-crawl-basic",
+      "trial_index": 2,
+      "split": "dev",
+      "family": "framework-tutorial-crawl",
+      "critical": false,
+      "completed": false,
+      "passed": false,
+      "required_check_rate": 0.18181818181818182,
+      "assertions": [
+        {
+          "name": "status.completed",
+          "passed": false,
+          "actual": "failed",
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "records.minimum",
+          "passed": false,
+          "actual": 0,
+          "expected": 5,
+          "detail": null
+        },
+        {
+          "name": "content.minimum_chars",
+          "passed": false,
+          "actual": 0,
+          "expected": 20000,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:c4a6c83a400aa7480d2b7763ee73cf91a15125a75587946f3b3f9658669e4f9c",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:09b6c21c0f50ab269ad7d3f8c98edc5a7209522509434ba760a38be32455172f",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:e6ee83c6cb1d7b7fcae1c4509970407d44763bbb572a70a1195912c88fc8e722",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:60283338fee3ec054be4e5d95328d16616c4f8eeb735282bb1d987edce7c2952",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:0fb7f5c10e2dc7a9e5df62ed20a42fdeaed95ff3af42d64ea220e09a49812841",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:63a3913d648022d8c0024273ffbfc25d99d73fb48e3ee7346ec9aa526af39718",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "urls.allowed_domains",
+          "passed": true,
+          "actual": 1.0,
+          "expected": 1.0,
+          "detail": null
+        },
+        {
+          "name": "records.maximum_duplicate_rate",
+          "passed": true,
+          "actual": 0.0,
+          "expected": 1.0,
+          "detail": null
+        }
+      ],
+      "metrics": {
+        "record_count": 0,
+        "content_chars": 0,
+        "term_coverage": 0.0,
+        "forbidden_term_cleanliness": 1.0,
+        "url_recall": 0.0,
+        "domain_precision": 1.0,
+        "duplicate_rate": 0.0
+      },
+      "elapsed_seconds": 0.4385520830001042,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "status": "failed",
+      "lane": "crawl"
+    },
+    {
+      "case_id": "crawl.go-docs",
+      "system": "tavily-crawl-basic",
+      "trial_index": 1,
+      "split": "test",
+      "family": "language-reference-crawl",
+      "critical": false,
+      "completed": true,
+      "passed": false,
+      "required_check_rate": 0.5454545454545454,
+      "assertions": [
+        {
+          "name": "status.completed",
+          "passed": true,
+          "actual": "completed",
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "records.minimum",
+          "passed": true,
+          "actual": 8,
+          "expected": 5,
+          "detail": null
+        },
+        {
+          "name": "content.minimum_chars",
+          "passed": true,
+          "actual": 274988,
+          "expected": 30000,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:6bca165cc1174c7c86a65abfa4663a4c939b6694b8c4a5a08cde9f93a01bb352",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:48fa0b0a9d39daaa82c3474df1180ce1054f7ea8eb32107c8e3e8919987b1759",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:10244246d395080ebf22adf2916956678fd6647cc94df91c3e9c817fcb9a9b6b",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:3f4be4138e8609715789c6cbac2cbb2f361acfc7e78f2b3a0ba80abf613e5496",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:5ba657a1b59eaea19f425c7b99a6c5e0842e7988126a3751d02dcd03befc68ba",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:5d82dc9a454dc245a9c2c6f7318c3dc7ecc584aff60ddccd5711f93cba6105cf",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "urls.allowed_domains",
+          "passed": true,
+          "actual": 1.0,
+          "expected": 1.0,
+          "detail": null
+        },
+        {
+          "name": "records.maximum_duplicate_rate",
+          "passed": true,
+          "actual": 0.0,
+          "expected": 1.0,
+          "detail": null
+        }
+      ],
+      "metrics": {
+        "record_count": 8,
+        "content_chars": 274988,
+        "term_coverage": 0.3333333333333333,
+        "forbidden_term_cleanliness": 1.0,
+        "url_recall": 0.0,
+        "domain_precision": 1.0,
+        "duplicate_rate": 0.0
+      },
+      "elapsed_seconds": 1.3761113750006189,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "status": "completed",
+      "lane": "crawl"
+    },
+    {
+      "case_id": "crawl.go-docs",
+      "system": "tavily-crawl-basic",
+      "trial_index": 2,
+      "split": "test",
+      "family": "language-reference-crawl",
+      "critical": false,
+      "completed": true,
+      "passed": false,
+      "required_check_rate": 0.6363636363636364,
+      "assertions": [
+        {
+          "name": "status.completed",
+          "passed": true,
+          "actual": "completed",
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "records.minimum",
+          "passed": true,
+          "actual": 8,
+          "expected": 5,
+          "detail": null
+        },
+        {
+          "name": "content.minimum_chars",
+          "passed": true,
+          "actual": 263961,
+          "expected": 30000,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:6bca165cc1174c7c86a65abfa4663a4c939b6694b8c4a5a08cde9f93a01bb352",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:48fa0b0a9d39daaa82c3474df1180ce1054f7ea8eb32107c8e3e8919987b1759",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:10244246d395080ebf22adf2916956678fd6647cc94df91c3e9c817fcb9a9b6b",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:3f4be4138e8609715789c6cbac2cbb2f361acfc7e78f2b3a0ba80abf613e5496",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:5ba657a1b59eaea19f425c7b99a6c5e0842e7988126a3751d02dcd03befc68ba",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:5d82dc9a454dc245a9c2c6f7318c3dc7ecc584aff60ddccd5711f93cba6105cf",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "urls.allowed_domains",
+          "passed": true,
+          "actual": 1.0,
+          "expected": 1.0,
+          "detail": null
+        },
+        {
+          "name": "records.maximum_duplicate_rate",
+          "passed": true,
+          "actual": 0.0,
+          "expected": 1.0,
+          "detail": null
+        }
+      ],
+      "metrics": {
+        "record_count": 8,
+        "content_chars": 263961,
+        "term_coverage": 0.3333333333333333,
+        "forbidden_term_cleanliness": 1.0,
+        "url_recall": 0.3333333333333333,
+        "domain_precision": 1.0,
+        "duplicate_rate": 0.0
+      },
+      "elapsed_seconds": 2.0417607920026057,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "status": "completed",
+      "lane": "crawl"
+    },
+    {
+      "case_id": "crawl.rust-book",
+      "system": "tavily-crawl-basic",
+      "trial_index": 1,
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "critical": false,
+      "completed": false,
+      "passed": false,
+      "required_check_rate": 0.18181818181818182,
+      "assertions": [
+        {
+          "name": "status.completed",
+          "passed": false,
+          "actual": "failed",
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "records.minimum",
+          "passed": false,
+          "actual": 0,
+          "expected": 5,
+          "detail": null
+        },
+        {
+          "name": "content.minimum_chars",
+          "passed": false,
+          "actual": 0,
+          "expected": 12000,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:6aa8c23898e151632078c750e6169c08590a303e114156c2b73c074c24037796",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:561f0a3d84e3c5cf22f379912b7513b40c4e08edd60dc8b936a407db52b9579c",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:4ec5d59a585b99d542c05e08e61fdada3245978de910743d5333253142ee8908",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:89c47e72f4f20c2238dcc47715002862e43df8ecfc48733160b2931e51fac8c9",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:e247e75ada8cb835493898aafe22e5f069fe501a8ac9694e795bb2c6c1dd2ba7",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:5f6e6a555f869b3725667170e5067ff6961611dedb499bcf1e2d3d2c6f9bd8fc",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "urls.allowed_domains",
+          "passed": true,
+          "actual": 1.0,
+          "expected": 1.0,
+          "detail": null
+        },
+        {
+          "name": "records.maximum_duplicate_rate",
+          "passed": true,
+          "actual": 0.0,
+          "expected": 1.0,
+          "detail": null
+        }
+      ],
+      "metrics": {
+        "record_count": 0,
+        "content_chars": 0,
+        "term_coverage": 0.0,
+        "forbidden_term_cleanliness": 1.0,
+        "url_recall": 0.0,
+        "domain_precision": 1.0,
+        "duplicate_rate": 0.0
+      },
+      "elapsed_seconds": 0.38997275000292575,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "status": "failed",
+      "lane": "crawl"
+    },
+    {
+      "case_id": "crawl.rust-book",
+      "system": "tavily-crawl-basic",
+      "trial_index": 2,
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "critical": false,
+      "completed": false,
+      "passed": false,
+      "required_check_rate": 0.18181818181818182,
+      "assertions": [
+        {
+          "name": "status.completed",
+          "passed": false,
+          "actual": "failed",
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "records.minimum",
+          "passed": false,
+          "actual": 0,
+          "expected": 5,
+          "detail": null
+        },
+        {
+          "name": "content.minimum_chars",
+          "passed": false,
+          "actual": 0,
+          "expected": 12000,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:6aa8c23898e151632078c750e6169c08590a303e114156c2b73c074c24037796",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:561f0a3d84e3c5cf22f379912b7513b40c4e08edd60dc8b936a407db52b9579c",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:4ec5d59a585b99d542c05e08e61fdada3245978de910743d5333253142ee8908",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:89c47e72f4f20c2238dcc47715002862e43df8ecfc48733160b2931e51fac8c9",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:e247e75ada8cb835493898aafe22e5f069fe501a8ac9694e795bb2c6c1dd2ba7",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:5f6e6a555f869b3725667170e5067ff6961611dedb499bcf1e2d3d2c6f9bd8fc",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "urls.allowed_domains",
+          "passed": true,
+          "actual": 1.0,
+          "expected": 1.0,
+          "detail": null
+        },
+        {
+          "name": "records.maximum_duplicate_rate",
+          "passed": true,
+          "actual": 0.0,
+          "expected": 1.0,
+          "detail": null
+        }
+      ],
+      "metrics": {
+        "record_count": 0,
+        "content_chars": 0,
+        "term_coverage": 0.0,
+        "forbidden_term_cleanliness": 1.0,
+        "url_recall": 0.0,
+        "domain_precision": 1.0,
+        "duplicate_rate": 0.0
+      },
+      "elapsed_seconds": 0.370101207998232,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "status": "failed",
+      "lane": "crawl"
+    },
+    {
+      "case_id": "crawl.fastapi-tutorial",
+      "system": "tavily-crawl-basic",
+      "trial_index": 1,
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "critical": false,
+      "completed": false,
+      "passed": false,
+      "required_check_rate": 0.18181818181818182,
+      "assertions": [
+        {
+          "name": "status.completed",
+          "passed": false,
+          "actual": "failed",
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "records.minimum",
+          "passed": false,
+          "actual": 0,
+          "expected": 5,
+          "detail": null
+        },
+        {
+          "name": "content.minimum_chars",
+          "passed": false,
+          "actual": 0,
+          "expected": 20000,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:c7d9c7e23dba42077fce391346b6dfc8722923f907e766fca5997389c0cb3c16",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:ba2680e9b3122235ec76233cfbe242b01b4abdf24503b6af5522cec3ffae989e",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:7f07c8b7eadc73f2755c60efb1d9d7ac0f094dd7c1dba3069d3be0214be10fb6",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:6634008cc0069f6528f5c6a79d0b3f98169d3156a378c4336e9c96c626251455",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:a106cd5ebeea2961ab8d1ad42db31a448b5c9311e980b049564cb36b66044854",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:2cdbc329c377e57a3fef165dad7b33d23b9598644f5e232a2089e66ccab5c8ea",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "urls.allowed_domains",
+          "passed": true,
+          "actual": 1.0,
+          "expected": 1.0,
+          "detail": null
+        },
+        {
+          "name": "records.maximum_duplicate_rate",
+          "passed": true,
+          "actual": 0.0,
+          "expected": 1.0,
+          "detail": null
+        }
+      ],
+      "metrics": {
+        "record_count": 0,
+        "content_chars": 0,
+        "term_coverage": 0.0,
+        "forbidden_term_cleanliness": 1.0,
+        "url_recall": 0.0,
+        "domain_precision": 1.0,
+        "duplicate_rate": 0.0
+      },
+      "elapsed_seconds": 0.5058703340000648,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "status": "failed",
+      "lane": "crawl"
+    },
+    {
+      "case_id": "crawl.fastapi-tutorial",
+      "system": "tavily-crawl-basic",
+      "trial_index": 2,
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "critical": false,
+      "completed": false,
+      "passed": false,
+      "required_check_rate": 0.18181818181818182,
+      "assertions": [
+        {
+          "name": "status.completed",
+          "passed": false,
+          "actual": "failed",
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "records.minimum",
+          "passed": false,
+          "actual": 0,
+          "expected": 5,
+          "detail": null
+        },
+        {
+          "name": "content.minimum_chars",
+          "passed": false,
+          "actual": 0,
+          "expected": 20000,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:c7d9c7e23dba42077fce391346b6dfc8722923f907e766fca5997389c0cb3c16",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:ba2680e9b3122235ec76233cfbe242b01b4abdf24503b6af5522cec3ffae989e",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:7f07c8b7eadc73f2755c60efb1d9d7ac0f094dd7c1dba3069d3be0214be10fb6",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:6634008cc0069f6528f5c6a79d0b3f98169d3156a378c4336e9c96c626251455",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:a106cd5ebeea2961ab8d1ad42db31a448b5c9311e980b049564cb36b66044854",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:2cdbc329c377e57a3fef165dad7b33d23b9598644f5e232a2089e66ccab5c8ea",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "urls.allowed_domains",
+          "passed": true,
+          "actual": 1.0,
+          "expected": 1.0,
+          "detail": null
+        },
+        {
+          "name": "records.maximum_duplicate_rate",
+          "passed": true,
+          "actual": 0.0,
+          "expected": 1.0,
+          "detail": null
+        }
+      ],
+      "metrics": {
+        "record_count": 0,
+        "content_chars": 0,
+        "term_coverage": 0.0,
+        "forbidden_term_cleanliness": 1.0,
+        "url_recall": 0.0,
+        "domain_precision": 1.0,
+        "duplicate_rate": 0.0
+      },
+      "elapsed_seconds": 0.491918750001787,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "status": "failed",
+      "lane": "crawl"
+    },
+    {
+      "case_id": "crawl.kubernetes-concepts",
+      "system": "tavily-crawl-basic",
+      "trial_index": 1,
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "critical": false,
+      "completed": true,
+      "passed": false,
+      "required_check_rate": 0.5454545454545454,
+      "assertions": [
+        {
+          "name": "status.completed",
+          "passed": true,
+          "actual": "completed",
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "records.minimum",
+          "passed": true,
+          "actual": 7,
+          "expected": 5,
+          "detail": null
+        },
+        {
+          "name": "content.minimum_chars",
+          "passed": true,
+          "actual": 31000,
+          "expected": 20000,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:2294a8c9606d7367684b6159133fc5ee55f03f9b05e10eb23ccd2af84b7f0d4d",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:01366d7dabda289fd567b8afa93a1fdc0be11b962254a027caec2e4be5a94c16",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:21b2eed1e328a2c62fe4c17d51188bdea73450f29956dc5c8c95429313ddd72c",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:4b5ae5aa6ab24aa40a7ab028f4be686a7a62f83ac576f517ddf3d47c5890c608",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:cb6952ad5a8ac8a37b7d70fd2acbddf9c1ab729e20b208f4dd982f48fead54b1",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:6a7a1f3dc1324368067ac095ae142621845921b667c4a9663def8e7d6191249d",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "urls.allowed_domains",
+          "passed": true,
+          "actual": 1.0,
+          "expected": 1.0,
+          "detail": null
+        },
+        {
+          "name": "records.maximum_duplicate_rate",
+          "passed": true,
+          "actual": 0.0,
+          "expected": 1.0,
+          "detail": null
+        }
+      ],
+      "metrics": {
+        "record_count": 7,
+        "content_chars": 31000,
+        "term_coverage": 0.3333333333333333,
+        "forbidden_term_cleanliness": 1.0,
+        "url_recall": 0.0,
+        "domain_precision": 1.0,
+        "duplicate_rate": 0.0
+      },
+      "elapsed_seconds": 24.40935937500035,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "status": "completed",
+      "lane": "crawl"
+    },
+    {
+      "case_id": "crawl.kubernetes-concepts",
+      "system": "tavily-crawl-basic",
+      "trial_index": 2,
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "critical": false,
+      "completed": true,
+      "passed": false,
+      "required_check_rate": 0.7272727272727273,
+      "assertions": [
+        {
+          "name": "status.completed",
+          "passed": true,
+          "actual": "completed",
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "records.minimum",
+          "passed": true,
+          "actual": 8,
+          "expected": 5,
+          "detail": null
+        },
+        {
+          "name": "content.minimum_chars",
+          "passed": true,
+          "actual": 166659,
+          "expected": 20000,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:2294a8c9606d7367684b6159133fc5ee55f03f9b05e10eb23ccd2af84b7f0d4d",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:01366d7dabda289fd567b8afa93a1fdc0be11b962254a027caec2e4be5a94c16",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:21b2eed1e328a2c62fe4c17d51188bdea73450f29956dc5c8c95429313ddd72c",
+          "passed": true,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:4b5ae5aa6ab24aa40a7ab028f4be686a7a62f83ac576f517ddf3d47c5890c608",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:cb6952ad5a8ac8a37b7d70fd2acbddf9c1ab729e20b208f4dd982f48fead54b1",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:6a7a1f3dc1324368067ac095ae142621845921b667c4a9663def8e7d6191249d",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "urls.allowed_domains",
+          "passed": true,
+          "actual": 1.0,
+          "expected": 1.0,
+          "detail": null
+        },
+        {
+          "name": "records.maximum_duplicate_rate",
+          "passed": true,
+          "actual": 0.0,
+          "expected": 1.0,
+          "detail": null
+        }
+      ],
+      "metrics": {
+        "record_count": 8,
+        "content_chars": 166659,
+        "term_coverage": 1.0,
+        "forbidden_term_cleanliness": 1.0,
+        "url_recall": 0.0,
+        "domain_precision": 1.0,
+        "duplicate_rate": 0.0
+      },
+      "elapsed_seconds": 2.4278987500001676,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.024,
+      "cost_kind": "upper_bound",
+      "status": "completed",
+      "lane": "crawl"
+    }
+  ],
+  "summary": {
+    "case_count": 8,
+    "case_runs": 16,
+    "repeat": 2,
+    "completed": 10,
+    "unsupported": 0,
+    "completion_rate": 0.625,
+    "trial_pass_rate": 0.0,
+    "pass_all_trials_rate": 0.0,
+    "pass_any_trial_rate": 0.0,
+    "trial_stability_rate": 1.0,
+    "mean_required_check_rate": 0.4602272727272727,
+    "mean_elapsed_seconds": 2.37945145050071,
+    "observed_cost_usd": 0.384,
+    "cost_observed_runs": 16,
+    "cost_actual_runs": 0,
+    "cost_estimated_runs": 0,
+    "cost_upper_bound_runs": 16,
+    "cost_unknown_runs": 0
+  }
+}

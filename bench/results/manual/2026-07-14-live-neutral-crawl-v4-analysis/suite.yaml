@@ -1,0 +1,346 @@
+schema_version: 2
+name: live-neutral-crawl
+version: 1.0.0
+description: Frozen bounded documentation-site crawl benchmark. Every system receives
+  the same start URL, path prefixes, eight-page limit, depth-one bound, and gold checks.
+  Development and test domains are disjoint.
+cases:
+- id: crawl.python-asyncio
+  input:
+    case_id: crawl.python-asyncio
+    lane: crawl
+    url: https://docs.python.org/3/library/asyncio.html
+    include_path_prefixes:
+    - /3/library/asyncio
+    max_pages: 8
+    max_depth: 1
+    timeout_seconds: 150
+  expected:
+    minimum_records: 5
+    minimum_content_chars: 20000
+    required_terms:
+    - Asynchronous I/O
+    - Coroutines and Tasks
+    - Synchronization Primitives
+    required_urls:
+    - https://docs.python.org/3/library/asyncio.html
+    - https://docs.python.org/3/library/asyncio-task.html
+    - https://docs.python.org/3/library/asyncio-sync.html
+    allowed_domains:
+    - docs.python.org
+    lane: crawl
+    maximum_duplicate_rate: 1.0
+  metadata:
+    description: Bounded crawl of the Python asyncio reference subtree.
+    split: dev
+    family: language-reference-crawl
+    live: true
+    tags:
+    - documentation
+    - python
+    - path-filter
+    reference_checked_at: '2026-07-14'
+    rights:
+      redistribution: allowed_with_conditions
+      source: https://docs.python.org/3/license.html
+      notes: Publish scores and hashes only; do not commit fetched bodies.
+    product_area: legacy-v1-migrated
+    critical: false
+    reference_expires_at: '2026-10-12'
+- id: crawl.sqlite-language
+  input:
+    case_id: crawl.sqlite-language
+    lane: crawl
+    url: https://www.sqlite.org/lang.html
+    include_path_prefixes:
+    - /lang
+    max_pages: 8
+    max_depth: 1
+    timeout_seconds: 150
+  expected:
+    minimum_records: 5
+    minimum_content_chars: 20000
+    required_terms:
+    - Query Language Understood by SQLite
+    - Built-in Aggregate Functions
+    - ALTER TABLE
+    required_urls:
+    - https://www.sqlite.org/lang.html
+    - https://www.sqlite.org/lang_aggfunc.html
+    - https://www.sqlite.org/lang_altertable.html
+    allowed_domains:
+    - www.sqlite.org
+    lane: crawl
+    maximum_duplicate_rate: 1.0
+  metadata:
+    description: Bounded crawl of SQLite language-reference pages.
+    split: dev
+    family: language-reference-crawl
+    live: true
+    tags:
+    - documentation
+    - sql
+    - path-filter
+    reference_checked_at: '2026-07-14'
+    rights:
+      redistribution: allowed
+      source: https://www.sqlite.org/copyright.html
+      notes: SQLite documentation is dedicated to the public domain; reports remain
+        content-free.
+    product_area: legacy-v1-migrated
+    critical: false
+    reference_expires_at: '2026-10-12'
+- id: crawl.mdn-http
+  input:
+    case_id: crawl.mdn-http
+    lane: crawl
+    url: https://developer.mozilla.org/en-US/docs/Web/HTTP
+    include_path_prefixes:
+    - /en-US/docs/Web/HTTP
+    max_pages: 8
+    max_depth: 1
+    timeout_seconds: 150
+  expected:
+    minimum_records: 5
+    minimum_content_chars: 30000
+    required_terms:
+    - Hypertext Transfer Protocol
+    - HTTP cookies
+    - HTTP messages
+    required_urls:
+    - https://developer.mozilla.org/en-US/docs/Web/HTTP
+    - https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Cookies
+    - https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Messages
+    allowed_domains:
+    - developer.mozilla.org
+    lane: crawl
+    maximum_duplicate_rate: 1.0
+  metadata:
+    description: Bounded crawl of MDN's HTTP guide subtree.
+    split: dev
+    family: language-reference-crawl
+    live: true
+    tags:
+    - documentation
+    - http
+    - path-filter
+    reference_checked_at: '2026-07-14'
+    rights:
+      redistribution: allowed_with_conditions
+      source: https://developer.mozilla.org/en-US/docs/MDN/Writing_guidelines/Attrib_copyright_license
+      notes: Publish scores and hashes only; do not commit fetched bodies.
+    product_area: legacy-v1-migrated
+    critical: false
+    reference_expires_at: '2026-10-12'
+- id: crawl.docker-get-started
+  input:
+    case_id: crawl.docker-get-started
+    lane: crawl
+    url: https://docs.docker.com/get-started/
+    include_path_prefixes:
+    - /get-started/
+    max_pages: 8
+    max_depth: 1
+    timeout_seconds: 150
+  expected:
+    minimum_records: 5
+    minimum_content_chars: 20000
+    required_terms:
+    - Get Docker Desktop
+    - Writing a Dockerfile
+    - Publishing and exposing ports
+    required_urls:
+    - https://docs.docker.com/get-started/introduction/get-docker-desktop/
+    - https://docs.docker.com/get-started/docker-concepts/building-images/writing-a-dockerfile/
+    - https://docs.docker.com/get-started/docker-concepts/running-containers/publishing-ports/
+    allowed_domains:
+    - docs.docker.com
+    lane: crawl
+    maximum_duplicate_rate: 1.0
+  metadata:
+    description: Bounded crawl of Docker's getting-started documentation.
+    split: dev
+    family: framework-tutorial-crawl
+    live: true
+    tags:
+    - documentation
+    - containers
+    - path-filter
+    reference_checked_at: '2026-07-14'
+    rights:
+      redistribution: unknown
+      source: https://www.docker.com/legal/docker-terms-service/
+      notes: Rights not asserted; publication contains no fetched bodies.
+    product_area: legacy-v1-migrated
+    critical: false
+    reference_expires_at: '2026-10-12'
+- id: crawl.go-docs
+  input:
+    case_id: crawl.go-docs
+    lane: crawl
+    url: https://go.dev/doc/
+    include_path_prefixes:
+    - /doc/
+    - /ref/
+    max_pages: 8
+    max_depth: 1
+    timeout_seconds: 150
+  expected:
+    minimum_records: 5
+    minimum_content_chars: 30000
+    required_terms:
+    - The Go Programming Language Specification
+    - Effective Go
+    - Create a Go module
+    required_urls:
+    - https://go.dev/ref/spec
+    - https://go.dev/doc/effective_go
+    - https://go.dev/doc/tutorial/create-module.html
+    allowed_domains:
+    - go.dev
+    lane: crawl
+    maximum_duplicate_rate: 1.0
+  metadata:
+    description: Bounded crawl of Go reference and tutorial pages.
+    split: test
+    family: language-reference-crawl
+    live: true
+    tags:
+    - documentation
+    - go
+    - path-filter
+    reference_checked_at: '2026-07-14'
+    rights:
+      redistribution: allowed_with_conditions
+      source: https://go.dev/LICENSE
+      notes: Publish scores and hashes only; do not commit fetched bodies.
+    product_area: legacy-v1-migrated
+    critical: false
+    reference_expires_at: '2026-10-12'
+- id: crawl.rust-book
+  input:
+    case_id: crawl.rust-book
+    lane: crawl
+    url: https://doc.rust-lang.org/book/
+    include_path_prefixes:
+    - /book/
+    max_pages: 8
+    max_depth: 1
+    timeout_seconds: 150
+  expected:
+    minimum_records: 5
+    minimum_content_chars: 12000
+    required_terms:
+    - The Rust Programming Language
+    - Installation
+    - Editions
+    required_urls:
+    - https://doc.rust-lang.org/book/
+    - https://doc.rust-lang.org/book/ch01-01-installation.html
+    - https://doc.rust-lang.org/book/appendix-05-editions.html
+    allowed_domains:
+    - doc.rust-lang.org
+    lane: crawl
+    maximum_duplicate_rate: 1.0
+  metadata:
+    description: Bounded crawl of The Rust Programming Language book.
+    split: test
+    family: framework-tutorial-crawl
+    live: true
+    tags:
+    - documentation
+    - rust
+    - path-filter
+    reference_checked_at: '2026-07-14'
+    rights:
+      redistribution: allowed_with_conditions
+      source: https://github.com/rust-lang/book
+      notes: Publish scores and hashes only; do not commit fetched bodies.
+    product_area: legacy-v1-migrated
+    critical: false
+    reference_expires_at: '2026-10-12'
+- id: crawl.fastapi-tutorial
+  input:
+    case_id: crawl.fastapi-tutorial
+    lane: crawl
+    url: https://fastapi.tiangolo.com/tutorial/
+    include_path_prefixes:
+    - /tutorial/
+    max_pages: 8
+    max_depth: 1
+    timeout_seconds: 150
+  expected:
+    minimum_records: 5
+    minimum_content_chars: 20000
+    required_terms:
+    - Tutorial - User Guide
+    - Path Parameters
+    - Request Body
+    required_urls:
+    - https://fastapi.tiangolo.com/tutorial/
+    - https://fastapi.tiangolo.com/tutorial/path-params/
+    - https://fastapi.tiangolo.com/tutorial/body/
+    allowed_domains:
+    - fastapi.tiangolo.com
+    lane: crawl
+    maximum_duplicate_rate: 1.0
+  metadata:
+    description: Bounded crawl of the FastAPI tutorial subtree.
+    split: test
+    family: framework-tutorial-crawl
+    live: true
+    tags:
+    - documentation
+    - python
+    - path-filter
+    reference_checked_at: '2026-07-14'
+    rights:
+      redistribution: allowed_with_conditions
+      source: https://github.com/fastapi/fastapi
+      notes: Publish scores and hashes only; do not commit fetched bodies.
+    product_area: legacy-v1-migrated
+    critical: false
+    reference_expires_at: '2026-10-12'
+- id: crawl.kubernetes-concepts
+  input:
+    case_id: crawl.kubernetes-concepts
+    lane: crawl
+    url: https://kubernetes.io/docs/concepts/
+    include_path_prefixes:
+    - /docs/concepts/
+    max_pages: 8
+    max_depth: 1
+    timeout_seconds: 150
+  expected:
+    minimum_records: 5
+    minimum_content_chars: 20000
+    required_terms:
+    - Kubernetes Components
+    - Deployments
+    - Images
+    required_urls:
+    - https://kubernetes.io/docs/concepts/overview/components/
+    - https://kubernetes.io/docs/concepts/workloads/controllers/deployment/
+    - https://kubernetes.io/docs/concepts/containers/images/
+    allowed_domains:
+    - kubernetes.io
+    lane: crawl
+    maximum_duplicate_rate: 1.0
+  metadata:
+    description: Bounded crawl of Kubernetes concept documentation.
+    split: test
+    family: framework-tutorial-crawl
+    live: true
+    tags:
+    - documentation
+    - kubernetes
+    - path-filter
+    reference_checked_at: '2026-07-14'
+    rights:
+      redistribution: allowed_with_conditions
+      source: https://kubernetes.io/docs/contribute/style/content-guide/#content-best-practices
+      notes: Kubernetes documentation is licensed under CC BY 4.0; reports remain
+        content-free.
+    product_area: legacy-v1-migrated
+    critical: false
+    reference_expires_at: '2026-10-12'

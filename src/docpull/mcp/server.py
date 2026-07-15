@@ -593,7 +593,33 @@ async def _dispatch_tool(
         if name == "fetch_url":
             url = _require_str(arguments, "url")
             max_tokens = _coerce_int(arguments.get("max_tokens"), name="max_tokens", default=0)
-            result = await fetch_url(url, max_tokens=max_tokens or None)
+            remote_documents = arguments.get("remote_documents", "off")
+            if remote_documents not in {"off", "pdf"}:
+                raise ValueError("'remote_documents' must be off or pdf")
+            remote_document_backend = arguments.get("remote_document_backend", "auto")
+            if remote_document_backend not in {"auto", "pypdf", "markitdown", "unstructured"}:
+                raise ValueError("'remote_document_backend' must be auto, pypdf, markitdown, or unstructured")
+            remote_document_timeout_seconds = _coerce_int(
+                arguments.get("remote_document_timeout_seconds"),
+                name="remote_document_timeout_seconds",
+                default=60,
+            )
+            remote_document_memory_mib = _coerce_int(
+                arguments.get("remote_document_memory_mib"),
+                name="remote_document_memory_mib",
+                default=1024,
+            )
+            result = await fetch_url(
+                url,
+                max_tokens=max_tokens or None,
+                remote_documents=cast(Literal["off", "pdf"], remote_documents),
+                remote_document_backend=cast(
+                    Literal["auto", "pypdf", "markitdown", "unstructured"],
+                    remote_document_backend,
+                ),
+                remote_document_timeout_seconds=remote_document_timeout_seconds,
+                remote_document_memory_mib=remote_document_memory_mib,
+            )
 
         elif name == "render_url":
             url = _require_str(arguments, "url")
@@ -1117,10 +1143,12 @@ async def _run_stdio() -> int:
         )
         return 1
 
-    server: Server = Server("docpull", instructions=SERVER_INSTRUCTIONS)
+    server: Server = Server(  # type: ignore[no-any-unimported]
+        "docpull", instructions=SERVER_INSTRUCTIONS
+    )
 
     @server.list_tools()  # type: ignore[misc,no-untyped-call]
-    async def _list_tools() -> list[Tool]:
+    async def _list_tools() -> list[Tool]:  # type: ignore[no-any-unimported]
         tools = [
             Tool(
                 name="fetch_url",
@@ -1151,6 +1179,31 @@ async def _run_stdio() -> int:
                             "minimum": 100,
                             "maximum": 200000,
                             "description": "If set, split into chunks of this many tokens",
+                        },
+                        "remote_documents": {
+                            "type": "string",
+                            "enum": ["off", "pdf"],
+                            "default": "off",
+                            "description": "Explicitly allow local parsing of a remote PDF",
+                        },
+                        "remote_document_backend": {
+                            "type": "string",
+                            "enum": ["auto", "pypdf", "markitdown", "unstructured"],
+                            "default": "auto",
+                            "description": "Local parser backend for explicitly enabled remote PDFs",
+                        },
+                        "remote_document_timeout_seconds": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 3600,
+                            "default": 60,
+                            "description": "Wall-time limit for the isolated PDF parser",
+                        },
+                        "remote_document_memory_mib": {
+                            "type": "integer",
+                            "minimum": 64,
+                            "default": 1024,
+                            "description": "Address-space limit for the isolated PDF parser",
                         },
                     },
                     "required": ["url"],
@@ -1863,7 +1916,9 @@ async def _run_stdio() -> int:
         return _cb
 
     @server.call_tool()  # type: ignore[misc,no-untyped-call]
-    async def _call_tool(name: str, arguments: dict[str, Any]) -> CallToolResult:
+    async def _call_tool(  # type: ignore[no-any-unimported]
+        name: str, arguments: dict[str, Any]
+    ) -> CallToolResult:
         result = await _dispatch_tool(
             name,
             arguments,

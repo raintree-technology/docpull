@@ -16,6 +16,7 @@ from pydantic import ValidationError
 from docpull.http.client import AsyncHttpClient, _ValidatedResolver
 from docpull.pipeline.base import PageContext
 from docpull.pipeline.steps.save import SaveStep
+from docpull.security.download_policy import SafeDownloadPolicy
 from docpull.security.robots import RobotsChecker, _RobotsResponse
 from docpull.security.url_validator import UrlValidationResult, UrlValidator
 
@@ -613,6 +614,45 @@ class TestRedirectValidation:
             await client.get("https://public.example/notes")
 
         assert response.content.iterated is False
+
+    @pytest.mark.asyncio
+    async def test_http_client_allows_pdf_only_with_explicit_document_policy(self) -> None:
+        response = _FakeResponse(
+            200,
+            headers={
+                "Content-Type": "application/pdf",
+                "Content-Disposition": "attachment; filename=paper.pdf",
+            },
+            chunks=[b"%PDF-1.7\n" + (b"\x00\x01\x02\x03" * 40)],
+            url="https://public.example/paper.pdf",
+        )
+        client = AsyncHttpClient(
+            rate_limiter=_DummyRateLimiter(),
+            max_retries=0,
+            download_policy=SafeDownloadPolicy(
+                allowed_remote_document_types={"application/pdf"},
+            ),
+        )
+        client._session = _FakeSession([response])
+
+        result = await client.get("https://public.example/paper.pdf")
+
+        assert result.content.startswith(b"%PDF-")
+        assert result.content_type == "application/pdf"
+
+    @pytest.mark.asyncio
+    async def test_explicit_pdf_policy_still_rejects_executables(self) -> None:
+        client = AsyncHttpClient(
+            rate_limiter=_DummyRateLimiter(),
+            max_retries=0,
+            download_policy=SafeDownloadPolicy(
+                allowed_remote_document_types={"application/pdf"},
+            ),
+        )
+        client._session = _FakeSession([])
+
+        with pytest.raises(ValueError, match="Disallowed download URL extension '.exe'"):
+            await client.get("https://public.example/update.exe")
 
     @pytest.mark.asyncio
     async def test_http_client_rejects_spoofed_executable_magic(self) -> None:

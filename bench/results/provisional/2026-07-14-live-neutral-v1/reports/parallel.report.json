@@ -1,0 +1,5334 @@
+{
+  "schema_version": 1,
+  "manifest": {
+    "schema_version": 1,
+    "run_id": "0f0fb7e00b5243c2be056ca367b4bb16",
+    "created_at": "2026-07-14T20:57:16.704435+00:00",
+    "suite_name": "live-neutral-extract",
+    "suite_version": "1.0.0",
+    "suite_sha256": "02b0ae9e23cb938b27082e9f27e0a40468672bfab6491fa8c80a15efdc4a1786",
+    "system": "parallel",
+    "adapter_version": "v1-live-full-2026-07-14",
+    "git_revision": "30b15ba373092824124a42e2719ff32b147318dd",
+    "python_version": "3.12.13",
+    "repeat": 3,
+    "max_concurrency": 1,
+    "command": [
+      "docpull-bench",
+      "run",
+      "bench/cases/live-neutral-extract-v1.yaml",
+      "--adapter",
+      "parallel",
+      "--system",
+      "parallel",
+      "--repeat",
+      "3",
+      "--max-concurrency",
+      "1",
+      "--max-cost-usd",
+      "0.096",
+      "--output-dir",
+      "bench/runs/final-v1"
+    ]
+  },
+  "observations": [
+    {
+      "schema_version": 1,
+      "case_id": "dev.docs.python-control-flow",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "dev",
+      "family": "technical-docs",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://docs.python.org/3.13/tutorial/controlflow.html",
+          "title": "4. More Control Flow Tools — Python 3.13.14 documentation",
+          "content_chars": 39389,
+          "content_sha256": "db9994b9e7ec505d126aca13a0c7837aa59885f63a0582f86f0128174599da67"
+        }
+      ],
+      "selected_urls": [
+        "https://docs.python.org/3.13/tutorial/controlflow.html"
+      ],
+      "elapsed_seconds": 0.5586758339995868,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "dev.docs.python-control-flow",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "dev",
+      "family": "technical-docs",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://docs.python.org/3.13/tutorial/controlflow.html",
+          "title": "4. More Control Flow Tools — Python 3.13.14 documentation",
+          "content_chars": 39389,
+          "content_sha256": "db9994b9e7ec505d126aca13a0c7837aa59885f63a0582f86f0128174599da67"
+        }
+      ],
+      "selected_urls": [
+        "https://docs.python.org/3.13/tutorial/controlflow.html"
+      ],
+      "elapsed_seconds": 0.28068891700058884,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "dev.docs.python-control-flow",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "dev",
+      "family": "technical-docs",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://docs.python.org/3.13/tutorial/controlflow.html",
+          "title": "4. More Control Flow Tools — Python 3.13.14 documentation",
+          "content_chars": 39389,
+          "content_sha256": "db9994b9e7ec505d126aca13a0c7837aa59885f63a0582f86f0128174599da67"
+        }
+      ],
+      "selected_urls": [
+        "https://docs.python.org/3.13/tutorial/controlflow.html"
+      ],
+      "elapsed_seconds": 0.29888225000104285,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "dev.docs.sqlite-select",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "dev",
+      "family": "long-reference",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://www.sqlite.org/lang_select.html",
+          "title": "",
+          "content_chars": 37624,
+          "content_sha256": "41120acea74e4f3b36eb29380c5cb6c7f1b237f536f6cc7e4ba49c21ab433c30"
+        }
+      ],
+      "selected_urls": [
+        "https://www.sqlite.org/lang_select.html"
+      ],
+      "elapsed_seconds": 0.8208107499995094,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "dev.docs.sqlite-select",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "dev",
+      "family": "long-reference",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://www.sqlite.org/lang_select.html",
+          "title": "",
+          "content_chars": 37624,
+          "content_sha256": "41120acea74e4f3b36eb29380c5cb6c7f1b237f536f6cc7e4ba49c21ab433c30"
+        }
+      ],
+      "selected_urls": [
+        "https://www.sqlite.org/lang_select.html"
+      ],
+      "elapsed_seconds": 0.6868802499993762,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "dev.docs.sqlite-select",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "dev",
+      "family": "long-reference",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://www.sqlite.org/lang_select.html",
+          "title": "",
+          "content_chars": 37624,
+          "content_sha256": "41120acea74e4f3b36eb29380c5cb6c7f1b237f536f6cc7e4ba49c21ab433c30"
+        }
+      ],
+      "selected_urls": [
+        "https://www.sqlite.org/lang_select.html"
+      ],
+      "elapsed_seconds": 0.821937374999834,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "dev.docs.git-rebase",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "dev",
+      "family": "long-reference",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://git-scm.com/docs/git-rebase",
+          "title": "Git - git-rebase Documentation",
+          "content_chars": 60297,
+          "content_sha256": "59cbbcbdd821865bdc93257179f5dfd4ab7b634ea99610aead7ef31d64f849e6"
+        }
+      ],
+      "selected_urls": [
+        "https://git-scm.com/docs/git-rebase"
+      ],
+      "elapsed_seconds": 0.6530462499995338,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "dev.docs.git-rebase",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "dev",
+      "family": "long-reference",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://git-scm.com/docs/git-rebase",
+          "title": "Git - git-rebase Documentation",
+          "content_chars": 60297,
+          "content_sha256": "59cbbcbdd821865bdc93257179f5dfd4ab7b634ea99610aead7ef31d64f849e6"
+        }
+      ],
+      "selected_urls": [
+        "https://git-scm.com/docs/git-rebase"
+      ],
+      "elapsed_seconds": 0.3328107910001563,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "dev.docs.git-rebase",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "dev",
+      "family": "long-reference",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://git-scm.com/docs/git-rebase",
+          "title": "Git - git-rebase Documentation",
+          "content_chars": 60297,
+          "content_sha256": "59cbbcbdd821865bdc93257179f5dfd4ab7b634ea99610aead7ef31d64f849e6"
+        }
+      ],
+      "selected_urls": [
+        "https://git-scm.com/docs/git-rebase"
+      ],
+      "elapsed_seconds": 0.3451455000013084,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "dev.docs.kubernetes-object-names",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "dev",
+      "family": "technical-docs",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://kubernetes.io/docs/concepts/overview/working-with-objects/names/",
+          "title": "Object Names and IDs | Kubernetes",
+          "content_chars": 6846,
+          "content_sha256": "4d60deaca1e34f8570baa827817ae7db1b447c62bc64d1b197495c798cc4f58f"
+        }
+      ],
+      "selected_urls": [
+        "https://kubernetes.io/docs/concepts/overview/working-with-objects/names/"
+      ],
+      "elapsed_seconds": 0.6233025000001362,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "dev.docs.kubernetes-object-names",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "dev",
+      "family": "technical-docs",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://kubernetes.io/docs/concepts/overview/working-with-objects/names/",
+          "title": "Object Names and IDs | Kubernetes",
+          "content_chars": 6846,
+          "content_sha256": "4d60deaca1e34f8570baa827817ae7db1b447c62bc64d1b197495c798cc4f58f"
+        }
+      ],
+      "selected_urls": [
+        "https://kubernetes.io/docs/concepts/overview/working-with-objects/names/"
+      ],
+      "elapsed_seconds": 0.2524592080008006,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "dev.docs.kubernetes-object-names",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "dev",
+      "family": "technical-docs",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://kubernetes.io/docs/concepts/overview/working-with-objects/names/",
+          "title": "Object Names and IDs | Kubernetes",
+          "content_chars": 6846,
+          "content_sha256": "4d60deaca1e34f8570baa827817ae7db1b447c62bc64d1b197495c798cc4f58f"
+        }
+      ],
+      "selected_urls": [
+        "https://kubernetes.io/docs/concepts/overview/working-with-objects/names/"
+      ],
+      "elapsed_seconds": 0.24389462500039372,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "dev.docs.mdn-using-fetch",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "dev",
+      "family": "technical-docs",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch",
+          "title": "Using the Fetch API - Web APIs | MDN",
+          "content_chars": 25812,
+          "content_sha256": "f889a0aa10197a38ccae87db2628a29d34d8fbacbce319ead669b111a4390cac"
+        }
+      ],
+      "selected_urls": [
+        "https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch"
+      ],
+      "elapsed_seconds": 0.6034965830003785,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "dev.docs.mdn-using-fetch",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "dev",
+      "family": "technical-docs",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch",
+          "title": "Using the Fetch API - Web APIs | MDN",
+          "content_chars": 25812,
+          "content_sha256": "f889a0aa10197a38ccae87db2628a29d34d8fbacbce319ead669b111a4390cac"
+        }
+      ],
+      "selected_urls": [
+        "https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch"
+      ],
+      "elapsed_seconds": 0.28993195799921523,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "dev.docs.mdn-using-fetch",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "dev",
+      "family": "technical-docs",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch",
+          "title": "Using the Fetch API - Web APIs | MDN",
+          "content_chars": 25812,
+          "content_sha256": "f889a0aa10197a38ccae87db2628a29d34d8fbacbce319ead669b111a4390cac"
+        }
+      ],
+      "selected_urls": [
+        "https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch"
+      ],
+      "elapsed_seconds": 0.2624466659999598,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "dev.standard.wcag-22",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "dev",
+      "family": "standards",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://www.w3.org/TR/WCAG22/",
+          "title": "Web Content Accessibility Guidelines (WCAG) 2.2",
+          "content_chars": 159689,
+          "content_sha256": "cdc7c23b69c8bc8705a9375270e29686429daf28055dff873b42b06449131984"
+        }
+      ],
+      "selected_urls": [
+        "https://www.w3.org/TR/WCAG22/"
+      ],
+      "elapsed_seconds": 0.8652024170005461,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "dev.standard.wcag-22",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "dev",
+      "family": "standards",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://www.w3.org/TR/WCAG22/",
+          "title": "Web Content Accessibility Guidelines (WCAG) 2.2",
+          "content_chars": 159689,
+          "content_sha256": "cdc7c23b69c8bc8705a9375270e29686429daf28055dff873b42b06449131984"
+        }
+      ],
+      "selected_urls": [
+        "https://www.w3.org/TR/WCAG22/"
+      ],
+      "elapsed_seconds": 0.34504700000070443,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "dev.standard.wcag-22",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "dev",
+      "family": "standards",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://www.w3.org/TR/WCAG22/",
+          "title": "Web Content Accessibility Guidelines (WCAG) 2.2",
+          "content_chars": 159689,
+          "content_sha256": "cdc7c23b69c8bc8705a9375270e29686429daf28055dff873b42b06449131984"
+        }
+      ],
+      "selected_urls": [
+        "https://www.w3.org/TR/WCAG22/"
+      ],
+      "elapsed_seconds": 0.7562240829993243,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "dev.standard.rfc9110-html",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "dev",
+      "family": "standards",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc9110.html",
+          "title": "RFC 9110: HTTP Semantics",
+          "content_chars": 475579,
+          "content_sha256": "f9f9145a5f853c4157bb44ba9230056b823db005591a72fee809ce9bec13e149"
+        }
+      ],
+      "selected_urls": [
+        "https://www.rfc-editor.org/rfc/rfc9110.html"
+      ],
+      "elapsed_seconds": 12.460744500000146,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "dev.standard.rfc9110-html",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "dev",
+      "family": "standards",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc9110.html",
+          "title": "RFC 9110: HTTP Semantics",
+          "content_chars": 475579,
+          "content_sha256": "f9f9145a5f853c4157bb44ba9230056b823db005591a72fee809ce9bec13e149"
+        }
+      ],
+      "selected_urls": [
+        "https://www.rfc-editor.org/rfc/rfc9110.html"
+      ],
+      "elapsed_seconds": 0.5532826670005306,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "dev.standard.rfc9110-html",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "dev",
+      "family": "standards",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc9110.html",
+          "title": "RFC 9110: HTTP Semantics",
+          "content_chars": 475579,
+          "content_sha256": "f9f9145a5f853c4157bb44ba9230056b823db005591a72fee809ce9bec13e149"
+        }
+      ],
+      "selected_urls": [
+        "https://www.rfc-editor.org/rfc/rfc9110.html"
+      ],
+      "elapsed_seconds": 0.6065813330005767,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "dev.raw.cpython-readme",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "dev",
+      "family": "raw-text",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://raw.githubusercontent.com/python/cpython/v3.13.5/README.rst",
+          "title": "",
+          "content_chars": 8826,
+          "content_sha256": "df42d1fd04ab572d2cc184b12491344054b8a232c148b105093928a54365bf9e"
+        }
+      ],
+      "selected_urls": [
+        "https://raw.githubusercontent.com/python/cpython/v3.13.5/README.rst"
+      ],
+      "elapsed_seconds": 0.4151850830003241,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "dev.raw.cpython-readme",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "dev",
+      "family": "raw-text",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://raw.githubusercontent.com/python/cpython/v3.13.5/README.rst",
+          "title": "",
+          "content_chars": 8826,
+          "content_sha256": "df42d1fd04ab572d2cc184b12491344054b8a232c148b105093928a54365bf9e"
+        }
+      ],
+      "selected_urls": [
+        "https://raw.githubusercontent.com/python/cpython/v3.13.5/README.rst"
+      ],
+      "elapsed_seconds": 0.3284121670003515,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "dev.raw.cpython-readme",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "dev",
+      "family": "raw-text",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://raw.githubusercontent.com/python/cpython/v3.13.5/README.rst",
+          "title": "",
+          "content_chars": 8826,
+          "content_sha256": "df42d1fd04ab572d2cc184b12491344054b8a232c148b105093928a54365bf9e"
+        }
+      ],
+      "selected_urls": [
+        "https://raw.githubusercontent.com/python/cpython/v3.13.5/README.rst"
+      ],
+      "elapsed_seconds": 0.35354587499932677,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "dev.raw.kubernetes-readme",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "dev",
+      "family": "raw-text",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://raw.githubusercontent.com/kubernetes/kubernetes/v1.33.1/README.md",
+          "title": "",
+          "content_chars": 4386,
+          "content_sha256": "d6cc50228ee3facaf147d983bac5c77165c657172443fd226b3121960dd822e4"
+        }
+      ],
+      "selected_urls": [
+        "https://raw.githubusercontent.com/kubernetes/kubernetes/v1.33.1/README.md"
+      ],
+      "elapsed_seconds": 0.3423842499996681,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "dev.raw.kubernetes-readme",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "dev",
+      "family": "raw-text",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://raw.githubusercontent.com/kubernetes/kubernetes/v1.33.1/README.md",
+          "title": "",
+          "content_chars": 4386,
+          "content_sha256": "d6cc50228ee3facaf147d983bac5c77165c657172443fd226b3121960dd822e4"
+        }
+      ],
+      "selected_urls": [
+        "https://raw.githubusercontent.com/kubernetes/kubernetes/v1.33.1/README.md"
+      ],
+      "elapsed_seconds": 0.2757727080006589,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "dev.raw.kubernetes-readme",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "dev",
+      "family": "raw-text",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://raw.githubusercontent.com/kubernetes/kubernetes/v1.33.1/README.md",
+          "title": "",
+          "content_chars": 4386,
+          "content_sha256": "d6cc50228ee3facaf147d983bac5c77165c657172443fd226b3121960dd822e4"
+        }
+      ],
+      "selected_urls": [
+        "https://raw.githubusercontent.com/kubernetes/kubernetes/v1.33.1/README.md"
+      ],
+      "elapsed_seconds": 0.30213895900124044,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "dev.long.wikipedia-grace-hopper",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "dev",
+      "family": "long-form",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://en.wikipedia.org/wiki/Grace_Hopper",
+          "title": "Grace Hopper - Wikipedia",
+          "content_chars": 86644,
+          "content_sha256": "770504aa1bb4fca5ada5aed083c220fd05c720a558e15eab2af5d093f2f8067a"
+        }
+      ],
+      "selected_urls": [
+        "https://en.wikipedia.org/wiki/Grace_Hopper"
+      ],
+      "elapsed_seconds": 0.792908458999591,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "dev.long.wikipedia-grace-hopper",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "dev",
+      "family": "long-form",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://en.wikipedia.org/wiki/Grace_Hopper",
+          "title": "Grace Hopper - Wikipedia",
+          "content_chars": 86644,
+          "content_sha256": "770504aa1bb4fca5ada5aed083c220fd05c720a558e15eab2af5d093f2f8067a"
+        }
+      ],
+      "selected_urls": [
+        "https://en.wikipedia.org/wiki/Grace_Hopper"
+      ],
+      "elapsed_seconds": 0.34979758400004357,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "dev.long.wikipedia-grace-hopper",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "dev",
+      "family": "long-form",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://en.wikipedia.org/wiki/Grace_Hopper",
+          "title": "Grace Hopper - Wikipedia",
+          "content_chars": 86644,
+          "content_sha256": "770504aa1bb4fca5ada5aed083c220fd05c720a558e15eab2af5d093f2f8067a"
+        }
+      ],
+      "selected_urls": [
+        "https://en.wikipedia.org/wiki/Grace_Hopper"
+      ],
+      "elapsed_seconds": 0.31900533299995004,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "dev.research.attention-abstract",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "dev",
+      "family": "long-form",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://arxiv.org/abs/1706.03762",
+          "title": "[1706.03762] Attention Is All You Need",
+          "content_chars": 8520,
+          "content_sha256": "42637c5a2105e522df440c15a782834ef86e51d1b42e0f3c72b9caf49523411f"
+        }
+      ],
+      "selected_urls": [
+        "https://arxiv.org/abs/1706.03762"
+      ],
+      "elapsed_seconds": 0.41110741699958453,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "dev.research.attention-abstract",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "dev",
+      "family": "long-form",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://arxiv.org/abs/1706.03762",
+          "title": "[1706.03762] Attention Is All You Need",
+          "content_chars": 8520,
+          "content_sha256": "42637c5a2105e522df440c15a782834ef86e51d1b42e0f3c72b9caf49523411f"
+        }
+      ],
+      "selected_urls": [
+        "https://arxiv.org/abs/1706.03762"
+      ],
+      "elapsed_seconds": 0.2250695419988915,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "dev.research.attention-abstract",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "dev",
+      "family": "long-form",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://arxiv.org/abs/1706.03762",
+          "title": "[1706.03762] Attention Is All You Need",
+          "content_chars": 8520,
+          "content_sha256": "42637c5a2105e522df440c15a782834ef86e51d1b42e0f3c72b9caf49523411f"
+        }
+      ],
+      "selected_urls": [
+        "https://arxiv.org/abs/1706.03762"
+      ],
+      "elapsed_seconds": 0.26234283299891104,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "dev.pdf.attention-paper",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "dev",
+      "family": "pdf",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://arxiv.org/pdf/1706.03762",
+          "title": "",
+          "content_chars": 42349,
+          "content_sha256": "f162aaec810004dabde89ede5116d4a9b88d2b3b4ac24a177a3c81e67c99b9e0"
+        }
+      ],
+      "selected_urls": [
+        "https://arxiv.org/pdf/1706.03762"
+      ],
+      "elapsed_seconds": 1.4673070839999127,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "dev.pdf.attention-paper",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "dev",
+      "family": "pdf",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://arxiv.org/pdf/1706.03762",
+          "title": "",
+          "content_chars": 42349,
+          "content_sha256": "f162aaec810004dabde89ede5116d4a9b88d2b3b4ac24a177a3c81e67c99b9e0"
+        }
+      ],
+      "selected_urls": [
+        "https://arxiv.org/pdf/1706.03762"
+      ],
+      "elapsed_seconds": 0.2911420000000362,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "dev.pdf.attention-paper",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "dev",
+      "family": "pdf",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://arxiv.org/pdf/1706.03762",
+          "title": "",
+          "content_chars": 42349,
+          "content_sha256": "f162aaec810004dabde89ede5116d4a9b88d2b3b4ac24a177a3c81e67c99b9e0"
+        }
+      ],
+      "selected_urls": [
+        "https://arxiv.org/pdf/1706.03762"
+      ],
+      "elapsed_seconds": 0.30830779099960637,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "dev.modern.nextjs-installation",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "dev",
+      "family": "modern-web",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://nextjs.org/docs/app/getting-started/installation",
+          "title": "Quick start",
+          "content_chars": 10573,
+          "content_sha256": "7a0fc410dd24f95740eaedf709b986b17eaf108e5de6a08ccb05bac7a6a71db3"
+        }
+      ],
+      "selected_urls": [
+        "https://nextjs.org/docs/app/getting-started/installation"
+      ],
+      "elapsed_seconds": 0.5172535839992634,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "dev.modern.nextjs-installation",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "dev",
+      "family": "modern-web",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://nextjs.org/docs/app/getting-started/installation",
+          "title": "Quick start",
+          "content_chars": 11145,
+          "content_sha256": "47826b4ac456e9e563dd7c3bf9134fb18dcddb4c3e46bd46e2c1de495722f05c"
+        }
+      ],
+      "selected_urls": [
+        "https://nextjs.org/docs/app/getting-started/installation"
+      ],
+      "elapsed_seconds": 0.22698133399899234,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "dev.modern.nextjs-installation",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "dev",
+      "family": "modern-web",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://nextjs.org/docs/app/getting-started/installation",
+          "title": "Quick start",
+          "content_chars": 11145,
+          "content_sha256": "47826b4ac456e9e563dd7c3bf9134fb18dcddb4c3e46bd46e2c1de495722f05c"
+        }
+      ],
+      "selected_urls": [
+        "https://nextjs.org/docs/app/getting-started/installation"
+      ],
+      "elapsed_seconds": 0.21182591700016928,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "dev.access.pypi-pydantic",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "dev",
+      "family": "managed-access",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://pypi.org/project/pydantic/2.11.7/",
+          "title": "pydantic · PyPI",
+          "content_chars": 84350,
+          "content_sha256": "983ec80a75a561262679b9e80c5cc75dbfc5fb80d3aacf23eecfbc737d6bd388"
+        }
+      ],
+      "selected_urls": [
+        "https://pypi.org/project/pydantic/2.11.7/"
+      ],
+      "elapsed_seconds": 0.7942562920015916,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "dev.access.pypi-pydantic",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "dev",
+      "family": "managed-access",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://pypi.org/project/pydantic/2.11.7/",
+          "title": "pydantic · PyPI",
+          "content_chars": 84350,
+          "content_sha256": "983ec80a75a561262679b9e80c5cc75dbfc5fb80d3aacf23eecfbc737d6bd388"
+        }
+      ],
+      "selected_urls": [
+        "https://pypi.org/project/pydantic/2.11.7/"
+      ],
+      "elapsed_seconds": 0.3166128330012725,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "dev.access.pypi-pydantic",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "dev",
+      "family": "managed-access",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://pypi.org/project/pydantic/2.11.7/",
+          "title": "pydantic · PyPI",
+          "content_chars": 84350,
+          "content_sha256": "983ec80a75a561262679b9e80c5cc75dbfc5fb80d3aacf23eecfbc737d6bd388"
+        }
+      ],
+      "selected_urls": [
+        "https://pypi.org/project/pydantic/2.11.7/"
+      ],
+      "elapsed_seconds": 0.32327766600064933,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "dev.raw.openapi-petstore",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "dev",
+      "family": "raw-text",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://raw.githubusercontent.com/OAI/OpenAPI-Specification/3.1.0/examples/v3.0/petstore.yaml",
+          "title": "",
+          "content_chars": 2572,
+          "content_sha256": "2207ed0f748befd55dd00f387728b5d4b273452abd07a2aaa8a96199cd7777b7"
+        }
+      ],
+      "selected_urls": [
+        "https://raw.githubusercontent.com/OAI/OpenAPI-Specification/3.1.0/examples/v3.0/petstore.yaml"
+      ],
+      "elapsed_seconds": 0.3350527910006349,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "dev.raw.openapi-petstore",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "dev",
+      "family": "raw-text",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://raw.githubusercontent.com/OAI/OpenAPI-Specification/3.1.0/examples/v3.0/petstore.yaml",
+          "title": "",
+          "content_chars": 2572,
+          "content_sha256": "2207ed0f748befd55dd00f387728b5d4b273452abd07a2aaa8a96199cd7777b7"
+        }
+      ],
+      "selected_urls": [
+        "https://raw.githubusercontent.com/OAI/OpenAPI-Specification/3.1.0/examples/v3.0/petstore.yaml"
+      ],
+      "elapsed_seconds": 0.3490898339987325,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "dev.raw.openapi-petstore",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "dev",
+      "family": "raw-text",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://raw.githubusercontent.com/OAI/OpenAPI-Specification/3.1.0/examples/v3.0/petstore.yaml",
+          "title": "",
+          "content_chars": 2572,
+          "content_sha256": "2207ed0f748befd55dd00f387728b5d4b273452abd07a2aaa8a96199cd7777b7"
+        }
+      ],
+      "selected_urls": [
+        "https://raw.githubusercontent.com/OAI/OpenAPI-Specification/3.1.0/examples/v3.0/petstore.yaml"
+      ],
+      "elapsed_seconds": 0.3109433749996242,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "dev.raw.rfc8259-text",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "dev",
+      "family": "standards",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc8259.txt",
+          "title": "",
+          "content_chars": 28336,
+          "content_sha256": "305462d2ab782da60d8df3e5994c1088c28b767c9c9ab11e7b79ccfa41cab245"
+        }
+      ],
+      "selected_urls": [
+        "https://www.rfc-editor.org/rfc/rfc8259.txt"
+      ],
+      "elapsed_seconds": 3.1846934590012097,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "dev.raw.rfc8259-text",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "dev",
+      "family": "standards",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc8259.txt",
+          "title": "",
+          "content_chars": 28336,
+          "content_sha256": "305462d2ab782da60d8df3e5994c1088c28b767c9c9ab11e7b79ccfa41cab245"
+        }
+      ],
+      "selected_urls": [
+        "https://www.rfc-editor.org/rfc/rfc8259.txt"
+      ],
+      "elapsed_seconds": 0.8020289999985835,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "dev.raw.rfc8259-text",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "dev",
+      "family": "standards",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc8259.txt",
+          "title": "",
+          "content_chars": 28336,
+          "content_sha256": "305462d2ab782da60d8df3e5994c1088c28b767c9c9ab11e7b79ccfa41cab245"
+        }
+      ],
+      "selected_urls": [
+        "https://www.rfc-editor.org/rfc/rfc8259.txt"
+      ],
+      "elapsed_seconds": 0.39433445899885555,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "test.docs.django-tutorial",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "test",
+      "family": "technical-docs",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://docs.djangoproject.com/en/5.2/intro/tutorial01/",
+          "title": "Writing your first Django app, part 1 | Django documentation | Django",
+          "content_chars": 16567,
+          "content_sha256": "514db51c385ffca4ad0db7cb43ac36d30aa61d1d9dbc1b4780864bac536d15d3"
+        }
+      ],
+      "selected_urls": [
+        "https://docs.djangoproject.com/en/5.2/intro/tutorial01/"
+      ],
+      "elapsed_seconds": 0.592370917000153,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "test.docs.django-tutorial",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "test",
+      "family": "technical-docs",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://docs.djangoproject.com/en/5.2/intro/tutorial01/",
+          "title": "Writing your first Django app, part 1 | Django documentation | Django",
+          "content_chars": 16567,
+          "content_sha256": "514db51c385ffca4ad0db7cb43ac36d30aa61d1d9dbc1b4780864bac536d15d3"
+        }
+      ],
+      "selected_urls": [
+        "https://docs.djangoproject.com/en/5.2/intro/tutorial01/"
+      ],
+      "elapsed_seconds": 0.4728995830009808,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "test.docs.django-tutorial",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "test",
+      "family": "technical-docs",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://docs.djangoproject.com/en/5.2/intro/tutorial01/",
+          "title": "Writing your first Django app, part 1 | Django documentation | Django",
+          "content_chars": 16567,
+          "content_sha256": "514db51c385ffca4ad0db7cb43ac36d30aa61d1d9dbc1b4780864bac536d15d3"
+        }
+      ],
+      "selected_urls": [
+        "https://docs.djangoproject.com/en/5.2/intro/tutorial01/"
+      ],
+      "elapsed_seconds": 0.28544229100043594,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "test.docs.go-spec",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "test",
+      "family": "standards",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://go.dev/ref/spec",
+          "title": "The Go Programming Language Specification - The Go Programming Language",
+          "content_chars": 237695,
+          "content_sha256": "764b441f689123e3922e3ac2e37c52983f75dd29a15fb91ccefa0ea678dd04ea"
+        }
+      ],
+      "selected_urls": [
+        "https://go.dev/ref/spec"
+      ],
+      "elapsed_seconds": 1.5379239160010911,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "test.docs.go-spec",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "test",
+      "family": "standards",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://go.dev/ref/spec",
+          "title": "The Go Programming Language Specification - The Go Programming Language",
+          "content_chars": 237695,
+          "content_sha256": "764b441f689123e3922e3ac2e37c52983f75dd29a15fb91ccefa0ea678dd04ea"
+        }
+      ],
+      "selected_urls": [
+        "https://go.dev/ref/spec"
+      ],
+      "elapsed_seconds": 0.41225574999953096,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "test.docs.go-spec",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "test",
+      "family": "standards",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://go.dev/ref/spec",
+          "title": "The Go Programming Language Specification - The Go Programming Language",
+          "content_chars": 237695,
+          "content_sha256": "764b441f689123e3922e3ac2e37c52983f75dd29a15fb91ccefa0ea678dd04ea"
+        }
+      ],
+      "selected_urls": [
+        "https://go.dev/ref/spec"
+      ],
+      "elapsed_seconds": 0.43156483299935644,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "test.docs.node-filesystem",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "test",
+      "family": "long-reference",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://nodejs.org/docs/latest-v22.x/api/fs.html",
+          "title": "File system | Node.js v22.23.1 Documentation",
+          "content_chars": 330772,
+          "content_sha256": "72aa02507abfe55a974970705ca6ac9c09f4fb7a7ce5e26d5b686e92840f8a1f"
+        }
+      ],
+      "selected_urls": [
+        "https://nodejs.org/docs/latest-v22.x/api/fs.html"
+      ],
+      "elapsed_seconds": 1.0986133749993314,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "test.docs.node-filesystem",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "test",
+      "family": "long-reference",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://nodejs.org/docs/latest-v22.x/api/fs.html",
+          "title": "File system | Node.js v22.23.1 Documentation",
+          "content_chars": 330772,
+          "content_sha256": "72aa02507abfe55a974970705ca6ac9c09f4fb7a7ce5e26d5b686e92840f8a1f"
+        }
+      ],
+      "selected_urls": [
+        "https://nodejs.org/docs/latest-v22.x/api/fs.html"
+      ],
+      "elapsed_seconds": 0.49464049999915005,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "test.docs.node-filesystem",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "test",
+      "family": "long-reference",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://nodejs.org/docs/latest-v22.x/api/fs.html",
+          "title": "File system | Node.js v22.23.1 Documentation",
+          "content_chars": 330772,
+          "content_sha256": "72aa02507abfe55a974970705ca6ac9c09f4fb7a7ce5e26d5b686e92840f8a1f"
+        }
+      ],
+      "selected_urls": [
+        "https://nodejs.org/docs/latest-v22.x/api/fs.html"
+      ],
+      "elapsed_seconds": 0.5115218339997227,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "test.docs.postgresql-tutorial",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "test",
+      "family": "technical-docs",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://www.postgresql.org/docs/17/tutorial-arch.html",
+          "title": "PostgreSQL: Documentation: 17: 1.2. Architectural Fundamentals",
+          "content_chars": 2661,
+          "content_sha256": "a7464bc329fe9776ef894bed8c36bf79bf638135eb7628b353263e5ef5971583"
+        }
+      ],
+      "selected_urls": [
+        "https://www.postgresql.org/docs/17/tutorial-arch.html"
+      ],
+      "elapsed_seconds": 3.552558749999662,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "test.docs.postgresql-tutorial",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "test",
+      "family": "technical-docs",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://www.postgresql.org/docs/17/tutorial-arch.html",
+          "title": "PostgreSQL: Documentation: 17: 1.2. Architectural Fundamentals",
+          "content_chars": 2661,
+          "content_sha256": "a7464bc329fe9776ef894bed8c36bf79bf638135eb7628b353263e5ef5971583"
+        }
+      ],
+      "selected_urls": [
+        "https://www.postgresql.org/docs/17/tutorial-arch.html"
+      ],
+      "elapsed_seconds": 0.23726387500028068,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "test.docs.postgresql-tutorial",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "test",
+      "family": "technical-docs",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://www.postgresql.org/docs/17/tutorial-arch.html",
+          "title": "PostgreSQL: Documentation: 17: 1.2. Architectural Fundamentals",
+          "content_chars": 2661,
+          "content_sha256": "a7464bc329fe9776ef894bed8c36bf79bf638135eb7628b353263e5ef5971583"
+        }
+      ],
+      "selected_urls": [
+        "https://www.postgresql.org/docs/17/tutorial-arch.html"
+      ],
+      "elapsed_seconds": 0.25253329099905386,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "test.docs.rust-ownership",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "test",
+      "family": "technical-docs",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://doc.rust-lang.org/book/ch04-01-what-is-ownership.html",
+          "title": "",
+          "content_chars": 27389,
+          "content_sha256": "6bf4cb48a87f7af2881c508c9db8d3a1111f57f4126cea5d09b7c991bb0d809e"
+        }
+      ],
+      "selected_urls": [
+        "https://doc.rust-lang.org/book/ch04-01-what-is-ownership.html"
+      ],
+      "elapsed_seconds": 0.5194643340000766,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "test.docs.rust-ownership",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "test",
+      "family": "technical-docs",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://doc.rust-lang.org/book/ch04-01-what-is-ownership.html",
+          "title": "",
+          "content_chars": 27389,
+          "content_sha256": "6bf4cb48a87f7af2881c508c9db8d3a1111f57f4126cea5d09b7c991bb0d809e"
+        }
+      ],
+      "selected_urls": [
+        "https://doc.rust-lang.org/book/ch04-01-what-is-ownership.html"
+      ],
+      "elapsed_seconds": 0.45772575000046345,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "test.docs.rust-ownership",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "test",
+      "family": "technical-docs",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://doc.rust-lang.org/book/ch04-01-what-is-ownership.html",
+          "title": "",
+          "content_chars": 27389,
+          "content_sha256": "6bf4cb48a87f7af2881c508c9db8d3a1111f57f4126cea5d09b7c991bb0d809e"
+        }
+      ],
+      "selected_urls": [
+        "https://doc.rust-lang.org/book/ch04-01-what-is-ownership.html"
+      ],
+      "elapsed_seconds": 0.6339551670007495,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "test.docs.docker-overview",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "test",
+      "family": "modern-web",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://docs.docker.com/get-started/docker-overview/",
+          "title": "What is Docker?",
+          "content_chars": 9120,
+          "content_sha256": "49a19953b31bddafd6002d2db5cb778040e60afcabcb40f668efd235fca97133"
+        }
+      ],
+      "selected_urls": [
+        "https://docs.docker.com/get-started/docker-overview/"
+      ],
+      "elapsed_seconds": 0.8256175000005896,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "test.docs.docker-overview",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "test",
+      "family": "modern-web",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://docs.docker.com/get-started/docker-overview/",
+          "title": "What is Docker?",
+          "content_chars": 9256,
+          "content_sha256": "d0a3e72edb2f1720e6a3180df0f53d07b49f07b3aef5419217353508dec6079a"
+        }
+      ],
+      "selected_urls": [
+        "https://docs.docker.com/get-started/docker-overview/"
+      ],
+      "elapsed_seconds": 0.23022574999959033,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "test.docs.docker-overview",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "test",
+      "family": "modern-web",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://docs.docker.com/get-started/docker-overview/",
+          "title": "What is Docker?",
+          "content_chars": 9256,
+          "content_sha256": "d0a3e72edb2f1720e6a3180df0f53d07b49f07b3aef5419217353508dec6079a"
+        }
+      ],
+      "selected_urls": [
+        "https://docs.docker.com/get-started/docker-overview/"
+      ],
+      "elapsed_seconds": 0.22197370799949567,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "test.standard.json-schema-core",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "test",
+      "family": "standards",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://json-schema.org/draft/2020-12/json-schema-core",
+          "title": "JSON Schema: A Media Type for Describing JSON Documents",
+          "content_chars": 135627,
+          "content_sha256": "387c78e4f19fd4fd4987cfa217cf47ac27740b7632b15e996d83ac86238f8717"
+        }
+      ],
+      "selected_urls": [
+        "https://json-schema.org/draft/2020-12/json-schema-core"
+      ],
+      "elapsed_seconds": 0.9263996670015331,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "test.standard.json-schema-core",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "test",
+      "family": "standards",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://json-schema.org/draft/2020-12/json-schema-core",
+          "title": "JSON Schema: A Media Type for Describing JSON Documents",
+          "content_chars": 135627,
+          "content_sha256": "387c78e4f19fd4fd4987cfa217cf47ac27740b7632b15e996d83ac86238f8717"
+        }
+      ],
+      "selected_urls": [
+        "https://json-schema.org/draft/2020-12/json-schema-core"
+      ],
+      "elapsed_seconds": 0.35309220899944194,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "test.standard.json-schema-core",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "test",
+      "family": "standards",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://json-schema.org/draft/2020-12/json-schema-core",
+          "title": "JSON Schema: A Media Type for Describing JSON Documents",
+          "content_chars": 135627,
+          "content_sha256": "387c78e4f19fd4fd4987cfa217cf47ac27740b7632b15e996d83ac86238f8717"
+        }
+      ],
+      "selected_urls": [
+        "https://json-schema.org/draft/2020-12/json-schema-core"
+      ],
+      "elapsed_seconds": 0.3280600420002884,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "test.standard.openapi-310",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "test",
+      "family": "standards",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://spec.openapis.org/oas/v3.1.0.html",
+          "title": "OpenAPI Specification v3.1.0",
+          "content_chars": 118700,
+          "content_sha256": "5649017dd1698ab35c422c91294ed25dd3fe1d1eb13688e4bdaf3d7abf7650da"
+        }
+      ],
+      "selected_urls": [
+        "https://spec.openapis.org/oas/v3.1.0.html"
+      ],
+      "elapsed_seconds": 1.1527070829997683,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "test.standard.openapi-310",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "test",
+      "family": "standards",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://spec.openapis.org/oas/v3.1.0.html",
+          "title": "OpenAPI Specification v3.1.0",
+          "content_chars": 118700,
+          "content_sha256": "5649017dd1698ab35c422c91294ed25dd3fe1d1eb13688e4bdaf3d7abf7650da"
+        }
+      ],
+      "selected_urls": [
+        "https://spec.openapis.org/oas/v3.1.0.html"
+      ],
+      "elapsed_seconds": 0.3497586670000601,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "test.standard.openapi-310",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "test",
+      "family": "standards",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://spec.openapis.org/oas/v3.1.0.html",
+          "title": "OpenAPI Specification v3.1.0",
+          "content_chars": 118700,
+          "content_sha256": "5649017dd1698ab35c422c91294ed25dd3fe1d1eb13688e4bdaf3d7abf7650da"
+        }
+      ],
+      "selected_urls": [
+        "https://spec.openapis.org/oas/v3.1.0.html"
+      ],
+      "elapsed_seconds": 0.3612722079997184,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "test.standard.ecmascript-lexical",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "test",
+      "family": "standards",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://tc39.es/ecma262/2024/multipage/ecmascript-language-lexical-grammar.html",
+          "title": "ECMAScript® 2024 Language Specification",
+          "content_chars": 57370,
+          "content_sha256": "e5e32313448d381fbf893306cc7e3b7ecca787db927e0102c1a212e268030d07"
+        }
+      ],
+      "selected_urls": [
+        "https://tc39.es/ecma262/2024/multipage/ecmascript-language-lexical-grammar.html"
+      ],
+      "elapsed_seconds": 1.258992084000056,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "test.standard.ecmascript-lexical",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "test",
+      "family": "standards",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://tc39.es/ecma262/2024/multipage/ecmascript-language-lexical-grammar.html",
+          "title": "ECMAScript® 2024 Language Specification",
+          "content_chars": 57370,
+          "content_sha256": "e5e32313448d381fbf893306cc7e3b7ecca787db927e0102c1a212e268030d07"
+        }
+      ],
+      "selected_urls": [
+        "https://tc39.es/ecma262/2024/multipage/ecmascript-language-lexical-grammar.html"
+      ],
+      "elapsed_seconds": 0.28938845800075796,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "test.standard.ecmascript-lexical",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "test",
+      "family": "standards",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://tc39.es/ecma262/2024/multipage/ecmascript-language-lexical-grammar.html",
+          "title": "ECMAScript® 2024 Language Specification",
+          "content_chars": 57370,
+          "content_sha256": "e5e32313448d381fbf893306cc7e3b7ecca787db927e0102c1a212e268030d07"
+        }
+      ],
+      "selected_urls": [
+        "https://tc39.es/ecma262/2024/multipage/ecmascript-language-lexical-grammar.html"
+      ],
+      "elapsed_seconds": 0.2962507080010255,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "test.docs.serde",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "test",
+      "family": "technical-docs",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://docs.rs/serde/1.0.219/serde/",
+          "title": "serde - Rust",
+          "content_chars": 5339,
+          "content_sha256": "7ddab1b338b9d49c16a00ebb0ef5407a9e83ba2f52256e3885e411f0995f4072"
+        }
+      ],
+      "selected_urls": [
+        "https://docs.rs/serde/1.0.219/serde/"
+      ],
+      "elapsed_seconds": 3.9442423329983285,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "test.docs.serde",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "test",
+      "family": "technical-docs",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://docs.rs/serde/1.0.219/serde/",
+          "title": "serde - Rust",
+          "content_chars": 5339,
+          "content_sha256": "7ddab1b338b9d49c16a00ebb0ef5407a9e83ba2f52256e3885e411f0995f4072"
+        }
+      ],
+      "selected_urls": [
+        "https://docs.rs/serde/1.0.219/serde/"
+      ],
+      "elapsed_seconds": 0.22236825000072713,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "test.docs.serde",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "test",
+      "family": "technical-docs",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://docs.rs/serde/1.0.219/serde/",
+          "title": "serde - Rust",
+          "content_chars": 5339,
+          "content_sha256": "7ddab1b338b9d49c16a00ebb0ef5407a9e83ba2f52256e3885e411f0995f4072"
+        }
+      ],
+      "selected_urls": [
+        "https://docs.rs/serde/1.0.219/serde/"
+      ],
+      "elapsed_seconds": 0.23838708400035102,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "test.docs.numpy-beginners",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "test",
+      "family": "technical-docs",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://numpy.org/doc/2.2/user/absolute_beginners.html",
+          "title": "NumPy: the absolute basics for beginners — NumPy v2.2 Manual",
+          "content_chars": 51981,
+          "content_sha256": "96953e65f1841d52902d2768d0cfc07c14b7def1f8f13bd9edb8d21ee9349c66"
+        }
+      ],
+      "selected_urls": [
+        "https://numpy.org/doc/2.2/user/absolute_beginners.html"
+      ],
+      "elapsed_seconds": 0.7189204999995127,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "test.docs.numpy-beginners",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "test",
+      "family": "technical-docs",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://numpy.org/doc/2.2/user/absolute_beginners.html",
+          "title": "NumPy: the absolute basics for beginners — NumPy v2.2 Manual",
+          "content_chars": 51981,
+          "content_sha256": "96953e65f1841d52902d2768d0cfc07c14b7def1f8f13bd9edb8d21ee9349c66"
+        }
+      ],
+      "selected_urls": [
+        "https://numpy.org/doc/2.2/user/absolute_beginners.html"
+      ],
+      "elapsed_seconds": 0.31832412500079954,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "test.docs.numpy-beginners",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "test",
+      "family": "technical-docs",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://numpy.org/doc/2.2/user/absolute_beginners.html",
+          "title": "NumPy: the absolute basics for beginners — NumPy v2.2 Manual",
+          "content_chars": 51981,
+          "content_sha256": "96953e65f1841d52902d2768d0cfc07c14b7def1f8f13bd9edb8d21ee9349c66"
+        }
+      ],
+      "selected_urls": [
+        "https://numpy.org/doc/2.2/user/absolute_beginners.html"
+      ],
+      "elapsed_seconds": 0.28795137499946577,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "test.docs.fastapi-first-steps",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "test",
+      "family": "technical-docs",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://fastapi.tiangolo.com/tutorial/first-steps/",
+          "title": "First Steps - FastAPI",
+          "content_chars": 18218,
+          "content_sha256": "d2cac5b836fa27325fab7f6a8a1dc1400d7944c5f55724ea87ada90d2f37fec9"
+        }
+      ],
+      "selected_urls": [
+        "https://fastapi.tiangolo.com/tutorial/first-steps/"
+      ],
+      "elapsed_seconds": 0.6406092079996597,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "test.docs.fastapi-first-steps",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "test",
+      "family": "technical-docs",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://fastapi.tiangolo.com/tutorial/first-steps/",
+          "title": "First Steps - FastAPI",
+          "content_chars": 18218,
+          "content_sha256": "d2cac5b836fa27325fab7f6a8a1dc1400d7944c5f55724ea87ada90d2f37fec9"
+        }
+      ],
+      "selected_urls": [
+        "https://fastapi.tiangolo.com/tutorial/first-steps/"
+      ],
+      "elapsed_seconds": 0.27105904199925135,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "test.docs.fastapi-first-steps",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "test",
+      "family": "technical-docs",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://fastapi.tiangolo.com/tutorial/first-steps/",
+          "title": "First Steps - FastAPI",
+          "content_chars": 18218,
+          "content_sha256": "d2cac5b836fa27325fab7f6a8a1dc1400d7944c5f55724ea87ada90d2f37fec9"
+        }
+      ],
+      "selected_urls": [
+        "https://fastapi.tiangolo.com/tutorial/first-steps/"
+      ],
+      "elapsed_seconds": 0.2717825420004374,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "test.docs.ruff-tutorial",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "test",
+      "family": "technical-docs",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://docs.astral.sh/ruff/tutorial/",
+          "title": "Tutorial | Ruff",
+          "content_chars": 10779,
+          "content_sha256": "25c389a334d6fe1bc7d04c197579b8c3da44a79b99d52ba39f85622bc0229d06"
+        }
+      ],
+      "selected_urls": [
+        "https://docs.astral.sh/ruff/tutorial/"
+      ],
+      "elapsed_seconds": 0.9661439999999857,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "test.docs.ruff-tutorial",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "test",
+      "family": "technical-docs",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://docs.astral.sh/ruff/tutorial/",
+          "title": "Tutorial | Ruff",
+          "content_chars": 10779,
+          "content_sha256": "25c389a334d6fe1bc7d04c197579b8c3da44a79b99d52ba39f85622bc0229d06"
+        }
+      ],
+      "selected_urls": [
+        "https://docs.astral.sh/ruff/tutorial/"
+      ],
+      "elapsed_seconds": 0.2544538750007632,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "test.docs.ruff-tutorial",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "test",
+      "family": "technical-docs",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://docs.astral.sh/ruff/tutorial/",
+          "title": "Tutorial | Ruff",
+          "content_chars": 10779,
+          "content_sha256": "25c389a334d6fe1bc7d04c197579b8c3da44a79b99d52ba39f85622bc0229d06"
+        }
+      ],
+      "selected_urls": [
+        "https://docs.astral.sh/ruff/tutorial/"
+      ],
+      "elapsed_seconds": 0.2741875000010623,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "test.docs.nginx-beginners",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "test",
+      "family": "technical-docs",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://nginx.org/en/docs/beginners_guide.html",
+          "title": "Beginner’s Guide",
+          "content_chars": 12814,
+          "content_sha256": "5c3c88273b5488aecd17fbac4fb9c2d71819c1d275d378850e9c19af7df04595"
+        }
+      ],
+      "selected_urls": [
+        "https://nginx.org/en/docs/beginners_guide.html"
+      ],
+      "elapsed_seconds": 0.60834316600085,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "test.docs.nginx-beginners",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "test",
+      "family": "technical-docs",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://nginx.org/en/docs/beginners_guide.html",
+          "title": "Beginner’s Guide",
+          "content_chars": 12814,
+          "content_sha256": "5c3c88273b5488aecd17fbac4fb9c2d71819c1d275d378850e9c19af7df04595"
+        }
+      ],
+      "selected_urls": [
+        "https://nginx.org/en/docs/beginners_guide.html"
+      ],
+      "elapsed_seconds": 0.2665130420009518,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "test.docs.nginx-beginners",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "test",
+      "family": "technical-docs",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://nginx.org/en/docs/beginners_guide.html",
+          "title": "Beginner’s Guide",
+          "content_chars": 12814,
+          "content_sha256": "5c3c88273b5488aecd17fbac4fb9c2d71819c1d275d378850e9c19af7df04595"
+        }
+      ],
+      "selected_urls": [
+        "https://nginx.org/en/docs/beginners_guide.html"
+      ],
+      "elapsed_seconds": 0.26507712499915215,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "test.docs.curl-manpage",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "test",
+      "family": "long-reference",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://curl.se/docs/manpage.html",
+          "title": "curl - How To Use",
+          "content_chars": 261686,
+          "content_sha256": "5586d220e928cdda34c954eb4e24af7a41c48420b93f02b887754ce03198128a"
+        }
+      ],
+      "selected_urls": [
+        "https://curl.se/docs/manpage.html"
+      ],
+      "elapsed_seconds": 1.3131031670000084,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "test.docs.curl-manpage",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "test",
+      "family": "long-reference",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://curl.se/docs/manpage.html",
+          "title": "curl - How To Use",
+          "content_chars": 261686,
+          "content_sha256": "5586d220e928cdda34c954eb4e24af7a41c48420b93f02b887754ce03198128a"
+        }
+      ],
+      "selected_urls": [
+        "https://curl.se/docs/manpage.html"
+      ],
+      "elapsed_seconds": 0.4348247909983911,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "test.docs.curl-manpage",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "test",
+      "family": "long-reference",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://curl.se/docs/manpage.html",
+          "title": "curl - How To Use",
+          "content_chars": 261686,
+          "content_sha256": "5586d220e928cdda34c954eb4e24af7a41c48420b93f02b887754ce03198128a"
+        }
+      ],
+      "selected_urls": [
+        "https://curl.se/docs/manpage.html"
+      ],
+      "elapsed_seconds": 0.3759174169990729,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "test.pdf.ray-paper",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "test",
+      "family": "pdf",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://www.usenix.org/system/files/osdi18-moritz.pdf",
+          "title": "",
+          "content_chars": 89167,
+          "content_sha256": "4a5cf7791aed4afe9813c1e1da9533158507245471cacc2388da9664ab647092"
+        }
+      ],
+      "selected_urls": [
+        "https://www.usenix.org/system/files/osdi18-moritz.pdf"
+      ],
+      "elapsed_seconds": 5.522682625000016,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "test.pdf.ray-paper",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "test",
+      "family": "pdf",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://www.usenix.org/system/files/osdi18-moritz.pdf",
+          "title": "",
+          "content_chars": 89167,
+          "content_sha256": "4a5cf7791aed4afe9813c1e1da9533158507245471cacc2388da9664ab647092"
+        }
+      ],
+      "selected_urls": [
+        "https://www.usenix.org/system/files/osdi18-moritz.pdf"
+      ],
+      "elapsed_seconds": 0.3729050420006388,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "test.pdf.ray-paper",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "test",
+      "family": "pdf",
+      "system": "parallel",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://www.usenix.org/system/files/osdi18-moritz.pdf",
+          "title": "",
+          "content_chars": 89167,
+          "content_sha256": "4a5cf7791aed4afe9813c1e1da9533158507245471cacc2388da9664ab647092"
+        }
+      ],
+      "selected_urls": [
+        "https://www.usenix.org/system/files/osdi18-moritz.pdf"
+      ],
+      "elapsed_seconds": 0.3342583339999692,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Official Parallel Extract list price of $1 per 1,000 URLs.",
+      "usage": {
+        "usage_item_count": 1,
+        "usage_units": 1.0,
+        "error_count": 0,
+        "warning_count": 1
+      },
+      "request_count": 1,
+      "adapter_version": "v1-live-full-2026-07-14",
+      "error": null,
+      "artifacts": {}
+    }
+  ],
+  "scores": [
+    {
+      "case_id": "dev.docs.python-control-flow",
+      "system": "parallel",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "dev",
+      "family": "technical-docs",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 39389,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.5586758339995868,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "dev.docs.python-control-flow",
+      "system": "parallel",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "dev",
+      "family": "technical-docs",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 39389,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.28068891700058884,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "dev.docs.python-control-flow",
+      "system": "parallel",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "dev",
+      "family": "technical-docs",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 39389,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.29888225000104285,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "dev.docs.sqlite-select",
+      "system": "parallel",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "dev",
+      "family": "long-reference",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 37624,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.8208107499995094,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "dev.docs.sqlite-select",
+      "system": "parallel",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "dev",
+      "family": "long-reference",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 37624,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.6868802499993762,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "dev.docs.sqlite-select",
+      "system": "parallel",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "dev",
+      "family": "long-reference",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 37624,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.821937374999834,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "dev.docs.git-rebase",
+      "system": "parallel",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "dev",
+      "family": "long-reference",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 60297,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.6530462499995338,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "dev.docs.git-rebase",
+      "system": "parallel",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "dev",
+      "family": "long-reference",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 60297,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.3328107910001563,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "dev.docs.git-rebase",
+      "system": "parallel",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "dev",
+      "family": "long-reference",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 60297,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.3451455000013084,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "dev.docs.kubernetes-object-names",
+      "system": "parallel",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "dev",
+      "family": "technical-docs",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 6846,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.6233025000001362,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "dev.docs.kubernetes-object-names",
+      "system": "parallel",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "dev",
+      "family": "technical-docs",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 6846,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.2524592080008006,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "dev.docs.kubernetes-object-names",
+      "system": "parallel",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "dev",
+      "family": "technical-docs",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 6846,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.24389462500039372,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "dev.docs.mdn-using-fetch",
+      "system": "parallel",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "dev",
+      "family": "technical-docs",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 25812,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.6034965830003785,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "dev.docs.mdn-using-fetch",
+      "system": "parallel",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "dev",
+      "family": "technical-docs",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 25812,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.28993195799921523,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "dev.docs.mdn-using-fetch",
+      "system": "parallel",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "dev",
+      "family": "technical-docs",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 25812,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.2624466659999598,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "dev.standard.wcag-22",
+      "system": "parallel",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "dev",
+      "family": "standards",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 159689,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.8652024170005461,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "dev.standard.wcag-22",
+      "system": "parallel",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "dev",
+      "family": "standards",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 159689,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.34504700000070443,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "dev.standard.wcag-22",
+      "system": "parallel",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "dev",
+      "family": "standards",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 159689,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.7562240829993243,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "dev.standard.rfc9110-html",
+      "system": "parallel",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "dev",
+      "family": "standards",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 475579,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 12.460744500000146,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "dev.standard.rfc9110-html",
+      "system": "parallel",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "dev",
+      "family": "standards",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 475579,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.5532826670005306,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "dev.standard.rfc9110-html",
+      "system": "parallel",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "dev",
+      "family": "standards",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 475579,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.6065813330005767,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "dev.raw.cpython-readme",
+      "system": "parallel",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "dev",
+      "family": "raw-text",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 8826,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.4151850830003241,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "dev.raw.cpython-readme",
+      "system": "parallel",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "dev",
+      "family": "raw-text",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 8826,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.3284121670003515,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "dev.raw.cpython-readme",
+      "system": "parallel",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "dev",
+      "family": "raw-text",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 8826,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.35354587499932677,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "dev.raw.kubernetes-readme",
+      "system": "parallel",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "dev",
+      "family": "raw-text",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 4386,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.3423842499996681,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "dev.raw.kubernetes-readme",
+      "system": "parallel",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "dev",
+      "family": "raw-text",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 4386,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.2757727080006589,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "dev.raw.kubernetes-readme",
+      "system": "parallel",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "dev",
+      "family": "raw-text",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 4386,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.30213895900124044,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "dev.long.wikipedia-grace-hopper",
+      "system": "parallel",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "dev",
+      "family": "long-form",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 86644,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.792908458999591,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "dev.long.wikipedia-grace-hopper",
+      "system": "parallel",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "dev",
+      "family": "long-form",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 86644,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.34979758400004357,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "dev.long.wikipedia-grace-hopper",
+      "system": "parallel",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "dev",
+      "family": "long-form",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 86644,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.31900533299995004,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "dev.research.attention-abstract",
+      "system": "parallel",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "dev",
+      "family": "long-form",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 8520,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.41110741699958453,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "dev.research.attention-abstract",
+      "system": "parallel",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "dev",
+      "family": "long-form",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 8520,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.2250695419988915,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "dev.research.attention-abstract",
+      "system": "parallel",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "dev",
+      "family": "long-form",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 8520,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.26234283299891104,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "dev.pdf.attention-paper",
+      "system": "parallel",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "dev",
+      "family": "pdf",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 42349,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 1.4673070839999127,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "dev.pdf.attention-paper",
+      "system": "parallel",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "dev",
+      "family": "pdf",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 42349,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.2911420000000362,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "dev.pdf.attention-paper",
+      "system": "parallel",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "dev",
+      "family": "pdf",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 42349,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.30830779099960637,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "dev.modern.nextjs-installation",
+      "system": "parallel",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "dev",
+      "family": "modern-web",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 10573,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.5172535839992634,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "dev.modern.nextjs-installation",
+      "system": "parallel",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "dev",
+      "family": "modern-web",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 11145,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.22698133399899234,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "dev.modern.nextjs-installation",
+      "system": "parallel",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "dev",
+      "family": "modern-web",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 11145,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.21182591700016928,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "dev.access.pypi-pydantic",
+      "system": "parallel",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "dev",
+      "family": "managed-access",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 84350,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.7942562920015916,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "dev.access.pypi-pydantic",
+      "system": "parallel",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "dev",
+      "family": "managed-access",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 84350,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.3166128330012725,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "dev.access.pypi-pydantic",
+      "system": "parallel",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "dev",
+      "family": "managed-access",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 84350,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.32327766600064933,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "dev.raw.openapi-petstore",
+      "system": "parallel",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "dev",
+      "family": "raw-text",
+      "completed": true,
+      "passed": false,
+      "record_count": 1,
+      "content_chars": 2572,
+      "term_coverage": 0.6666666666666666,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 0.8333333333333333,
+      "elapsed_seconds": 0.3350527910006349,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "dev.raw.openapi-petstore",
+      "system": "parallel",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "dev",
+      "family": "raw-text",
+      "completed": true,
+      "passed": false,
+      "record_count": 1,
+      "content_chars": 2572,
+      "term_coverage": 0.6666666666666666,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 0.8333333333333333,
+      "elapsed_seconds": 0.3490898339987325,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "dev.raw.openapi-petstore",
+      "system": "parallel",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "dev",
+      "family": "raw-text",
+      "completed": true,
+      "passed": false,
+      "record_count": 1,
+      "content_chars": 2572,
+      "term_coverage": 0.6666666666666666,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 0.8333333333333333,
+      "elapsed_seconds": 0.3109433749996242,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "dev.raw.rfc8259-text",
+      "system": "parallel",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "dev",
+      "family": "standards",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 28336,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 3.1846934590012097,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "dev.raw.rfc8259-text",
+      "system": "parallel",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "dev",
+      "family": "standards",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 28336,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.8020289999985835,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "dev.raw.rfc8259-text",
+      "system": "parallel",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "dev",
+      "family": "standards",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 28336,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.39433445899885555,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "test.docs.django-tutorial",
+      "system": "parallel",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "test",
+      "family": "technical-docs",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 16567,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.592370917000153,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "test.docs.django-tutorial",
+      "system": "parallel",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "test",
+      "family": "technical-docs",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 16567,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.4728995830009808,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "test.docs.django-tutorial",
+      "system": "parallel",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "test",
+      "family": "technical-docs",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 16567,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.28544229100043594,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "test.docs.go-spec",
+      "system": "parallel",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "test",
+      "family": "standards",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 237695,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 1.5379239160010911,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "test.docs.go-spec",
+      "system": "parallel",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "test",
+      "family": "standards",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 237695,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.41225574999953096,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "test.docs.go-spec",
+      "system": "parallel",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "test",
+      "family": "standards",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 237695,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.43156483299935644,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "test.docs.node-filesystem",
+      "system": "parallel",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "test",
+      "family": "long-reference",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 330772,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 1.0986133749993314,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "test.docs.node-filesystem",
+      "system": "parallel",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "test",
+      "family": "long-reference",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 330772,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.49464049999915005,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "test.docs.node-filesystem",
+      "system": "parallel",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "test",
+      "family": "long-reference",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 330772,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.5115218339997227,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "test.docs.postgresql-tutorial",
+      "system": "parallel",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "test",
+      "family": "technical-docs",
+      "completed": false,
+      "passed": false,
+      "record_count": 1,
+      "content_chars": 2661,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 0.0,
+      "elapsed_seconds": 3.552558749999662,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "test.docs.postgresql-tutorial",
+      "system": "parallel",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "test",
+      "family": "technical-docs",
+      "completed": false,
+      "passed": false,
+      "record_count": 1,
+      "content_chars": 2661,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 0.0,
+      "elapsed_seconds": 0.23726387500028068,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "test.docs.postgresql-tutorial",
+      "system": "parallel",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "test",
+      "family": "technical-docs",
+      "completed": false,
+      "passed": false,
+      "record_count": 1,
+      "content_chars": 2661,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 0.0,
+      "elapsed_seconds": 0.25253329099905386,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "test.docs.rust-ownership",
+      "system": "parallel",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "test",
+      "family": "technical-docs",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 27389,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.5194643340000766,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "test.docs.rust-ownership",
+      "system": "parallel",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "test",
+      "family": "technical-docs",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 27389,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.45772575000046345,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "test.docs.rust-ownership",
+      "system": "parallel",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "test",
+      "family": "technical-docs",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 27389,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.6339551670007495,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "test.docs.docker-overview",
+      "system": "parallel",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "test",
+      "family": "modern-web",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 9120,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.8256175000005896,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "test.docs.docker-overview",
+      "system": "parallel",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "test",
+      "family": "modern-web",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 9256,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.23022574999959033,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "test.docs.docker-overview",
+      "system": "parallel",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "test",
+      "family": "modern-web",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 9256,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.22197370799949567,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "test.standard.json-schema-core",
+      "system": "parallel",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "test",
+      "family": "standards",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 135627,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.9263996670015331,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "test.standard.json-schema-core",
+      "system": "parallel",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "test",
+      "family": "standards",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 135627,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.35309220899944194,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "test.standard.json-schema-core",
+      "system": "parallel",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "test",
+      "family": "standards",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 135627,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.3280600420002884,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "test.standard.openapi-310",
+      "system": "parallel",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "test",
+      "family": "standards",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 118700,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 1.1527070829997683,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "test.standard.openapi-310",
+      "system": "parallel",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "test",
+      "family": "standards",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 118700,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.3497586670000601,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "test.standard.openapi-310",
+      "system": "parallel",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "test",
+      "family": "standards",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 118700,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.3612722079997184,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "test.standard.ecmascript-lexical",
+      "system": "parallel",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "test",
+      "family": "standards",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 57370,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 1.258992084000056,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "test.standard.ecmascript-lexical",
+      "system": "parallel",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "test",
+      "family": "standards",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 57370,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.28938845800075796,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "test.standard.ecmascript-lexical",
+      "system": "parallel",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "test",
+      "family": "standards",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 57370,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.2962507080010255,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "test.docs.serde",
+      "system": "parallel",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "test",
+      "family": "technical-docs",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 5339,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 3.9442423329983285,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "test.docs.serde",
+      "system": "parallel",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "test",
+      "family": "technical-docs",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 5339,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.22236825000072713,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "test.docs.serde",
+      "system": "parallel",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "test",
+      "family": "technical-docs",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 5339,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.23838708400035102,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "test.docs.numpy-beginners",
+      "system": "parallel",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "test",
+      "family": "technical-docs",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 51981,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.7189204999995127,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "test.docs.numpy-beginners",
+      "system": "parallel",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "test",
+      "family": "technical-docs",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 51981,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.31832412500079954,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "test.docs.numpy-beginners",
+      "system": "parallel",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "test",
+      "family": "technical-docs",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 51981,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.28795137499946577,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "test.docs.fastapi-first-steps",
+      "system": "parallel",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "test",
+      "family": "technical-docs",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 18218,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.6406092079996597,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "test.docs.fastapi-first-steps",
+      "system": "parallel",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "test",
+      "family": "technical-docs",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 18218,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.27105904199925135,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "test.docs.fastapi-first-steps",
+      "system": "parallel",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "test",
+      "family": "technical-docs",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 18218,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.2717825420004374,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "test.docs.ruff-tutorial",
+      "system": "parallel",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "test",
+      "family": "technical-docs",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 10779,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.9661439999999857,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "test.docs.ruff-tutorial",
+      "system": "parallel",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "test",
+      "family": "technical-docs",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 10779,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.2544538750007632,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "test.docs.ruff-tutorial",
+      "system": "parallel",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "test",
+      "family": "technical-docs",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 10779,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.2741875000010623,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "test.docs.nginx-beginners",
+      "system": "parallel",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "test",
+      "family": "technical-docs",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 12814,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.60834316600085,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "test.docs.nginx-beginners",
+      "system": "parallel",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "test",
+      "family": "technical-docs",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 12814,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.2665130420009518,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "test.docs.nginx-beginners",
+      "system": "parallel",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "test",
+      "family": "technical-docs",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 12814,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.26507712499915215,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "test.docs.curl-manpage",
+      "system": "parallel",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "test",
+      "family": "long-reference",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 261686,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 1.3131031670000084,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "test.docs.curl-manpage",
+      "system": "parallel",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "test",
+      "family": "long-reference",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 261686,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.4348247909983911,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "test.docs.curl-manpage",
+      "system": "parallel",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "test",
+      "family": "long-reference",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 261686,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.3759174169990729,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "test.pdf.ray-paper",
+      "system": "parallel",
+      "trial_index": 1,
+      "lane": "extract",
+      "split": "test",
+      "family": "pdf",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 89167,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 5.522682625000016,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "test.pdf.ray-paper",
+      "system": "parallel",
+      "trial_index": 2,
+      "lane": "extract",
+      "split": "test",
+      "family": "pdf",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 89167,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.3729050420006388,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    },
+    {
+      "case_id": "test.pdf.ray-paper",
+      "system": "parallel",
+      "trial_index": 3,
+      "lane": "extract",
+      "split": "test",
+      "family": "pdf",
+      "completed": true,
+      "passed": true,
+      "record_count": 1,
+      "content_chars": 89167,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 0.3342583339999692,
+      "cost_usd": 0.001,
+      "cost_kind": "upper_bound"
+    }
+  ],
+  "summary": {
+    "case_count": 32,
+    "case_runs": 96,
+    "repeat": 3,
+    "completed": 93,
+    "completion_rate": 0.96875,
+    "pass_all_trials_rate": 0.9375,
+    "pass_any_trial_rate": 0.9375,
+    "mean_deterministic_quality": 0.9635416666666666,
+    "mean_elapsed_seconds": 0.7589457904062821,
+    "observed_cost_usd": 0.096,
+    "cost_observed_runs": 96,
+    "cost_actual_runs": 0,
+    "cost_upper_bound_runs": 96,
+    "cost_unknown_runs": 0
+  }
+}

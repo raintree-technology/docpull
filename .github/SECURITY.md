@@ -21,5 +21,5 @@ Do not open public GitHub issues for security vulnerabilities.
 ## Supply Chain Security
 
 - Python dependencies in `pyproject.toml` declare supported minimum versions; MCP JavaScript dependencies are pinned in `mcp/bun.lock`.
-- Automated scanning runs in `.github/workflows/security.yml` and executes `pip-audit`, `bandit`, `bun audit`, and `npm audit`.
+- Automated scanning runs in `.github/workflows/security.yml` and executes `pip-audit`, `bandit`, and `bun audit`.
 - Targeted security regression tests run alongside those audits to catch SSRF, credential-scoping, robots, and indexing regressions before merge.

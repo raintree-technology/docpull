@@ -1,0 +1,146 @@
+{
+  "schema_version": 1,
+  "suite_name": "context-lifecycle",
+  "suite_version": "1.0.0",
+  "system": "docpull",
+  "system_version": "6.0.1",
+  "created_at": "2026-07-14T21:28:17.376707+00:00",
+  "python_version": "3.12.13",
+  "platform": "macOS-26.5.2-arm64-arm-64bit",
+  "check_count": 10,
+  "passed_count": 10,
+  "pass_rate": 1.0,
+  "checks": [
+    {
+      "id": "raw-contract",
+      "category": "contract",
+      "description": "A synthetic pack validates against the public raw v3 artifact contract.",
+      "passed": true,
+      "elapsed_seconds": 0.21636824999950477,
+      "evidence": {
+        "status": "pass",
+        "required_artifacts": 3,
+        "records": 3
+      },
+      "error": null
+    },
+    {
+      "id": "eval-grade-contract",
+      "category": "provenance",
+      "description": "Preparation emits the complete eval-grade provenance and citation contract.",
+      "passed": true,
+      "elapsed_seconds": 0.44496541699845693,
+      "evidence": {
+        "status": "pass",
+        "required_artifacts": 13,
+        "citation_entries": 3
+      },
+      "error": null
+    },
+    {
+      "id": "stable-identities",
+      "category": "reproducibility",
+      "description": "Independent preparation preserves document hashes and stable citation identities.",
+      "passed": true,
+      "elapsed_seconds": 0.22285612500127172,
+      "evidence": {
+        "stable_documents": 3,
+        "stable_citations": 3
+      },
+      "error": null
+    },
+    {
+      "id": "exact-diff",
+      "category": "diff",
+      "description": "A controlled corpus update reports exact added, removed, changed, and unchanged URLs.",
+      "passed": true,
+      "elapsed_seconds": 0.22618216699993354,
+      "evidence": {
+        "added": 1,
+        "removed": 1,
+        "changed": 1,
+        "unchanged": 1
+      },
+      "error": null
+    },
+    {
+      "id": "offline-cited-search",
+      "category": "offline",
+      "description": "A prepared pack remains locally searchable with record-level citations and no network.",
+      "passed": true,
+      "elapsed_seconds": 0.2277547079975193,
+      "evidence": {
+        "result_count": 1,
+        "top_record_citation": "S3.1",
+        "network": "disabled"
+      },
+      "error": null
+    },
+    {
+      "id": "agent-exports",
+      "category": "export",
+      "description": "The same pack exports to OpenAI vector JSONL and a Codex skill without refetching.",
+      "passed": true,
+      "elapsed_seconds": 0.48307270799705293,
+      "evidence": {
+        "vector_records": 3,
+        "skill_files": 35,
+        "network": "disabled"
+      },
+      "error": null
+    },
+    {
+      "id": "context-ci",
+      "category": "ci",
+      "description": "Context CI gates pack quality, citation coverage, and redistribution rights.",
+      "passed": true,
+      "elapsed_seconds": 0.22205941699940013,
+      "evidence": {
+        "status": "None",
+        "gate_count": 11,
+        "warning_count": 1,
+        "network": "disabled"
+      },
+      "error": null
+    },
+    {
+      "id": "lockfile-drift",
+      "category": "policy",
+      "description": "Dependency installation rejects manifest drift from the existing context lockfile.",
+      "passed": true,
+      "elapsed_seconds": 0.9323675830019056,
+      "evidence": {
+        "initial_lock": true,
+        "drift_rejected": true,
+        "network": "disabled"
+      },
+      "error": null
+    },
+    {
+      "id": "credential-non-persistence",
+      "category": "policy",
+      "description": "Environment-provided source credentials are not persisted in project artifacts.",
+      "passed": true,
+      "elapsed_seconds": 0.6727043749997392,
+      "evidence": {
+        "secret_persisted": false,
+        "environment_reference": true,
+        "network": "disabled"
+      },
+      "error": null
+    },
+    {
+      "id": "zero-budget-block",
+      "category": "policy",
+      "description": "A paid-capable cloud render route is blocked before execution under a zero budget.",
+      "passed": true,
+      "elapsed_seconds": 0.23225354199894355,
+      "evidence": {
+        "blocked": true,
+        "rendered_pages": 0,
+        "budget_usd": 0.0
+      },
+      "error": null
+    }
+  ]
+}

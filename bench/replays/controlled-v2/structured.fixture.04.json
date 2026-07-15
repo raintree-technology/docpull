@@ -1,0 +1,23 @@
+{
+  "adapter_version": "2",
+  "case_id": "structured.fixture.04",
+  "cost_basis": "Repository replay; no request.",
+  "cost_kind": "actual",
+  "cost_usd": 0,
+  "elapsed_seconds": 0.001,
+  "payload": {
+    "evidence_ids": [
+      "structured-evidence-04"
+    ],
+    "kind": "structured",
+    "schema_valid": true,
+    "value": {
+      "count": 4,
+      "identifier": "S-004"
+    }
+  },
+  "request_count": 0,
+  "schema_version": 2,
+  "status": "completed",
+  "system": "fixture"
+}

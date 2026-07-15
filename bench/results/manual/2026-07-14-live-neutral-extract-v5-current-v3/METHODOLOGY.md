@@ -1,0 +1,20 @@
+# Methodology
+
+This bundle is generated benchmark data and methodology, not a marketing claim.
+Gold expectations were retained by the harness and were not sent to adapters.
+One deterministic canonical scorer per lane produced the stored assertion vectors.
+No LLM judge or cross-lane composite was used.
+
+Suite version: `1.0.0`
+Protocol SHA-256: `0f5b6368b239333fe10af4b639e330f363a969101aff1f640b1d86bfe4110e48`
+Analysis version: `v3-ops-quality-slice-holm-paired-bootstrap`
+Lanes: extract
+
+| System | Version | Revision | Dirty | Environment | Network | Cache | Retry | Trials |
+| --- | --- | --- | --- | --- | --- | --- | --- | ---: |
+| docpull | `6.0.1` | `3f17d75a119437fdae66c0e6fcf68cf69674037c` | True | local-remediation-final | open | disabled | docpull_public_defaults | 2 |
+| exa-full | `contents-live-full-v2` | `3f17d75a119437fdae66c0e6fcf68cf69674037c` | True | local-macos-live-v3-2026-07-14 | open | provider_managed | max_attempts=1 | 2 |
+| parallel | `v1-live-full-v2` | `3f17d75a119437fdae66c0e6fcf68cf69674037c` | True | local-macos-live-v3-2026-07-14 | open | provider_managed | max_attempts=1 | 2 |
+| tavily | `extract-basic-v2` | `3f17d75a119437fdae66c0e6fcf68cf69674037c` | True | local-macos-live-v3-2026-07-14 | open | provider_managed | max_attempts=1 | 2 |
+
+Portable reports contain URLs after query sanitization, hashes, lengths, timings, usage, cost classifications, statuses, and score vectors. Fetched bodies are excluded.

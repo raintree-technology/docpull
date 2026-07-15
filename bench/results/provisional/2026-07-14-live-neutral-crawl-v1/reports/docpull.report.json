@@ -1,0 +1,2386 @@
+{
+  "schema_version": 1,
+  "manifest": {
+    "schema_version": 1,
+    "run_id": "4e8d1e0f104c422c89934758a0994748",
+    "created_at": "2026-07-14T21:36:41.180842+00:00",
+    "suite_name": "live-neutral-crawl",
+    "suite_version": "1.0.0",
+    "suite_sha256": "86955db1e0e681def7926a36c4e72af5b2be3205f8caba7a3bdc67e9f7b42582",
+    "system": "docpull",
+    "adapter_version": "6.0.1",
+    "git_revision": "30b15ba373092824124a42e2719ff32b147318dd",
+    "python_version": "3.12.13",
+    "repeat": 3,
+    "max_concurrency": 1,
+    "command": [
+      "docpull-bench",
+      "run",
+      "bench/cases/live-neutral-crawl-v1.yaml",
+      "--adapter",
+      "docpull",
+      "--system",
+      "docpull",
+      "--repeat",
+      "3",
+      "--max-concurrency",
+      "1",
+      "--output-dir",
+      "bench/runs/crawl-v1"
+    ]
+  },
+  "observations": [
+    {
+      "schema_version": 1,
+      "case_id": "crawl.python-asyncio",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "system": "docpull",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://docs.python.org/3/library/asyncio.html",
+          "title": "asyncio — Asynchronous I/O",
+          "content_chars": 5557,
+          "content_sha256": "ebecdfb87e65aba0676d15c80422fdb8353114cf1d9c205202c0431604a3cb55"
+        },
+        {
+          "url": "https://docs.python.org/3/library/asyncio-runner.html",
+          "title": "Runners",
+          "content_chars": 7826,
+          "content_sha256": "c4ecc8d14f2d93304746168eb0503bba011792baf23f99f395d566455a5b30aa"
+        },
+        {
+          "url": "https://docs.python.org/3/library/asyncio-subprocess.html",
+          "title": "Subprocesses",
+          "content_chars": 13428,
+          "content_sha256": "4095da17d03b8e1b81df563a881ca1ff089f35b9af463dd37f97d55584a3d522"
+        },
+        {
+          "url": "https://docs.python.org/3/library/asyncio-stream.html",
+          "title": "Streams",
+          "content_chars": 18125,
+          "content_sha256": "131368f9de4af4385b9369d8dce7a92df184fd6fec67aaa8fa9362b53ea7385a"
+        },
+        {
+          "url": "https://docs.python.org/3/library/asyncio-queue.html",
+          "title": "Queues",
+          "content_chars": 7022,
+          "content_sha256": "db3171b199d09e7bd547e691af0f9d943ef969e64e8ff20663fbad2dbbbad1d8"
+        },
+        {
+          "url": "https://docs.python.org/3/library/asyncio-task.html",
+          "title": "Coroutines and tasks",
+          "content_chars": 54480,
+          "content_sha256": "a878043d9e58c8b9d97c445460dd7f0b04172d30aa2444d35a1906678aa8c1d0"
+        },
+        {
+          "url": "https://docs.python.org/3/library/asyncio-sync.html",
+          "title": "Synchronization Primitives",
+          "content_chars": 12196,
+          "content_sha256": "f032b09f78bac2bc2a5a1cca2d0b7c519fe926073ea56a33456892284cf60442"
+        },
+        {
+          "url": "https://docs.python.org/3/library/asyncio-graph.html",
+          "title": "Call graph introspection",
+          "content_chars": 5981,
+          "content_sha256": "0eeaa2058c945985e429c8780b005e3b6d95559b98e96255e9e06021c5dec7bd"
+        }
+      ],
+      "selected_urls": [
+        "https://docs.python.org/3/library/asyncio.html",
+        "https://docs.python.org/3/library/asyncio-runner.html",
+        "https://docs.python.org/3/library/asyncio-subprocess.html",
+        "https://docs.python.org/3/library/asyncio-stream.html",
+        "https://docs.python.org/3/library/asyncio-queue.html",
+        "https://docs.python.org/3/library/asyncio-task.html",
+        "https://docs.python.org/3/library/asyncio-sync.html",
+        "https://docs.python.org/3/library/asyncio-graph.html"
+      ],
+      "elapsed_seconds": 1.5869264579996525,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "cost_basis": "No paid provider or cloud route is enabled.",
+      "usage": {},
+      "request_count": null,
+      "adapter_version": "6.0.1",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "crawl.python-asyncio",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "system": "docpull",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://docs.python.org/3/library/asyncio-runner.html",
+          "title": "Runners",
+          "content_chars": 7826,
+          "content_sha256": "c4ecc8d14f2d93304746168eb0503bba011792baf23f99f395d566455a5b30aa"
+        },
+        {
+          "url": "https://docs.python.org/3/library/asyncio.html",
+          "title": "asyncio — Asynchronous I/O",
+          "content_chars": 5557,
+          "content_sha256": "ebecdfb87e65aba0676d15c80422fdb8353114cf1d9c205202c0431604a3cb55"
+        },
+        {
+          "url": "https://docs.python.org/3/library/asyncio-stream.html",
+          "title": "Streams",
+          "content_chars": 18125,
+          "content_sha256": "131368f9de4af4385b9369d8dce7a92df184fd6fec67aaa8fa9362b53ea7385a"
+        },
+        {
+          "url": "https://docs.python.org/3/library/asyncio-subprocess.html",
+          "title": "Subprocesses",
+          "content_chars": 13428,
+          "content_sha256": "4095da17d03b8e1b81df563a881ca1ff089f35b9af463dd37f97d55584a3d522"
+        },
+        {
+          "url": "https://docs.python.org/3/library/asyncio-task.html",
+          "title": "Coroutines and tasks",
+          "content_chars": 54480,
+          "content_sha256": "a878043d9e58c8b9d97c445460dd7f0b04172d30aa2444d35a1906678aa8c1d0"
+        },
+        {
+          "url": "https://docs.python.org/3/library/asyncio-queue.html",
+          "title": "Queues",
+          "content_chars": 7022,
+          "content_sha256": "db3171b199d09e7bd547e691af0f9d943ef969e64e8ff20663fbad2dbbbad1d8"
+        },
+        {
+          "url": "https://docs.python.org/3/library/asyncio-sync.html",
+          "title": "Synchronization Primitives",
+          "content_chars": 12196,
+          "content_sha256": "f032b09f78bac2bc2a5a1cca2d0b7c519fe926073ea56a33456892284cf60442"
+        },
+        {
+          "url": "https://docs.python.org/3/library/asyncio-graph.html",
+          "title": "Call graph introspection",
+          "content_chars": 5981,
+          "content_sha256": "0eeaa2058c945985e429c8780b005e3b6d95559b98e96255e9e06021c5dec7bd"
+        }
+      ],
+      "selected_urls": [
+        "https://docs.python.org/3/library/asyncio-runner.html",
+        "https://docs.python.org/3/library/asyncio.html",
+        "https://docs.python.org/3/library/asyncio-stream.html",
+        "https://docs.python.org/3/library/asyncio-subprocess.html",
+        "https://docs.python.org/3/library/asyncio-task.html",
+        "https://docs.python.org/3/library/asyncio-queue.html",
+        "https://docs.python.org/3/library/asyncio-sync.html",
+        "https://docs.python.org/3/library/asyncio-graph.html"
+      ],
+      "elapsed_seconds": 1.5794744589984475,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "cost_basis": "No paid provider or cloud route is enabled.",
+      "usage": {},
+      "request_count": null,
+      "adapter_version": "6.0.1",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "crawl.python-asyncio",
+      "trial_index": 3,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "system": "docpull",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://docs.python.org/3/library/asyncio-runner.html",
+          "title": "Runners",
+          "content_chars": 7826,
+          "content_sha256": "c4ecc8d14f2d93304746168eb0503bba011792baf23f99f395d566455a5b30aa"
+        },
+        {
+          "url": "https://docs.python.org/3/library/asyncio.html",
+          "title": "asyncio — Asynchronous I/O",
+          "content_chars": 5557,
+          "content_sha256": "ebecdfb87e65aba0676d15c80422fdb8353114cf1d9c205202c0431604a3cb55"
+        },
+        {
+          "url": "https://docs.python.org/3/library/asyncio-stream.html",
+          "title": "Streams",
+          "content_chars": 18125,
+          "content_sha256": "131368f9de4af4385b9369d8dce7a92df184fd6fec67aaa8fa9362b53ea7385a"
+        },
+        {
+          "url": "https://docs.python.org/3/library/asyncio-subprocess.html",
+          "title": "Subprocesses",
+          "content_chars": 13428,
+          "content_sha256": "4095da17d03b8e1b81df563a881ca1ff089f35b9af463dd37f97d55584a3d522"
+        },
+        {
+          "url": "https://docs.python.org/3/library/asyncio-queue.html",
+          "title": "Queues",
+          "content_chars": 7022,
+          "content_sha256": "db3171b199d09e7bd547e691af0f9d943ef969e64e8ff20663fbad2dbbbad1d8"
+        },
+        {
+          "url": "https://docs.python.org/3/library/asyncio-sync.html",
+          "title": "Synchronization Primitives",
+          "content_chars": 12196,
+          "content_sha256": "f032b09f78bac2bc2a5a1cca2d0b7c519fe926073ea56a33456892284cf60442"
+        },
+        {
+          "url": "https://docs.python.org/3/library/asyncio-graph.html",
+          "title": "Call graph introspection",
+          "content_chars": 5981,
+          "content_sha256": "0eeaa2058c945985e429c8780b005e3b6d95559b98e96255e9e06021c5dec7bd"
+        },
+        {
+          "url": "https://docs.python.org/3/library/asyncio-task.html",
+          "title": "Coroutines and tasks",
+          "content_chars": 54480,
+          "content_sha256": "a878043d9e58c8b9d97c445460dd7f0b04172d30aa2444d35a1906678aa8c1d0"
+        }
+      ],
+      "selected_urls": [
+        "https://docs.python.org/3/library/asyncio-runner.html",
+        "https://docs.python.org/3/library/asyncio.html",
+        "https://docs.python.org/3/library/asyncio-stream.html",
+        "https://docs.python.org/3/library/asyncio-subprocess.html",
+        "https://docs.python.org/3/library/asyncio-queue.html",
+        "https://docs.python.org/3/library/asyncio-sync.html",
+        "https://docs.python.org/3/library/asyncio-graph.html",
+        "https://docs.python.org/3/library/asyncio-task.html"
+      ],
+      "elapsed_seconds": 1.460427375001018,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "cost_basis": "No paid provider or cloud route is enabled.",
+      "usage": {},
+      "request_count": null,
+      "adapter_version": "6.0.1",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "crawl.sqlite-language",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "system": "docpull",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://www.sqlite.org/lang.html",
+          "title": "Query Language Understood by SQLite",
+          "content_chars": 4234,
+          "content_sha256": "79182f093f001f0c6e00ec473e476566d4f12143cd40949f1446b005df92a7f5"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_keywords.html",
+          "title": "SQLite Keywords",
+          "content_chars": 4869,
+          "content_sha256": "6f2db9d54e94bd4399a2219fc79820f74802d8325987b166d2e11981cdd80670"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_aggfunc.html",
+          "title": "Built-in Aggregate Functions",
+          "content_chars": 13426,
+          "content_sha256": "d9e3635fbe50e7534b3b94219c3df5caa3841e8aef50b12ac8a71bb6ddbf5104"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_analyze.html",
+          "title": "ANALYZE",
+          "content_chars": 15397,
+          "content_sha256": "d14f1b1506276106112007f39c7ed6e1b9fd8e1cd77253599f3c6a2f9f4354dd"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_altertable.html",
+          "title": "ALTER TABLE",
+          "content_chars": 20979,
+          "content_sha256": "b067654b24aa74f24e54c9eafb9f0543e7bce47d6f176a80bfe474d6e8ac0b60"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_attach.html",
+          "title": "ATTACH DATABASE",
+          "content_chars": 4943,
+          "content_sha256": "dd0a80d540c3cf72a307902a972d1d8d0a5eb443d20c12ba5ce5c058f05d6d5f"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_transaction.html",
+          "title": "Transaction",
+          "content_chars": 9747,
+          "content_sha256": "f55cbea6ce17e7162a1f847b903d1a243d42df5e48c13a23c753e69c8a730d2a"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_comment.html",
+          "title": "SQL Comment Syntax",
+          "content_chars": 1148,
+          "content_sha256": "af48a705c60ecd0dcc5b6c61359a2133d4f6e729f51a0132a21f11af11d4ad85"
+        }
+      ],
+      "selected_urls": [
+        "https://www.sqlite.org/lang.html",
+        "https://www.sqlite.org/lang_keywords.html",
+        "https://www.sqlite.org/lang_aggfunc.html",
+        "https://www.sqlite.org/lang_analyze.html",
+        "https://www.sqlite.org/lang_altertable.html",
+        "https://www.sqlite.org/lang_attach.html",
+        "https://www.sqlite.org/lang_transaction.html",
+        "https://www.sqlite.org/lang_comment.html"
+      ],
+      "elapsed_seconds": 3.8602392909997434,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "cost_basis": "No paid provider or cloud route is enabled.",
+      "usage": {},
+      "request_count": null,
+      "adapter_version": "6.0.1",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "crawl.sqlite-language",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "system": "docpull",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://www.sqlite.org/lang.html",
+          "title": "Query Language Understood by SQLite",
+          "content_chars": 4234,
+          "content_sha256": "79182f093f001f0c6e00ec473e476566d4f12143cd40949f1446b005df92a7f5"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_keywords.html",
+          "title": "SQLite Keywords",
+          "content_chars": 4869,
+          "content_sha256": "6f2db9d54e94bd4399a2219fc79820f74802d8325987b166d2e11981cdd80670"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_aggfunc.html",
+          "title": "Built-in Aggregate Functions",
+          "content_chars": 13426,
+          "content_sha256": "d9e3635fbe50e7534b3b94219c3df5caa3841e8aef50b12ac8a71bb6ddbf5104"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_analyze.html",
+          "title": "ANALYZE",
+          "content_chars": 15397,
+          "content_sha256": "d14f1b1506276106112007f39c7ed6e1b9fd8e1cd77253599f3c6a2f9f4354dd"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_altertable.html",
+          "title": "ALTER TABLE",
+          "content_chars": 20979,
+          "content_sha256": "b067654b24aa74f24e54c9eafb9f0543e7bce47d6f176a80bfe474d6e8ac0b60"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_transaction.html",
+          "title": "Transaction",
+          "content_chars": 9747,
+          "content_sha256": "f55cbea6ce17e7162a1f847b903d1a243d42df5e48c13a23c753e69c8a730d2a"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_attach.html",
+          "title": "ATTACH DATABASE",
+          "content_chars": 4943,
+          "content_sha256": "dd0a80d540c3cf72a307902a972d1d8d0a5eb443d20c12ba5ce5c058f05d6d5f"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_comment.html",
+          "title": "SQL Comment Syntax",
+          "content_chars": 1148,
+          "content_sha256": "af48a705c60ecd0dcc5b6c61359a2133d4f6e729f51a0132a21f11af11d4ad85"
+        }
+      ],
+      "selected_urls": [
+        "https://www.sqlite.org/lang.html",
+        "https://www.sqlite.org/lang_keywords.html",
+        "https://www.sqlite.org/lang_aggfunc.html",
+        "https://www.sqlite.org/lang_analyze.html",
+        "https://www.sqlite.org/lang_altertable.html",
+        "https://www.sqlite.org/lang_transaction.html",
+        "https://www.sqlite.org/lang_attach.html",
+        "https://www.sqlite.org/lang_comment.html"
+      ],
+      "elapsed_seconds": 3.9188209579988325,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "cost_basis": "No paid provider or cloud route is enabled.",
+      "usage": {},
+      "request_count": null,
+      "adapter_version": "6.0.1",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "crawl.sqlite-language",
+      "trial_index": 3,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "system": "docpull",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://www.sqlite.org/lang.html",
+          "title": "Query Language Understood by SQLite",
+          "content_chars": 4234,
+          "content_sha256": "79182f093f001f0c6e00ec473e476566d4f12143cd40949f1446b005df92a7f5"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_keywords.html",
+          "title": "SQLite Keywords",
+          "content_chars": 4869,
+          "content_sha256": "6f2db9d54e94bd4399a2219fc79820f74802d8325987b166d2e11981cdd80670"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_aggfunc.html",
+          "title": "Built-in Aggregate Functions",
+          "content_chars": 13426,
+          "content_sha256": "d9e3635fbe50e7534b3b94219c3df5caa3841e8aef50b12ac8a71bb6ddbf5104"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_analyze.html",
+          "title": "ANALYZE",
+          "content_chars": 15397,
+          "content_sha256": "d14f1b1506276106112007f39c7ed6e1b9fd8e1cd77253599f3c6a2f9f4354dd"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_altertable.html",
+          "title": "ALTER TABLE",
+          "content_chars": 20979,
+          "content_sha256": "b067654b24aa74f24e54c9eafb9f0543e7bce47d6f176a80bfe474d6e8ac0b60"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_transaction.html",
+          "title": "Transaction",
+          "content_chars": 9747,
+          "content_sha256": "f55cbea6ce17e7162a1f847b903d1a243d42df5e48c13a23c753e69c8a730d2a"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_attach.html",
+          "title": "ATTACH DATABASE",
+          "content_chars": 4943,
+          "content_sha256": "dd0a80d540c3cf72a307902a972d1d8d0a5eb443d20c12ba5ce5c058f05d6d5f"
+        },
+        {
+          "url": "https://www.sqlite.org/lang_comment.html",
+          "title": "SQL Comment Syntax",
+          "content_chars": 1148,
+          "content_sha256": "af48a705c60ecd0dcc5b6c61359a2133d4f6e729f51a0132a21f11af11d4ad85"
+        }
+      ],
+      "selected_urls": [
+        "https://www.sqlite.org/lang.html",
+        "https://www.sqlite.org/lang_keywords.html",
+        "https://www.sqlite.org/lang_aggfunc.html",
+        "https://www.sqlite.org/lang_analyze.html",
+        "https://www.sqlite.org/lang_altertable.html",
+        "https://www.sqlite.org/lang_transaction.html",
+        "https://www.sqlite.org/lang_attach.html",
+        "https://www.sqlite.org/lang_comment.html"
+      ],
+      "elapsed_seconds": 3.8842023340002925,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "cost_basis": "No paid provider or cloud route is enabled.",
+      "usage": {},
+      "request_count": null,
+      "adapter_version": "6.0.1",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "crawl.mdn-http",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "system": "docpull",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP",
+          "title": "HTTP: Hypertext Transfer Protocol | MDN",
+          "content_chars": 16524,
+          "content_sha256": "fe07ac8bd2eadd6bfcb651b6357e634c0af49712ac6d1e4b41dc13cd43369fd6"
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Cookies",
+          "title": "Using HTTP cookies - HTTP | MDN",
+          "content_chars": 26782,
+          "content_sha256": "12a5f71d8f770320196871e5634074deeee2fe585be05ec2342982c46769eb99"
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Overview",
+          "title": "Overview of HTTP - HTTP | MDN",
+          "content_chars": 19254,
+          "content_sha256": "6f9a719bbedae720f6782881205b835785fcfd14e05e2a291211bbdde1ac5314"
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Evolution_of_HTTP",
+          "title": "Evolution of HTTP - HTTP | MDN",
+          "content_chars": 20745,
+          "content_sha256": "1266caa7f3ceb741f5696f9be34f47a834b44564ba2b382324bc00d0eda1afdb"
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Session",
+          "title": "A typical HTTP session - HTTP | MDN",
+          "content_chars": 9537,
+          "content_sha256": "ac608c4ef6d53d31ce51ab1c18c016a944637d3e323f87fa62909f0fe73c4d56"
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides",
+          "title": "HTTP guides - HTTP | MDN",
+          "content_chars": 12911,
+          "content_sha256": "d292036acef1a3deccc163e99b5346a2a88998da62c75bbf4371847512298c21"
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Messages",
+          "title": "HTTP messages - HTTP | MDN",
+          "content_chars": 22447,
+          "content_sha256": "aa5d72b93bf4be0083a4d14a43533f63b1277db11c007d92eb90e52af98c0b21"
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/MIME_types",
+          "title": "Media types (MIME types) - HTTP | MDN",
+          "content_chars": 25551,
+          "content_sha256": "3a20e0a0fb57b1848ee2329d849a2ae3198a51128c07e51b382fb9d5979068e1"
+        }
+      ],
+      "selected_urls": [
+        "https://developer.mozilla.org/en-US/docs/Web/HTTP",
+        "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Cookies",
+        "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Overview",
+        "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Evolution_of_HTTP",
+        "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Session",
+        "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides",
+        "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Messages",
+        "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/MIME_types"
+      ],
+      "elapsed_seconds": 2.585522082998068,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "cost_basis": "No paid provider or cloud route is enabled.",
+      "usage": {},
+      "request_count": null,
+      "adapter_version": "6.0.1",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "crawl.mdn-http",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "system": "docpull",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP",
+          "title": "HTTP: Hypertext Transfer Protocol | MDN",
+          "content_chars": 16524,
+          "content_sha256": "fe07ac8bd2eadd6bfcb651b6357e634c0af49712ac6d1e4b41dc13cd43369fd6"
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Cookies",
+          "title": "Using HTTP cookies - HTTP | MDN",
+          "content_chars": 26782,
+          "content_sha256": "12a5f71d8f770320196871e5634074deeee2fe585be05ec2342982c46769eb99"
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Overview",
+          "title": "Overview of HTTP - HTTP | MDN",
+          "content_chars": 19254,
+          "content_sha256": "6f9a719bbedae720f6782881205b835785fcfd14e05e2a291211bbdde1ac5314"
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Evolution_of_HTTP",
+          "title": "Evolution of HTTP - HTTP | MDN",
+          "content_chars": 20745,
+          "content_sha256": "1266caa7f3ceb741f5696f9be34f47a834b44564ba2b382324bc00d0eda1afdb"
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Session",
+          "title": "A typical HTTP session - HTTP | MDN",
+          "content_chars": 9537,
+          "content_sha256": "ac608c4ef6d53d31ce51ab1c18c016a944637d3e323f87fa62909f0fe73c4d56"
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides",
+          "title": "HTTP guides - HTTP | MDN",
+          "content_chars": 12911,
+          "content_sha256": "d292036acef1a3deccc163e99b5346a2a88998da62c75bbf4371847512298c21"
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Messages",
+          "title": "HTTP messages - HTTP | MDN",
+          "content_chars": 22447,
+          "content_sha256": "aa5d72b93bf4be0083a4d14a43533f63b1277db11c007d92eb90e52af98c0b21"
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/MIME_types",
+          "title": "Media types (MIME types) - HTTP | MDN",
+          "content_chars": 25551,
+          "content_sha256": "3a20e0a0fb57b1848ee2329d849a2ae3198a51128c07e51b382fb9d5979068e1"
+        }
+      ],
+      "selected_urls": [
+        "https://developer.mozilla.org/en-US/docs/Web/HTTP",
+        "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Cookies",
+        "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Overview",
+        "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Evolution_of_HTTP",
+        "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Session",
+        "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides",
+        "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Messages",
+        "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/MIME_types"
+      ],
+      "elapsed_seconds": 2.6942482499980542,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "cost_basis": "No paid provider or cloud route is enabled.",
+      "usage": {},
+      "request_count": null,
+      "adapter_version": "6.0.1",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "crawl.mdn-http",
+      "trial_index": 3,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "system": "docpull",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP",
+          "title": "HTTP: Hypertext Transfer Protocol | MDN",
+          "content_chars": 16524,
+          "content_sha256": "fe07ac8bd2eadd6bfcb651b6357e634c0af49712ac6d1e4b41dc13cd43369fd6"
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides",
+          "title": "HTTP guides - HTTP | MDN",
+          "content_chars": 12911,
+          "content_sha256": "d292036acef1a3deccc163e99b5346a2a88998da62c75bbf4371847512298c21"
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Cookies",
+          "title": "Using HTTP cookies - HTTP | MDN",
+          "content_chars": 26782,
+          "content_sha256": "12a5f71d8f770320196871e5634074deeee2fe585be05ec2342982c46769eb99"
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Session",
+          "title": "A typical HTTP session - HTTP | MDN",
+          "content_chars": 9537,
+          "content_sha256": "ac608c4ef6d53d31ce51ab1c18c016a944637d3e323f87fa62909f0fe73c4d56"
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Evolution_of_HTTP",
+          "title": "Evolution of HTTP - HTTP | MDN",
+          "content_chars": 20745,
+          "content_sha256": "1266caa7f3ceb741f5696f9be34f47a834b44564ba2b382324bc00d0eda1afdb"
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Messages",
+          "title": "HTTP messages - HTTP | MDN",
+          "content_chars": 22447,
+          "content_sha256": "aa5d72b93bf4be0083a4d14a43533f63b1277db11c007d92eb90e52af98c0b21"
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/MIME_types",
+          "title": "Media types (MIME types) - HTTP | MDN",
+          "content_chars": 25551,
+          "content_sha256": "3a20e0a0fb57b1848ee2329d849a2ae3198a51128c07e51b382fb9d5979068e1"
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Overview",
+          "title": "Overview of HTTP - HTTP | MDN",
+          "content_chars": 19254,
+          "content_sha256": "6f9a719bbedae720f6782881205b835785fcfd14e05e2a291211bbdde1ac5314"
+        }
+      ],
+      "selected_urls": [
+        "https://developer.mozilla.org/en-US/docs/Web/HTTP",
+        "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides",
+        "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Cookies",
+        "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Session",
+        "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Evolution_of_HTTP",
+        "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Messages",
+        "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/MIME_types",
+        "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Overview"
+      ],
+      "elapsed_seconds": 2.398237583001901,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "cost_basis": "No paid provider or cloud route is enabled.",
+      "usage": {},
+      "request_count": null,
+      "adapter_version": "6.0.1",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "crawl.docker-get-started",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "framework-tutorial-crawl",
+      "system": "docpull",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://docs.docker.com/get-started/introduction/get-docker-desktop/",
+          "title": "Get Docker Desktop",
+          "content_chars": 3936,
+          "content_sha256": "595b652181f3b44a0c9da576f8c3ae35e8cb3254fd299e97d54d0bdcd9d6fa09"
+        },
+        {
+          "url": "https://docs.docker.com/get-started/introduction/develop-with-containers/",
+          "title": "Develop with containers",
+          "content_chars": 8794,
+          "content_sha256": "f49a312a84f9079ac22475034bbf82c92da13bc2ded53e7b6190ec5dde3918a0"
+        },
+        {
+          "url": "https://docs.docker.com/get-started/docker-concepts/running-containers/publishing-ports/",
+          "title": "Publishing and exposing ports",
+          "content_chars": 6559,
+          "content_sha256": "126f0a4ca8bf5deb8c624b69c55388fd3b18625f7617527f89c30fb709c64f1f"
+        },
+        {
+          "url": "https://docs.docker.com/get-started/docker-concepts/building-images/understanding-image-layers/",
+          "title": "Understanding the image layers",
+          "content_chars": 10836,
+          "content_sha256": "d255e2c8e7d146e9c94a7b9cfd37ed168ba6111b151f7526b299bf23fee2dc97"
+        },
+        {
+          "url": "https://docs.docker.com/get-started/docker-concepts/running-containers/overriding-container-defaults/",
+          "title": "Overriding container defaults",
+          "content_chars": 11594,
+          "content_sha256": "3e0f6cafa5f7f443ed2c28577093f2f940c3cdc513217d79d3e31eae488ba6ca"
+        },
+        {
+          "url": "https://docs.docker.com/get-started/docker-concepts/building-images/writing-a-dockerfile/",
+          "title": "Writing a Dockerfile",
+          "content_chars": 6356,
+          "content_sha256": "795bd231a2c984b5f964f72d81b89b8b6272da62325ae8be1673410cd4d1598f"
+        },
+        {
+          "url": "https://docs.docker.com/get-started/introduction/build-and-push-first-image/",
+          "title": "Build and push your first image",
+          "content_chars": 10634,
+          "content_sha256": "7a3bcdf6e881424fbdde769338ba1d63d7deb87315e7815b1357f2f2be30c7cb"
+        },
+        {
+          "url": "https://docs.docker.com/get-started/docker-concepts/building-images/build-tag-and-publish-an-image/",
+          "title": "Build, tag, and publish an image",
+          "content_chars": 11196,
+          "content_sha256": "e907d553a56f70a62b0f64fdf12a90220aa5dfb0399012c79dadf590bdfd47bf"
+        }
+      ],
+      "selected_urls": [
+        "https://docs.docker.com/get-started/introduction/get-docker-desktop/",
+        "https://docs.docker.com/get-started/introduction/develop-with-containers/",
+        "https://docs.docker.com/get-started/docker-concepts/running-containers/publishing-ports/",
+        "https://docs.docker.com/get-started/docker-concepts/building-images/understanding-image-layers/",
+        "https://docs.docker.com/get-started/docker-concepts/running-containers/overriding-container-defaults/",
+        "https://docs.docker.com/get-started/docker-concepts/building-images/writing-a-dockerfile/",
+        "https://docs.docker.com/get-started/introduction/build-and-push-first-image/",
+        "https://docs.docker.com/get-started/docker-concepts/building-images/build-tag-and-publish-an-image/"
+      ],
+      "elapsed_seconds": 1.7558720840024762,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "cost_basis": "No paid provider or cloud route is enabled.",
+      "usage": {},
+      "request_count": null,
+      "adapter_version": "6.0.1",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "crawl.docker-get-started",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "framework-tutorial-crawl",
+      "system": "docpull",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://docs.docker.com/get-started/introduction/get-docker-desktop/",
+          "title": "Get Docker Desktop",
+          "content_chars": 3936,
+          "content_sha256": "595b652181f3b44a0c9da576f8c3ae35e8cb3254fd299e97d54d0bdcd9d6fa09"
+        },
+        {
+          "url": "https://docs.docker.com/get-started/introduction/develop-with-containers/",
+          "title": "Develop with containers",
+          "content_chars": 8794,
+          "content_sha256": "f49a312a84f9079ac22475034bbf82c92da13bc2ded53e7b6190ec5dde3918a0"
+        },
+        {
+          "url": "https://docs.docker.com/get-started/docker-concepts/running-containers/publishing-ports/",
+          "title": "Publishing and exposing ports",
+          "content_chars": 6559,
+          "content_sha256": "126f0a4ca8bf5deb8c624b69c55388fd3b18625f7617527f89c30fb709c64f1f"
+        },
+        {
+          "url": "https://docs.docker.com/get-started/docker-concepts/building-images/understanding-image-layers/",
+          "title": "Understanding the image layers",
+          "content_chars": 10836,
+          "content_sha256": "d255e2c8e7d146e9c94a7b9cfd37ed168ba6111b151f7526b299bf23fee2dc97"
+        },
+        {
+          "url": "https://docs.docker.com/get-started/docker-concepts/running-containers/overriding-container-defaults/",
+          "title": "Overriding container defaults",
+          "content_chars": 11594,
+          "content_sha256": "3e0f6cafa5f7f443ed2c28577093f2f940c3cdc513217d79d3e31eae488ba6ca"
+        },
+        {
+          "url": "https://docs.docker.com/get-started/docker-concepts/building-images/writing-a-dockerfile/",
+          "title": "Writing a Dockerfile",
+          "content_chars": 6356,
+          "content_sha256": "795bd231a2c984b5f964f72d81b89b8b6272da62325ae8be1673410cd4d1598f"
+        },
+        {
+          "url": "https://docs.docker.com/get-started/introduction/build-and-push-first-image/",
+          "title": "Build and push your first image",
+          "content_chars": 10634,
+          "content_sha256": "7a3bcdf6e881424fbdde769338ba1d63d7deb87315e7815b1357f2f2be30c7cb"
+        },
+        {
+          "url": "https://docs.docker.com/get-started/docker-concepts/building-images/build-tag-and-publish-an-image/",
+          "title": "Build, tag, and publish an image",
+          "content_chars": 11196,
+          "content_sha256": "e907d553a56f70a62b0f64fdf12a90220aa5dfb0399012c79dadf590bdfd47bf"
+        }
+      ],
+      "selected_urls": [
+        "https://docs.docker.com/get-started/introduction/get-docker-desktop/",
+        "https://docs.docker.com/get-started/introduction/develop-with-containers/",
+        "https://docs.docker.com/get-started/docker-concepts/running-containers/publishing-ports/",
+        "https://docs.docker.com/get-started/docker-concepts/building-images/understanding-image-layers/",
+        "https://docs.docker.com/get-started/docker-concepts/running-containers/overriding-container-defaults/",
+        "https://docs.docker.com/get-started/docker-concepts/building-images/writing-a-dockerfile/",
+        "https://docs.docker.com/get-started/introduction/build-and-push-first-image/",
+        "https://docs.docker.com/get-started/docker-concepts/building-images/build-tag-and-publish-an-image/"
+      ],
+      "elapsed_seconds": 1.7232314579996455,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "cost_basis": "No paid provider or cloud route is enabled.",
+      "usage": {},
+      "request_count": null,
+      "adapter_version": "6.0.1",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "crawl.docker-get-started",
+      "trial_index": 3,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "framework-tutorial-crawl",
+      "system": "docpull",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://docs.docker.com/get-started/introduction/get-docker-desktop/",
+          "title": "Get Docker Desktop",
+          "content_chars": 3936,
+          "content_sha256": "595b652181f3b44a0c9da576f8c3ae35e8cb3254fd299e97d54d0bdcd9d6fa09"
+        },
+        {
+          "url": "https://docs.docker.com/get-started/introduction/develop-with-containers/",
+          "title": "Develop with containers",
+          "content_chars": 8794,
+          "content_sha256": "f49a312a84f9079ac22475034bbf82c92da13bc2ded53e7b6190ec5dde3918a0"
+        },
+        {
+          "url": "https://docs.docker.com/get-started/docker-concepts/building-images/understanding-image-layers/",
+          "title": "Understanding the image layers",
+          "content_chars": 10836,
+          "content_sha256": "d255e2c8e7d146e9c94a7b9cfd37ed168ba6111b151f7526b299bf23fee2dc97"
+        },
+        {
+          "url": "https://docs.docker.com/get-started/docker-concepts/running-containers/publishing-ports/",
+          "title": "Publishing and exposing ports",
+          "content_chars": 6559,
+          "content_sha256": "126f0a4ca8bf5deb8c624b69c55388fd3b18625f7617527f89c30fb709c64f1f"
+        },
+        {
+          "url": "https://docs.docker.com/get-started/docker-concepts/running-containers/overriding-container-defaults/",
+          "title": "Overriding container defaults",
+          "content_chars": 11594,
+          "content_sha256": "3e0f6cafa5f7f443ed2c28577093f2f940c3cdc513217d79d3e31eae488ba6ca"
+        },
+        {
+          "url": "https://docs.docker.com/get-started/docker-concepts/building-images/writing-a-dockerfile/",
+          "title": "Writing a Dockerfile",
+          "content_chars": 6356,
+          "content_sha256": "795bd231a2c984b5f964f72d81b89b8b6272da62325ae8be1673410cd4d1598f"
+        },
+        {
+          "url": "https://docs.docker.com/get-started/introduction/build-and-push-first-image/",
+          "title": "Build and push your first image",
+          "content_chars": 10634,
+          "content_sha256": "7a3bcdf6e881424fbdde769338ba1d63d7deb87315e7815b1357f2f2be30c7cb"
+        },
+        {
+          "url": "https://docs.docker.com/get-started/docker-concepts/building-images/build-tag-and-publish-an-image/",
+          "title": "Build, tag, and publish an image",
+          "content_chars": 11196,
+          "content_sha256": "e907d553a56f70a62b0f64fdf12a90220aa5dfb0399012c79dadf590bdfd47bf"
+        }
+      ],
+      "selected_urls": [
+        "https://docs.docker.com/get-started/introduction/get-docker-desktop/",
+        "https://docs.docker.com/get-started/introduction/develop-with-containers/",
+        "https://docs.docker.com/get-started/docker-concepts/building-images/understanding-image-layers/",
+        "https://docs.docker.com/get-started/docker-concepts/running-containers/publishing-ports/",
+        "https://docs.docker.com/get-started/docker-concepts/running-containers/overriding-container-defaults/",
+        "https://docs.docker.com/get-started/docker-concepts/building-images/writing-a-dockerfile/",
+        "https://docs.docker.com/get-started/introduction/build-and-push-first-image/",
+        "https://docs.docker.com/get-started/docker-concepts/building-images/build-tag-and-publish-an-image/"
+      ],
+      "elapsed_seconds": 1.6897652080006083,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "cost_basis": "No paid provider or cloud route is enabled.",
+      "usage": {},
+      "request_count": null,
+      "adapter_version": "6.0.1",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "crawl.go-docs",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "test",
+      "family": "language-reference-crawl",
+      "system": "docpull",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://go.dev/doc/",
+          "title": "Documentation - The Go Programming Language",
+          "content_chars": 14779,
+          "content_sha256": "4b9d42544836ea8f84c9cc72a26f119462143ca2b4d1930e59d0688bf15f9aa3"
+        },
+        {
+          "url": "https://go.dev/doc/devel/release",
+          "title": "Release History - The Go Programming Language",
+          "content_chars": 84296,
+          "content_sha256": "ee2b2ce11a442855365be1704a71dcb90ef28d246f82f1f7a07a388656888027"
+        },
+        {
+          "url": "https://go.dev/ref/spec",
+          "title": "The Go Programming Language Specification - The Go Programming Language",
+          "content_chars": 237147,
+          "content_sha256": "d2ecdc577cf807a95a58df8da1ed35a56f1b4956eddeb332e5ecbabdda8ce1ab"
+        },
+        {
+          "url": "https://go.dev/doc/effective_go",
+          "title": "Effective Go - The Go Programming Language",
+          "content_chars": 102474,
+          "content_sha256": "0d6171e18f9f5356731f15b893a305aa88c57b037bc2e0e629b40fb01c4b08a9"
+        },
+        {
+          "url": "https://go.dev/doc/install",
+          "title": "Download and install - The Go Programming Language",
+          "content_chars": 5020,
+          "content_sha256": "1951ca05a780093f4117bc65a1ebef58c02ae9257fe622ab975c22eb8a0d69c9"
+        },
+        {
+          "url": "https://go.dev/doc/tutorial/create-module.html",
+          "title": "Tutorial: Create a Go module - The Go Programming Language",
+          "content_chars": 6489,
+          "content_sha256": "f60cea9fce2e2487c9c11122164b066939b9eaa86f252ff3e689ef4f9902a155"
+        },
+        {
+          "url": "https://go.dev/doc/tutorial/workspaces.html",
+          "title": "Tutorial: Getting started with multi-module workspaces - The Go Programming Language",
+          "content_chars": 8196,
+          "content_sha256": "0136c025fce4f133e1e53924ace78bd036cde8cf80c2bd798980469ede131bde"
+        },
+        {
+          "url": "https://go.dev/doc/tutorial/getting-started.html",
+          "title": "Tutorial: Get started with Go - The Go Programming Language",
+          "content_chars": 6354,
+          "content_sha256": "3afc211f69afb08646e5b47dd6a0fc0fbcac598c4deb67341e07f8404d43e821"
+        }
+      ],
+      "selected_urls": [
+        "https://go.dev/doc/",
+        "https://go.dev/doc/devel/release",
+        "https://go.dev/ref/spec",
+        "https://go.dev/doc/effective_go",
+        "https://go.dev/doc/install",
+        "https://go.dev/doc/tutorial/create-module.html",
+        "https://go.dev/doc/tutorial/workspaces.html",
+        "https://go.dev/doc/tutorial/getting-started.html"
+      ],
+      "elapsed_seconds": 7.397809792000771,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "cost_basis": "No paid provider or cloud route is enabled.",
+      "usage": {},
+      "request_count": null,
+      "adapter_version": "6.0.1",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "crawl.go-docs",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "test",
+      "family": "language-reference-crawl",
+      "system": "docpull",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://go.dev/doc/",
+          "title": "Documentation - The Go Programming Language",
+          "content_chars": 14779,
+          "content_sha256": "4b9d42544836ea8f84c9cc72a26f119462143ca2b4d1930e59d0688bf15f9aa3"
+        },
+        {
+          "url": "https://go.dev/doc/devel/release",
+          "title": "Release History - The Go Programming Language",
+          "content_chars": 84296,
+          "content_sha256": "ee2b2ce11a442855365be1704a71dcb90ef28d246f82f1f7a07a388656888027"
+        },
+        {
+          "url": "https://go.dev/doc/effective_go",
+          "title": "Effective Go - The Go Programming Language",
+          "content_chars": 102474,
+          "content_sha256": "0d6171e18f9f5356731f15b893a305aa88c57b037bc2e0e629b40fb01c4b08a9"
+        },
+        {
+          "url": "https://go.dev/ref/spec",
+          "title": "The Go Programming Language Specification - The Go Programming Language",
+          "content_chars": 237147,
+          "content_sha256": "d2ecdc577cf807a95a58df8da1ed35a56f1b4956eddeb332e5ecbabdda8ce1ab"
+        },
+        {
+          "url": "https://go.dev/doc/install",
+          "title": "Download and install - The Go Programming Language",
+          "content_chars": 5020,
+          "content_sha256": "1951ca05a780093f4117bc65a1ebef58c02ae9257fe622ab975c22eb8a0d69c9"
+        },
+        {
+          "url": "https://go.dev/doc/tutorial/getting-started.html",
+          "title": "Tutorial: Get started with Go - The Go Programming Language",
+          "content_chars": 6354,
+          "content_sha256": "3afc211f69afb08646e5b47dd6a0fc0fbcac598c4deb67341e07f8404d43e821"
+        },
+        {
+          "url": "https://go.dev/doc/tutorial/create-module.html",
+          "title": "Tutorial: Create a Go module - The Go Programming Language",
+          "content_chars": 6489,
+          "content_sha256": "f60cea9fce2e2487c9c11122164b066939b9eaa86f252ff3e689ef4f9902a155"
+        },
+        {
+          "url": "https://go.dev/doc/tutorial/workspaces.html",
+          "title": "Tutorial: Getting started with multi-module workspaces - The Go Programming Language",
+          "content_chars": 8196,
+          "content_sha256": "0136c025fce4f133e1e53924ace78bd036cde8cf80c2bd798980469ede131bde"
+        }
+      ],
+      "selected_urls": [
+        "https://go.dev/doc/",
+        "https://go.dev/doc/devel/release",
+        "https://go.dev/doc/effective_go",
+        "https://go.dev/ref/spec",
+        "https://go.dev/doc/install",
+        "https://go.dev/doc/tutorial/getting-started.html",
+        "https://go.dev/doc/tutorial/create-module.html",
+        "https://go.dev/doc/tutorial/workspaces.html"
+      ],
+      "elapsed_seconds": 7.140300999999454,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "cost_basis": "No paid provider or cloud route is enabled.",
+      "usage": {},
+      "request_count": null,
+      "adapter_version": "6.0.1",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "crawl.go-docs",
+      "trial_index": 3,
+      "lane": "crawl",
+      "split": "test",
+      "family": "language-reference-crawl",
+      "system": "docpull",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://go.dev/doc/",
+          "title": "Documentation - The Go Programming Language",
+          "content_chars": 14779,
+          "content_sha256": "4b9d42544836ea8f84c9cc72a26f119462143ca2b4d1930e59d0688bf15f9aa3"
+        },
+        {
+          "url": "https://go.dev/ref/spec",
+          "title": "The Go Programming Language Specification - The Go Programming Language",
+          "content_chars": 237147,
+          "content_sha256": "d2ecdc577cf807a95a58df8da1ed35a56f1b4956eddeb332e5ecbabdda8ce1ab"
+        },
+        {
+          "url": "https://go.dev/doc/effective_go",
+          "title": "Effective Go - The Go Programming Language",
+          "content_chars": 102474,
+          "content_sha256": "0d6171e18f9f5356731f15b893a305aa88c57b037bc2e0e629b40fb01c4b08a9"
+        },
+        {
+          "url": "https://go.dev/doc/devel/release",
+          "title": "Release History - The Go Programming Language",
+          "content_chars": 84296,
+          "content_sha256": "ee2b2ce11a442855365be1704a71dcb90ef28d246f82f1f7a07a388656888027"
+        },
+        {
+          "url": "https://go.dev/doc/install",
+          "title": "Download and install - The Go Programming Language",
+          "content_chars": 5020,
+          "content_sha256": "1951ca05a780093f4117bc65a1ebef58c02ae9257fe622ab975c22eb8a0d69c9"
+        },
+        {
+          "url": "https://go.dev/doc/tutorial/getting-started.html",
+          "title": "Tutorial: Get started with Go - The Go Programming Language",
+          "content_chars": 6354,
+          "content_sha256": "3afc211f69afb08646e5b47dd6a0fc0fbcac598c4deb67341e07f8404d43e821"
+        },
+        {
+          "url": "https://go.dev/doc/tutorial/create-module.html",
+          "title": "Tutorial: Create a Go module - The Go Programming Language",
+          "content_chars": 6489,
+          "content_sha256": "f60cea9fce2e2487c9c11122164b066939b9eaa86f252ff3e689ef4f9902a155"
+        },
+        {
+          "url": "https://go.dev/doc/tutorial/workspaces.html",
+          "title": "Tutorial: Getting started with multi-module workspaces - The Go Programming Language",
+          "content_chars": 8196,
+          "content_sha256": "0136c025fce4f133e1e53924ace78bd036cde8cf80c2bd798980469ede131bde"
+        }
+      ],
+      "selected_urls": [
+        "https://go.dev/doc/",
+        "https://go.dev/ref/spec",
+        "https://go.dev/doc/effective_go",
+        "https://go.dev/doc/devel/release",
+        "https://go.dev/doc/install",
+        "https://go.dev/doc/tutorial/getting-started.html",
+        "https://go.dev/doc/tutorial/create-module.html",
+        "https://go.dev/doc/tutorial/workspaces.html"
+      ],
+      "elapsed_seconds": 7.080302999998821,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "cost_basis": "No paid provider or cloud route is enabled.",
+      "usage": {},
+      "request_count": null,
+      "adapter_version": "6.0.1",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "crawl.rust-book",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "system": "docpull",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://doc.rust-lang.org/book/",
+          "title": "The Rust Programming Language - The Rust Programming Language",
+          "content_chars": 1188,
+          "content_sha256": "580db5f07eef947793a659363da675e468b37ed6533707a728a207e6df7e53e7"
+        },
+        {
+          "url": "https://doc.rust-lang.org/book/appendix-05-editions.html",
+          "title": "E - Editions - The Rust Programming Language",
+          "content_chars": 3014,
+          "content_sha256": "5b7adfc82a0842a3c97d985475296d8a5a57bf89143f7d897cbdc8c06217687b"
+        },
+        {
+          "url": "https://doc.rust-lang.org/book/ch01-01-installation.html",
+          "title": "Installation - The Rust Programming Language",
+          "content_chars": 5659,
+          "content_sha256": "99f7c38621a1b71e07655a26a90a8872c0fefea9247e7ad7d20d366a561696fe"
+        },
+        {
+          "url": "https://doc.rust-lang.org/book/appendix-06-translation.html",
+          "title": "F - Translations of the Book - The Rust Programming Language",
+          "content_chars": 1908,
+          "content_sha256": "7c6c1b9990fb6750df057e886bb2e6f926c423289a37429cd96cef54541d5c19"
+        },
+        {
+          "url": "https://doc.rust-lang.org/book/foreword.html",
+          "title": "Foreword - The Rust Programming Language",
+          "content_chars": 2782,
+          "content_sha256": "d6e44a99602338cec349f9e5bc074dfe572ccb8551a83d5ea6c0a35b536737ea"
+        },
+        {
+          "url": "https://doc.rust-lang.org/book/print.html",
+          "title": "The Rust Programming Language",
+          "content_chars": 1345801,
+          "content_sha256": "af327c3c463a97b111871da1930d4e3f004dc1449af6d1d74b6e9900b9f451a7"
+        }
+      ],
+      "selected_urls": [
+        "https://doc.rust-lang.org/book/",
+        "https://doc.rust-lang.org/book/appendix-05-editions.html",
+        "https://doc.rust-lang.org/book/ch01-01-installation.html",
+        "https://doc.rust-lang.org/book/appendix-06-translation.html",
+        "https://doc.rust-lang.org/book/foreword.html",
+        "https://doc.rust-lang.org/book/print.html"
+      ],
+      "elapsed_seconds": 2.643107958996552,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "cost_basis": "No paid provider or cloud route is enabled.",
+      "usage": {},
+      "request_count": null,
+      "adapter_version": "6.0.1",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "crawl.rust-book",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "system": "docpull",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://doc.rust-lang.org/book/",
+          "title": "The Rust Programming Language - The Rust Programming Language",
+          "content_chars": 1188,
+          "content_sha256": "580db5f07eef947793a659363da675e468b37ed6533707a728a207e6df7e53e7"
+        },
+        {
+          "url": "https://doc.rust-lang.org/book/appendix-05-editions.html",
+          "title": "E - Editions - The Rust Programming Language",
+          "content_chars": 3014,
+          "content_sha256": "5b7adfc82a0842a3c97d985475296d8a5a57bf89143f7d897cbdc8c06217687b"
+        },
+        {
+          "url": "https://doc.rust-lang.org/book/ch01-01-installation.html",
+          "title": "Installation - The Rust Programming Language",
+          "content_chars": 5659,
+          "content_sha256": "99f7c38621a1b71e07655a26a90a8872c0fefea9247e7ad7d20d366a561696fe"
+        },
+        {
+          "url": "https://doc.rust-lang.org/book/appendix-06-translation.html",
+          "title": "F - Translations of the Book - The Rust Programming Language",
+          "content_chars": 1908,
+          "content_sha256": "7c6c1b9990fb6750df057e886bb2e6f926c423289a37429cd96cef54541d5c19"
+        },
+        {
+          "url": "https://doc.rust-lang.org/book/foreword.html",
+          "title": "Foreword - The Rust Programming Language",
+          "content_chars": 2782,
+          "content_sha256": "d6e44a99602338cec349f9e5bc074dfe572ccb8551a83d5ea6c0a35b536737ea"
+        },
+        {
+          "url": "https://doc.rust-lang.org/book/print.html",
+          "title": "The Rust Programming Language",
+          "content_chars": 1345801,
+          "content_sha256": "af327c3c463a97b111871da1930d4e3f004dc1449af6d1d74b6e9900b9f451a7"
+        }
+      ],
+      "selected_urls": [
+        "https://doc.rust-lang.org/book/",
+        "https://doc.rust-lang.org/book/appendix-05-editions.html",
+        "https://doc.rust-lang.org/book/ch01-01-installation.html",
+        "https://doc.rust-lang.org/book/appendix-06-translation.html",
+        "https://doc.rust-lang.org/book/foreword.html",
+        "https://doc.rust-lang.org/book/print.html"
+      ],
+      "elapsed_seconds": 2.440418333000707,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "cost_basis": "No paid provider or cloud route is enabled.",
+      "usage": {},
+      "request_count": null,
+      "adapter_version": "6.0.1",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "crawl.rust-book",
+      "trial_index": 3,
+      "lane": "crawl",
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "system": "docpull",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://doc.rust-lang.org/book/",
+          "title": "The Rust Programming Language - The Rust Programming Language",
+          "content_chars": 1188,
+          "content_sha256": "580db5f07eef947793a659363da675e468b37ed6533707a728a207e6df7e53e7"
+        },
+        {
+          "url": "https://doc.rust-lang.org/book/appendix-05-editions.html",
+          "title": "E - Editions - The Rust Programming Language",
+          "content_chars": 3014,
+          "content_sha256": "5b7adfc82a0842a3c97d985475296d8a5a57bf89143f7d897cbdc8c06217687b"
+        },
+        {
+          "url": "https://doc.rust-lang.org/book/ch01-01-installation.html",
+          "title": "Installation - The Rust Programming Language",
+          "content_chars": 5659,
+          "content_sha256": "99f7c38621a1b71e07655a26a90a8872c0fefea9247e7ad7d20d366a561696fe"
+        },
+        {
+          "url": "https://doc.rust-lang.org/book/appendix-06-translation.html",
+          "title": "F - Translations of the Book - The Rust Programming Language",
+          "content_chars": 1908,
+          "content_sha256": "7c6c1b9990fb6750df057e886bb2e6f926c423289a37429cd96cef54541d5c19"
+        },
+        {
+          "url": "https://doc.rust-lang.org/book/foreword.html",
+          "title": "Foreword - The Rust Programming Language",
+          "content_chars": 2782,
+          "content_sha256": "d6e44a99602338cec349f9e5bc074dfe572ccb8551a83d5ea6c0a35b536737ea"
+        },
+        {
+          "url": "https://doc.rust-lang.org/book/print.html",
+          "title": "The Rust Programming Language",
+          "content_chars": 1345801,
+          "content_sha256": "af327c3c463a97b111871da1930d4e3f004dc1449af6d1d74b6e9900b9f451a7"
+        }
+      ],
+      "selected_urls": [
+        "https://doc.rust-lang.org/book/",
+        "https://doc.rust-lang.org/book/appendix-05-editions.html",
+        "https://doc.rust-lang.org/book/ch01-01-installation.html",
+        "https://doc.rust-lang.org/book/appendix-06-translation.html",
+        "https://doc.rust-lang.org/book/foreword.html",
+        "https://doc.rust-lang.org/book/print.html"
+      ],
+      "elapsed_seconds": 2.59254237499772,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "cost_basis": "No paid provider or cloud route is enabled.",
+      "usage": {},
+      "request_count": null,
+      "adapter_version": "6.0.1",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "crawl.fastapi-tutorial",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "system": "docpull",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://fastapi.tiangolo.com/tutorial/",
+          "title": "Tutorial - User Guide - FastAPI",
+          "content_chars": 5267,
+          "content_sha256": "ff3e623e2b32c267b5e73d850b11d8f54be1b8b61e825522f24b6641749be4f9"
+        },
+        {
+          "url": "https://fastapi.tiangolo.com/tutorial/path-params/",
+          "title": "Path Parameters - FastAPI",
+          "content_chars": 11200,
+          "content_sha256": "e4960217e75ae9401e290e8dfa729084f994b1832bd3ca60a70658f70392ae9e"
+        },
+        {
+          "url": "https://fastapi.tiangolo.com/tutorial/first-steps/",
+          "title": "First Steps - FastAPI",
+          "content_chars": 13369,
+          "content_sha256": "d04a20e40c92491169964e067474da35c22a08959ca2b04e0d58e7926733fd7c"
+        },
+        {
+          "url": "https://fastapi.tiangolo.com/tutorial/query-params/",
+          "title": "Query Parameters - FastAPI",
+          "content_chars": 5859,
+          "content_sha256": "c49bdff5a9a009b6ca99f5ab92042e28ce5e9dc0843a3d91f440c2b64f5cded8"
+        },
+        {
+          "url": "https://fastapi.tiangolo.com/tutorial/body/",
+          "title": "Request Body - FastAPI",
+          "content_chars": 8277,
+          "content_sha256": "278822bfeea8d793514ccd1af3a5f72dde37b34dfd3106c5994c41978fdbec37"
+        },
+        {
+          "url": "https://fastapi.tiangolo.com/tutorial/path-params-numeric-validations/",
+          "title": "Path Parameters and Numeric Validations - FastAPI",
+          "content_chars": 12087,
+          "content_sha256": "01fb36a0c7dc4d1db9a89c9882bb8ea18dd807d53465741a586a0f5bfe36f995"
+        },
+        {
+          "url": "https://fastapi.tiangolo.com/tutorial/query-param-models/",
+          "title": "Query Parameter Models - FastAPI",
+          "content_chars": 3991,
+          "content_sha256": "bbea0301ae10178376dc398fac3a31964f39fbebf8b0dedfbb3f96a3ad72330b"
+        },
+        {
+          "url": "https://fastapi.tiangolo.com/tutorial/query-params-str-validations/",
+          "title": "Query Parameters and String Validations - FastAPI",
+          "content_chars": 29340,
+          "content_sha256": "c4feefcdbcd32e1be987ef9c34e28e93cf6ec03cefd919dfe9c9bb522f44132e"
+        }
+      ],
+      "selected_urls": [
+        "https://fastapi.tiangolo.com/tutorial/",
+        "https://fastapi.tiangolo.com/tutorial/path-params/",
+        "https://fastapi.tiangolo.com/tutorial/first-steps/",
+        "https://fastapi.tiangolo.com/tutorial/query-params/",
+        "https://fastapi.tiangolo.com/tutorial/body/",
+        "https://fastapi.tiangolo.com/tutorial/path-params-numeric-validations/",
+        "https://fastapi.tiangolo.com/tutorial/query-param-models/",
+        "https://fastapi.tiangolo.com/tutorial/query-params-str-validations/"
+      ],
+      "elapsed_seconds": 1.4521684999999707,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "cost_basis": "No paid provider or cloud route is enabled.",
+      "usage": {},
+      "request_count": null,
+      "adapter_version": "6.0.1",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "crawl.fastapi-tutorial",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "system": "docpull",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://fastapi.tiangolo.com/tutorial/",
+          "title": "Tutorial - User Guide - FastAPI",
+          "content_chars": 5267,
+          "content_sha256": "ff3e623e2b32c267b5e73d850b11d8f54be1b8b61e825522f24b6641749be4f9"
+        },
+        {
+          "url": "https://fastapi.tiangolo.com/tutorial/path-params/",
+          "title": "Path Parameters - FastAPI",
+          "content_chars": 11200,
+          "content_sha256": "e4960217e75ae9401e290e8dfa729084f994b1832bd3ca60a70658f70392ae9e"
+        },
+        {
+          "url": "https://fastapi.tiangolo.com/tutorial/query-params/",
+          "title": "Query Parameters - FastAPI",
+          "content_chars": 5859,
+          "content_sha256": "c49bdff5a9a009b6ca99f5ab92042e28ce5e9dc0843a3d91f440c2b64f5cded8"
+        },
+        {
+          "url": "https://fastapi.tiangolo.com/tutorial/first-steps/",
+          "title": "First Steps - FastAPI",
+          "content_chars": 13369,
+          "content_sha256": "d04a20e40c92491169964e067474da35c22a08959ca2b04e0d58e7926733fd7c"
+        },
+        {
+          "url": "https://fastapi.tiangolo.com/tutorial/body/",
+          "title": "Request Body - FastAPI",
+          "content_chars": 8277,
+          "content_sha256": "278822bfeea8d793514ccd1af3a5f72dde37b34dfd3106c5994c41978fdbec37"
+        },
+        {
+          "url": "https://fastapi.tiangolo.com/tutorial/query-params-str-validations/",
+          "title": "Query Parameters and String Validations - FastAPI",
+          "content_chars": 29340,
+          "content_sha256": "c4feefcdbcd32e1be987ef9c34e28e93cf6ec03cefd919dfe9c9bb522f44132e"
+        },
+        {
+          "url": "https://fastapi.tiangolo.com/tutorial/path-params-numeric-validations/",
+          "title": "Path Parameters and Numeric Validations - FastAPI",
+          "content_chars": 12087,
+          "content_sha256": "01fb36a0c7dc4d1db9a89c9882bb8ea18dd807d53465741a586a0f5bfe36f995"
+        },
+        {
+          "url": "https://fastapi.tiangolo.com/tutorial/query-param-models/",
+          "title": "Query Parameter Models - FastAPI",
+          "content_chars": 3991,
+          "content_sha256": "bbea0301ae10178376dc398fac3a31964f39fbebf8b0dedfbb3f96a3ad72330b"
+        }
+      ],
+      "selected_urls": [
+        "https://fastapi.tiangolo.com/tutorial/",
+        "https://fastapi.tiangolo.com/tutorial/path-params/",
+        "https://fastapi.tiangolo.com/tutorial/query-params/",
+        "https://fastapi.tiangolo.com/tutorial/first-steps/",
+        "https://fastapi.tiangolo.com/tutorial/body/",
+        "https://fastapi.tiangolo.com/tutorial/query-params-str-validations/",
+        "https://fastapi.tiangolo.com/tutorial/path-params-numeric-validations/",
+        "https://fastapi.tiangolo.com/tutorial/query-param-models/"
+      ],
+      "elapsed_seconds": 1.4317475839998224,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "cost_basis": "No paid provider or cloud route is enabled.",
+      "usage": {},
+      "request_count": null,
+      "adapter_version": "6.0.1",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "crawl.fastapi-tutorial",
+      "trial_index": 3,
+      "lane": "crawl",
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "system": "docpull",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://fastapi.tiangolo.com/tutorial/",
+          "title": "Tutorial - User Guide - FastAPI",
+          "content_chars": 5267,
+          "content_sha256": "ff3e623e2b32c267b5e73d850b11d8f54be1b8b61e825522f24b6641749be4f9"
+        },
+        {
+          "url": "https://fastapi.tiangolo.com/tutorial/first-steps/",
+          "title": "First Steps - FastAPI",
+          "content_chars": 13369,
+          "content_sha256": "d04a20e40c92491169964e067474da35c22a08959ca2b04e0d58e7926733fd7c"
+        },
+        {
+          "url": "https://fastapi.tiangolo.com/tutorial/path-params/",
+          "title": "Path Parameters - FastAPI",
+          "content_chars": 11200,
+          "content_sha256": "e4960217e75ae9401e290e8dfa729084f994b1832bd3ca60a70658f70392ae9e"
+        },
+        {
+          "url": "https://fastapi.tiangolo.com/tutorial/query-params/",
+          "title": "Query Parameters - FastAPI",
+          "content_chars": 5859,
+          "content_sha256": "c49bdff5a9a009b6ca99f5ab92042e28ce5e9dc0843a3d91f440c2b64f5cded8"
+        },
+        {
+          "url": "https://fastapi.tiangolo.com/tutorial/body/",
+          "title": "Request Body - FastAPI",
+          "content_chars": 8277,
+          "content_sha256": "278822bfeea8d793514ccd1af3a5f72dde37b34dfd3106c5994c41978fdbec37"
+        },
+        {
+          "url": "https://fastapi.tiangolo.com/tutorial/path-params-numeric-validations/",
+          "title": "Path Parameters and Numeric Validations - FastAPI",
+          "content_chars": 12087,
+          "content_sha256": "01fb36a0c7dc4d1db9a89c9882bb8ea18dd807d53465741a586a0f5bfe36f995"
+        },
+        {
+          "url": "https://fastapi.tiangolo.com/tutorial/query-params-str-validations/",
+          "title": "Query Parameters and String Validations - FastAPI",
+          "content_chars": 29340,
+          "content_sha256": "c4feefcdbcd32e1be987ef9c34e28e93cf6ec03cefd919dfe9c9bb522f44132e"
+        },
+        {
+          "url": "https://fastapi.tiangolo.com/tutorial/query-param-models/",
+          "title": "Query Parameter Models - FastAPI",
+          "content_chars": 3991,
+          "content_sha256": "bbea0301ae10178376dc398fac3a31964f39fbebf8b0dedfbb3f96a3ad72330b"
+        }
+      ],
+      "selected_urls": [
+        "https://fastapi.tiangolo.com/tutorial/",
+        "https://fastapi.tiangolo.com/tutorial/first-steps/",
+        "https://fastapi.tiangolo.com/tutorial/path-params/",
+        "https://fastapi.tiangolo.com/tutorial/query-params/",
+        "https://fastapi.tiangolo.com/tutorial/body/",
+        "https://fastapi.tiangolo.com/tutorial/path-params-numeric-validations/",
+        "https://fastapi.tiangolo.com/tutorial/query-params-str-validations/",
+        "https://fastapi.tiangolo.com/tutorial/query-param-models/"
+      ],
+      "elapsed_seconds": 1.4786637500001234,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "cost_basis": "No paid provider or cloud route is enabled.",
+      "usage": {},
+      "request_count": null,
+      "adapter_version": "6.0.1",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "crawl.kubernetes-concepts",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "system": "docpull",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://kubernetes.io/docs/concepts/security/cloud-native-security/",
+          "title": "Cloud Native Security and Kubernetes",
+          "content_chars": 12711,
+          "content_sha256": "2fd7143adcb78a3d2d87a3be73b99edeaab808e680528ed372590ed67819d6f5"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/containers/images/",
+          "title": "Images",
+          "content_chars": 30509,
+          "content_sha256": "6b130172e682192d159825c086cbdc77c4171d3e11a1733eb0d8e56be7198658"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/overview/components/",
+          "title": "Kubernetes Components",
+          "content_chars": 5001,
+          "content_sha256": "12e76efb0a030a02c12c7fe445241aee1aa8ebfe984bf16c39abe9a7e975540c"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/workloads/controllers/deployment/",
+          "title": "Deployments",
+          "content_chars": 61550,
+          "content_sha256": "616c69619c0a9141c6d126937f78252539f2b7764316f76ec8249dbdeebbb973"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/",
+          "title": "Custom Resources",
+          "content_chars": 23941,
+          "content_sha256": "b7f08e9f91a724896b2f95662125a10919b375d1523cfd8ef8b4cab0ebd5f8a9"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/scheduling-eviction/kube-scheduler/",
+          "title": "Kubernetes Scheduler",
+          "content_chars": 6237,
+          "content_sha256": "b27aed3ecca05630416157bafbee20245719eb7f96d5f29b1834979b79521228"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/extend-kubernetes/compute-storage-net/network-plugins/",
+          "title": "Network Plugins",
+          "content_chars": 6557,
+          "content_sha256": "92c06be8fd3a6d258a92e0232f9ddca08437bc0b22fa2da2e8f7d9a23008e9ab"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/policy/limit-range/",
+          "title": "Limit Ranges",
+          "content_chars": 9444,
+          "content_sha256": "ad1be0f401c9a45ea41db97fde766058f90b841ffa59b61b6c73f4877c2d9c56"
+        }
+      ],
+      "selected_urls": [
+        "https://kubernetes.io/docs/concepts/security/cloud-native-security/",
+        "https://kubernetes.io/docs/concepts/containers/images/",
+        "https://kubernetes.io/docs/concepts/overview/components/",
+        "https://kubernetes.io/docs/concepts/workloads/controllers/deployment/",
+        "https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/",
+        "https://kubernetes.io/docs/concepts/scheduling-eviction/kube-scheduler/",
+        "https://kubernetes.io/docs/concepts/extend-kubernetes/compute-storage-net/network-plugins/",
+        "https://kubernetes.io/docs/concepts/policy/limit-range/"
+      ],
+      "elapsed_seconds": 2.9951217500019993,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "cost_basis": "No paid provider or cloud route is enabled.",
+      "usage": {},
+      "request_count": null,
+      "adapter_version": "6.0.1",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "crawl.kubernetes-concepts",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "system": "docpull",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://kubernetes.io/docs/concepts/security/cloud-native-security/",
+          "title": "Cloud Native Security and Kubernetes",
+          "content_chars": 12711,
+          "content_sha256": "2fd7143adcb78a3d2d87a3be73b99edeaab808e680528ed372590ed67819d6f5"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/containers/images/",
+          "title": "Images",
+          "content_chars": 30509,
+          "content_sha256": "6b130172e682192d159825c086cbdc77c4171d3e11a1733eb0d8e56be7198658"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/workloads/controllers/deployment/",
+          "title": "Deployments",
+          "content_chars": 61550,
+          "content_sha256": "616c69619c0a9141c6d126937f78252539f2b7764316f76ec8249dbdeebbb973"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/",
+          "title": "Custom Resources",
+          "content_chars": 23941,
+          "content_sha256": "b7f08e9f91a724896b2f95662125a10919b375d1523cfd8ef8b4cab0ebd5f8a9"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/overview/components/",
+          "title": "Kubernetes Components",
+          "content_chars": 5001,
+          "content_sha256": "12e76efb0a030a02c12c7fe445241aee1aa8ebfe984bf16c39abe9a7e975540c"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/scheduling-eviction/kube-scheduler/",
+          "title": "Kubernetes Scheduler",
+          "content_chars": 6237,
+          "content_sha256": "b27aed3ecca05630416157bafbee20245719eb7f96d5f29b1834979b79521228"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/policy/limit-range/",
+          "title": "Limit Ranges",
+          "content_chars": 9444,
+          "content_sha256": "ad1be0f401c9a45ea41db97fde766058f90b841ffa59b61b6c73f4877c2d9c56"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/extend-kubernetes/compute-storage-net/network-plugins/",
+          "title": "Network Plugins",
+          "content_chars": 6557,
+          "content_sha256": "92c06be8fd3a6d258a92e0232f9ddca08437bc0b22fa2da2e8f7d9a23008e9ab"
+        }
+      ],
+      "selected_urls": [
+        "https://kubernetes.io/docs/concepts/security/cloud-native-security/",
+        "https://kubernetes.io/docs/concepts/containers/images/",
+        "https://kubernetes.io/docs/concepts/workloads/controllers/deployment/",
+        "https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/",
+        "https://kubernetes.io/docs/concepts/overview/components/",
+        "https://kubernetes.io/docs/concepts/scheduling-eviction/kube-scheduler/",
+        "https://kubernetes.io/docs/concepts/policy/limit-range/",
+        "https://kubernetes.io/docs/concepts/extend-kubernetes/compute-storage-net/network-plugins/"
+      ],
+      "elapsed_seconds": 2.9228763749997597,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "cost_basis": "No paid provider or cloud route is enabled.",
+      "usage": {},
+      "request_count": null,
+      "adapter_version": "6.0.1",
+      "error": null,
+      "artifacts": {}
+    },
+    {
+      "schema_version": 1,
+      "case_id": "crawl.kubernetes-concepts",
+      "trial_index": 3,
+      "lane": "crawl",
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "system": "docpull",
+      "status": "completed",
+      "records": [
+        {
+          "url": "https://kubernetes.io/docs/concepts/security/cloud-native-security/",
+          "title": "Cloud Native Security and Kubernetes",
+          "content_chars": 12711,
+          "content_sha256": "2fd7143adcb78a3d2d87a3be73b99edeaab808e680528ed372590ed67819d6f5"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/containers/images/",
+          "title": "Images",
+          "content_chars": 30509,
+          "content_sha256": "6b130172e682192d159825c086cbdc77c4171d3e11a1733eb0d8e56be7198658"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/",
+          "title": "Custom Resources",
+          "content_chars": 23941,
+          "content_sha256": "b7f08e9f91a724896b2f95662125a10919b375d1523cfd8ef8b4cab0ebd5f8a9"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/overview/components/",
+          "title": "Kubernetes Components",
+          "content_chars": 5001,
+          "content_sha256": "12e76efb0a030a02c12c7fe445241aee1aa8ebfe984bf16c39abe9a7e975540c"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/workloads/controllers/deployment/",
+          "title": "Deployments",
+          "content_chars": 61550,
+          "content_sha256": "616c69619c0a9141c6d126937f78252539f2b7764316f76ec8249dbdeebbb973"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/scheduling-eviction/kube-scheduler/",
+          "title": "Kubernetes Scheduler",
+          "content_chars": 6237,
+          "content_sha256": "b27aed3ecca05630416157bafbee20245719eb7f96d5f29b1834979b79521228"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/extend-kubernetes/compute-storage-net/network-plugins/",
+          "title": "Network Plugins",
+          "content_chars": 6557,
+          "content_sha256": "92c06be8fd3a6d258a92e0232f9ddca08437bc0b22fa2da2e8f7d9a23008e9ab"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/policy/limit-range/",
+          "title": "Limit Ranges",
+          "content_chars": 9444,
+          "content_sha256": "ad1be0f401c9a45ea41db97fde766058f90b841ffa59b61b6c73f4877c2d9c56"
+        }
+      ],
+      "selected_urls": [
+        "https://kubernetes.io/docs/concepts/security/cloud-native-security/",
+        "https://kubernetes.io/docs/concepts/containers/images/",
+        "https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/",
+        "https://kubernetes.io/docs/concepts/overview/components/",
+        "https://kubernetes.io/docs/concepts/workloads/controllers/deployment/",
+        "https://kubernetes.io/docs/concepts/scheduling-eviction/kube-scheduler/",
+        "https://kubernetes.io/docs/concepts/extend-kubernetes/compute-storage-net/network-plugins/",
+        "https://kubernetes.io/docs/concepts/policy/limit-range/"
+      ],
+      "elapsed_seconds": 2.7809702079975978,
+      "cost_usd": 0.0,
+      "cost_kind": "actual",
+      "cost_basis": "No paid provider or cloud route is enabled.",
+      "usage": {},
+      "request_count": null,
+      "adapter_version": "6.0.1",
+      "error": null,
+      "artifacts": {}
+    }
+  ],
+  "scores": [
+    {
+      "case_id": "crawl.python-asyncio",
+      "system": "docpull",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "completed": true,
+      "passed": true,
+      "record_count": 8,
+      "content_chars": 124615,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 1.5869264579996525,
+      "cost_usd": 0.0,
+      "cost_kind": "actual"
+    },
+    {
+      "case_id": "crawl.python-asyncio",
+      "system": "docpull",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "completed": true,
+      "passed": true,
+      "record_count": 8,
+      "content_chars": 124615,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 1.5794744589984475,
+      "cost_usd": 0.0,
+      "cost_kind": "actual"
+    },
+    {
+      "case_id": "crawl.python-asyncio",
+      "system": "docpull",
+      "trial_index": 3,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "completed": true,
+      "passed": true,
+      "record_count": 8,
+      "content_chars": 124615,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 1.460427375001018,
+      "cost_usd": 0.0,
+      "cost_kind": "actual"
+    },
+    {
+      "case_id": "crawl.sqlite-language",
+      "system": "docpull",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "completed": true,
+      "passed": false,
+      "record_count": 8,
+      "content_chars": 74743,
+      "term_coverage": 0.6666666666666666,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 0.8888888888888888,
+      "elapsed_seconds": 3.8602392909997434,
+      "cost_usd": 0.0,
+      "cost_kind": "actual"
+    },
+    {
+      "case_id": "crawl.sqlite-language",
+      "system": "docpull",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "completed": true,
+      "passed": false,
+      "record_count": 8,
+      "content_chars": 74743,
+      "term_coverage": 0.6666666666666666,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 0.8888888888888888,
+      "elapsed_seconds": 3.9188209579988325,
+      "cost_usd": 0.0,
+      "cost_kind": "actual"
+    },
+    {
+      "case_id": "crawl.sqlite-language",
+      "system": "docpull",
+      "trial_index": 3,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "completed": true,
+      "passed": false,
+      "record_count": 8,
+      "content_chars": 74743,
+      "term_coverage": 0.6666666666666666,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 0.8888888888888888,
+      "elapsed_seconds": 3.8842023340002925,
+      "cost_usd": 0.0,
+      "cost_kind": "actual"
+    },
+    {
+      "case_id": "crawl.mdn-http",
+      "system": "docpull",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "completed": true,
+      "passed": true,
+      "record_count": 8,
+      "content_chars": 153751,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 2.585522082998068,
+      "cost_usd": 0.0,
+      "cost_kind": "actual"
+    },
+    {
+      "case_id": "crawl.mdn-http",
+      "system": "docpull",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "completed": true,
+      "passed": true,
+      "record_count": 8,
+      "content_chars": 153751,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 2.6942482499980542,
+      "cost_usd": 0.0,
+      "cost_kind": "actual"
+    },
+    {
+      "case_id": "crawl.mdn-http",
+      "system": "docpull",
+      "trial_index": 3,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "completed": true,
+      "passed": true,
+      "record_count": 8,
+      "content_chars": 153751,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 2.398237583001901,
+      "cost_usd": 0.0,
+      "cost_kind": "actual"
+    },
+    {
+      "case_id": "crawl.docker-get-started",
+      "system": "docpull",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "framework-tutorial-crawl",
+      "completed": true,
+      "passed": true,
+      "record_count": 8,
+      "content_chars": 69905,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 1.7558720840024762,
+      "cost_usd": 0.0,
+      "cost_kind": "actual"
+    },
+    {
+      "case_id": "crawl.docker-get-started",
+      "system": "docpull",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "framework-tutorial-crawl",
+      "completed": true,
+      "passed": true,
+      "record_count": 8,
+      "content_chars": 69905,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 1.7232314579996455,
+      "cost_usd": 0.0,
+      "cost_kind": "actual"
+    },
+    {
+      "case_id": "crawl.docker-get-started",
+      "system": "docpull",
+      "trial_index": 3,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "framework-tutorial-crawl",
+      "completed": true,
+      "passed": true,
+      "record_count": 8,
+      "content_chars": 69905,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 1.6897652080006083,
+      "cost_usd": 0.0,
+      "cost_kind": "actual"
+    },
+    {
+      "case_id": "crawl.go-docs",
+      "system": "docpull",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "test",
+      "family": "language-reference-crawl",
+      "completed": true,
+      "passed": true,
+      "record_count": 8,
+      "content_chars": 464755,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 7.397809792000771,
+      "cost_usd": 0.0,
+      "cost_kind": "actual"
+    },
+    {
+      "case_id": "crawl.go-docs",
+      "system": "docpull",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "test",
+      "family": "language-reference-crawl",
+      "completed": true,
+      "passed": true,
+      "record_count": 8,
+      "content_chars": 464755,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 7.140300999999454,
+      "cost_usd": 0.0,
+      "cost_kind": "actual"
+    },
+    {
+      "case_id": "crawl.go-docs",
+      "system": "docpull",
+      "trial_index": 3,
+      "lane": "crawl",
+      "split": "test",
+      "family": "language-reference-crawl",
+      "completed": true,
+      "passed": true,
+      "record_count": 8,
+      "content_chars": 464755,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 7.080302999998821,
+      "cost_usd": 0.0,
+      "cost_kind": "actual"
+    },
+    {
+      "case_id": "crawl.rust-book",
+      "system": "docpull",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "completed": true,
+      "passed": true,
+      "record_count": 6,
+      "content_chars": 1360352,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 2.643107958996552,
+      "cost_usd": 0.0,
+      "cost_kind": "actual"
+    },
+    {
+      "case_id": "crawl.rust-book",
+      "system": "docpull",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "completed": true,
+      "passed": true,
+      "record_count": 6,
+      "content_chars": 1360352,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 2.440418333000707,
+      "cost_usd": 0.0,
+      "cost_kind": "actual"
+    },
+    {
+      "case_id": "crawl.rust-book",
+      "system": "docpull",
+      "trial_index": 3,
+      "lane": "crawl",
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "completed": true,
+      "passed": true,
+      "record_count": 6,
+      "content_chars": 1360352,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 2.59254237499772,
+      "cost_usd": 0.0,
+      "cost_kind": "actual"
+    },
+    {
+      "case_id": "crawl.fastapi-tutorial",
+      "system": "docpull",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "completed": true,
+      "passed": true,
+      "record_count": 8,
+      "content_chars": 89390,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 1.4521684999999707,
+      "cost_usd": 0.0,
+      "cost_kind": "actual"
+    },
+    {
+      "case_id": "crawl.fastapi-tutorial",
+      "system": "docpull",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "completed": true,
+      "passed": true,
+      "record_count": 8,
+      "content_chars": 89390,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 1.4317475839998224,
+      "cost_usd": 0.0,
+      "cost_kind": "actual"
+    },
+    {
+      "case_id": "crawl.fastapi-tutorial",
+      "system": "docpull",
+      "trial_index": 3,
+      "lane": "crawl",
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "completed": true,
+      "passed": true,
+      "record_count": 8,
+      "content_chars": 89390,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 1.4786637500001234,
+      "cost_usd": 0.0,
+      "cost_kind": "actual"
+    },
+    {
+      "case_id": "crawl.kubernetes-concepts",
+      "system": "docpull",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "completed": true,
+      "passed": true,
+      "record_count": 8,
+      "content_chars": 155950,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 2.9951217500019993,
+      "cost_usd": 0.0,
+      "cost_kind": "actual"
+    },
+    {
+      "case_id": "crawl.kubernetes-concepts",
+      "system": "docpull",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "completed": true,
+      "passed": true,
+      "record_count": 8,
+      "content_chars": 155950,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 2.9228763749997597,
+      "cost_usd": 0.0,
+      "cost_kind": "actual"
+    },
+    {
+      "case_id": "crawl.kubernetes-concepts",
+      "system": "docpull",
+      "trial_index": 3,
+      "lane": "crawl",
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "completed": true,
+      "passed": true,
+      "record_count": 8,
+      "content_chars": 155950,
+      "term_coverage": 1.0,
+      "url_recall": 1.0,
+      "domain_precision": 1.0,
+      "forbidden_term_cleanliness": 1.0,
+      "deterministic_quality": 1.0,
+      "elapsed_seconds": 2.7809702079975978,
+      "cost_usd": 0.0,
+      "cost_kind": "actual"
+    }
+  ],
+  "summary": {
+    "case_count": 8,
+    "case_runs": 24,
+    "repeat": 3,
+    "completed": 24,
+    "completion_rate": 1.0,
+    "pass_all_trials_rate": 0.875,
+    "pass_any_trial_rate": 0.875,
+    "mean_deterministic_quality": 0.9861111111111112,
+    "mean_elapsed_seconds": 2.978874923624668,
+    "observed_cost_usd": 0.0,
+    "cost_observed_runs": 24,
+    "cost_actual_runs": 24,
+    "cost_upper_bound_runs": 0,
+    "cost_unknown_runs": 0
+  }
+}

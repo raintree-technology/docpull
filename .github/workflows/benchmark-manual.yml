@@ -1,0 +1,147 @@
+name: Manual Exploratory Benchmarks
+
+on:
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: Suite path under bench/cases
+        required: true
+        default: live-search-v2.yaml
+        type: choice
+        options:
+          - live-search-v2.yaml
+          - live-neutral-extract-v1.yaml
+          - live-neutral-crawl-v1.yaml
+          - live-owned-v1.yaml
+      adapter:
+        description: Comparable adapter
+        required: true
+        type: choice
+        options:
+          - docpull
+          - tavily
+          - tavily-advanced
+          - tavily-crawl
+          - tavily-crawl-guided
+          - tavily-search
+          - exa
+          - exa-full
+          - exa-search
+          - parallel
+          - parallel-search
+          - firecrawl
+          - firecrawl-crawl
+          - firecrawl-search
+          - contextdev
+          - contextdev-crawl
+      repeat:
+        description: Trial count
+        required: true
+        default: "1"
+        type: string
+      case_filter:
+        description: Optional comma-separated case IDs
+        required: false
+        type: string
+      environment_label:
+        description: Stable environment label
+        required: true
+        default: github-ubuntu-24.04-manual
+        type: string
+      max_cost_usd:
+        description: Total conservative spend ceiling (required for hosted adapters)
+        required: true
+        default: "0"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    environment: benchmark-provider-manual
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      TAVILY_API_KEY: ${{ startsWith(inputs.adapter, 'tavily') && secrets.TAVILY_API_KEY || '' }}
+      EXA_API_KEY: ${{ startsWith(inputs.adapter, 'exa') && secrets.EXA_API_KEY || '' }}
+      PARALLEL_API_KEY: ${{ startsWith(inputs.adapter, 'parallel') && secrets.PARALLEL_API_KEY || '' }}
+      FIRECRAWL_API_KEY: ${{ startsWith(inputs.adapter, 'firecrawl') && secrets.FIRECRAWL_API_KEY || '' }}
+      CONTEXT_DEV_API_KEY: ${{ startsWith(inputs.adapter, 'contextdev') && secrets.CONTEXT_DEV_API_KEY || '' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: "3.12"
+
+      - name: Install locked benchmark dependencies
+        run: |
+          python -m pip install uv==0.11.6
+          uv sync --project bench --locked --dev
+
+      - name: Run selected suite
+        env:
+          SUITE: ${{ inputs.suite }}
+          ADAPTER: ${{ inputs.adapter }}
+          REPEAT: ${{ inputs.repeat }}
+          CASE_FILTER: ${{ inputs.case_filter }}
+          ENVIRONMENT_LABEL: ${{ inputs.environment_label }}
+          MAX_COST_USD: ${{ inputs.max_cost_usd }}
+        run: |
+          if [[ ! "$REPEAT" =~ ^[1-9][0-9]*$ ]]; then
+            echo "repeat must be a positive integer" >&2
+            exit 2
+          fi
+          if [[ ! "$MAX_COST_USD" =~ ^([0-9]+([.][0-9]+)?|[.][0-9]+)$ ]]; then
+            echo "max_cost_usd must be a non-negative decimal" >&2
+            exit 2
+          fi
+          case "$ADAPTER" in
+            docpull) SYSTEM=docpull ;;
+            tavily) SYSTEM=tavily ;;
+            tavily-advanced) SYSTEM=tavily-advanced ;;
+            tavily-crawl) SYSTEM=tavily-crawl-basic ;;
+            tavily-crawl-guided) SYSTEM=tavily-crawl-guided-advanced ;;
+            tavily-search) SYSTEM=tavily-search ;;
+            exa) SYSTEM=exa ;;
+            exa-full) SYSTEM=exa-full ;;
+            exa-search) SYSTEM=exa-search ;;
+            parallel) SYSTEM=parallel ;;
+            parallel-search) SYSTEM=parallel-search ;;
+            firecrawl) SYSTEM=firecrawl ;;
+            firecrawl-crawl) SYSTEM=firecrawl-crawl ;;
+            firecrawl-search) SYSTEM=firecrawl-search ;;
+            contextdev) SYSTEM=context.dev ;;
+            contextdev-crawl) SYSTEM=context.dev-crawl ;;
+            *) exit 2 ;;
+          esac
+          args=(
+            bench/cases/"$SUITE" --adapter "$ADAPTER" --system "$SYSTEM"
+            --repeat "$REPEAT" --output-dir bench/runs/manual
+            --environment-label "$ENVIRONMENT_LABEL" --network-isolation open
+          )
+          if [[ "$ADAPTER" != docpull ]]; then
+            args+=(--max-cost-usd "$MAX_COST_USD")
+          fi
+          if [[ -n "$CASE_FILTER" ]]; then
+            IFS=',' read -ra cases <<< "$CASE_FILTER"
+            for case_id in "${cases[@]}"; do args+=(--case "$case_id"); done
+          fi
+          uv run --project bench --locked docpull-bench run "${args[@]}"
+
+      - name: Upload portable reports only
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: manual-benchmark-portable-report
+          path: |
+            bench/runs/manual/*/report.json
+            bench/runs/manual/*/observations.ndjson
+            bench/runs/manual/*/scores.ndjson
+          if-no-files-found: error
+          retention-days: 30

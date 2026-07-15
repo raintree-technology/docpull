@@ -1,0 +1,3 @@
+Plain Heading
+alpha plain evidence
+beta ordered conclusion

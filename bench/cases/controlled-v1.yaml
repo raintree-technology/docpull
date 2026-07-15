@@ -1,0 +1,80 @@
+schema_version: 2
+name: controlled-web-context
+version: 1.0.0-dev
+description: Local deterministic adapter/replay cases for extraction and bounded crawling.
+cases:
+- id: controlled.extract.article
+  input:
+    case_id: controlled.extract.article
+    lane: extract
+    url: http://127.0.0.1:8765/index.html
+    include_domains:
+    - 127.0.0.1
+    timeout_seconds: 30
+  expected:
+    minimum_records: 1
+    minimum_content_chars: 100
+    required_terms:
+    - Context Fixture
+    - alpha-731
+    - deterministic evidence
+    forbidden_terms:
+    - Navigation decoy should not become evidence
+    required_urls:
+    - http://127.0.0.1:8765/index.html
+    allowed_domains:
+    - 127.0.0.1
+    lane: extract
+  metadata:
+    description: Extract the primary article while rejecting navigation noise.
+    split: dev
+    live: false
+    tags:
+    - controlled
+    - extraction
+    - boilerplate
+    rights:
+      redistribution: allowed
+      source: Repository-owned MIT fixture.
+    family: legacy-controlled
+    product_area: legacy-v1-migrated
+    critical: true
+- id: controlled.crawl.graph
+  input:
+    case_id: controlled.crawl.graph
+    lane: crawl
+    url: http://127.0.0.1:8765/index.html
+    include_domains:
+    - 127.0.0.1
+    max_pages: 3
+    max_depth: 1
+    timeout_seconds: 30
+  expected:
+    minimum_records: 3
+    minimum_content_chars: 250
+    required_terms:
+    - alpha-731
+    - beta-204
+    - gamma-918
+    required_urls:
+    - http://127.0.0.1:8765/index.html
+    - http://127.0.0.1:8765/guide.html
+    - http://127.0.0.1:8765/changelog.html
+    allowed_domains:
+    - 127.0.0.1
+    lane: crawl
+    maximum_duplicate_rate: 1.0
+  metadata:
+    description: Discover and extract a bounded three-page same-origin graph.
+    split: dev
+    live: false
+    tags:
+    - controlled
+    - crawl
+    - coverage
+    rights:
+      redistribution: allowed
+      source: Repository-owned MIT fixture.
+    family: legacy-controlled
+    product_area: legacy-v1-migrated
+    critical: true

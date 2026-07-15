@@ -179,6 +179,9 @@ def test_primary_docs_do_not_publish_pruned_surface() -> None:
 
 
 def test_primary_website_does_not_publish_pruned_provider_story() -> None:
+    if not (ROOT / "web").exists():
+        pytest.skip("DocPull no longer ships a standalone website.")
+
     banned_patterns = [
         r"\bParallel\b",
         r"\bTavily\b",

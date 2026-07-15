@@ -1,0 +1,233 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-07-15T01:54:16.546863+00:00",
+  "policy": "public-comparative-claim-v1",
+  "suite_name": "docpull-live-search",
+  "suite_sha256": "13acf083e57757ed0e012f5df12e9bde7a4ba785503efe70b1ce036e30736910",
+  "gold_sha256": "4dfdca24862d6dc6001e8996a92dc5a963180e1ebbdac6e45927228d8c4a4338",
+  "protocol_sha256": "daf74d9c3b6f1649c1beae1fef8e7e81ad6ea5c406a257619247996932698552",
+  "systems": [
+    "exa-search",
+    "firecrawl-search",
+    "parallel-search",
+    "tavily-search"
+  ],
+  "ready": false,
+  "checks": [
+    {
+      "id": "reports.minimum_systems",
+      "passed": true,
+      "detail": "observed=4 minimum=2"
+    },
+    {
+      "id": "reports.unique_systems",
+      "passed": true,
+      "detail": "systems=exa-search,firecrawl-search,parallel-search,tavily-search"
+    },
+    {
+      "id": "reports.suite_hash",
+      "passed": true,
+      "detail": "expected=13acf083e57757ed0e012f5df12e9bde7a4ba785503efe70b1ce036e30736910"
+    },
+    {
+      "id": "reports.protocol_hash",
+      "passed": true,
+      "detail": "distinct=1"
+    },
+    {
+      "id": "coverage.exa-search",
+      "passed": true,
+      "detail": "observed=30 expected=30"
+    },
+    {
+      "id": "trials.exa-search",
+      "passed": false,
+      "detail": "observed=2 minimum=5"
+    },
+    {
+      "id": "operations.exa-search",
+      "passed": true,
+      "detail": "observed=1.000 minimum=0.950"
+    },
+    {
+      "id": "repository_clean.exa-search",
+      "passed": false,
+      "detail": "git_dirty=True"
+    },
+    {
+      "id": "coverage.firecrawl-search",
+      "passed": true,
+      "detail": "observed=30 expected=30"
+    },
+    {
+      "id": "trials.firecrawl-search",
+      "passed": false,
+      "detail": "observed=2 minimum=5"
+    },
+    {
+      "id": "operations.firecrawl-search",
+      "passed": true,
+      "detail": "observed=0.983 minimum=0.950"
+    },
+    {
+      "id": "repository_clean.firecrawl-search",
+      "passed": false,
+      "detail": "git_dirty=True"
+    },
+    {
+      "id": "coverage.parallel-search",
+      "passed": true,
+      "detail": "observed=30 expected=30"
+    },
+    {
+      "id": "trials.parallel-search",
+      "passed": false,
+      "detail": "observed=2 minimum=5"
+    },
+    {
+      "id": "operations.parallel-search",
+      "passed": true,
+      "detail": "observed=1.000 minimum=0.950"
+    },
+    {
+      "id": "repository_clean.parallel-search",
+      "passed": false,
+      "detail": "git_dirty=True"
+    },
+    {
+      "id": "coverage.tavily-search",
+      "passed": true,
+      "detail": "observed=30 expected=30"
+    },
+    {
+      "id": "trials.tavily-search",
+      "passed": false,
+      "detail": "observed=2 minimum=5"
+    },
+    {
+      "id": "operations.tavily-search",
+      "passed": true,
+      "detail": "observed=1.000 minimum=0.950"
+    },
+    {
+      "id": "repository_clean.tavily-search",
+      "passed": false,
+      "detail": "git_dirty=True"
+    },
+    {
+      "id": "paired_information.search.exa-search.firecrawl-search",
+      "passed": false,
+      "detail": "discordant=10 minimum=20"
+    },
+    {
+      "id": "paired_information.search.exa-search.parallel-search",
+      "passed": false,
+      "detail": "discordant=5 minimum=20"
+    },
+    {
+      "id": "paired_information.search.exa-search.tavily-search",
+      "passed": false,
+      "detail": "discordant=6 minimum=20"
+    },
+    {
+      "id": "paired_information.search.firecrawl-search.parallel-search",
+      "passed": false,
+      "detail": "discordant=11 minimum=20"
+    },
+    {
+      "id": "paired_information.search.firecrawl-search.tavily-search",
+      "passed": false,
+      "detail": "discordant=6 minimum=20"
+    },
+    {
+      "id": "paired_information.search.parallel-search.tavily-search",
+      "passed": false,
+      "detail": "discordant=7 minimum=20"
+    },
+    {
+      "id": "sample_size.search",
+      "passed": false,
+      "detail": "observed=30 minimum=100"
+    },
+    {
+      "id": "holdout_size.search",
+      "passed": false,
+      "detail": "observed=15 minimum=30"
+    },
+    {
+      "id": "families.search",
+      "passed": true,
+      "detail": "observed=5 minimum=5"
+    },
+    {
+      "id": "family_balance.search",
+      "passed": true,
+      "detail": "largest_share=0.200 maximum=0.250"
+    },
+    {
+      "id": "unique_inputs.search",
+      "passed": true,
+      "detail": "observed=1.000 minimum=0.950"
+    },
+    {
+      "id": "domain_diversity.search",
+      "passed": true,
+      "detail": "observed=25 minimum=10"
+    },
+    {
+      "id": "gold.freshness",
+      "passed": true,
+      "detail": "stale_cases=0"
+    },
+    {
+      "id": "holdout.sealed",
+      "passed": false,
+      "detail": "valid unopened never-published seal required"
+    },
+    {
+      "id": "gold.independent_review",
+      "passed": false,
+      "detail": "reviewers=0 organizations=0 minimum=2"
+    },
+    {
+      "id": "protocol.exa-search",
+      "passed": false,
+      "detail": "matching signed first-party protocol attestation required"
+    },
+    {
+      "id": "protocol.firecrawl-search",
+      "passed": false,
+      "detail": "matching signed first-party protocol attestation required"
+    },
+    {
+      "id": "protocol.parallel-search",
+      "passed": false,
+      "detail": "matching signed first-party protocol attestation required"
+    },
+    {
+      "id": "protocol.tavily-search",
+      "passed": false,
+      "detail": "matching signed first-party protocol attestation required"
+    },
+    {
+      "id": "billing.exa-search",
+      "passed": false,
+      "detail": "signed provider total required"
+    },
+    {
+      "id": "billing.firecrawl-search",
+      "passed": false,
+      "detail": "signed provider total required"
+    },
+    {
+      "id": "billing.parallel-search",
+      "passed": false,
+      "detail": "signed provider total required"
+    },
+    {
+      "id": "billing.tavily-search",
+      "passed": false,
+      "detail": "signed provider total required"
+    }
+  ]
+}

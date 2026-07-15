@@ -1,0 +1,55 @@
+{
+  "analysis_version": "v3-ops-quality-slice-holm-paired-bootstrap",
+  "files": {
+    "COMPARISON.md": "5d5f590d2cc363377346e430fa914814c6e2aa13de378e0c325b5598869628eb",
+    "METHODOLOGY.md": "7a244fa6cb354d37e4d5f756ee694bd91856da81a2025d7c233095f3007ed695",
+    "README.md": "e937e7726096afeb7cb0c56bbab0865b6198b06ba3e452036dfe7308575e6e71",
+    "comparison.json": "b8cbeed952f38860521109fd1a2cc54fe22390d64970ba589ae9cae4e6b537ee",
+    "reports/docpull.report.json": "b04fabf657c2fef0e6d4dc8ef25da79f106b5a1cd5e37ef4da531c3722df6188",
+    "reports/exa-full.report.json": "9205d7fd2f27857b24f601744f41328023829791111efb401a3386bf6e6388ed",
+    "reports/parallel.report.json": "70d75af943fd9b1fa5d5bb210db8d4b30e57a2cf2abc4ee9fa95beeafcb57d3a",
+    "reports/tavily.report.json": "6615f247f950f56fe920a4587e3a70f50dcedf983dc8c65911a507b0931842a7",
+    "suite.yaml": "efb2d4094f7070ed59221123bee2e9245f8c11ad76fb12dba036ef80771293c3"
+  },
+  "generated_at": "2026-07-15T03:15:53.039204+00:00",
+  "protocol_sha256": "0f5b6368b239333fe10af4b639e330f363a969101aff1f640b1d86bfe4110e48",
+  "schema_version": 2,
+  "scorer_version": "v3-format-tolerant-concept-matching",
+  "source_report_set_sha256": "3ac427bc1092e3c2984ba0c903dd7386bdc4854a19eb06ea63f1100f77645a61",
+  "source_reports": [
+    {
+      "published_path": "reports/docpull.report.json",
+      "published_sha256": "b04fabf657c2fef0e6d4dc8ef25da79f106b5a1cd5e37ef4da531c3722df6188",
+      "source_sha256": "cf08074cc8496fc75b6fa9f5da1ff8a6bd94b9fa2d9dba6f2f8ee67930700327",
+      "system": "docpull"
+    },
+    {
+      "published_path": "reports/exa-full.report.json",
+      "published_sha256": "9205d7fd2f27857b24f601744f41328023829791111efb401a3386bf6e6388ed",
+      "source_sha256": "9205d7fd2f27857b24f601744f41328023829791111efb401a3386bf6e6388ed",
+      "system": "exa-full"
+    },
+    {
+      "published_path": "reports/parallel.report.json",
+      "published_sha256": "70d75af943fd9b1fa5d5bb210db8d4b30e57a2cf2abc4ee9fa95beeafcb57d3a",
+      "source_sha256": "70d75af943fd9b1fa5d5bb210db8d4b30e57a2cf2abc4ee9fa95beeafcb57d3a",
+      "system": "parallel"
+    },
+    {
+      "published_path": "reports/tavily.report.json",
+      "published_sha256": "6615f247f950f56fe920a4587e3a70f50dcedf983dc8c65911a507b0931842a7",
+      "source_sha256": "6615f247f950f56fe920a4587e3a70f50dcedf983dc8c65911a507b0931842a7",
+      "system": "tavily"
+    }
+  ],
+  "status": "data-only",
+  "suite_name": "live-neutral-extract",
+  "suite_sha256": "efb2d4094f7070ed59221123bee2e9245f8c11ad76fb12dba036ef80771293c3",
+  "suite_version": "1.0.0",
+  "unavailable_systems": [
+    {
+      "reason": "missing FIRECRAWL_API_KEY; no requests made",
+      "system": "firecrawl"
+    }
+  ]
+}

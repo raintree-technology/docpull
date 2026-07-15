@@ -32,9 +32,9 @@ Then rebuild the distribution from a clean `dist/`, validate package metadata,
 and smoke-install the wheel:
 
 ```bash
-rm -rf dist .pkg-smoke
+rm -rf .pkg-smoke
 python -m pip install -r requirements-release.txt
-python -m build --no-isolation
+python scripts/build_release.py --verify-reproducible --clean
 python -m twine check dist/*
 python -m venv .pkg-smoke
 .pkg-smoke/bin/python -m pip install dist/*.whl

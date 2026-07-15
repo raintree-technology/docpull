@@ -6,7 +6,6 @@
     "postcss": "^8.5.10"
   },
   "workspaces": [
-    "mcp",
-    "web"
+    "mcp"
   ]
 }

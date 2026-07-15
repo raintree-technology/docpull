@@ -17,6 +17,7 @@ from docpull.conversion.special_cases import (
     RawTextExtractor,
     ReadMeExtractor,
     RedocScalarExtractor,
+    RfcEditorExtractor,
     SpecialCaseResult,
     StarlightExtractor,
     VitePressExtractor,
@@ -201,6 +202,30 @@ class TestStaticFrameworkExtractors:
         assert result.extra == {"framework": "sphinx"}
         assert result.title == "Sphinx API"
         assert "# Sphinx API" in result.markdown
+
+
+class TestRfcEditorExtractor:
+    def test_extracts_the_complete_rfc_body_instead_of_one_section(self) -> None:
+        html = (
+            b"<!doctype html><html><head><title>RFC 9999</title></head><body>"
+            b"<header>Site chrome</header><main>"
+            b'<section id="S:1"><h1>RFC 9999</h1><p>Introduction evidence. '
+            b"Complete standards content for interoperable implementations.</p></section>"
+            b'<section id="S:2"><h2>Security Considerations</h2>'
+            b"<p>Second section evidence with requirements and terminology.</p></section>"
+            b"</main><footer>Footer chrome</footer></body></html>"
+        )
+
+        result = RfcEditorExtractor().try_extract(
+            html,
+            "https://www.rfc-editor.org/rfc/rfc9999.html",
+        )
+
+        assert result is not None
+        assert result.source_type == "rfc_editor"
+        assert "Introduction evidence" in result.markdown
+        assert "Security Considerations" in result.markdown
+        assert "Site chrome" not in result.markdown
 
 
 class TestOpenApiExtractor:
@@ -447,6 +472,123 @@ class TestRawTextExtractor:
 
     def test_rejects_non_docs_txt(self):
         assert RawTextExtractor().try_extract(b"hello", "https://example.com/file.txt") is None
+
+    def test_accepts_plain_prose_when_response_identifies_text(self):
+        body = b"Request for Comments\n\nInteroperability Considerations\n\nParsers must accept JSON.\n"
+
+        result = RawTextExtractor().try_extract(
+            body,
+            "https://www.rfc-editor.org/rfc/rfc8259.txt",
+            content_type="text/plain; charset=utf-8",
+        )
+
+        assert result is not None
+        assert result.source_type == "raw_text"
+        assert "Interoperability Considerations" in result.markdown
+
+    def test_accepts_rst_yaml_and_extensionless_typed_text(self):
+        cases = [
+            ("https://example.com/README.rst", b"Project\n=======\n\nBuild Instructions\n", None),
+            ("https://example.com/spec.yaml", b"openapi: 3.0.0\ninfo:\n  title: Example\n", None),
+            ("https://example.com/source", b"plain response body", "text/plain"),
+        ]
+
+        for url, body, content_type in cases:
+            result = RawTextExtractor().try_extract(body, url, content_type=content_type)
+            assert result is not None
+
+    @pytest.mark.parametrize(
+        ("url", "content_type", "body", "language"),
+        [
+            ("https://example.com/data.json", "application/json", '{"ok": true}', "json"),
+            ("https://example.com/data.ndjson", "application/x-ndjson", '{"id": 1}', "ndjson"),
+            ("https://example.com/spec.yaml", "text/yaml", "openapi: 3.0.0", "yaml"),
+            ("https://example.com/feed.xml", "text/xml", "<feed><entry/></feed>", "xml"),
+            ("https://example.com/data.csv", "text/csv", "name,value\na,1", "csv"),
+            ("https://example.com/data.tsv", "text/tab-separated-values", "name\tvalue", "tsv"),
+            ("https://example.com/readme.rst", "text/x-rst", "Title\n=====", "rst"),
+        ],
+    )
+    def test_structured_raw_formats_are_fenced(
+        self,
+        url: str,
+        content_type: str,
+        body: str,
+        language: str,
+    ) -> None:
+        result = RawTextExtractor().try_extract(body.encode(), url, content_type=content_type)
+
+        assert result is not None
+        assert result.markdown.startswith(f"```{language}\n")
+        assert result.markdown.endswith("\n```\n")
+
+    def test_structured_raw_fence_expands_past_embedded_backticks(self):
+        result = RawTextExtractor().try_extract(
+            b'{"example": "```danger```"}',
+            "https://example.com/data.json",
+            content_type="application/json",
+        )
+
+        assert result is not None
+        assert result.markdown.startswith("````json\n")
+        assert result.markdown.endswith("\n````\n")
+
+    def test_raw_script_markup_is_inert_inside_xml_fence(self):
+        body = b"<script>alert('never active')</script>"
+
+        result = RawTextExtractor().try_extract(
+            body,
+            "https://example.com/payload.xml",
+            content_type="application/xml",
+        )
+
+        assert result is not None
+        assert result.markdown == "```xml\n<script>alert('never active')</script>\n```\n"
+
+    def test_raw_script_markup_is_escaped_in_direct_markdown(self):
+        result = RawTextExtractor().try_extract(
+            b"# Docs\n\n<script>alert('never active')</script>",
+            "https://example.com/readme.md",
+            content_type="text/markdown",
+        )
+
+        assert result is not None
+        assert "<script" not in result.markdown.casefold()
+        assert "&lt;script" in result.markdown
+
+    def test_markdown_and_rfc_plain_text_remain_direct(self):
+        markdown = RawTextExtractor().try_extract(
+            b"# Direct Markdown\n\nContent.",
+            "https://example.com/readme.md",
+            content_type="text/markdown",
+        )
+        plain = RawTextExtractor().try_extract(
+            b"Request for Comments\n\nProtocol requirements.",
+            "https://www.rfc-editor.org/rfc/rfc9999.txt",
+            content_type="text/plain; charset=utf-8",
+        )
+
+        assert markdown is not None and markdown.markdown.startswith("# Direct Markdown")
+        assert plain is not None and not plain.markdown.startswith("```")
+
+    def test_declared_charset_is_honored_before_fencing(self):
+        result = RawTextExtractor().try_extract(
+            "name,value\nCafé,1".encode("latin-1"),
+            "https://example.com/data.csv",
+            content_type="text/csv; charset=iso-8859-1",
+        )
+
+        assert result is not None
+        assert "Café" in result.markdown
+
+    def test_rejects_html_mislabeled_as_text(self):
+        result = RawTextExtractor().try_extract(
+            b"<!doctype html><html><body>challenge</body></html>",
+            "https://example.com/source",
+            content_type="text/plain",
+        )
+
+        assert result is None
 
     def test_frontmatter_title_is_used_for_raw_markdown(self):
         body = "---\ntitle: Original\n---\n\n# Body\n\nContent.\n"

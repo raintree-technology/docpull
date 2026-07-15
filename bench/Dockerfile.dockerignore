@@ -1,0 +1,17 @@
+**
+!LICENSE
+!README.md
+!pyproject.toml
+!requirements-release.txt
+!src
+!src/**
+!bench
+!bench/**
+bench/.external
+bench/.mypy_cache
+bench/.pytest_cache
+bench/.ruff_cache
+bench/.venv
+bench/runs
+bench/src/*.egg-info
+**/__pycache__
