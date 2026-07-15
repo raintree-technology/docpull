@@ -9,6 +9,8 @@ import sys
 from pathlib import Path
 from unittest import mock
 
+import yaml
+
 from docpull.mcp.sources import default_docs_dir
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -211,6 +213,14 @@ def test_pre_commit_mypy_uses_project_interpreter_wrapper() -> None:
 
     assert "entry: python3 scripts/precommit_mypy.py" in config
     assert "entry: mypy src" not in config
+
+
+def test_pre_commit_mutators_preserve_hashed_benchmark_results() -> None:
+    config = yaml.safe_load((REPO_ROOT / ".pre-commit-config.yaml").read_text())
+    hooks = {hook["id"]: hook for repository in config["repos"] for hook in repository["hooks"]}
+
+    for hook_id in ("trailing-whitespace", "end-of-file-fixer", "mixed-line-ending"):
+        assert hooks[hook_id]["exclude"] == r"^bench/results/"
 
 
 def test_local_make_gates_include_generated_metadata_check() -> None:
