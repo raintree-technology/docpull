@@ -13,13 +13,14 @@ import mimetypes
 import os
 import re
 import signal
+import stat
 import subprocess
 import sys
 import tempfile
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, NoReturn
 
 from .conversion.chunking import TokenCounter, chunk_markdown
 from .models.document import DocumentRecord
@@ -28,6 +29,14 @@ from .pipeline.manifest import CorpusManifest
 from .time_utils import utc_now_iso
 
 ParseBackend = Literal["auto", "pypdf", "markitdown", "unstructured", "text"]
+RemoteDocumentErrorCode = Literal[
+    "encrypted",
+    "empty",
+    "image_only",
+    "malformed",
+    "output_limit",
+    "worker_failure",
+]
 
 REMOTE_DOCUMENT_MAX_INPUT_BYTES = 50 * 1024 * 1024
 REMOTE_DOCUMENT_MAX_OUTPUT_BYTES = 100 * 1024 * 1024
@@ -42,6 +51,15 @@ _REMOTE_RESULT_REQUIRED_KEYS = {
     "source_url",
     "status",
     "title",
+}
+_REMOTE_BACKENDS = {"auto", "pypdf", "markitdown", "unstructured"}
+_REMOTE_ERROR_CODES = {
+    "encrypted",
+    "empty",
+    "image_only",
+    "malformed",
+    "output_limit",
+    "worker_failure",
 }
 _TOKEN_RE = re.compile(r"\w+", re.UNICODE)
 _ALPHA_TOKEN_RE = re.compile(r"[^\W\d_]+", re.UNICODE)
@@ -75,6 +93,15 @@ TEXT_COMPATIBLE_MIME_TYPES = {
 
 class DocumentParseError(RuntimeError):
     """Raised when a local document cannot be parsed into a pack."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        code: RemoteDocumentErrorCode = "worker_failure",
+    ) -> None:
+        super().__init__(message)
+        self.code = code
 
 
 @dataclass(frozen=True)
@@ -360,9 +387,8 @@ def parse_remote_document_bytes(
             env=_remote_worker_environment(),
             stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,
-            stderr=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
             start_new_session=True,
-            preexec_fn=_resource_limit_setup(timeout_seconds, memory_mib),
         )
         try:
             process.communicate(timeout=timeout_seconds)
@@ -399,9 +425,8 @@ async def parse_remote_document_bytes_async(
             env=_remote_worker_environment(),
             stdin=asyncio.subprocess.DEVNULL,
             stdout=asyncio.subprocess.DEVNULL,
-            stderr=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.DEVNULL,
             start_new_session=True,
-            preexec_fn=_resource_limit_setup(timeout_seconds, memory_mib),
         )
         try:
             await asyncio.wait_for(process.communicate(), timeout=timeout_seconds)
@@ -454,6 +479,10 @@ def _prepare_remote_document(
     timeout_seconds: int,
     memory_mib: int,
 ) -> _RemoteDocumentRequest:
+    if not isinstance(body, bytes):
+        raise DocumentParseError("Remote document body must be bytes.")
+    if not isinstance(content_type, str):
+        raise DocumentParseError("Remote document content type must be a string.")
     media_type = content_type.split(";", 1)[0].strip().casefold()
     if media_type != "application/pdf":
         raise DocumentParseError(f"Unsupported remote document content type: {media_type or 'unknown'}")
@@ -461,9 +490,13 @@ def _prepare_remote_document(
         raise DocumentParseError("Remote PDF exceeds the 50 MiB input limit.")
     if not body.startswith(b"%PDF-"):
         raise DocumentParseError("Remote PDF response did not contain a PDF signature.")
-    if timeout_seconds <= 0:
+    if not isinstance(backend, str) or backend not in _REMOTE_BACKENDS:
+        raise DocumentParseError("Invalid remote document backend.")
+    if not isinstance(source_url, str) or not source_url.strip() or source_url != source_url.strip():
+        raise DocumentParseError("Remote document source URL must not be empty.")
+    if not isinstance(timeout_seconds, int) or isinstance(timeout_seconds, bool) or timeout_seconds <= 0:
         raise DocumentParseError("Remote document timeout must be greater than zero.")
-    if memory_mib < 64:
+    if not isinstance(memory_mib, int) or isinstance(memory_mib, bool) or memory_mib < 64:
         raise DocumentParseError("Remote document memory limit must be at least 64 MiB.")
 
     temporary_directory = tempfile.TemporaryDirectory(prefix="docpull-remote-document-")
@@ -479,7 +512,9 @@ def _prepare_remote_document(
             {
                 "backend": backend,
                 "max_output_bytes": REMOTE_DOCUMENT_MAX_OUTPUT_BYTES,
+                "memory_mib": memory_mib,
                 "source_url": source_url,
+                "timeout_seconds": timeout_seconds,
             },
             ensure_ascii=False,
             separators=(",", ":"),
@@ -531,22 +566,21 @@ def _remote_worker_environment() -> dict[str, str]:
     return environment
 
 
-def _resource_limit_setup(timeout_seconds: int, memory_mib: int) -> Any:
+def _apply_resource_limits(timeout_seconds: int, memory_mib: int, maximum_output_bytes: int) -> None:
     if os.name != "posix":
-        return None
+        return
+    import resource
 
-    def apply_limits() -> None:
-        import resource
-
-        cpu_seconds = max(1, math.ceil(timeout_seconds))
-        memory_bytes = memory_mib * 1024 * 1024
+    cpu_seconds = max(1, math.ceil(timeout_seconds))
+    memory_bytes = memory_mib * 1024 * 1024
+    with contextlib.suppress(OSError, ValueError):
+        resource.setrlimit(resource.RLIMIT_CPU, (cpu_seconds, cpu_seconds))
+    if hasattr(resource, "RLIMIT_AS"):
         with contextlib.suppress(OSError, ValueError):
-            resource.setrlimit(resource.RLIMIT_CPU, (cpu_seconds, cpu_seconds))
-        if hasattr(resource, "RLIMIT_AS"):
-            with contextlib.suppress(OSError, ValueError):
-                resource.setrlimit(resource.RLIMIT_AS, (memory_bytes, memory_bytes))
-
-    return apply_limits
+            resource.setrlimit(resource.RLIMIT_AS, (memory_bytes, memory_bytes))
+    if hasattr(resource, "RLIMIT_FSIZE"):
+        with contextlib.suppress(OSError, ValueError):
+            resource.setrlimit(resource.RLIMIT_FSIZE, (maximum_output_bytes, maximum_output_bytes))
 
 
 def _terminate_process_group(pid: int) -> None:
@@ -560,18 +594,41 @@ def _terminate_process_group(pid: int) -> None:
 
 def _read_remote_worker_result(request: _RemoteDocumentRequest) -> ParsedDocument:
     try:
-        result_size = request.result_path.stat().st_size
+        raw_result = _read_private_result(request.result_path, REMOTE_DOCUMENT_MAX_OUTPUT_BYTES)
+    except _RemoteResultTooLargeError as err:
+        raise DocumentParseError(
+            "Remote document parsed output exceeds the 100 MiB limit.",
+            code="output_limit",
+        ) from err
     except OSError as err:
         raise DocumentParseError("Remote document worker returned no validated result.") from err
-    if result_size > REMOTE_DOCUMENT_MAX_OUTPUT_BYTES:
-        raise DocumentParseError("Remote document parsed output exceeds the 100 MiB limit.")
     try:
-        payload = json.loads(request.result_path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as err:
+        payload = json.loads(
+            raw_result.decode("utf-8"),
+            object_pairs_hook=_reject_duplicate_json_keys,
+            parse_constant=_reject_nonstandard_json_constant,
+        )
+    except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as err:
         raise DocumentParseError("Remote document worker returned an invalid result.") from err
     if not isinstance(payload, dict) or set(payload) != _REMOTE_RESULT_REQUIRED_KEYS:
         raise DocumentParseError("Remote document worker returned an invalid result schema.")
-    if payload.get("status") != "ok":
+    status = payload.get("status")
+    if status not in {"ok", "error"}:
+        raise DocumentParseError("Remote document worker returned an invalid result status.")
+    if (
+        payload.get("source_url") != request.source_url
+        or payload.get("source_mime_type") != request.media_type
+    ):
+        raise DocumentParseError("Remote document worker returned conflicting source identity.")
+    if status == "error":
+        if (
+            payload.get("backend") != ""
+            or payload.get("content") != ""
+            or payload.get("metadata") != {}
+            or payload.get("title") != ""
+            or payload.get("error_code") not in _REMOTE_ERROR_CODES
+        ):
+            raise DocumentParseError("Remote document worker returned an invalid error result.")
         messages = {
             "encrypted": "Encrypted PDF input is not supported.",
             "empty": "PDF contains no extractable text.",
@@ -579,28 +636,30 @@ def _read_remote_worker_result(request: _RemoteDocumentRequest) -> ParsedDocumen
             "malformed": "Malformed or truncated PDF container.",
             "output_limit": "Remote document parsed output exceeds the 100 MiB limit.",
         }
-        error_code = payload.get("error_code")
-        message = (
-            messages.get(error_code, "Remote document worker failed safely.")
-            if isinstance(error_code, str)
-            else "Remote document worker failed safely."
+        error_code = payload["error_code"]
+        raise DocumentParseError(
+            messages.get(error_code, "Remote document worker failed safely."),
+            code=error_code,
         )
-        raise DocumentParseError(message)
     content = payload.get("content")
     metadata = payload.get("metadata")
     title = payload.get("title")
     parsed_backend = payload.get("backend")
-    if not isinstance(content, str) or not isinstance(title, str) or not isinstance(parsed_backend, str):
+    if (
+        not isinstance(content, str)
+        or not content.strip()
+        or not isinstance(title, str)
+        or not title.strip()
+        or not isinstance(parsed_backend, str)
+        or payload.get("error_code") != ""
+    ):
         raise DocumentParseError("Remote document worker returned invalid field types.")
     if not isinstance(metadata, dict) or not all(isinstance(key, str) for key in metadata):
         raise DocumentParseError("Remote document worker returned invalid metadata.")
     if parsed_backend not in {"pypdf", "markitdown", "unstructured"}:
         raise DocumentParseError("Remote document worker returned an invalid parser identity.")
-    if (
-        payload.get("source_url") != request.source_url
-        or payload.get("source_mime_type") != request.media_type
-    ):
-        raise DocumentParseError("Remote document worker returned conflicting source identity.")
+    if request.backend != "auto" and parsed_backend != request.backend:
+        raise DocumentParseError("Remote document worker returned a conflicting parser identity.")
     if len(content.encode("utf-8")) > REMOTE_DOCUMENT_MAX_OUTPUT_BYTES:
         raise DocumentParseError("Remote document parsed output exceeds the 100 MiB limit.")
     return ParsedDocument(
@@ -619,8 +678,51 @@ def _read_remote_worker_result(request: _RemoteDocumentRequest) -> ParsedDocumen
     )
 
 
+class _RemoteResultTooLargeError(OSError):
+    """Raised before an oversized worker result is read into memory."""
+
+
+def _read_private_result(path: Path, maximum_bytes: int) -> bytes:
+    file_stat = path.lstat()
+    if not stat.S_ISREG(file_stat.st_mode) or not _is_private_file_mode(file_stat.st_mode):
+        raise OSError("worker result is not a private regular file")
+    if file_stat.st_size > maximum_bytes:
+        raise _RemoteResultTooLargeError
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+    descriptor = os.open(path, flags)
+    with os.fdopen(descriptor, "rb") as stream:
+        opened_stat = os.fstat(stream.fileno())
+        if not stat.S_ISREG(opened_stat.st_mode) or not _is_private_file_mode(opened_stat.st_mode):
+            raise OSError("worker result changed during validation")
+        if (opened_stat.st_dev, opened_stat.st_ino) != (file_stat.st_dev, file_stat.st_ino):
+            raise OSError("worker result changed during validation")
+        body = stream.read(maximum_bytes + 1)
+    if len(body) > maximum_bytes:
+        raise _RemoteResultTooLargeError
+    return body
+
+
+def _reject_duplicate_json_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"duplicate JSON key: {key}")
+        result[key] = value
+    return result
+
+
+def _reject_nonstandard_json_constant(value: str) -> NoReturn:
+    raise ValueError(f"non-standard JSON constant: {value}")
+
+
+def _is_private_file_mode(mode: int) -> bool:
+    return os.name != "posix" or stat.S_IMODE(mode) == 0o600
+
+
 def _write_private_bytes(path: Path, body: bytes) -> None:
     descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    if hasattr(os, "fchmod"):
+        os.fchmod(descriptor, 0o600)
     with os.fdopen(descriptor, "wb") as stream:
         stream.write(body)
 
@@ -647,7 +749,7 @@ def _parse_auto(path: Path, *, source_url: str, title: str | None, source_mime_t
         try:
             content, pdf_metadata = _parse_pypdf(path)
         except DocumentParseError as err:
-            if str(err).startswith(("Encrypted PDF", "Malformed or truncated PDF", "PDF contains no pages")):
+            if err.code in {"encrypted", "malformed", "empty"}:
                 raise
             errors.append(str(err))
         else:
@@ -685,9 +787,10 @@ def _parse_auto(path: Path, *, source_url: str, title: str | None, source_mime_t
     if source_mime_type == "application/pdf" and pdf_metadata:
         if int(pdf_metadata.get("image_count", 0)) > 0:
             raise DocumentParseError(
-                "PDF appears image-only and requires an explicitly configured OCR backend."
+                "PDF appears image-only and requires an explicitly configured OCR backend.",
+                code="image_only",
             )
-        raise DocumentParseError("PDF contains no extractable text.")
+        raise DocumentParseError("PDF contains no extractable text.", code="empty")
 
     install_hint = (
         "Install an optional parser with `pip install 'docpull[pdf]'`, "
@@ -722,14 +825,14 @@ def _parse_pypdf(path: Path) -> tuple[str, dict[str, Any]]:
     try:
         reader = reader_class(str(path), strict=False)
         if bool(reader.is_encrypted):
-            raise DocumentParseError("Encrypted PDF input is not supported.")
+            raise DocumentParseError("Encrypted PDF input is not supported.", code="encrypted")
         pages = list(reader.pages)
     except DocumentParseError:
         raise
     except Exception as err:  # noqa: BLE001
-        raise DocumentParseError("Malformed or truncated PDF container.") from err
+        raise DocumentParseError("Malformed or truncated PDF container.", code="malformed") from err
     if not pages:
-        raise DocumentParseError("PDF contains no pages.")
+        raise DocumentParseError("PDF contains no pages.", code="empty")
 
     blocks: list[str] = []
     warnings: list[str] = []
@@ -758,12 +861,11 @@ def _parse_pypdf(path: Path) -> tuple[str, dict[str, Any]]:
 
 def _validate_pdf_structure(path: Path) -> dict[str, Any]:
     content, metadata = _parse_pypdf(path)
-    if not content.strip():
-        if int(metadata.get("image_count", 0)) > 0:
-            raise DocumentParseError(
-                "PDF appears image-only and requires an explicitly configured OCR backend."
-            )
-        raise DocumentParseError("PDF contains no extractable text.")
+    if not content.strip() and int(metadata.get("image_count", 0)) > 0:
+        raise DocumentParseError(
+            "PDF appears image-only and requires an explicitly configured OCR backend.",
+            code="image_only",
+        )
     return metadata
 
 
@@ -853,7 +955,8 @@ def _parsed_document(
     if not normalized_content:
         if source_mime_type == "application/pdf" and int(metadata.get("image_count", 0)) > 0:
             raise DocumentParseError(
-                f"PDF appears image-only and requires an explicitly configured OCR backend: {path}"
+                f"PDF appears image-only and requires an explicitly configured OCR backend: {path}",
+                code="image_only",
             )
         raise DocumentParseError(f"Parser backend {backend} produced no text for {path}.")
     source_sha256 = hashlib.sha256(path.read_bytes()).hexdigest()

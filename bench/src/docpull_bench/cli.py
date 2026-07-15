@@ -319,7 +319,7 @@ def _validate_suite(
 def _validate_claim_grade_suite(suite: BenchmarkSuite) -> None:
     from .claims import ClaimPolicy
 
-    policy = ClaimPolicy.from_yaml(Path("bench/claim/policy-v2.yaml"))
+    policy = ClaimPolicy.from_yaml(Path(__file__).resolve().parents[2] / "claim" / "policy-v2.yaml")
     by_lane: dict[Lane, list[Any]] = defaultdict(list)
     for case in suite.cases:
         by_lane[case.input.lane].append(case)
@@ -332,6 +332,8 @@ def _validate_claim_grade_suite(suite: BenchmarkSuite) -> None:
                 raise ValueError(f"claim-grade case {case.id} has stale references")
         if case.input.lane in {Lane.EXTRACT, Lane.CRAWL, Lane.PARSE}:
             expected = case.expected
+            duplicate_limit = getattr(expected, "maximum_duplicate_rate", None)
+            effective_duplicate_limit = duplicate_limit is not None and duplicate_limit < 1
             check_count = (
                 int(expected.minimum_records > 0)
                 + int(expected.minimum_content_chars > 0)
@@ -346,7 +348,7 @@ def _validate_claim_grade_suite(suite: BenchmarkSuite) -> None:
                 + len(getattr(expected, "required_urls", []))
                 + len(getattr(expected, "required_headings", []))
                 + len(getattr(expected, "required_metadata", {}))
-                + int(hasattr(expected, "maximum_duplicate_rate"))
+                + int(effective_duplicate_limit)
             )
             if check_count < 5:
                 raise ValueError(
@@ -356,7 +358,7 @@ def _validate_claim_grade_suite(suite: BenchmarkSuite) -> None:
                 expected.forbidden_terms
                 or expected.maximum_content_chars is not None
                 or expected.maximum_long_token_rate is not None
-                or hasattr(expected, "maximum_duplicate_rate")
+                or effective_duplicate_limit
             )
             if not has_cleanliness:
                 raise ValueError(

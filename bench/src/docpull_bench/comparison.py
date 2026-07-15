@@ -11,6 +11,7 @@ from pathlib import Path
 from statistics import mean, median
 from typing import Literal
 
+from .integrity import load_portable_report
 from .models import (
     CaseScore,
     ComparisonCaseRow,
@@ -27,7 +28,7 @@ SliceType = Literal["overall", "scope", "split", "family"]
 def compare_reports(paths: list[Path]) -> ComparisonReport:
     if len(paths) < 2:
         raise ValueError("comparison requires at least two reports")
-    reports = [PortableReport.model_validate_json(path.read_text(encoding="utf-8")) for path in paths]
+    reports = [load_portable_report(path) for path in paths]
     first = reports[0].manifest
     for report in reports[1:]:
         if report.manifest.suite_sha256 != first.suite_sha256:

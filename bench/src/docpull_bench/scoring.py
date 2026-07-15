@@ -85,6 +85,32 @@ def _term_position(combined: str, term: str) -> int:
     )
 
 
+def _ordered_term_positions(combined: str, terms: list[str]) -> list[int]:
+    haystack = _tokens(combined)
+    positions: list[int] = []
+    cursor = 0
+    for term in terms:
+        needle = _tokens(term)
+        if not needle:
+            positions.append(-1)
+            break
+        width = len(needle)
+        position = next(
+            (
+                index
+                for index in range(cursor, len(haystack) - width + 1)
+                if haystack[index : index + width] == needle
+            ),
+            -1,
+        )
+        positions.append(position)
+        if position < 0:
+            break
+        cursor = position + width
+    positions.extend([-1] * (len(terms) - len(positions)))
+    return positions
+
+
 def _normalized_url(value: str) -> str:
     return urldefrag(value)[0].rstrip("/")
 
@@ -198,12 +224,12 @@ def _content_checks(
         assertions.append(_assert(f"term.required:{term}", _term_present(combined, term)))
     for term in forbidden_terms:
         assertions.append(_assert(f"term.forbidden:{term}", not _term_present(combined, term)))
-    positions = [_term_position(combined, term) for term in expected.required_ordered_terms]
+    positions = _ordered_term_positions(combined, expected.required_ordered_terms)
     if expected.required_ordered_terms:
         assertions.append(
             _assert(
                 "content.required_order",
-                all(position >= 0 for position in positions) and positions == sorted(positions),
+                all(position >= 0 for position in positions),
             )
         )
     alpha_tokens = [token for token in _TOKEN_RE.findall(raw_combined) if _ALPHA_TOKEN_RE.fullmatch(token)]

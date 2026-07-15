@@ -17,6 +17,7 @@ from pydantic import Field, model_validator
 
 from .claims import gold_hash
 from .models import BenchmarkCase, BenchmarkSuite, Lane, StrictModel
+from .serialization import strict_yaml_load
 
 
 class BenchmarkChallenge(StrictModel):
@@ -46,7 +47,7 @@ class BenchmarkChallenge(StrictModel):
 
     @classmethod
     def from_yaml(cls, path: Path) -> BenchmarkChallenge:
-        return cls.model_validate(yaml.safe_load(path.read_text(encoding="utf-8")))
+        return cls.model_validate(strict_yaml_load(path.read_text(encoding="utf-8")))
 
 
 class BenchmarkGold(StrictModel):
@@ -66,7 +67,7 @@ class BenchmarkGold(StrictModel):
 
     @classmethod
     def from_yaml(cls, path: Path) -> BenchmarkGold:
-        return cls.model_validate(yaml.safe_load(path.read_text(encoding="utf-8")))
+        return cls.model_validate(strict_yaml_load(path.read_text(encoding="utf-8")))
 
 
 class UnsignedChallengeManifest(StrictModel):

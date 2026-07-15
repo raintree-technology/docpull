@@ -315,6 +315,39 @@ def test_parse_remote_pdf_rejects_signature_mismatch() -> None:
         )
 
 
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("backend", "text", "backend"),
+        ("source_url", "", "source URL"),
+        ("timeout_seconds", True, "timeout"),
+        ("memory_mib", True, "memory limit"),
+    ],
+)
+def test_remote_pdf_rejects_invalid_supervisor_inputs_before_spawning(
+    monkeypatch: pytest.MonkeyPatch,
+    field: str,
+    value: object,
+    message: str,
+) -> None:
+    values: dict[str, object] = {
+        "body": _pdf_bytes(text="input validation"),
+        "source_url": "https://example.com/input.pdf",
+        "content_type": "application/pdf",
+        "backend": "pypdf",
+        "timeout_seconds": 60,
+        "memory_mib": 1024,
+    }
+    values[field] = value
+    monkeypatch.setattr(
+        "docpull.document_parse.subprocess.Popen",
+        lambda *_args, **_kwargs: pytest.fail("invalid inputs must not spawn a worker"),
+    )
+
+    with pytest.raises(DocumentParseError, match=message):
+        parse_remote_document_bytes(**values)  # type: ignore[arg-type]
+
+
 def test_pdf_auto_fallback_order_only_advances_after_empty_text(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -342,6 +375,31 @@ def test_pdf_auto_fallback_order_only_advances_after_empty_text(
 
     assert parsed.content == "Recovered text"
     assert calls == ["pypdf", "markitdown"]
+
+
+def test_explicit_alternate_pdf_backend_can_recover_after_empty_pypdf_text(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "paper.pdf"
+    source.write_bytes(b"%PDF-1.7\nfixture")
+    monkeypatch.setattr(
+        "docpull.document_parse._parse_pypdf",
+        lambda _path: ("", {"page_count": 1, "image_count": 0}),
+    )
+    monkeypatch.setattr(
+        "docpull.document_parse._parse_markitdown",
+        lambda _path: ("Recovered by alternate parser", {}),
+    )
+
+    parsed = parse_one_document(
+        source,
+        backend="markitdown",
+        source_url=source.as_uri(),
+        title=None,
+    )
+
+    assert parsed.content == "Recovered by alternate parser"
 
 
 @pytest.mark.parametrize(
@@ -480,20 +538,97 @@ def test_remote_pdf_output_file_limit_is_enforced() -> None:
             _read_remote_worker_result(request)
 
 
+def test_remote_pdf_result_must_be_private_regular_file(tmp_path: Path) -> None:
+    from docpull.document_parse import _prepare_remote_document, _read_remote_worker_result
+
+    request = _prepare_remote_document(
+        _pdf_bytes(text="private result"),
+        source_url="https://example.com/private-result.pdf",
+        content_type="application/pdf",
+        backend="pypdf",
+        timeout_seconds=60,
+        memory_mib=1024,
+    )
+    with request:
+        request.result_path.write_text("{}", encoding="utf-8")
+        request.result_path.chmod(0o644)
+        with pytest.raises(DocumentParseError, match="no validated result"):
+            _read_remote_worker_result(request)
+
+        request.result_path.unlink()
+        target = tmp_path / "result.json"
+        target.write_text("{}", encoding="utf-8")
+        target.chmod(0o600)
+        request.result_path.symlink_to(target)
+        with pytest.raises(DocumentParseError, match="no validated result"):
+            _read_remote_worker_result(request)
+
+
+def test_remote_pdf_result_rejects_duplicate_json_keys() -> None:
+    from docpull.document_parse import _prepare_remote_document, _read_remote_worker_result
+
+    request = _prepare_remote_document(
+        _pdf_bytes(text="duplicate result"),
+        source_url="https://example.com/duplicate-result.pdf",
+        content_type="application/pdf",
+        backend="pypdf",
+        timeout_seconds=60,
+        memory_mib=1024,
+    )
+    with request:
+        request.result_path.write_text(
+            '{"backend":"pypdf","content":"body","error_code":"","metadata":{},'
+            '"source_mime_type":"application/pdf","source_url":'
+            '"https://example.com/duplicate-result.pdf","status":"ok","status":"ok",'
+            '"title":"title"}',
+            encoding="utf-8",
+        )
+        request.result_path.chmod(0o600)
+        with pytest.raises(DocumentParseError, match="invalid result"):
+            _read_remote_worker_result(request)
+
+
+def test_remote_pdf_result_rejects_nonstandard_json_numbers() -> None:
+    from docpull.document_parse import _prepare_remote_document, _read_remote_worker_result
+
+    request = _prepare_remote_document(
+        _pdf_bytes(text="nonstandard result"),
+        source_url="https://example.com/nonstandard-result.pdf",
+        content_type="application/pdf",
+        backend="pypdf",
+        timeout_seconds=60,
+        memory_mib=1024,
+    )
+    with request:
+        request.result_path.write_text(
+            '{"backend":"pypdf","content":"body","error_code":"",'
+            '"metadata":{"metric":NaN},"source_mime_type":"application/pdf",'
+            '"source_url":"https://example.com/nonstandard-result.pdf",'
+            '"status":"ok","title":"title"}',
+            encoding="utf-8",
+        )
+        request.result_path.chmod(0o600)
+        with pytest.raises(DocumentParseError, match="invalid result"):
+            _read_remote_worker_result(request)
+
+
 def test_posix_worker_resource_limits_are_configured(monkeypatch: pytest.MonkeyPatch) -> None:
     import resource
 
-    from docpull.document_parse import _resource_limit_setup
+    from docpull.document_parse import REMOTE_DOCUMENT_MAX_OUTPUT_BYTES, _apply_resource_limits
 
     if os.name != "posix":
         pytest.skip("POSIX resource limits are not available")
     calls: list[tuple[int, tuple[int, int]]] = []
     monkeypatch.setattr(resource, "setrlimit", lambda kind, limit: calls.append((kind, limit)))
 
-    setup = _resource_limit_setup(7, 256)
-    assert setup is not None
-    setup()
+    _apply_resource_limits(7, 256, REMOTE_DOCUMENT_MAX_OUTPUT_BYTES)
 
     assert (resource.RLIMIT_CPU, (7, 7)) in calls
     if hasattr(resource, "RLIMIT_AS"):
         assert (resource.RLIMIT_AS, (256 * 1024 * 1024, 256 * 1024 * 1024)) in calls
+    if hasattr(resource, "RLIMIT_FSIZE"):
+        assert (
+            resource.RLIMIT_FSIZE,
+            (REMOTE_DOCUMENT_MAX_OUTPUT_BYTES, REMOTE_DOCUMENT_MAX_OUTPUT_BYTES),
+        ) in calls

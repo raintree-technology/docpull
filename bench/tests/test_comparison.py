@@ -70,6 +70,18 @@ def test_comparison_requires_identical_protocol_hash(tmp_path: Path) -> None:
         compare_reports(paths)
 
 
+def test_comparison_rejects_duplicate_json_keys(tmp_path: Path) -> None:
+    paths = _reports(tmp_path)
+    original = paths[1].read_text(encoding="utf-8")
+    paths[1].write_text(
+        original.replace('"schema_version": 3', '"schema_version": 3, "schema_version": 3', 1),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="duplicate JSON key"):
+        compare_reports(paths)
+
+
 def test_comparison_requires_identical_scorer_version(tmp_path: Path) -> None:
     paths = _reports(tmp_path)
     report = PortableReport.model_validate_json(paths[1].read_text())

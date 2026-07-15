@@ -239,3 +239,24 @@ def test_billing_reconciliation_accepts_only_actual_total_or_reported_upper_boun
 
     assert billing_check(0.41)
     assert not billing_check(0.43)
+
+
+def test_billing_reconciliation_allows_mixed_actual_and_upper_bound_totals(tmp_path: Path) -> None:
+    payload = json.loads(REPORT.read_text(encoding="utf-8"))
+    for collection in (payload["observations"], payload["scores"]):
+        cost_rows = [row for row in collection if row.get("cost_usd") is not None]
+        for row in cost_rows[len(cost_rows) // 2 :]:
+            row["cost_kind"] = "upper_bound"
+    path = tmp_path / "mixed-cost.report.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    evidence = _evidence()
+    billing = evidence.billing[0].model_copy(update={"report_sha256": _sha256(path), "actual_cost_usd": 0.40})
+
+    result = check_claim_readiness(
+        SUITE,
+        [path],
+        policy=_relaxed_policy(),
+        evidence=evidence.model_copy(update={"billing": [billing]}),
+    )
+
+    assert next(item for item in result.checks if item.id == "billing.exa-search").passed

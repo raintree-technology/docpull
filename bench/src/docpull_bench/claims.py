@@ -17,10 +17,11 @@ from itertools import combinations
 from pathlib import Path
 from typing import Annotated, Any, Literal
 
-import yaml
 from pydantic import AfterValidator, Field, model_validator
 
-from .models import BenchmarkSuite, Lane, PortableReport, StrictModel, hostname
+from .integrity import file_sha256, load_portable_report
+from .models import BenchmarkSuite, Lane, StrictModel, hostname
+from .serialization import strict_yaml_load
 
 _SHA256_PATTERN = r"^[0-9a-f]{64}$"
 
@@ -74,7 +75,7 @@ class ClaimPolicy(StrictModel):
 
     @classmethod
     def from_yaml(cls, path: Path) -> ClaimPolicy:
-        return cls.model_validate(yaml.safe_load(path.read_text(encoding="utf-8")))
+        return cls.model_validate(strict_yaml_load(path.read_text(encoding="utf-8")))
 
 
 class ReviewAttestation(StrictModel):
@@ -155,7 +156,7 @@ class ClaimEvidence(StrictModel):
     def from_yaml(cls, path: Path | None) -> ClaimEvidence:
         if path is None:
             return cls()
-        return cls.model_validate(yaml.safe_load(path.read_text(encoding="utf-8")))
+        return cls.model_validate(strict_yaml_load(path.read_text(encoding="utf-8")))
 
 
 class ClaimCheck(StrictModel):
@@ -203,7 +204,7 @@ def check_claim_readiness(
     evidence_base = (evidence_base or Path.cwd()).resolve()
     suite_sha256 = _file_sha256(suite_path)
     gold_sha256 = gold_hash(suite)
-    reports = [PortableReport.model_validate_json(path.read_text(encoding="utf-8")) for path in report_paths]
+    reports = [load_portable_report(path) for path in report_paths]
     report_hashes = {_file_sha256(path): report for path, report in zip(report_paths, reports, strict=True)}
     policy_sha256 = policy_sha256 or _json_hash(policy.model_dump(mode="json"))
     evidence_sha256 = evidence_sha256 or _json_hash(evidence.model_dump(mode="json"))
@@ -530,8 +531,10 @@ def check_claim_readiness(
             reconciliation
             and (
                 abs(reconciliation.actual_cost_usd - actual_total) <= 0.01
-                if any(item.cost_kind == "actual" for item in report.observations)
-                else reconciliation.actual_cost_usd <= upper_bound_total
+                or (
+                    any(item.cost_kind == "upper_bound" for item in report.observations)
+                    and reconciliation.actual_cost_usd <= upper_bound_total
+                )
             )
         )
         billing_ok = not has_provider_cost or bool(
@@ -771,7 +774,7 @@ def _referenced_hash_matches(base: Path, reference: str, expected_sha256: str) -
 
 
 def _file_sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    return file_sha256(path)
 
 
 def _json_hash(value: Any) -> str:

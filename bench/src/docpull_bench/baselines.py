@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 from collections import defaultdict
 from datetime import datetime, timezone
@@ -10,20 +9,21 @@ from pathlib import Path
 from statistics import median
 from typing import Any
 
-from .models import CaseScore, PortableReport
+from .integrity import file_sha256, load_portable_report, strict_json_file
+from .models import CaseScore
 
 
 def update_baseline(report_path: Path, baseline_path: Path, *, reason: str) -> dict[str, Any]:
     if not reason.strip():
         raise ValueError("baseline update requires a non-empty reason")
-    report = PortableReport.model_validate_json(report_path.read_text(encoding="utf-8"))
+    report = load_portable_report(report_path)
     previous_hash = _optional_hash(baseline_path)
     payload = {
         "schema_version": 2,
         "updated_at": datetime.now(timezone.utc).isoformat(),
         "reason": reason.strip(),
         "previous_sha256": previous_hash,
-        "source_report_sha256": _hash(report_path),
+        "source_report_sha256": file_sha256(report_path),
         "suite_sha256": report.manifest.suite_sha256,
         "protocol_sha256": report.manifest.protocol_sha256,
         "system": report.manifest.system,
@@ -38,8 +38,8 @@ def update_baseline(report_path: Path, baseline_path: Path, *, reason: str) -> d
 
 
 def check_baseline(report_path: Path, baseline_path: Path) -> tuple[dict[str, Any], bool]:
-    report = PortableReport.model_validate_json(report_path.read_text(encoding="utf-8"))
-    baseline = json.loads(baseline_path.read_text(encoding="utf-8"))
+    report = load_portable_report(report_path)
+    baseline = strict_json_file(baseline_path)
     if baseline.get("schema_version") != 2:
         raise ValueError("baseline is not schema v2")
     if baseline.get("suite_sha256") != report.manifest.suite_sha256:
@@ -71,8 +71,8 @@ def check_baseline(report_path: Path, baseline_path: Path) -> tuple[dict[str, An
             advisory.extend(_performance_advisories(case_id, old, new))
     result = {
         "schema_version": 2,
-        "baseline_sha256": _hash(baseline_path),
-        "report_sha256": _hash(report_path),
+        "baseline_sha256": file_sha256(baseline_path),
+        "report_sha256": file_sha256(report_path),
         "blocking_regression": blocking,
         "rows": rows,
         "performance_advisories": advisory,
@@ -149,7 +149,7 @@ def _percentile(values: list[float], quantile: float) -> float:
 
 
 def _hash(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    return file_sha256(path)
 
 
 def _optional_hash(path: Path) -> str | None:

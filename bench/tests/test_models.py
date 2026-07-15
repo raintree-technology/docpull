@@ -5,7 +5,14 @@ from pathlib import Path
 import pytest
 from pydantic import TypeAdapter, ValidationError
 
-from docpull_bench.models import BenchmarkInput, BenchmarkSuite, CaseMetadata, Lane, RightsMetadata
+from docpull_bench.models import (
+    BenchmarkInput,
+    BenchmarkSuite,
+    CaseMetadata,
+    Lane,
+    RightsMetadata,
+    SubjectIdentity,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -52,6 +59,15 @@ def test_schema_version_fails_closed(tmp_path: Path) -> None:
         BenchmarkSuite.from_yaml(path)
 
 
+def test_suite_rejects_duplicate_yaml_keys(tmp_path: Path) -> None:
+    source = (ROOT / "cases" / "controlled-v2.yaml").read_text(encoding="utf-8")
+    path = tmp_path / "ambiguous.yaml"
+    path.write_text(source.replace("name:", "name: forged\nname:", 1), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="duplicate YAML key: name"):
+        BenchmarkSuite.from_yaml(path)
+
+
 def test_gold_never_appears_in_serialized_input() -> None:
     case = BenchmarkSuite.from_yaml(ROOT / "cases" / "controlled-v2.yaml").cases[0]
     serialized = case.input.model_dump_json()
@@ -69,4 +85,15 @@ def test_boundary_scope_requires_a_predeclared_reason() -> None:
             comparison_scope="core",
             boundary_reason="robots_policy",
             rights=rights,
+        )
+
+
+def test_remote_subject_profile_hash_is_derived_from_snapshot() -> None:
+    profile = {"endpoint": "/extract", "mode": "full"}
+
+    with pytest.raises(ValidationError, match="profile hash does not match"):
+        SubjectIdentity(
+            kind="remote-service",
+            public_request_profile=profile,
+            public_request_profile_sha256="0" * 64,
         )

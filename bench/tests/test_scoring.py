@@ -226,3 +226,32 @@ def test_optional_content_quality_assertions_are_deterministic() -> None:
     assert score.metrics["fenced_code_blocks"] == 1
     assert score.metrics["markdown_table_rows"] == 2
     assert score.metrics["long_token_rate"] == 0.0
+
+
+def test_required_order_uses_a_valid_later_occurrence() -> None:
+    original = next(case for case in _cases() if case.input.lane is Lane.EXTRACT)
+    expected = original.expected.model_copy(
+        update={
+            "minimum_records": 1,
+            "minimum_content_chars": 1,
+            "required_terms": [],
+            "forbidden_terms": [],
+            "required_ordered_terms": ["alpha", "beta"],
+            "required_urls": [],
+            "allowed_domains": [],
+            "required_headings": [],
+        }
+    )
+    case = original.model_copy(update={"expected": expected})
+    observation = RunObservation(
+        case_id=case.id,
+        system="fixture",
+        status="completed",
+        payload=ContentPayload(
+            records=[ArtifactRecord(url=case.input.url, content="beta before alpha then beta")]
+        ),
+        elapsed_seconds=0.1,
+        adapter_version="test",
+    )
+
+    assert score_observation(case, observation).passed

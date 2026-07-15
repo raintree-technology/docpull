@@ -5,10 +5,10 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-import yaml
 from pydantic import Field
 
 from .models import StrictModel
+from .serialization import strict_yaml_load
 
 
 class PriceEntry(StrictModel):
@@ -27,7 +27,7 @@ class PricingSnapshot(StrictModel):
     @classmethod
     def load(cls, path: Path | None = None) -> PricingSnapshot:
         source = path or Path(__file__).resolve().parents[2] / "pricing" / "providers.yaml"
-        return cls.model_validate(yaml.safe_load(source.read_text(encoding="utf-8")))
+        return cls.model_validate(strict_yaml_load(source.read_text(encoding="utf-8")))
 
     def price(self, provider: str, operation: str) -> PriceEntry:
         try:

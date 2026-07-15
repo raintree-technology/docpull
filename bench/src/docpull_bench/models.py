@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from collections import defaultdict
 from datetime import datetime, timezone
 from enum import Enum
@@ -11,8 +12,9 @@ from statistics import mean
 from typing import Annotated, Any, Literal, TypeAlias
 from urllib.parse import urlparse
 
-import yaml
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+from .serialization import strict_yaml_load
 
 SCHEMA_VERSION = 3
 MetricValue: TypeAlias = bool | int | float | str | None
@@ -339,7 +341,7 @@ class BenchmarkSuite(StrictModel):
 
     @classmethod
     def from_yaml(cls, path: Path) -> BenchmarkSuite:
-        payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+        payload = strict_yaml_load(path.read_text(encoding="utf-8"))
         return cls.model_validate(payload)
 
 
@@ -621,7 +623,7 @@ class SubjectIdentity(StrictModel):
     artifact_basename: str | None = None
     artifact_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
     package_version: str | None = None
-    source_revision: str | None = None
+    source_revision: str | None = Field(default=None, pattern=r"^[0-9a-f]{7,64}$")
     clean_build: bool | None = None
     public_request_profile: dict[str, Any] | None = None
     public_request_profile_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
@@ -642,6 +644,23 @@ class SubjectIdentity(StrictModel):
             self.public_request_profile and self.public_request_profile_sha256
         ):
             raise ValueError("remote-service subjects require an exact public request profile and hash")
+        if self.kind == "remote-service":
+            expected = hashlib.sha256(
+                json.dumps(
+                    self.public_request_profile,
+                    sort_keys=True,
+                    default=str,
+                    separators=(",", ":"),
+                ).encode()
+            ).hexdigest()
+            if self.public_request_profile_sha256 != expected:
+                raise ValueError("remote-service request profile hash does not match its snapshot")
+        if self.artifact_basename and (
+            Path(self.artifact_basename).name != self.artifact_basename or "\\" in self.artifact_basename
+        ):
+            raise ValueError("subject artifact_basename cannot contain a path")
+        if self.kind == "wheel" and not str(self.artifact_basename).endswith(".whl"):
+            raise ValueError("wheel subject artifact_basename must name a wheel")
         return self
 
 
@@ -651,16 +670,16 @@ class RunManifest(StrictModel):
     created_at: str
     suite_name: str
     suite_version: str
-    suite_sha256: str
-    fixture_manifest_sha256: str | None = None
-    protocol_sha256: str
+    suite_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    fixture_manifest_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    protocol_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     scorer_version: str = "v2-unversioned"
     system: str
     adapter_version: str
-    adapter_config_sha256: str
+    adapter_config_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     git_revision: str | None = None
     git_dirty: bool
-    dependency_lock_sha256: str | None = None
+    dependency_lock_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
     python_version: str
     operating_system: str
     architecture: str
@@ -673,6 +692,16 @@ class RunManifest(StrictModel):
     max_concurrency: int = Field(ge=1)
     command: list[str]
     subject: SubjectIdentity | None = None
+
+    @model_validator(mode="after")
+    def validate_created_at(self) -> RunManifest:
+        try:
+            created = datetime.fromisoformat(self.created_at)
+        except ValueError as error:
+            raise ValueError("manifest created_at must be an ISO-8601 datetime") from error
+        if created.tzinfo is None:
+            raise ValueError("manifest created_at must include a timezone")
+        return self
 
     @classmethod
     def now(cls, **kwargs: Any) -> RunManifest:
