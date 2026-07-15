@@ -81,7 +81,11 @@ def publish_results(
         "suite_version": suite.version,
         "suite_sha256": suite_hash,
         "protocol_sha256": comparison.protocol_sha256,
+        "scorer_version": comparison.scorer_version,
         "analysis_version": comparison.analysis_version,
+        "source_report_set_sha256": _json_hash(
+            sorted((item["system"], item["source_sha256"]) for item in sources)
+        ),
         "source_reports": sources,
         "unavailable_systems": _parse_unavailable(unavailable or []),
         "files": hashes,
@@ -155,6 +159,8 @@ def _readme(suite: BenchmarkSuite, provisional: bool, unavailable: list[str]) ->
         "",
         "This bundle intentionally does not generate product claims or name a winner. See "
         "`COMPARISON.md` for lane-local deterministic results and `METHODOLOGY.md` for run metadata.",
+        "Conditional quality covers completed acquisitions only. Provider spend excludes local "
+        "compute and operator time, and non-comparable latency must not be ranked.",
     ]
     rows = _parse_unavailable(unavailable)
     if rows:
@@ -184,3 +190,7 @@ def _safe_name(value: str) -> str:
 
 def _file_sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _json_hash(value: object) -> str:
+    return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":")).encode()).hexdigest()

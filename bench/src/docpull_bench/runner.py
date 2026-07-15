@@ -41,7 +41,7 @@ from .models import (
     StructuredPayload,
 )
 from .sanitization import sanitize_url, scrub_secrets
-from .scoring import score_observation
+from .scoring import SCORER_VERSION, score_observation
 
 
 def run_suite(
@@ -124,6 +124,7 @@ def run_suite(
         {
             "schema_version": 2,
             "suite_sha256": suite_hash,
+            "scorer_version": SCORER_VERSION,
             "repeat": repeat,
             "max_concurrency": max_concurrency,
             "case_ids": sorted(case.id for case in cases),
@@ -137,6 +138,7 @@ def run_suite(
         suite_sha256=suite_hash,
         fixture_manifest_sha256=suite.fixture_manifest_sha256,
         protocol_sha256=protocol_hash,
+        scorer_version=SCORER_VERSION,
         system=adapter.system,
         adapter_version=adapter.version,
         adapter_config_sha256=_adapter_config_hash(adapter),

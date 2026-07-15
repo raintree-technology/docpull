@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import shutil
 import subprocess
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
@@ -78,6 +79,16 @@ class UnsignedChallengeManifest(StrictModel):
     gold_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     case_count: int = Field(ge=1)
     held_case_ids: list[str] = Field(min_length=1)
+
+
+class SealedChallengeArtifact(StrictModel):
+    schema_version: Literal[1] = 1
+    status: Literal["encrypted-requires-external-signature"]
+    encryption: Literal["age"] = "age"
+    encrypted_at: str
+    gold_file_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    ciphertext_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    ciphertext_path: str
 
 
 def export_blinded_challenge(
@@ -187,6 +198,56 @@ def materialize_blinded_challenge(
     )
     os.chmod(output_path, 0o600)
     return suite
+
+
+def seal_blinded_gold(
+    gold_path: Path,
+    *,
+    ciphertext_path: Path,
+    recipient: str,
+    manifest_path: Path,
+) -> SealedChallengeArtifact:
+    """Encrypt private gold with age; external custody and signing remain mandatory."""
+    repository = _git_root(Path.cwd())
+    _require_outside_repository(gold_path, repository, "plaintext gold")
+    _require_outside_repository(ciphertext_path, repository, "encrypted holdout")
+    if not gold_path.is_file():
+        raise ValueError(f"plaintext gold does not exist: {gold_path}")
+    if ciphertext_path.exists():
+        raise ValueError(f"encrypted holdout already exists: {ciphertext_path}")
+    if not recipient.strip() or any(char in recipient for char in "\x00\r\n"):
+        raise ValueError("age recipient must be a non-empty single line")
+    age = shutil.which("age")
+    if age is None:
+        raise RuntimeError("age is required to seal a holdout; install age and retry")
+
+    ciphertext_path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = ciphertext_path.with_suffix(ciphertext_path.suffix + ".tmp")
+    try:
+        result = subprocess.run(
+            [age, "--encrypt", "--recipient", recipient, "--output", str(temporary), str(gold_path)],
+            capture_output=True,
+            check=False,
+            timeout=60,
+        )
+        if result.returncode != 0 or not temporary.is_file():
+            raise RuntimeError("age failed to encrypt the holdout; stderr omitted")
+        os.chmod(temporary, 0o600)
+        temporary.replace(ciphertext_path)
+    finally:
+        if temporary.exists():
+            temporary.unlink()
+
+    artifact = SealedChallengeArtifact(
+        status="encrypted-requires-external-signature",
+        encrypted_at=datetime.now(timezone.utc).isoformat(),
+        gold_file_sha256=_file_sha256(gold_path),
+        ciphertext_sha256=_file_sha256(ciphertext_path),
+        ciphertext_path=str(ciphertext_path),
+    )
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    manifest_path.write_text(artifact.model_dump_json(indent=2) + "\n", encoding="utf-8")
+    return artifact
 
 
 def protocol_hash(challenge: BenchmarkChallenge, gold: BenchmarkGold) -> str:

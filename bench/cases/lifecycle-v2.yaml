@@ -224,4 +224,4 @@ cases:
     - controlled
     - context-lifecycle
     rights: *id001
-fixture_manifest_sha256: 7f10af6e7477025da6f6a64c197a5922bfecb2af8c7f28386f8591ab98041a51
+fixture_manifest_sha256: c34ff679667e7e27ce6e82ade0ffd494f4cfd144fdaa7f6b835d6616170422a3

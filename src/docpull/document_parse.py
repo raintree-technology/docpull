@@ -7,7 +7,9 @@ import hashlib
 import importlib
 import json
 import mimetypes
+import os
 import sys
+import tempfile
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -259,6 +261,8 @@ def parse_one_document(
 ) -> ParsedDocument:
     """Parse one local file into normalized Markdown without writing a pack."""
     source_mime_type = _guess_mime_type(path)
+    if source_mime_type == "application/pdf":
+        _validate_pdf_container(path)
     if backend == "text":
         content, metadata = _parse_text(path)
         return _parsed_document(
@@ -293,6 +297,48 @@ def parse_one_document(
             metadata=metadata,
         )
     return _parse_auto(path, source_url=source_url, title=title, source_mime_type=source_mime_type)
+
+
+def parse_remote_document_bytes(
+    body: bytes,
+    *,
+    source_url: str,
+    content_type: str,
+    backend: ParseBackend = "auto",
+) -> ParsedDocument:
+    """Parse explicitly authorized remote document bytes without retaining the source file."""
+    media_type = content_type.split(";", 1)[0].strip().casefold()
+    suffix_by_type = {"application/pdf": ".pdf"}
+    suffix = suffix_by_type.get(media_type)
+    if suffix is None:
+        raise DocumentParseError(f"Unsupported remote document content type: {media_type or 'unknown'}")
+    if media_type == "application/pdf" and not body.startswith(b"%PDF-"):
+        raise DocumentParseError("Remote PDF response did not contain a PDF signature.")
+
+    with tempfile.TemporaryDirectory(prefix="docpull-remote-document-") as directory:
+        path = Path(directory) / f"source{suffix}"
+        path.write_bytes(body)
+        os.chmod(path, 0o600)
+        parsed = parse_one_document(
+            path,
+            backend=backend,
+            source_url=source_url,
+            title=None,
+        )
+        return ParsedDocument(
+            path=Path(f"remote{suffix}"),
+            source_url=parsed.source_url,
+            title=parsed.title,
+            content=parsed.content,
+            backend=parsed.backend,
+            source_mime_type=media_type,
+            metadata={
+                **parsed.metadata,
+                "remote_source_retained": False,
+                "source_bytes": len(body),
+                "source_sha256": hashlib.sha256(body).hexdigest(),
+            },
+        )
 
 
 _parse_one = parse_one_document
@@ -374,7 +420,7 @@ def _parse_markitdown(path: Path) -> tuple[str, dict[str, Any]]:
         getattr(result, "text", None),
     )
     if content is None:
-        content = str(result)
+        content = result if isinstance(result, str) else ""
     return content, {
         "result_title": _first_string(getattr(result, "title", None)),
         "bytes_read": path.stat().st_size,
@@ -425,6 +471,10 @@ def _parsed_document(
 ) -> ParsedDocument:
     normalized_content = content.strip()
     if not normalized_content:
+        if source_mime_type == "application/pdf" and b"/Subtype /Image" in path.read_bytes():
+            raise DocumentParseError(
+                f"PDF appears image-only and requires an explicitly configured OCR backend: {path}"
+            )
         raise DocumentParseError(f"Parser backend {backend} produced no text for {path}.")
     return ParsedDocument(
         path=path,
@@ -435,6 +485,15 @@ def _parsed_document(
         source_mime_type=source_mime_type,
         metadata=metadata,
     )
+
+
+def _validate_pdf_container(path: Path) -> None:
+    body = path.read_bytes()
+    tail = body[-4096:]
+    if not body.startswith(b"%PDF-") or b"startxref" not in tail or b"%%EOF" not in tail:
+        raise DocumentParseError(f"Malformed or truncated PDF container: {path}")
+    if b"/Encrypt" in body:
+        raise DocumentParseError(f"Encrypted PDF input is not supported: {path}")
 
 
 def _records_for_parsed_document(

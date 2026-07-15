@@ -1123,16 +1123,16 @@
       "sha256": "6f575090014a4c715121810e41dde3963b68c2f4a4d674a6361d1eaf94460398"
     },
     {
-      "bytes": 55,
+      "bytes": 622,
       "path": "v2/parse/08-encrypted.pdf",
       "rights": "repository-authored-mit",
-      "sha256": "47d8191394b72458d03f5dfeaba5a16096d2ac8e2f1e8cb1429ea5ba7782db17"
+      "sha256": "8d6ce08c55eb725a94382a13c557fa4a2364356fc30a81fded682b208d5bdf87"
     },
     {
-      "bytes": 614,
+      "bytes": 656,
       "path": "v2/parse/09-ocr-gated.pdf",
       "rights": "repository-authored-mit",
-      "sha256": "88c4b3a2043998c570d8cbe06b4df65df8b7545061609cbf0b41e16dc01f6407"
+      "sha256": "9113a5a99558fe212259e0bd1299f366d0e4ef6daee6196be57d40757cbed842"
     },
     {
       "bytes": 64,

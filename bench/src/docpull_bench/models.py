@@ -579,6 +579,7 @@ class RunManifest(StrictModel):
     suite_sha256: str
     fixture_manifest_sha256: str | None = None
     protocol_sha256: str
+    scorer_version: str = "v2-unversioned"
     system: str
     adapter_version: str
     adapter_config_sha256: str
@@ -633,7 +634,7 @@ class PortableReport(StrictModel):
 
 class ComparisonRow(StrictModel):
     lane: Lane
-    slice_type: Literal["overall", "split", "family"]
+    slice_type: Literal["overall", "scope", "split", "family"]
     slice_value: str
     system: str
     adapter_version: str
@@ -666,6 +667,7 @@ class ComparisonCaseRow(StrictModel):
     split: Literal["dev", "test"]
     family: str
     critical: bool
+    comparison_scope: Literal["core", "boundary"] = "core"
     system: str
     status: str
     trial_count: int = Field(ge=1)
@@ -679,7 +681,7 @@ class ComparisonCaseRow(StrictModel):
 
 class PairwiseComparisonRow(StrictModel):
     lane: Lane
-    slice_type: Literal["overall", "split", "family"]
+    slice_type: Literal["overall", "scope", "split", "family"]
     slice_value: str
     system_a: str
     system_b: str
@@ -691,7 +693,13 @@ class PairwiseComparisonRow(StrictModel):
     pass_rate_delta: float = Field(ge=-1, le=1)
     exact_mcnemar_p_value: float = Field(ge=0, le=1)
     holm_adjusted_p_value: float = Field(ge=0, le=1)
-    verdict: Literal["a_better", "b_better", "no_significant_difference"]
+    verdict: Literal[
+        "a_better",
+        "b_better",
+        "no_significant_difference",
+        "insufficient_operational_conformance",
+    ]
+    operationally_comparable: bool = True
     pass_rate_delta_ci95_low: float = Field(default=0, ge=-1, le=1)
     pass_rate_delta_ci95_high: float = Field(default=0, ge=-1, le=1)
     discordant_cases: int = Field(default=0, ge=0)
@@ -704,7 +712,9 @@ class ComparisonReport(StrictModel):
     suite_version: str
     suite_sha256: str
     protocol_sha256: str
+    scorer_version: str = "v2-unversioned"
     system_count: int = Field(ge=1)
+    boundary_cases: dict[str, list[str]] = Field(default_factory=dict)
     rows: list[ComparisonRow] = Field(min_length=1)
     case_rows: list[ComparisonCaseRow] = Field(min_length=1)
     pairwise: list[PairwiseComparisonRow] = Field(default_factory=list)

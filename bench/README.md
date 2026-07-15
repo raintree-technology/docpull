@@ -48,10 +48,16 @@ uv run --project bench --locked docpull-bench run bench/cases/controlled-v2.yaml
   --replay-dir bench/replays/controlled-v2 --output-dir bench/runs/controlled \
   --network-isolation enforced
 uv run --project bench --locked docpull-bench lifecycle
+uv run --project bench --locked docpull-bench context --repeat 2
 ```
 
 The `lifecycle` command is an alias for `cases/lifecycle-v2.yaml` in the unified
-runner. Regenerate the owned corpus with
+runner. The `context` profile runs 130 controlled parse, pack, lifecycle, and
+retrieval cases through the real DocPull public CLI with no network or provider
+spend. Change and policy fixtures remain replay-only until their inputs encode
+the public CLI state transitions they claim to test. The profile measures the
+context-dependency contract rather than reducing unlike product capabilities
+to one global score. Regenerate the owned corpus with
 `uv run --project bench python bench/scripts/generate_fixtures.py`; committed
 DOCX and PDF bytes must remain identical.
 
@@ -97,7 +103,7 @@ reviewed, blinded corpus plus signed provider protocols and reconciled billing:
 
 ```bash
 docpull-bench claim check PRIVATE_SUITE REPORT... \
-  --policy bench/claim/policy-v1.yaml --evidence SIGNED_EVIDENCE.yaml
+  --policy bench/claim/policy-v2.yaml --evidence SIGNED_EVIDENCE.yaml
 ```
 
 Create a future held set from a draft that has never entered the repository.
@@ -122,6 +128,15 @@ docpull-bench challenge materialize bench/cases/public-challenge.yaml \
 
 Plaintext drafts, gold, and materialized private suites are refused inside the
 repository and written mode `0600`. See [`claim/README.md`](claim/README.md).
+Encrypt the private gold explicitly with an external age recipient before
+custody transfer; this command never deletes the plaintext or treats its
+unsigned manifest as claim evidence:
+
+```bash
+docpull-bench challenge seal /outside/repo/private-gold.yaml \
+  --ciphertext /outside/repo/private-gold.age --recipient AGE_RECIPIENT \
+  --manifest /outside/repo/seal.manifest.json
+```
 Comparisons report operational success, quality conditional on completed
 output, and the strict end-to-end pass rate separately. Effect sizes include a
 deterministic paired-bootstrap interval; Holm correction is scoped to each

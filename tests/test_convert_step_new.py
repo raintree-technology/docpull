@@ -86,6 +86,73 @@ async def test_llms_txt_converts_without_html_wrapper():
 
 
 @pytest.mark.asyncio
+async def test_content_type_routes_extensionless_plain_text_without_html_extraction():
+    body = b"Request for Comments\n\nInteroperability Considerations\n\nParser behavior.\n"
+    step = ConvertStep(add_frontmatter=False)
+    ctx = _page_context("https://example.com/source", body)
+    ctx.content_type = "text/plain; charset=utf-8"
+
+    ctx = await step.execute(ctx)
+
+    assert ctx.source_type == "raw_text"
+    assert ctx.markdown is not None
+    assert "Interoperability Considerations" in ctx.markdown
+
+
+@pytest.mark.asyncio
+async def test_remote_pdf_is_locally_parsed_only_when_explicitly_enabled(monkeypatch):
+    from docpull.document_parse import ParsedDocument
+
+    calls = []
+
+    def fake_parse(body, *, source_url, content_type, backend):
+        calls.append((body, source_url, content_type, backend))
+        return ParsedDocument(
+            path=Path("remote.pdf"),
+            source_url=source_url,
+            title="Controlled Paper",
+            content="# Controlled Paper\n\nTransformer and machine translation.",
+            backend="markitdown",
+            source_mime_type="application/pdf",
+            metadata={"source_sha256": "a" * 64, "remote_source_retained": False},
+        )
+
+    monkeypatch.setattr("docpull.document_parse.parse_remote_document_bytes", fake_parse)
+    ctx = _page_context("https://example.com/paper.pdf", b"%PDF-1.7\nfixture")
+    ctx.content_type = "application/pdf"
+
+    ctx = await ConvertStep(
+        add_frontmatter=False,
+        remote_documents="pdf",
+        remote_document_backend="markitdown",
+    ).execute(ctx)
+
+    assert ctx.error is None
+    assert ctx.source_type == "remote_pdf"
+    assert ctx.title == "Controlled Paper"
+    assert ctx.markdown is not None and "Transformer" in ctx.markdown
+    assert ctx.extraction_info["parser"] == "markitdown"
+    assert calls and calls[0][2:] == ("application/pdf", "markitdown")
+
+
+@pytest.mark.asyncio
+async def test_remote_pdf_signature_mismatch_fails_closed(monkeypatch):
+    from docpull.document_parse import DocumentParseError
+
+    def fail_parse(*args, **kwargs):
+        raise DocumentParseError("Remote PDF response did not contain a PDF signature.")
+
+    monkeypatch.setattr("docpull.document_parse.parse_remote_document_bytes", fail_parse)
+    ctx = _page_context("https://example.com/paper", b"not a pdf")
+    ctx.content_type = "application/pdf"
+
+    ctx = await ConvertStep(add_frontmatter=False, remote_documents="pdf").execute(ctx)
+
+    assert ctx.error is not None
+    assert "PDF signature" in ctx.error
+
+
+@pytest.mark.asyncio
 async def test_raw_markdown_frontmatter_is_not_duplicated():
     body = b"---\ntitle: Original\n---\n\n# Body\n\n- item\n"
     step = ConvertStep(add_frontmatter=True)

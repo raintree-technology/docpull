@@ -17,6 +17,7 @@ from docpull.conversion.special_cases import (
     RawTextExtractor,
     ReadMeExtractor,
     RedocScalarExtractor,
+    RfcEditorExtractor,
     SpecialCaseResult,
     StarlightExtractor,
     VitePressExtractor,
@@ -201,6 +202,30 @@ class TestStaticFrameworkExtractors:
         assert result.extra == {"framework": "sphinx"}
         assert result.title == "Sphinx API"
         assert "# Sphinx API" in result.markdown
+
+
+class TestRfcEditorExtractor:
+    def test_extracts_the_complete_rfc_body_instead_of_one_section(self) -> None:
+        html = (
+            b"<!doctype html><html><head><title>RFC 9999</title></head><body>"
+            b"<header>Site chrome</header><main>"
+            b'<section id="S:1"><h1>RFC 9999</h1><p>Introduction evidence. '
+            b"Complete standards content for interoperable implementations.</p></section>"
+            b'<section id="S:2"><h2>Security Considerations</h2>'
+            b"<p>Second section evidence with requirements and terminology.</p></section>"
+            b"</main><footer>Footer chrome</footer></body></html>"
+        )
+
+        result = RfcEditorExtractor().try_extract(
+            html,
+            "https://www.rfc-editor.org/rfc/rfc9999.html",
+        )
+
+        assert result is not None
+        assert result.source_type == "rfc_editor"
+        assert "Introduction evidence" in result.markdown
+        assert "Security Considerations" in result.markdown
+        assert "Site chrome" not in result.markdown
 
 
 class TestOpenApiExtractor:
@@ -447,6 +472,39 @@ class TestRawTextExtractor:
 
     def test_rejects_non_docs_txt(self):
         assert RawTextExtractor().try_extract(b"hello", "https://example.com/file.txt") is None
+
+    def test_accepts_plain_prose_when_response_identifies_text(self):
+        body = b"Request for Comments\n\nInteroperability Considerations\n\nParsers must accept JSON.\n"
+
+        result = RawTextExtractor().try_extract(
+            body,
+            "https://www.rfc-editor.org/rfc/rfc8259.txt",
+            content_type="text/plain; charset=utf-8",
+        )
+
+        assert result is not None
+        assert result.source_type == "raw_text"
+        assert "Interoperability Considerations" in result.markdown
+
+    def test_accepts_rst_yaml_and_extensionless_typed_text(self):
+        cases = [
+            ("https://example.com/README.rst", b"Project\n=======\n\nBuild Instructions\n", None),
+            ("https://example.com/spec.yaml", b"openapi: 3.0.0\ninfo:\n  title: Example\n", None),
+            ("https://example.com/source", b"plain response body", "text/plain"),
+        ]
+
+        for url, body, content_type in cases:
+            result = RawTextExtractor().try_extract(body, url, content_type=content_type)
+            assert result is not None
+
+    def test_rejects_html_mislabeled_as_text(self):
+        result = RawTextExtractor().try_extract(
+            b"<!doctype html><html><body>challenge</body></html>",
+            "https://example.com/source",
+            content_type="text/plain",
+        )
+
+        assert result is None
 
     def test_frontmatter_title_is_used_for_raw_markdown(self):
         body = "---\ntitle: Original\n---\n\n# Body\n\nContent.\n"

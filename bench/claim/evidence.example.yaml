@@ -1,6 +1,6 @@
 # This is a shape example, not evidence. Zero hashes and example signatures can
 # never satisfy `docpull-bench claim check` for a real suite.
-schema_version: 1
+schema_version: 2
 holdout:
   suite_sha256: 0000000000000000000000000000000000000000000000000000000000000000
   gold_sha256: 0000000000000000000000000000000000000000000000000000000000000000
@@ -11,9 +11,17 @@ holdout:
   ciphertext_sha256: 0000000000000000000000000000000000000000000000000000000000000000
   sealed_at: "2026-07-14T00:00:00Z"
   opened_at: null
+  released_to_runner_at: "2026-07-14T01:00:00Z"
+  evaluation_completed_at: "2026-07-14T02:00:00Z"
+  publicly_disclosed_at: null
+  runner_identity_sha256: 0000000000000000000000000000000000000000000000000000000000000000
+  evaluation_report_sha256s:
+    - 0000000000000000000000000000000000000000000000000000000000000000
+  ciphertext_reference: holdout.age
   custodian_identity_sha256: 0000000000000000000000000000000000000000000000000000000000000000
   signature_method: gpg
   signature_reference: signatures/holdout.asc
+  signer_fingerprint: "0000000000000000000000000000000000000000"
 reviews: []
 protocols: []
 billing: []

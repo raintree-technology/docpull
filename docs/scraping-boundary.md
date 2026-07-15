@@ -12,6 +12,8 @@ packs.
 - Crawl known page graphs through sitemaps and static links.
 - Convert server-rendered HTML, raw Markdown/text, OpenAPI specs, product
   pages, blogs, help centers, and common docs frameworks into clean Markdown.
+- Recognize standards-style plain text and common textual media types, and
+  locally parse remote PDFs only when `--remote-documents pdf` is explicit.
 - Emit local artifacts that agents can inspect: Markdown, JSON, NDJSON, SQLite,
   OKF bundles, manifests, source indexes, and MCP-readable cached sources.
 - Preserve provenance with source URLs, stable document/chunk IDs, content
@@ -24,6 +26,8 @@ packs.
 - Become a Scrapy-style programmable spider framework.
 - Become a hosted extraction API.
 - Send fetched content to third-party services as part of the public fetch path.
+- Treat arbitrary downloads or remote PDFs as web pages without explicit
+  document-type authorization.
 
 ## JavaScript boundary
 

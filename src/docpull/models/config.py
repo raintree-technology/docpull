@@ -140,6 +140,17 @@ class ContentFilterConfig(BaseModel):
         False,
         description="Remove hidden Inline XBRL boilerplate before content extraction",
     )
+    remote_documents: Literal["off", "pdf"] = Field(
+        "off",
+        description=(
+            "Explicitly allow selected remote document types to be downloaded and parsed locally. "
+            "Off by default; never enables browser or cloud parsing."
+        ),
+    )
+    remote_document_backend: Literal["auto", "markitdown", "unstructured"] = Field(
+        "auto",
+        description="Local parser backend used when remote_documents is enabled",
+    )
 
     model_config = {"extra": "forbid"}
 

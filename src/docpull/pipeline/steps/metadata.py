@@ -96,6 +96,10 @@ class MetadataStep:
             # No HTML, can't extract metadata
             return ctx
 
+        media_type = (ctx.content_type or "").split(";", 1)[0].strip().casefold()
+        if media_type and media_type not in {"text/html", "application/xhtml+xml"}:
+            return ctx
+
         try:
             soup = BeautifulSoup(ctx.html, "html.parser")
 

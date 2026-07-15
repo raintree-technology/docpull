@@ -1911,13 +1911,13 @@
       "status": "observed"
     }
   },
-  "environment_label": "ci-container",
-  "previous_sha256": "f4e315bb3d7e812e4586d6e39edf46c22d7632c58d29f25ba04155359cde274f",
-  "protocol_sha256": "6b2f7b0f0b6ad32bf6f8e443ea97c63558170a752823ea61425db1ac22e7eb61",
-  "reason": "Freeze full schema-v2 deterministic controlled corpus",
+  "environment_label": "local",
+  "previous_sha256": "6c7ae36c68dfc751b02b20c52bbdb114523d6b089fde355a9b187baec98c120a",
+  "protocol_sha256": "669ea459cf36f3f702b377488ee7c18ec1912c14ca461f02c63d18648bb5181a",
+  "reason": "Refresh after deterministic encrypted/OCR PDF fixtures and scorer-version protocol binding",
   "schema_version": 2,
-  "source_report_sha256": "a506604567683a4880a75160bacbb9aeb8cfb99bdaa0daec7a15359c8e203b13",
-  "suite_sha256": "43a8305c793a76c520c16c0bc4899586e1953dfee9c07c4faf62d77148b754a7",
+  "source_report_sha256": "af2d5a495ae0d5b58a60b714e2e46ca1bb440edb5ba8510aad96c9ae3ccc1e60",
+  "suite_sha256": "21ea6cca08e27dcb7f52d1ebc6b38f969949240576ac9b6a1b13a1aa3374d639",
   "system": "fixture",
-  "updated_at": "2026-07-14T23:27:48.568451+00:00"
+  "updated_at": "2026-07-15T02:53:30.703929+00:00"
 }

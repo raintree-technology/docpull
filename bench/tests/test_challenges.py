@@ -3,11 +3,16 @@ from __future__ import annotations
 import shutil
 import stat
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 import yaml
 
-from docpull_bench.challenges import export_blinded_challenge, materialize_blinded_challenge
+from docpull_bench.challenges import (
+    export_blinded_challenge,
+    materialize_blinded_challenge,
+    seal_blinded_gold,
+)
 from docpull_bench.models import BenchmarkSuite
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -80,3 +85,34 @@ def test_challenge_rejects_tampered_private_holdout(tmp_path: Path) -> None:
             gold,
             output_path=tmp_path / "private" / "materialized.yaml",
         )
+
+
+def test_seal_blinded_gold_uses_age_and_writes_hash_manifest(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    gold = tmp_path / "private-gold.yaml"
+    gold.write_text("private: gold\n", encoding="utf-8")
+    ciphertext = tmp_path / "private-gold.age"
+    manifest = tmp_path / "seal.json"
+    monkeypatch.setattr("docpull_bench.challenges._git_root", lambda _path: None)
+    monkeypatch.setattr("docpull_bench.challenges.shutil.which", lambda name: f"/usr/bin/{name}")
+
+    def fake_run(command, **kwargs):
+        output = Path(command[command.index("--output") + 1])
+        output.write_bytes(b"age-encrypted-fixture")
+        return SimpleNamespace(returncode=0)
+
+    monkeypatch.setattr("docpull_bench.challenges.subprocess.run", fake_run)
+
+    artifact = seal_blinded_gold(
+        gold,
+        ciphertext_path=ciphertext,
+        recipient="age1example",
+        manifest_path=manifest,
+    )
+
+    assert artifact.status == "encrypted-requires-external-signature"
+    assert len(artifact.ciphertext_sha256) == 64
+    assert stat.S_IMODE(ciphertext.stat().st_mode) == 0o600
+    assert manifest.is_file()

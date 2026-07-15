@@ -63,6 +63,12 @@ pages such as blogs, API references, OpenAPI specs, changelogs, vendor pages,
 product pages, filings, docs sites, and other pages where the useful content is
 available in HTML or embedded page data.
 
+Direct fetches also recognize standards-style plain text and common textual
+formats from their response media type, including extensionless URLs. Remote
+documents remain denied by default; explicitly opt into local PDF parsing with
+`docpull URL --remote-documents pdf` after installing `docpull[markitdown]` or
+`docpull[parse]`. This does not enable a browser, cloud parser, or paid route.
+
 DocPull is browser-free by default. JS-only pages are skipped with a clear
 reason unless you explicitly opt into a local renderer. See
 [Web Source Boundary](docs/scraping-boundary.md) and
@@ -473,6 +479,18 @@ docpull parse ./handbook.docx -o ./packs/handbook --prepare --eval-grade
 MarkItDown or Unstructured parsers for complex office/PDF files when installed.
 Install `docpull[markitdown]`, `docpull[unstructured]`, or `docpull[parse]`
 for those backends.
+
+An HTTPS PDF can enter the ordinary fetch contract only with explicit consent:
+
+```bash
+docpull https://example.com/handbook.pdf --remote-documents pdf \
+  --remote-document-backend auto -o ./packs/handbook
+```
+
+The response must identify as PDF and contain a PDF signature. DocPull parses
+it locally through a mode-`0600` temporary file, records the source hash and
+parser provenance, and removes the temporary source. Other remote download
+types remain blocked.
 
 Every file-backed run writes `corpus.manifest.json` with stable document IDs,
 chunk IDs, hashes, output paths, and chunk counts. See

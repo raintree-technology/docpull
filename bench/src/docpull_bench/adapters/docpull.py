@@ -7,10 +7,12 @@ import json
 import shutil
 import subprocess
 import sys
+import threading
 import time
 import uuid
 from pathlib import Path
 from typing import Any, Literal
+from urllib.parse import unquote, urlparse
 
 from ..lifecycle import run_lifecycle_case
 from ..models import (
@@ -64,6 +66,10 @@ class DocPullAdapter:
     retry_policy = "docpull_public_defaults"
     pricing_snapshot: str | None = None
 
+    def __init__(self) -> None:
+        self._fixture_lock = threading.Lock()
+        self._retrieval_packs: dict[Path, Path] = {}
+
     def preflight(self, inputs: list[BenchmarkInput], *, repeat: int) -> None:
         del repeat
         for item in inputs:
@@ -81,6 +87,8 @@ class DocPullAdapter:
             "retry_policy": self.retry_policy,
             "paid_routes": False,
             "browser": False,
+            "remote_documents": "pdf",
+            "remote_document_backend": "auto",
         }
 
     def run(self, inputs: BenchmarkInput, output_root: Path) -> RunObservation:
@@ -128,6 +136,8 @@ class DocPullAdapter:
             "--budget",
             "0",
             "--quiet",
+            "--remote-documents",
+            "pdf",
         ]
         if isinstance(inputs, ExtractInput):
             command.append("--single")
@@ -168,6 +178,20 @@ class DocPullAdapter:
             "json",
         ]
         process, elapsed = _run(command, timeout=inputs.timeout_seconds)
+        if process.returncode and "ocr" in (process.stderr or process.stdout).casefold():
+            return RunObservation(
+                case_id=inputs.case_id,
+                system=self.system,
+                status="unsupported",
+                elapsed_seconds=elapsed,
+                cost_usd=0,
+                cost_kind="actual",
+                cost_basis="No OCR, paid provider, or cloud route was enabled.",
+                request_count=0,
+                adapter_version=self.version,
+                error=_bounded_error(process.stderr or process.stdout),
+                artifacts=_artifacts(case_dir, output_root),
+            )
         records = _read_records(case_dir / "documents.ndjson")
         return _content_observation(
             self,
@@ -183,6 +207,38 @@ class DocPullAdapter:
         source = _repo_path(inputs.path)
         pack = case_dir / "pack"
         shutil.copytree(source, pack)
+        elapsed = 0.0
+        process: subprocess.CompletedProcess[str] | None = None
+        fixture_records = pack / "records.ndjson"
+        if fixture_records.exists() and not (pack / "documents.ndjson").exists():
+            process, setup_elapsed = _run(
+                [
+                    sys.executable,
+                    "-m",
+                    "docpull",
+                    "parse",
+                    str(fixture_records),
+                    "--output-dir",
+                    str(pack),
+                    "--backend",
+                    "text",
+                    "--no-chunks",
+                    "--format",
+                    "json",
+                ],
+                timeout=inputs.timeout_seconds,
+            )
+            elapsed += setup_elapsed
+        if (
+            (process is None or process.returncode == 0)
+            and inputs.action == "validate"
+            and inputs.contract_level in {"agent", "eval"}
+        ):
+            prepare = [sys.executable, "-m", "docpull", "pack", "prepare", str(pack)]
+            if inputs.contract_level == "eval":
+                prepare.append("--eval-grade")
+            process, prepare_elapsed = _run(prepare, timeout=inputs.timeout_seconds)
+            elapsed += prepare_elapsed
         if inputs.action == "validate":
             output = case_dir / "validation.json"
             command = [
@@ -216,7 +272,9 @@ class DocPullAdapter:
                 "--output",
                 str(destination),
             ]
-        process, elapsed = _run(command, timeout=inputs.timeout_seconds)
+        if process is None or process.returncode == 0:
+            process, action_elapsed = _run(command, timeout=inputs.timeout_seconds)
+            elapsed += action_elapsed
         records = _read_records(pack / "documents.ndjson")
         files = sorted(str(path.relative_to(pack)) for path in pack.rglob("*") if path.is_file())
         identities = [
@@ -322,6 +380,20 @@ class DocPullAdapter:
         )
 
     def _retrieval(self, inputs: RetrievalInput, case_dir: Path, output_root: Path) -> RunObservation:
+        pack, setup_error = self._prepare_retrieval_pack(inputs, output_root)
+        if setup_error is not None:
+            return RunObservation(
+                case_id=inputs.case_id,
+                system=self.system,
+                status="failed",
+                elapsed_seconds=0,
+                cost_usd=0,
+                cost_kind="actual",
+                cost_basis="Local fixture preparation failed before the measured query.",
+                request_count=0,
+                adapter_version=self.version,
+                error=_bounded_error(setup_error.stderr or setup_error.stdout),
+            )
         output = case_dir / "search.json"
         command = [
             sys.executable,
@@ -329,7 +401,7 @@ class DocPullAdapter:
             "docpull",
             "pack",
             "search",
-            str(_repo_path(inputs.pack_path)),
+            str(pack),
             inputs.query,
             "--limit",
             str(inputs.max_results),
@@ -340,9 +412,7 @@ class DocPullAdapter:
         payload = _read_json(output) if output.exists() else {}
         results = [
             RankedResult(
-                identity=str(
-                    item.get("record_citation_id") or item.get("citation_id") or item.get("url") or ""
-                ),
+                identity=_retrieval_identity(item),
                 url=str(item.get("url") or "") or None,
                 title=str(item.get("title") or ""),
                 excerpt=str(item.get("excerpt") or ""),
@@ -352,7 +422,7 @@ class DocPullAdapter:
             if isinstance(item, dict)
         ]
         status, error = _process_status(process, output.exists())
-        index = _repo_path(inputs.pack_path) / ".docpull" / "index.sqlite"
+        index = pack / ".docpull" / "index.sqlite"
         return RunObservation(
             case_id=inputs.case_id,
             system=self.system,
@@ -371,6 +441,38 @@ class DocPullAdapter:
             error=error,
             artifacts=_artifacts(case_dir, output_root),
         )
+
+    def _prepare_retrieval_pack(
+        self,
+        inputs: RetrievalInput,
+        output_root: Path,
+    ) -> tuple[Path, subprocess.CompletedProcess[str] | None]:
+        source = _repo_path(inputs.pack_path)
+        with self._fixture_lock:
+            existing = self._retrieval_packs.get(output_root)
+            if existing is not None and (existing / "documents.ndjson").exists():
+                return existing, None
+            pack = output_root / "_context_retrieval_pack"
+            documents = sorted(path for path in source.iterdir() if path.is_file())
+            command = [
+                sys.executable,
+                "-m",
+                "docpull",
+                "parse",
+                *[str(path) for path in documents],
+                "--output-dir",
+                str(pack),
+                "--backend",
+                "text",
+                "--no-chunks",
+                "--format",
+                "json",
+            ]
+            process, _elapsed = _run(command, timeout=inputs.timeout_seconds)
+            if process.returncode != 0 or not (pack / "documents.ndjson").exists():
+                return pack, process
+            self._retrieval_packs[output_root] = pack
+            return pack, None
 
     def _policy(self, inputs: PolicyInput, case_dir: Path) -> RunObservation:
         if inputs.scenario == "credential_leak":
@@ -545,6 +647,16 @@ def _read_json(path: Path) -> dict[str, Any]:
         raise ValueError(f"benchmark artifact exceeds {MAX_ARTIFACT_BYTES} bytes: {path.name}")
     payload = json.loads(path.read_text(encoding="utf-8"))
     return payload if isinstance(payload, dict) else {}
+
+
+def _retrieval_identity(item: dict[str, Any]) -> str:
+    url = str(item.get("url") or "")
+    parsed = urlparse(url)
+    if parsed.scheme == "file":
+        stem = Path(unquote(parsed.path)).stem
+        if stem:
+            return stem
+    return str(item.get("record_citation_id") or item.get("citation_id") or url)
 
 
 def _artifacts(case_dir: Path, output_root: Path) -> dict[str, str]:

@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `docpull parse`, a local document parsing lane that emits v3 packs from
   plain text/Markdown directly and optional MarkItDown or Unstructured parser
   backends for complex office/PDF files.
+- Add explicit `--remote-documents pdf` support for locally parsing fetched
+  PDFs while keeping remote documents, browsers, and cloud parsing disabled by
+  default.
 - Add optional Presidio-backed PII detection for `docpull pack audit --redaction`
   and `docpull pack redact`, while keeping deterministic regex redaction as the
   default backend.
@@ -83,6 +86,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   REST API is unavailable, preserving description/topics where possible.
 
 ### Fixed
+- Route common raw documentation formats by extension or media type, preserve
+  complete RFC Editor documents, and report encrypted or image-only PDFs as
+  explicit parser/OCR requirements instead of producing misleading content.
 - Honor an explicit `docpull render --live-smoke -o DIR` output directory by
   preserving rendered HTML and `rendered_pages.ndjson` artifacts there, while
   keeping bare `--live-smoke` runs temporary.

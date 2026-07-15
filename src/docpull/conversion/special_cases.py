@@ -16,6 +16,7 @@ import json
 import logging
 import re
 from dataclasses import dataclass
+from email.message import Message
 from typing import Any, Protocol
 from urllib.parse import urlparse
 
@@ -710,22 +711,65 @@ class RawTextExtractor:
 
     name = "raw_text"
 
-    _TEXT_SUFFIXES = (".md", ".markdown", ".mdx", ".txt")
+    _TEXT_SUFFIXES = (
+        ".csv",
+        ".json",
+        ".jsonl",
+        ".markdown",
+        ".md",
+        ".mdx",
+        ".ndjson",
+        ".rst",
+        ".text",
+        ".tsv",
+        ".txt",
+        ".xml",
+        ".yaml",
+        ".yml",
+    )
+    _TEXT_CONTENT_TYPES = {
+        "application/json",
+        "application/ld+json",
+        "application/x-ndjson",
+        "application/xml",
+        "application/yaml",
+        "application/x-yaml",
+        "text/csv",
+        "text/markdown",
+        "text/plain",
+        "text/tab-separated-values",
+        "text/x-markdown",
+        "text/x-rst",
+        "text/xml",
+        "text/yaml",
+    }
     _HTML_MARKERS = ("<html", "<body", "<!doctype")
 
-    def try_extract(self, html: bytes, url: str) -> SpecialCaseResult | None:
+    def try_extract(
+        self,
+        html: bytes,
+        url: str,
+        *,
+        content_type: str | None = None,
+    ) -> SpecialCaseResult | None:
         parsed = urlparse(url)
         path = parsed.path.lower()
-        if not path.endswith(self._TEXT_SUFFIXES):
+        media_type = self._media_type(content_type)
+        identified_by_type = media_type in self._TEXT_CONTENT_TYPES
+        if not identified_by_type and not path.endswith(self._TEXT_SUFFIXES):
             return None
 
-        text = _decode_html(html).strip()
+        text = self._decode_text(html, content_type).strip()
         if not text:
             return None
         lower_head = text[:500].lower()
         if any(marker in lower_head for marker in self._HTML_MARKERS):
             return None
-        if path.endswith(".txt") and not self._looks_like_docs_text(text, path):
+        if (
+            path.endswith((".txt", ".text"))
+            and not identified_by_type
+            and not self._looks_like_docs_text(text, path)
+        ):
             return None
 
         title = self._extract_title(text) or parsed.path.rsplit("/", 1)[-1] or "Document"
@@ -736,6 +780,24 @@ class RawTextExtractor:
             source_type=source_type,
             extra={"framework": source_type},
         )
+
+    @staticmethod
+    def _media_type(content_type: str | None) -> str:
+        return (content_type or "").split(";", 1)[0].strip().casefold()
+
+    @staticmethod
+    def _decode_text(body: bytes, content_type: str | None) -> str:
+        if body.startswith(b"\xef\xbb\xbf"):
+            return body.decode("utf-8-sig", errors="replace")
+        encoding = "utf-8"
+        if content_type:
+            message = Message()
+            message["content-type"] = content_type
+            encoding = message.get_content_charset() or encoding
+        try:
+            return body.decode(encoding)
+        except (LookupError, UnicodeDecodeError):
+            return body.decode("utf-8", errors="replace")
 
     @staticmethod
     def _looks_like_docs_text(text: str, path: str) -> bool:
@@ -802,6 +864,33 @@ class SphinxObjectsInvExtractor:
         )
 
 
+class RfcEditorExtractor:
+    """Preserve complete RFC Editor HTML documents instead of one scored section."""
+
+    name = "rfc_editor"
+
+    def try_extract(self, html: bytes, url: str) -> SpecialCaseResult | None:
+        parsed = urlparse(url)
+        if not _hostname_matches_domain(parsed.hostname or "", "rfc-editor.org"):
+            return None
+        if re.fullmatch(r"/rfc/rfc\d+\.html", parsed.path.casefold()) is None:
+            return None
+
+        from .extractor import MainContentExtractor
+        from .markdown import HtmlToMarkdown
+
+        extracted_html = MainContentExtractor(content_selectors=["body"]).extract(html, url)
+        markdown = HtmlToMarkdown().convert(extracted_html, url).strip()
+        if len(markdown) < 80:
+            return None
+        return SpecialCaseResult(
+            markdown=markdown + "\n",
+            title=_title_from_soup(_soup(html)),
+            source_type=self.name,
+            extra={"framework": "rfc_editor"},
+        )
+
+
 class MdxSourceExtractor:
     """Rewrite ``edit-this-page`` GitHub links to raw MDX source URLs.
 
@@ -842,6 +931,7 @@ class MdxSourceExtractor:
 DEFAULT_CHAIN: list[SpecialCaseExtractor] = [
     OpenApiExtractor(),
     RawTextExtractor(),
+    RfcEditorExtractor(),
     MintlifyExtractor(),
     NextDataExtractor(),
     MkDocsMaterialExtractor(),
@@ -969,6 +1059,7 @@ __all__ = [
     "RawTextExtractor",
     "ReadMeExtractor",
     "RedocScalarExtractor",
+    "RfcEditorExtractor",
     "SpecialCaseExtractor",
     "SpecialCaseResult",
     "SphinxObjectsInvExtractor",

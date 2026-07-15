@@ -10,7 +10,13 @@ from types import SimpleNamespace
 import pytest
 
 from docpull.cli import main
-from docpull.document_parse import DocumentParseError, parse_documents
+from docpull.document_parse import (
+    DocumentParseError,
+    ParsedDocument,
+    parse_documents,
+    parse_one_document,
+    parse_remote_document_bytes,
+)
 from docpull.output_contract import validate_pack_contract
 from docpull.pack_reader import load_pack
 
@@ -131,3 +137,101 @@ def test_parse_markitdown_reports_missing_optional_dependency(
 
     with pytest.raises(DocumentParseError, match=r"docpull\[markitdown\]"):
         parse_documents([source], tmp_path / "pack", backend="markitdown")
+
+
+def test_parse_pdf_rejects_truncated_container_before_backend(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "truncated.pdf"
+    source.write_bytes(b"%PDF-1.7\ntruncated")
+    monkeypatch.setattr(
+        "docpull.document_parse._parse_markitdown",
+        lambda _path: pytest.fail("backend must not receive a malformed PDF"),
+    )
+
+    with pytest.raises(DocumentParseError, match="Malformed or truncated"):
+        parse_one_document(
+            source,
+            backend="markitdown",
+            source_url=source.as_uri(),
+            title=None,
+        )
+
+
+def test_parse_pdf_rejects_encrypted_container_before_backend(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "encrypted.pdf"
+    source.write_bytes(b"%PDF-1.7\n/Encrypt 9 0 R\nstartxref\n0\n%%EOF\n")
+    monkeypatch.setattr(
+        "docpull.document_parse._parse_markitdown",
+        lambda _path: pytest.fail("backend must not receive an encrypted PDF"),
+    )
+
+    with pytest.raises(DocumentParseError, match="Encrypted PDF"):
+        parse_one_document(
+            source,
+            backend="markitdown",
+            source_url=source.as_uri(),
+            title=None,
+        )
+
+
+def test_parse_pdf_reports_image_only_ocr_requirement(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "image.pdf"
+    source.write_bytes(b"%PDF-1.7\n/Subtype /Image\nstartxref\n0\n%%EOF\n")
+    monkeypatch.setattr("docpull.document_parse._parse_markitdown", lambda _path: ("", {}))
+
+    with pytest.raises(DocumentParseError, match="OCR backend"):
+        parse_one_document(
+            source,
+            backend="markitdown",
+            source_url=source.as_uri(),
+            title=None,
+        )
+
+
+def test_parse_remote_pdf_uses_private_ephemeral_file(monkeypatch: pytest.MonkeyPatch) -> None:
+    observed: dict[str, object] = {}
+
+    def fake_parse(path: Path, *, backend: str, source_url: str, title: str | None) -> ParsedDocument:
+        observed["mode"] = path.stat().st_mode & 0o777
+        observed["body"] = path.read_bytes()
+        return ParsedDocument(
+            path=path,
+            source_url=source_url,
+            title="Paper",
+            content="# Paper\n\nParsed body.",
+            backend=backend,
+            source_mime_type="application/pdf",
+            metadata={},
+        )
+
+    monkeypatch.setattr("docpull.document_parse.parse_one_document", fake_parse)
+    body = b"%PDF-1.7\nfixture"
+
+    parsed = parse_remote_document_bytes(
+        body,
+        source_url="https://example.com/paper.pdf",
+        content_type="application/pdf",
+        backend="markitdown",
+    )
+
+    assert observed == {"mode": 0o600, "body": body}
+    assert parsed.metadata["remote_source_retained"] is False
+    assert parsed.metadata["source_bytes"] == len(body)
+    assert parsed.metadata["source_sha256"]
+
+
+def test_parse_remote_pdf_rejects_signature_mismatch() -> None:
+    with pytest.raises(DocumentParseError, match="PDF signature"):
+        parse_remote_document_bytes(
+            b"not-pdf",
+            source_url="https://example.com/paper.pdf",
+            content_type="application/pdf",
+        )

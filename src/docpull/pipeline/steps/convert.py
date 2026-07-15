@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 from datetime import datetime, timezone
@@ -13,6 +14,7 @@ from ...conversion.filings import clean_inline_xbrl_html
 from ...conversion.markdown import FrontmatterBuilder, HtmlToMarkdown
 from ...conversion.special_cases import (
     DEFAULT_CHAIN,
+    RawTextExtractor,
     SpecialCaseExtractor,
     _split_markdown_frontmatter,
     detect_source_type,
@@ -113,6 +115,8 @@ class ConvertStep:
         use_ensemble: bool = False,
         strict_js_required: bool = False,
         clean_inline_xbrl: bool = False,
+        remote_documents: str = "off",
+        remote_document_backend: str = "auto",
     ):
         """Initialize the convert step.
 
@@ -140,6 +144,8 @@ class ConvertStep:
         self._use_trafilatura = use_trafilatura
         self._use_ensemble = use_ensemble
         self._clean_inline_xbrl = clean_inline_xbrl
+        self._remote_documents = remote_documents
+        self._remote_document_backend = remote_document_backend
 
         # Exactly one route is active: trafilatura, ensemble, or generic.
         self._trafilatura: TrafilaturaExtractor | None = None
@@ -176,33 +182,37 @@ class ConvertStep:
             return ctx
 
         try:
-            if self._clean_inline_xbrl:
+            remote_markdown = await self._try_remote_document(ctx)
+            if remote_markdown is not None:
+                markdown = remote_markdown
+                ctx.extraction_info["method"] = "remote_document"
+            elif self._clean_inline_xbrl:
                 ctx.html, cleanup_stats = clean_inline_xbrl_html(ctx.html)
                 ctx.extraction_info["inline_xbrl_cleanup"] = cleanup_stats
+            if remote_markdown is None:
+                ctx.source_type = detect_source_type(ctx.html, ctx.url)
+                ctx.extraction_info["detected_source_type"] = ctx.source_type
 
-            ctx.source_type = detect_source_type(ctx.html, ctx.url)
-            ctx.extraction_info["detected_source_type"] = ctx.source_type
-
-            special_markdown = self._try_special_cases(ctx)
-            if special_markdown is not None:
-                markdown = special_markdown
-                ctx.extraction_info["method"] = "special_case"
-            elif self._trafilatura is not None:
-                markdown = self._trafilatura.extract(ctx.html, ctx.url)
-                ctx.extraction_info["method"] = "trafilatura"
-            elif self._ensemble is not None:
-                markdown, ensemble_payload = self._ensemble.extract(ctx.html, ctx.url)
-                ctx.extraction_info["method"] = "ensemble"
-                ctx.extraction_info["ensemble"] = ensemble_payload
-            else:
-                if self._extractor is None or self._converter is None:
-                    raise RuntimeError("Generic HTML converter is not initialized.")
-                extracted_html = self._extractor.extract(ctx.html, ctx.url)
-                ctx.extraction_info["method"] = "generic"
-                ctx.extraction_info["extracted_html_bytes"] = len(extracted_html.encode("utf-8"))
-                if not extracted_html.strip():
-                    return self._handle_empty_content(ctx, emit)
-                markdown = self._converter.convert(extracted_html, ctx.url)
+                special_markdown = self._try_special_cases(ctx)
+                if special_markdown is not None:
+                    markdown = special_markdown
+                    ctx.extraction_info["method"] = "special_case"
+                elif self._trafilatura is not None:
+                    markdown = self._trafilatura.extract(ctx.html, ctx.url)
+                    ctx.extraction_info["method"] = "trafilatura"
+                elif self._ensemble is not None:
+                    markdown, ensemble_payload = self._ensemble.extract(ctx.html, ctx.url)
+                    ctx.extraction_info["method"] = "ensemble"
+                    ctx.extraction_info["ensemble"] = ensemble_payload
+                else:
+                    if self._extractor is None or self._converter is None:
+                        raise RuntimeError("Generic HTML converter is not initialized.")
+                    extracted_html = self._extractor.extract(ctx.html, ctx.url)
+                    ctx.extraction_info["method"] = "generic"
+                    ctx.extraction_info["extracted_html_bytes"] = len(extracted_html.encode("utf-8"))
+                    if not extracted_html.strip():
+                        return self._handle_empty_content(ctx, emit)
+                    markdown = self._converter.convert(extracted_html, ctx.url)
 
             if not markdown or not markdown.strip():
                 return self._handle_empty_content(ctx, emit)
@@ -267,12 +277,48 @@ class ConvertStep:
                 emit(FetchEvent(type=EventType.FETCH_FAILED, url=ctx.url, error=ctx.error))
             return ctx
 
+    async def _try_remote_document(self, ctx: PageContext) -> str | None:
+        media_type = (ctx.content_type or "").split(";", 1)[0].strip().casefold()
+        looks_like_pdf = bool(ctx.html and ctx.html.startswith(b"%PDF-"))
+        if self._remote_documents != "pdf" or (media_type != "application/pdf" and not looks_like_pdf):
+            return None
+        from ...document_parse import parse_remote_document_bytes
+
+        parsed = await asyncio.to_thread(
+            parse_remote_document_bytes,
+            ctx.html or b"",
+            source_url=ctx.url,
+            content_type="application/pdf",
+            backend=self._remote_document_backend,  # type: ignore[arg-type]
+        )
+        ctx.content_type = "application/pdf"
+        ctx.title = parsed.title
+        ctx.source_type = "remote_pdf"
+        ctx.metadata.update(parsed.metadata)
+        ctx.extraction_info.update(
+            {
+                "detected_source_type": ctx.source_type,
+                "parser": parsed.backend,
+                "source_mime_type": parsed.source_mime_type,
+                "source_sha256": parsed.metadata.get("source_sha256"),
+                "remote_source_retained": False,
+            }
+        )
+        return parsed.content
+
     def _try_special_cases(self, ctx: PageContext) -> str | None:
         if not self._enable_special_cases or ctx.html is None:
             return None
         for extractor in self._special_cases:
             try:
-                result = extractor.try_extract(ctx.html, ctx.url)
+                if isinstance(extractor, RawTextExtractor):
+                    result = extractor.try_extract(
+                        ctx.html,
+                        ctx.url,
+                        content_type=ctx.content_type,
+                    )
+                else:
+                    result = extractor.try_extract(ctx.html, ctx.url)
             except Exception as err:  # noqa: BLE001
                 logger.debug("Special-case extractor %s raised: %s", extractor.name, err)
                 continue

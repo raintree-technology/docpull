@@ -68,6 +68,7 @@ class FetchStep:
         validate_content_type: bool = True,
         cache_manager: "CacheManager | None" = None,
         skip_unchanged: bool = True,
+        allowed_remote_document_types: set[str] | None = None,
     ) -> None:
         """
         Initialize the fetch step.
@@ -88,6 +89,7 @@ class FetchStep:
         self._validate_content_type = validate_content_type
         self._cache_manager = cache_manager
         self._skip_unchanged = skip_unchanged
+        self._allowed_remote_document_types = frozenset(allowed_remote_document_types or set())
 
     def _is_valid_content_type(self, content_type: str) -> bool:
         """
@@ -99,7 +101,10 @@ class FetchStep:
         Returns:
             True if content type is allowed, False otherwise
         """
-        return is_allowed_document_content_type(content_type)
+        base_type = content_type.split(";", 1)[0].strip().casefold()
+        return (
+            is_allowed_document_content_type(content_type) or base_type in self._allowed_remote_document_types
+        )
 
     def _conditional_headers(self, url: str, output_path_exists: bool) -> dict[str, str]:
         """Build ``If-None-Match`` / ``If-Modified-Since`` from the cache.

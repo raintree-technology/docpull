@@ -34,7 +34,7 @@ from .adapters import (
     TavilySearchAdapter,
 )
 from .baselines import check_baseline, update_baseline
-from .challenges import export_blinded_challenge, materialize_blinded_challenge
+from .challenges import export_blinded_challenge, materialize_blinded_challenge, seal_blinded_gold
 from .claims import (
     ClaimEvidence,
     ClaimPolicy,
@@ -48,6 +48,7 @@ from .models import (
     BenchmarkInput,
     BenchmarkSuite,
     ComparisonReport,
+    Lane,
     PortableReport,
     RunObservation,
 )
@@ -86,6 +87,11 @@ def _build_parser() -> argparse.ArgumentParser:
     lifecycle.add_argument("--output-dir", type=Path, default=Path("bench/runs/lifecycle"))
     lifecycle.add_argument("--repeat", type=int, default=1)
     lifecycle.add_argument("--json", action="store_true")
+    context = actions.add_parser("context", help="run the controlled context-dependency product profile")
+    context.add_argument("--output-dir", type=Path, default=Path("bench/runs/context"))
+    context.add_argument("--repeat", type=int, default=1)
+    context.add_argument("--max-concurrency", type=int, default=1)
+    context.add_argument("--json", action="store_true")
 
     compare = actions.add_parser("compare", help="compare matching suite and protocol reports")
     compare.add_argument("reports", nargs="+", type=Path)
@@ -118,7 +124,7 @@ def _build_parser() -> argparse.ArgumentParser:
     claim_check = claim.add_parser("check", help="verify claim readiness without generating claims")
     claim_check.add_argument("suite", type=Path)
     claim_check.add_argument("reports", nargs="+", type=Path)
-    claim_check.add_argument("--policy", type=Path, default=Path("bench/claim/policy-v1.yaml"))
+    claim_check.add_argument("--policy", type=Path, default=Path("bench/claim/policy-v2.yaml"))
     claim_check.add_argument("--evidence", type=Path)
     claim_check.add_argument("--output", type=Path)
     claim_check.add_argument("--markdown", type=Path)
@@ -140,6 +146,11 @@ def _build_parser() -> argparse.ArgumentParser:
     challenge_materialize.add_argument("challenge", type=Path)
     challenge_materialize.add_argument("gold", type=Path)
     challenge_materialize.add_argument("--output", type=Path, required=True)
+    challenge_seal = challenge.add_parser("seal", help="encrypt private gold with an age recipient")
+    challenge_seal.add_argument("gold", type=Path)
+    challenge_seal.add_argument("--ciphertext", type=Path, required=True)
+    challenge_seal.add_argument("--recipient", required=True)
+    challenge_seal.add_argument("--manifest", type=Path, required=True)
     return parser
 
 
@@ -206,6 +217,8 @@ def main(argv: list[str] | None = None) -> int:
             return _run(args)
         if args.action == "lifecycle":
             return _lifecycle(args)
+        if args.action == "context":
+            return _context(args)
         if args.action == "compare":
             return _compare(args)
         if args.action == "baseline":
@@ -380,6 +393,38 @@ def _lifecycle(args: argparse.Namespace) -> int:
     return _run(namespace)
 
 
+def _context(args: argparse.Namespace) -> int:
+    """Run every controlled lane that exercises DocPull's context contract."""
+    suite_path = Path("bench/cases/controlled-v2.yaml")
+    suite = BenchmarkSuite.from_yaml(suite_path)
+    context_lanes = {
+        Lane.PARSE,
+        Lane.PACK,
+        Lane.LIFECYCLE,
+        Lane.RETRIEVAL,
+    }
+    case_ids = [case.id for case in suite.cases if case.input.lane in context_lanes]
+    namespace = argparse.Namespace(
+        suite=suite_path,
+        system="docpull",
+        version="unknown",
+        adapter="docpull",
+        command=None,
+        allow_env=[],
+        replay_dir=None,
+        output_dir=args.output_dir,
+        case_ids=case_ids,
+        repeat=args.repeat,
+        max_concurrency=args.max_concurrency,
+        max_cost_usd=None,
+        environment_label="controlled-local",
+        network_isolation="enforced",
+        allow_stale_gold=False,
+        json=args.json,
+    )
+    return _run(namespace)
+
+
 def _compare(args: argparse.Namespace) -> int:
     comparison = compare_reports(args.reports)
     markdown = comparison_markdown(comparison)
@@ -412,12 +457,20 @@ def _baseline(args: argparse.Namespace) -> int:
 def _claim(args: argparse.Namespace) -> int:
     if args.claim_action != "check":
         raise AssertionError(f"unhandled claim action: {args.claim_action}")
+    policy = ClaimPolicy.from_yaml(args.policy)
+    evidence = ClaimEvidence.from_yaml(args.evidence)
     result = check_claim_readiness(
         args.suite,
         args.reports,
-        policy=ClaimPolicy.from_yaml(args.policy),
-        evidence=ClaimEvidence.from_yaml(args.evidence),
+        policy=policy,
+        evidence=evidence,
         evidence_base=args.evidence.parent if args.evidence else None,
+        policy_sha256=hashlib.sha256(args.policy.read_bytes()).hexdigest(),
+        evidence_sha256=(
+            hashlib.sha256(args.evidence.read_bytes()).hexdigest()
+            if args.evidence
+            else hashlib.sha256(evidence.model_dump_json().encode()).hexdigest()
+        ),
     )
     markdown = claim_readiness_markdown(result)
     if args.output:
@@ -448,6 +501,15 @@ def _challenge(args: argparse.Namespace) -> int:
     if args.challenge_action == "materialize":
         suite = materialize_blinded_challenge(args.challenge, args.gold, output_path=args.output)
         print(f"materialized: {suite.name} {suite.version} ({len(suite.cases)} cases)")
+        return 0
+    if args.challenge_action == "seal":
+        artifact = seal_blinded_gold(
+            args.gold,
+            ciphertext_path=args.ciphertext,
+            recipient=args.recipient,
+            manifest_path=args.manifest,
+        )
+        print(artifact.model_dump_json(indent=2))
         return 0
     raise AssertionError(f"unhandled challenge action: {args.challenge_action}")
 

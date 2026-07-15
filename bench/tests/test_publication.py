@@ -28,6 +28,7 @@ def test_publication_is_content_free_data_without_generated_claims(tmp_path: Pat
     )
     manifest = json.loads((output / "publication.manifest.json").read_text())
     assert manifest["status"] == "data-only"
+    assert len(manifest["source_report_set_sha256"]) == 64
     readme = (output / "README.md").read_text()
     assert "does not generate product claims" in readme
     assert "winner" in readme

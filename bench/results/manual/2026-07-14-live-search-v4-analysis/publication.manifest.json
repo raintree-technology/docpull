@@ -1,0 +1,55 @@
+{
+  "analysis_version": "v3-ops-quality-slice-holm-paired-bootstrap",
+  "files": {
+    "COMPARISON.md": "3c76a08eda8af94e555cb9fd4da470a1dfe6d6a5603bb21d1a8f17e1aebad5f2",
+    "METHODOLOGY.md": "647e085462eca4a14d916f2200b4bda1dcd85859fafd510c83b189e7e5cb9b89",
+    "README.md": "8b397d16a481c672e0953bb584827039a0c2926599da046224cc57a8a94ae00f",
+    "comparison.json": "7279ed269f13b70b396bcbf95038df09273cec493950f440c68246fae59d1564",
+    "reports/exa-search.report.json": "5bc9207e0419549f574ccbdf820bda7d55af0d0f940a1fdc5a262d17b9a6a599",
+    "reports/firecrawl-search.report.json": "4179dbb666271f2e304907054a3cdb1758b3dfa6c956b9793730723438be807b",
+    "reports/parallel-search.report.json": "7fb4eba3ef0a9f2e5f841d223da41a4a38820f66727914cd0209f7b0f888924a",
+    "reports/tavily-search.report.json": "8de5b09538d9d05a56f154f9bc209e4d69db8092d48ecf191926003242160c30",
+    "suite.yaml": "13acf083e57757ed0e012f5df12e9bde7a4ba785503efe70b1ce036e30736910"
+  },
+  "generated_at": "2026-07-15T02:50:53.675542+00:00",
+  "protocol_sha256": "daf74d9c3b6f1649c1beae1fef8e7e81ad6ea5c406a257619247996932698552",
+  "schema_version": 2,
+  "scorer_version": "v2-unversioned",
+  "source_report_set_sha256": "f78eedf07186a075026077664e0a3cc42aa3067ed29a8f28485a49414e450cff",
+  "source_reports": [
+    {
+      "published_path": "reports/exa-search.report.json",
+      "published_sha256": "5bc9207e0419549f574ccbdf820bda7d55af0d0f940a1fdc5a262d17b9a6a599",
+      "source_sha256": "0cb6dbff24e0be39b043fc6f747a58a94d04007bf31ffc0fb27766a3860e99a6",
+      "system": "exa-search"
+    },
+    {
+      "published_path": "reports/firecrawl-search.report.json",
+      "published_sha256": "4179dbb666271f2e304907054a3cdb1758b3dfa6c956b9793730723438be807b",
+      "source_sha256": "4fc4df7834c04b1edb44b09d330f8e0162e0930dabc1ef60ab9669b1de01351d",
+      "system": "firecrawl-search"
+    },
+    {
+      "published_path": "reports/parallel-search.report.json",
+      "published_sha256": "7fb4eba3ef0a9f2e5f841d223da41a4a38820f66727914cd0209f7b0f888924a",
+      "source_sha256": "cafa051faadc2c705e98195c25795627553377e5975ce3ba594b1fc9610f45ec",
+      "system": "parallel-search"
+    },
+    {
+      "published_path": "reports/tavily-search.report.json",
+      "published_sha256": "8de5b09538d9d05a56f154f9bc209e4d69db8092d48ecf191926003242160c30",
+      "source_sha256": "4630f9d38b31663121f0e79bb997309c78667d648dbf3f1984d85a9c38c8da24",
+      "system": "tavily-search"
+    }
+  ],
+  "status": "provisional-not-current-evidence-not-for-marketing",
+  "suite_name": "docpull-live-search",
+  "suite_sha256": "13acf083e57757ed0e012f5df12e9bde7a4ba785503efe70b1ce036e30736910",
+  "suite_version": "2.0.0",
+  "unavailable_systems": [
+    {
+      "reason": "unsupported by design",
+      "system": "docpull"
+    }
+  ]
+}

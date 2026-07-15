@@ -7,8 +7,10 @@ import pytest
 from pydantic import ValidationError
 
 from docpull_bench.models import (
+    ArtifactRecord,
     BenchmarkCase,
     BenchmarkSuite,
+    ContentPayload,
     Lane,
     RankedResult,
     RunObservation,
@@ -112,3 +114,44 @@ def test_malformed_observation_fails_schema_validation() -> None:
                 "adapter_version": "2",
             }
         )
+
+
+def test_extract_term_matching_tolerates_formatting_artifacts_but_not_missing_terms() -> None:
+    suite = BenchmarkSuite.from_yaml(ROOT / "cases" / "live-neutral-extract-v1.yaml")
+    case = next(item for item in suite.cases if item.id == "test.pdf.ray-paper")
+    observation = RunObservation(
+        case_id=case.id,
+        system="docpull",
+        status="completed",
+        payload=ContentPayload(
+            records=[
+                ArtifactRecord(
+                    url=case.input.url,
+                    content=(
+                        "Ray: A Distributed Framework. "
+                        "Reinforcementlearning workloads use distributedsystems."
+                        + (" supporting evidence" * 700)
+                    ),
+                )
+            ],
+            selected_urls=[case.input.url],
+        ),
+        elapsed_seconds=0.1,
+        adapter_version="test",
+    )
+
+    assert score_observation(case, observation).passed
+    missing = observation.model_copy(
+        update={
+            "payload": ContentPayload(
+                records=[
+                    ArtifactRecord(
+                        url=case.input.url,
+                        content="Ray: A Distributed Framework." + (" supporting evidence" * 700),
+                    )
+                ],
+                selected_urls=[case.input.url],
+            )
+        }
+    )
+    assert not score_observation(case, missing).passed

@@ -19,13 +19,13 @@ import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import regex
 import yaml
 
 from ..core.fetcher import Fetcher
-from ..models.config import CrawlConfig, DocpullConfig, OutputConfig, ProfileName
+from ..models.config import ContentFilterConfig, CrawlConfig, DocpullConfig, OutputConfig, ProfileName
 from ..models.run import MCP_META_SCHEMA_VERSION
 from ..security.url_validator import UrlValidator
 from ..time_utils import utc_now_iso
@@ -313,7 +313,12 @@ async def ensure_docs(
     )
 
 
-async def fetch_url(url: str, *, max_tokens: int | None = None) -> ToolResult:
+async def fetch_url(
+    url: str,
+    *,
+    max_tokens: int | None = None,
+    remote_documents: Literal["off", "pdf"] = "off",
+) -> ToolResult:
     """Fetch a single arbitrary URL and return its Markdown.
 
     This is the agent-friendly tool: no discovery, no crawling, just one page.
@@ -330,6 +335,7 @@ async def fetch_url(url: str, *, max_tokens: int | None = None) -> ToolResult:
         url=url,
         profile=ProfileName.CUSTOM,
         output=output_cfg,
+        content_filter=ContentFilterConfig(remote_documents=remote_documents),
     )
     async with Fetcher(config) as fetcher:
         ctx = await fetcher.fetch_one(url, save=False)

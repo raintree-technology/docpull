@@ -10,6 +10,7 @@ from docpull_bench.claims import (
     HoldoutSeal,
     ProtocolAttestation,
     ReviewAttestation,
+    _role_trusted_fingerprints,
     check_claim_readiness,
     claim_readiness_markdown,
     gold_hash,
@@ -142,3 +143,67 @@ def test_claim_gate_accepts_complete_matching_evidence_under_explicit_policy() -
     )
     assert result.ready
     assert all(check.passed for check in result.checks)
+    assert len(result.policy_sha256) == 64
+    assert len(result.evidence_sha256) == 64
+    assert result.report_sha256s["exa-search"] == _sha256(REPORT)
+
+
+def test_claim_gate_requires_distinct_verified_review_signers() -> None:
+    evidence = _evidence()
+    reviews = [review.model_copy(update={"signer_fingerprint": "A" * 40}) for review in evidence.reviews]
+    result = check_claim_readiness(
+        SUITE,
+        [REPORT],
+        policy=_relaxed_policy(),
+        evidence=evidence.model_copy(update={"reviews": reviews}),
+    )
+
+    assert not result.ready
+    check = next(item for item in result.checks if item.id == "gold.independent_review")
+    assert not check.passed
+    assert "verified_signers=1" in check.detail
+
+
+def test_claim_gate_rejects_incomplete_trial_vectors(tmp_path: Path) -> None:
+    report = PortableReport.model_validate_json(REPORT.read_text(encoding="utf-8"))
+    changed = report.model_copy(update={"scores": report.scores[:-1]})
+    path = tmp_path / "partial.report.json"
+    path.write_text(changed.model_dump_json(), encoding="utf-8")
+    evidence = _evidence()
+    evidence = evidence.model_copy(
+        update={
+            "billing": [item.model_copy(update={"report_sha256": _sha256(path)}) for item in evidence.billing]
+        }
+    )
+
+    result = check_claim_readiness(
+        SUITE,
+        [path],
+        policy=_relaxed_policy(),
+        evidence=evidence,
+    )
+
+    check = next(item for item in result.checks if item.id == "trial_coverage.exa-search")
+    assert not check.passed
+
+
+def test_v2_role_trust_does_not_fall_back_to_a_global_signer_list() -> None:
+    policy = _relaxed_policy().model_copy(
+        update={"schema_version": 2, "trusted_gpg_fingerprints": ["A" * 40]}
+    )
+
+    assert _role_trusted_fingerprints(policy, "reviewer") == set()
+
+
+def test_v2_requires_referenced_protocol_and_billing_evidence(tmp_path: Path) -> None:
+    policy = _relaxed_policy().model_copy(update={"schema_version": 2, "require_sealed_holdout": False})
+    result = check_claim_readiness(
+        SUITE,
+        [REPORT],
+        policy=policy,
+        evidence=_evidence().model_copy(update={"schema_version": 2}),
+        evidence_base=tmp_path,
+    )
+
+    assert not next(item for item in result.checks if item.id == "protocol.exa-search").passed
+    assert not next(item for item in result.checks if item.id == "billing.exa-search").passed

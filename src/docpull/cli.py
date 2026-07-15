@@ -335,6 +335,18 @@ Examples:
         action="store_true",
         help="Stream NDJSON records to stdout as each page completes (implies --format ndjson)",
     )
+    parser.add_argument(
+        "--remote-documents",
+        choices=["off", "pdf"],
+        default=None,
+        help="Explicitly download and locally parse selected remote document types (default: off)",
+    )
+    parser.add_argument(
+        "--remote-document-backend",
+        choices=["auto", "markitdown", "unstructured"],
+        default=None,
+        help="Local parser backend for --remote-documents (default: auto)",
+    )
 
     # Crawl settings
     crawl_group = parser.add_argument_group("crawl settings")
@@ -677,6 +689,10 @@ def run_fetcher(args: argparse.Namespace) -> int:
         filter_kwargs["enable_special_cases"] = False
     if args.strict_js_required:
         filter_kwargs["strict_js_required"] = True
+    if args.remote_documents:
+        filter_kwargs["remote_documents"] = args.remote_documents
+    if args.remote_document_backend:
+        filter_kwargs["remote_document_backend"] = args.remote_document_backend
     if filter_kwargs:
         config_kwargs["content_filter"] = filter_kwargs
 

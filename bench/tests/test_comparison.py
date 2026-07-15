@@ -52,6 +52,9 @@ def test_comparison_is_lane_local_and_holm_corrected(tmp_path: Path) -> None:
     }
     assert all(row.holm_adjusted_p_value >= row.exact_mcnemar_p_value for row in comparison.pairwise)
     assert "No cross-lane composite" in comparison_markdown(comparison)
+    assert "Provider spend" in comparison_markdown(comparison)
+    assert "conditional on successful acquisition" in comparison_markdown(comparison)
+    assert "(k=2)" in comparison_markdown(comparison)
     assert exact_mcnemar(0, 0) == 1
 
 
@@ -63,6 +66,17 @@ def test_comparison_requires_identical_protocol_hash(tmp_path: Path) -> None:
     )
     paths[1].write_text(changed.model_dump_json(), encoding="utf-8")
     with pytest.raises(ValueError, match="protocol hashes"):
+        compare_reports(paths)
+
+
+def test_comparison_requires_identical_scorer_version(tmp_path: Path) -> None:
+    paths = _reports(tmp_path)
+    report = PortableReport.model_validate_json(paths[1].read_text())
+    changed = report.model_copy(
+        update={"manifest": report.manifest.model_copy(update={"scorer_version": "future-scorer"})}
+    )
+    paths[1].write_text(changed.model_dump_json(), encoding="utf-8")
+    with pytest.raises(ValueError, match="scorer versions"):
         compare_reports(paths)
 
 
@@ -78,7 +92,9 @@ def test_latency_comparability_requires_environment_and_cache_match(tmp_path: Pa
 
 
 def _pair(
-    slice_type: Literal["overall", "split", "family"], slice_value: str, p_value: float
+    slice_type: Literal["overall", "scope", "split", "family"],
+    slice_value: str,
+    p_value: float,
 ) -> PairwiseComparisonRow:
     return PairwiseComparisonRow(
         lane=Lane.EXTRACT,
@@ -124,3 +140,40 @@ def test_comparison_separates_operational_success_from_completed_output_quality(
     assert row.completion_rate == pytest.approx(59 / 60)
     assert row.quality_eligible_trials == 59
     assert row.quality_pass_rate_completed > row.trial_pass_rate
+
+
+def test_pairwise_quality_verdict_requires_operational_conformance() -> None:
+    base = ROOT / "results" / "manual" / "2026-07-14-live-neutral-crawl-v2" / "reports"
+    comparison = compare_reports([base / "docpull.report.json", base / "firecrawl-crawl.report.json"])
+    pair = next(item for item in comparison.pairwise if item.slice_type == "overall")
+
+    assert not pair.operationally_comparable
+    assert pair.verdict == "insufficient_operational_conformance"
+    markdown = comparison_markdown(comparison)
+    assert "insufficient operational conformance" in markdown
+    assert "| crawl | firecrawl-crawl | 8 | 0.0% | N/A |" in markdown
+
+
+def test_comparison_reports_robots_and_managed_access_as_separate_boundaries() -> None:
+    base = ROOT / "results" / "manual" / "2026-07-14-live-neutral-extract-v2" / "reports"
+    comparison = compare_reports([base / "docpull.report.json", base / "firecrawl.report.json"])
+
+    assert set(comparison.boundary_cases) == {
+        "dev.access.pypi-pydantic",
+        "dev.long.wikipedia-grace-hopper",
+        "dev.standard.wcag-22",
+        "test.docs.node-filesystem",
+    }
+    core = next(
+        row
+        for row in comparison.rows
+        if row.system == "docpull" and row.slice_type == "scope" and row.slice_value == "core"
+    )
+    boundary = next(
+        row
+        for row in comparison.rows
+        if row.system == "docpull" and row.slice_type == "scope" and row.slice_value == "boundary"
+    )
+    assert core.case_count == 28
+    assert boundary.case_count == 4
+    assert "the evaluator never bypasses robots" in comparison_markdown(comparison)

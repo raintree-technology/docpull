@@ -51,10 +51,33 @@ from .models import (
 )
 
 _SPACE_RE = re.compile(r"\s+")
+_NON_WORD_RE = re.compile(r"[^\w]+", re.UNICODE)
+SCORER_VERSION = "v3-format-tolerant-concept-matching"
 
 
 def _normalized_text(value: str) -> str:
     return _SPACE_RE.sub(" ", value).strip().casefold()
+
+
+def _compact_text(value: str) -> str:
+    return _NON_WORD_RE.sub("", _normalized_text(value))
+
+
+def _term_present(combined: str, term: str) -> bool:
+    normalized = _normalized_text(term)
+    if normalized in combined:
+        return True
+    compact_term = _compact_text(normalized)
+    return len(compact_term) >= 8 and compact_term in _compact_text(combined)
+
+
+def _term_position(combined: str, term: str) -> int:
+    normalized = _normalized_text(term)
+    position = combined.find(normalized)
+    if position >= 0:
+        return position
+    compact_term = _compact_text(normalized)
+    return _compact_text(combined).find(compact_term) if len(compact_term) >= 8 else -1
 
 
 def _normalized_url(value: str) -> str:
@@ -154,12 +177,12 @@ def _content_checks(
     ]
     required_terms = [_normalized_text(term) for term in expected.required_terms]
     forbidden_terms = [_normalized_text(term) for term in expected.forbidden_terms]
-    term_found = sum(term in combined for term in required_terms)
-    forbidden_absent = sum(term not in combined for term in forbidden_terms)
+    term_found = sum(_term_present(combined, term) for term in required_terms)
+    forbidden_absent = sum(not _term_present(combined, term) for term in forbidden_terms)
     for term in required_terms:
-        assertions.append(_assert(f"term.required:{term}", term in combined))
+        assertions.append(_assert(f"term.required:{term}", _term_present(combined, term)))
     for term in forbidden_terms:
-        assertions.append(_assert(f"term.forbidden:{term}", term not in combined))
+        assertions.append(_assert(f"term.forbidden:{term}", not _term_present(combined, term)))
     metrics: dict[str, MetricValue] = {
         "record_count": len(records),
         "content_chars": content_chars,
@@ -194,7 +217,7 @@ def _score_extract_or_crawl(case: BenchmarkCase, observation: RunObservation) ->
     combined = _normalized_text("\n".join(record.content for record in records))
     for heading in expected.required_headings:
         normalized = _normalized_text(heading)
-        assertions.append(_assert(f"heading.required:{normalized}", normalized in combined))
+        assertions.append(_assert(f"heading.required:{normalized}", _term_present(combined, normalized)))
     metrics.update({"url_recall": url_recall, "domain_precision": domain_precision})
     if isinstance(expected, CrawlExpected):
         hashes = [hashlib.sha256(_normalized_text(record.content).encode()).hexdigest() for record in records]
@@ -230,7 +253,7 @@ def _score_parse(case: BenchmarkCase, observation: RunObservation) -> CaseScore:
     assertions, metrics = _content_checks(case, observation, expected)
     records = _records(observation)
     combined = _normalized_text("\n".join(record.content for record in records))
-    positions = [combined.find(_normalized_text(term)) for term in expected.required_ordered_terms]
+    positions = [_term_position(combined, term) for term in expected.required_ordered_terms]
     order_ok = all(position >= 0 for position in positions) and positions == sorted(positions)
     if expected.required_ordered_terms:
         assertions.append(_assert("content.required_order", order_ok))

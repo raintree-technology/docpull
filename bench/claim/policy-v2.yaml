@@ -1,0 +1,29 @@
+schema_version: 2
+name: public-comparative-claim-v2
+owner_organizations:
+  - Raintree Technology
+  - DocPull
+minimum_systems: 2
+minimum_cases_per_lane: 100
+minimum_test_cases_per_lane: 30
+minimum_families_per_lane: 5
+minimum_distinct_domains_per_live_lane: 10
+maximum_family_share: 0.25
+minimum_unique_input_ratio: 0.95
+minimum_repeats: 5
+minimum_operational_success_rate: 0.95
+minimum_independent_reviewers: 2
+minimum_discordant_cases_per_pair: 20
+require_clean_repository: true
+require_sealed_holdout: true
+require_protocol_attestations: true
+require_actual_cost_reconciliation: true
+require_latency_comparability: false
+require_cryptographic_signature_verification: true
+trusted_gpg_fingerprints: []
+trusted_reviewer_gpg_fingerprints: []
+trusted_custodian_gpg_fingerprints: []
+trusted_protocol_gpg_fingerprints: []
+trusted_billing_gpg_fingerprints: []
+allowed_signature_methods:
+  - gpg

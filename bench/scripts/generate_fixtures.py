@@ -52,6 +52,10 @@ def _pdf(lines: list[str]) -> bytes:
         b"<< /Length " + str(len(stream)).encode() + b" >>\nstream\n" + stream + b"\nendstream",
         b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
     ]
+    return _pdf_objects(objects)
+
+
+def _pdf_objects(objects: list[bytes]) -> bytes:
     body = bytearray(b"%PDF-1.4\n")
     offsets = [0]
     for index, item in enumerate(objects, 1):
@@ -64,6 +68,34 @@ def _pdf(lines: list[str]) -> bytes:
         body.extend(f"{offset:010d} 00000 n \n".encode())
     body.extend(f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n".encode())
     return bytes(body)
+
+
+def _encrypted_pdf() -> bytes:
+    body = _pdf(["Encrypted PDF benchmark fixture"])
+    return body.replace(b"/Root 1 0 R >>", b"/Root 1 0 R /Encrypt 99 0 R >>")
+
+
+def _image_only_pdf() -> bytes:
+    commands = b"q\n120 0 0 120 72 600 cm\n/Im0 Do\nQ"
+    pixels = b"\x00\x33\x66"
+    objects = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        (
+            b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] "
+            b"/Resources << /XObject << /Im0 5 0 R >> >> /Contents 4 0 R >>"
+        ),
+        b"<< /Length " + str(len(commands)).encode() + b" >>\nstream\n" + commands + b"\nendstream",
+        (
+            b"<< /Type /XObject /Subtype /Image /Width 1 /Height 1 "
+            b"/ColorSpace /DeviceRGB /BitsPerComponent 8 /Length "
+            + str(len(pixels)).encode()
+            + b" >>\nstream\n"
+            + pixels
+            + b"\nendstream"
+        ),
+    ]
+    return _pdf_objects(objects)
 
 
 def _docx() -> bytes:
@@ -268,8 +300,8 @@ def generate_assets() -> None:
     _write(parse / "05-table.pdf", _pdf(["Table PDF", "Name | Value", "alpha | 731", "beta | 204"]))
     _write(parse / "06-code.txt", "Code Heading\n```python\nalpha = 731\n```\nbeta conclusion\n")
     _write(parse / "07-malformed.pdf", b"%PDF-1.4\nmalformed and deliberately truncated\n")
-    _write(parse / "08-encrypted.pdf", b"%PDF-1.4\n% deterministic encrypted-placeholder fixture\n")
-    _write(parse / "09-ocr-gated.pdf", _pdf(["Image-only OCR dependency-gated fixture"]))
+    _write(parse / "08-encrypted.pdf", _encrypted_pdf())
+    _write(parse / "09-ocr-gated.pdf", _image_only_pdf())
     _write(parse / "10-unicode.md", "# Unicode Heading\n\nalpha café 東京 evidence\n\nbeta conclusion\n")
     for index in range(1, 11):
         root = FIXTURES / "packs" / f"pack-{index:02d}"
