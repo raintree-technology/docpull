@@ -14,7 +14,7 @@ import os
 import re
 import signal
 import stat
-import subprocess
+import subprocess  # nosec B404
 import sys
 import tempfile
 from collections.abc import Sequence
@@ -382,7 +382,8 @@ def parse_remote_document_bytes(
     )
     with prepared as request:
         command = _remote_worker_command(request)
-        process = subprocess.Popen(  # noqa: S603
+        # The worker command is constructed internally and never invokes a shell.
+        process = subprocess.Popen(  # noqa: S603  # nosec B603
             command,
             env=_remote_worker_environment(),
             stdin=subprocess.DEVNULL,

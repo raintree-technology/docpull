@@ -7,7 +7,7 @@ import argparse
 import gzip
 import hashlib
 import os
-import subprocess
+import subprocess  # nosec B404
 import sys
 import tarfile
 import tempfile
@@ -57,7 +57,8 @@ def _build(repo: Path, output_dir: Path, *, epoch: int) -> dict[str, str]:
     output_dir.mkdir(parents=True, exist_ok=True)
     environment = os.environ.copy()
     environment["SOURCE_DATE_EPOCH"] = str(epoch)
-    result = subprocess.run(
+    # The executable and module argv are fixed; only the output path is variable.
+    result = subprocess.run(  # nosec B603
         [sys.executable, "-m", "build", "--no-isolation", "--outdir", str(output_dir)],
         cwd=repo,
         env=environment,
