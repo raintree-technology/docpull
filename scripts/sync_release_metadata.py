@@ -19,6 +19,7 @@ PLUGIN_MANIFESTS = (
     ROOT / "plugin" / ".codex-plugin" / "plugin.json",
     ROOT / "plugin" / ".claude-plugin" / "plugin.json",
 )
+MCP_REGISTRY_MANIFEST = ROOT / "server.json"
 
 SECTION_RE = re.compile(r"^\[[^\]]+]")
 PROJECT_VERSION_RE = re.compile(r'^version\s*=\s*"([^"]+)"(?:\s*#.*)?$')
@@ -153,11 +154,30 @@ def expected_manifest(current: str, version: str) -> str:
     return f"{json.dumps(manifest, indent=2)}\n"
 
 
+def expected_mcp_registry_manifest(current: str, version: str) -> str:
+    manifest = json.loads(current)
+    packages = manifest.get("packages")
+    if not isinstance(packages, list) or len(packages) != 1:
+        raise RuntimeError("server.json must declare exactly one package")
+    package = packages[0]
+    if not isinstance(package, dict) or (package.get("registryType"), package.get("identifier")) != (
+        "pypi",
+        "docpull",
+    ):
+        raise RuntimeError("server.json must declare the DocPull PyPI package")
+    manifest["version"] = version
+    package["version"] = version
+    return f"{json.dumps(manifest, indent=2)}\n"
+
+
 def expected_files() -> dict[Path, str]:
     version = project_version()
     tools = mcp_tools()
     files = {
         PLUGIN_README: expected_readme(PLUGIN_README.read_text(encoding="utf-8"), version, tools),
+        MCP_REGISTRY_MANIFEST: expected_mcp_registry_manifest(
+            MCP_REGISTRY_MANIFEST.read_text(encoding="utf-8"), version
+        ),
     }
     for manifest_path in PLUGIN_MANIFESTS:
         files[manifest_path] = expected_manifest(manifest_path.read_text(encoding="utf-8"), version)

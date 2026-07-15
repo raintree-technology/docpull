@@ -227,6 +227,15 @@ def test_plugin_manifest_versions_match_project_version() -> None:
         assert manifest["version"] == project_version()
 
 
+def test_mcp_registry_manifest_versions_match_project_version() -> None:
+    manifest = json.loads((REPO_ROOT / "server.json").read_text(encoding="utf-8"))
+
+    assert manifest["version"] == project_version()
+    assert len(manifest["packages"]) == 1
+    assert manifest["packages"][0]["identifier"] == "docpull"
+    assert manifest["packages"][0]["version"] == project_version()
+
+
 def test_generated_release_metadata_is_synchronized() -> None:
     proc = subprocess.run(  # nosec B603
         [sys.executable, "scripts/sync_release_metadata.py", "--check"],
