@@ -1,0 +1,83 @@
+schema_version: 1
+protocol_id: future-extraction-quality-v1
+frozen_at: "2026-07-14"
+status: frozen-not-executed
+purpose: external-sealed-holdout-comparative-evaluation
+lane: extract
+quality_policy: quality-max
+execution_authority: external-custodian
+repository_workflow_eligible: false
+notes:
+  - No request described by this protocol was executed while freezing it.
+  - Hosted execution requires a separately authorized spend ceiling and signed reconciliation.
+  - Claim readiness still requires the external holdout, reviewers, signatures, and policy gate.
+systems:
+  - system: docpull
+    adapter: docpull
+    subject:
+      package_version: "6.1.0"
+      artifact: clean-built-wheel
+      install_extra: pdf
+    request_profile:
+      browser: false
+      paid_routes: false
+      remote_documents: pdf
+      remote_document_backend: pypdf
+      remote_document_timeout_seconds: 60
+      remote_document_memory_mib: 1024
+  - system: exa-full
+    adapter: exa-full
+    profile_name: Exa Full
+    request_profile:
+      method: POST
+      endpoint: https://api.exa.ai/contents
+      urls: one-case-url
+      text:
+        verbosity: full
+        excludeSections:
+          - navigation
+          - footer
+          - sidebar
+      max_age_hours: 0
+  - system: parallel
+    adapter: parallel
+    profile_name: Parallel Full
+    request_profile:
+      method: POST
+      endpoint: https://api.parallel.ai/v1/extract
+      urls: one-case-url
+      full_content: true
+      max_age_seconds: 600
+      cache_fallback: true
+  - system: tavily-advanced
+    adapter: tavily-advanced
+    profile_name: Tavily Advanced
+    request_profile:
+      method: POST
+      endpoint: https://api.tavily.com/extract
+      extract_depth: advanced
+      format: markdown
+      images: false
+      usage: true
+  - system: firecrawl
+    adapter: firecrawl
+    profile_name: Firecrawl
+    request_profile:
+      method: POST
+      endpoint: https://api.firecrawl.dev/v2/scrape
+      formats:
+        - markdown
+      main_content: true
+      clean_content: false
+      cache: false
+      proxy: basic
+      tls_verification: true
+run_controls:
+  report_schema: 3
+  scorer: scorer-v4
+  comparison_scope_source: predeclared-case-metadata-only
+  repeat: 5
+  plaintext_outputs_in_report: false
+  encrypted_output_escrow: required
+  publication_signature: required
+  billing_reconciliation: required-for-hosted-systems

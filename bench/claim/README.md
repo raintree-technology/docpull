@@ -56,3 +56,9 @@ cases, not a claim of statistical independence. Only development cases, held-cas
 IDs, and a cryptographic commitment may be committed before opening the
 holdout; held inputs and expectations stay encrypted with an external
 custodian.
+
+Repository-hosted manual workflows are exploratory by construction and cannot
+produce claim evidence. Claim-grade reports must use portable schema v3, exact
+predeclared scope metadata, a clean subject artifact or remote-service request
+profile, external encrypted output custody, verified publication signatures,
+and the external sealed-holdout process described above.

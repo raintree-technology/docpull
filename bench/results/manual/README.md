@@ -1,5 +1,12 @@
 # Manual live evaluations
 
+> **Status correction:** the v5 extract bundle is public development-suite
+> data generated from a dirty tree at `3f17d75a` after scorer and product
+> tuning. It is not representative of released DocPull 6.0.1 and is ineligible
+> for comparative claims. The authoritative classification and manifest
+> commitment are recorded in [`../STATUS.yaml`](../STATUS.yaml); files inside
+> the bundle remain byte-for-byte unchanged.
+
 These bundles are content-free, deterministic evaluation data for internal
 product decisions. They do not compute a cross-lane score or name a global
 winner. The July 14, 2026 run used two trials per case on the same frozen suite

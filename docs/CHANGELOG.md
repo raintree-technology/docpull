@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.1.0] - 2026-07-14
+
+### Added
+- Add local `pypdf` document extraction through the `pdf` extra, including
+  isolated subprocess execution, resource and output limits, secure temporary
+  files, structural PDF classification, and extraction-quality provenance.
+- Add scorer v4, portable report schema v3, explicit comparison scopes,
+  encrypted evidence escrow, signed publication verification, and clean-wheel
+  subject provenance to the isolated benchmark lab.
+
+### Changed
+- Prefer `pypdf` for remote PDF extraction before optional MarkItDown and
+  Unstructured fallbacks, with consistent CLI, Python, and MCP controls.
+- Fence structured raw responses with adaptive labeled Markdown fences while
+  preserving Markdown and documentation-style plain text directly.
+- Make repository-hosted manual benchmark runs exploratory only; comparative
+  claim evidence must come from the external sealed-holdout process.
+
+### Fixed
+- Reject fused words in benchmark evidence while retaining explicit
+  line-break hyphen repair and punctuation-separated token equivalence.
+- Recompute benchmark summaries and billing from observations, rejecting
+  forged, incomplete, duplicate, or tampered report and publication data.
+
 ## [6.0.0] - 2026-07-01
 
 ### Added

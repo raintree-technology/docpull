@@ -20,6 +20,8 @@ canonical lane scorers remain authoritative.
   read.
 - Portable reports contain sanitized URLs, hashes, lengths, timings, usage,
   costs, statuses, and metric vectors—not fetched bodies.
+- New runs write integrity-checked portable report schema v3 and scorer v4;
+  schema-v2 reports remain readable as legacy history but are never claim-ready.
 
 ## Lanes and corpora
 
@@ -85,15 +87,27 @@ identity.
 docpull-bench baseline check REPORT bench/baselines/controlled-v2.fixture.json
 docpull-bench baseline update REPORT BASELINE --reason 'reviewed protocol change'
 docpull-bench compare REPORT_A REPORT_B --markdown COMPARISON.md
-docpull-bench publish SUITE REPORT_A REPORT_B --output-dir BUNDLE
+docpull-bench publish create SUITE REPORT_A REPORT_B --output-dir BUNDLE
+docpull-bench publish sign BUNDLE
+docpull-bench publish verify BUNDLE --trusted-gpg-fingerprint FINGERPRINT
 ```
 
 Critical controlled pass→fail changes block. Performance changes above both 20%
-and the 100 ms/10 MiB floors are advisory. Publication emits data and
-manifest-derived methodology only; narrative findings are hand-reviewed.
+and the 100 ms/10 MiB floors are advisory. Verification recomputes publication
+hashes, reparses reports, and regenerates the comparison; narrative findings
+remain hand-reviewed.
+
+For sensitive live diagnostics, `--evidence-dir` and `--evidence-recipient`
+encrypt canonical normalized output directly to an external age escrow. The
+report retains plaintext commitments and ciphertext hashes only. DocPull claim
+subjects must use `--docpull-python` plus `--subject-artifact` to bind an
+isolated clean wheel rather than the harness interpreter.
 
 Current manual live evidence and its hand-reviewed decision note are indexed in
 [`results/manual/README.md`](results/manual/README.md).
+The authoritative non-mutating status overlay is
+[`results/STATUS.yaml`](results/STATUS.yaml). The repository-hosted manual
+workflow is exploratory only.
 
 ## Public-claim readiness
 
@@ -105,6 +119,17 @@ reviewed, blinded corpus plus signed provider protocols and reconciled billing:
 docpull-bench claim check PRIVATE_SUITE REPORT... \
   --policy bench/claim/policy-v2.yaml --evidence SIGNED_EVIDENCE.yaml
 ```
+
+Validate a proposed suite before external custody with the stricter structural
+gate. Passing this check is necessary but not sufficient for a claim:
+
+```bash
+docpull-bench validate PRIVATE_SUITE --claim-grade
+```
+
+The frozen quality-max configuration for a future external extraction study is
+[`protocols/future-extraction-quality-v1.yaml`](protocols/future-extraction-quality-v1.yaml).
+It is a predeclaration, not a completed run.
 
 Create a future held set from a draft that has never entered the repository.
 The public challenge contains development cases plus only IDs and a commitment
