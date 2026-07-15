@@ -89,6 +89,44 @@ manifest-derived methodology only; narrative findings are hand-reviewed.
 Current manual live evidence and its hand-reviewed decision note are indexed in
 [`results/manual/README.md`](results/manual/README.md).
 
+## Public-claim readiness
+
+Data-only publication is not authorization to make a comparative claim. The
+separate fail-closed gate requires a 100-case, five-trial, independently
+reviewed, blinded corpus plus signed provider protocols and reconciled billing:
+
+```bash
+docpull-bench claim check PRIVATE_SUITE REPORT... \
+  --policy bench/claim/policy-v1.yaml --evidence SIGNED_EVIDENCE.yaml
+```
+
+Create a future held set from a draft that has never entered the repository.
+The public challenge contains development cases plus only IDs and a commitment
+for the held cases; both held inputs and expectations remain private:
+
+```bash
+docpull-bench challenge export /outside/repo/private-draft.yaml \
+  --challenge bench/cases/public-challenge.yaml \
+  --gold /outside/repo/private-gold.yaml \
+  --manifest bench/cases/public-challenge.manifest.json
+```
+
+After an authorized custodian decrypts the private holdout, materialize the
+full suite outside the repository for the run:
+
+```bash
+docpull-bench challenge materialize bench/cases/public-challenge.yaml \
+  /outside/repo/private-gold.yaml \
+  --output /outside/repo/materialized-private-suite.yaml
+```
+
+Plaintext drafts, gold, and materialized private suites are refused inside the
+repository and written mode `0600`. See [`claim/README.md`](claim/README.md).
+Comparisons report operational success, quality conditional on completed
+output, and the strict end-to-end pass rate separately. Effect sizes include a
+deterministic paired-bootstrap interval; Holm correction is scoped to each
+declared hypothesis slice.
+
 ## WANDR
 
 `experimental/external-suites/wandr/lock.json` pins the optional WANDR checkout. Run

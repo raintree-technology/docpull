@@ -34,6 +34,14 @@ from .adapters import (
     TavilySearchAdapter,
 )
 from .baselines import check_baseline, update_baseline
+from .challenges import export_blinded_challenge, materialize_blinded_challenge
+from .claims import (
+    ClaimEvidence,
+    ClaimPolicy,
+    ClaimReadinessReport,
+    check_claim_readiness,
+    claim_readiness_markdown,
+)
 from .comparison import compare_reports, comparison_markdown
 from .fixtures import verify_fixture_manifest
 from .models import (
@@ -59,7 +67,7 @@ def _build_parser() -> argparse.ArgumentParser:
     schema = actions.add_parser("schema", help="emit a portable JSON schema")
     schema.add_argument(
         "--kind",
-        choices=("suite", "input", "observation", "report", "comparison"),
+        choices=("suite", "input", "observation", "report", "comparison", "claim"),
         default="suite",
     )
     schema.add_argument("--output", type=Path)
@@ -103,6 +111,35 @@ def _build_parser() -> argparse.ArgumentParser:
     publish.add_argument("--output-dir", type=Path, required=True)
     publish.add_argument("--unavailable", action="append", default=[])
     publish.add_argument("--provisional", action="store_true")
+
+    claim = actions.add_parser("claim", help="fail-closed public-claim evidence gates").add_subparsers(
+        dest="claim_action", required=True
+    )
+    claim_check = claim.add_parser("check", help="verify claim readiness without generating claims")
+    claim_check.add_argument("suite", type=Path)
+    claim_check.add_argument("reports", nargs="+", type=Path)
+    claim_check.add_argument("--policy", type=Path, default=Path("bench/claim/policy-v1.yaml"))
+    claim_check.add_argument("--evidence", type=Path)
+    claim_check.add_argument("--output", type=Path)
+    claim_check.add_argument("--markdown", type=Path)
+    claim_check.add_argument("--json", action="store_true")
+
+    challenge = actions.add_parser(
+        "challenge", help="package never-published inputs separately from private gold"
+    ).add_subparsers(dest="challenge_action", required=True)
+    challenge_export = challenge.add_parser("export", help="split a private suite draft")
+    challenge_export.add_argument("suite", type=Path)
+    challenge_export.add_argument("--challenge", type=Path, required=True)
+    challenge_export.add_argument("--gold", type=Path, required=True)
+    challenge_export.add_argument("--manifest", type=Path, required=True)
+    challenge_export.add_argument("--minimum-cases-per-lane", type=int, default=100)
+    challenge_export.add_argument("--minimum-holdout-cases-per-lane", type=int, default=30)
+    challenge_materialize = challenge.add_parser(
+        "materialize", help="recombine a challenge with decrypted private gold"
+    )
+    challenge_materialize.add_argument("challenge", type=Path)
+    challenge_materialize.add_argument("gold", type=Path)
+    challenge_materialize.add_argument("--output", type=Path, required=True)
     return parser
 
 
@@ -183,6 +220,10 @@ def main(argv: list[str] | None = None) -> int:
             )
             print(f"publication: {output}")
             return 0
+        if args.action == "claim":
+            return _claim(args)
+        if args.action == "challenge":
+            return _challenge(args)
     except (AdapterError, OSError, ValueError, ValidationError) as error:
         print(f"docpull-bench: {error}", file=sys.stderr)
         return 2
@@ -232,6 +273,7 @@ def _schema(kind: str, output: Path | None) -> int:
         "observation": TypeAdapter(RunObservation),
         "report": TypeAdapter(PortableReport),
         "comparison": TypeAdapter(ComparisonReport),
+        "claim": TypeAdapter(ClaimReadinessReport),
     }
     payload = json.dumps(adapters[kind].json_schema(), indent=2)
     if output:
@@ -365,6 +407,49 @@ def _baseline(args: argparse.Namespace) -> int:
         args.output.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(result, indent=2))
     return 0 if passed else 1
+
+
+def _claim(args: argparse.Namespace) -> int:
+    if args.claim_action != "check":
+        raise AssertionError(f"unhandled claim action: {args.claim_action}")
+    result = check_claim_readiness(
+        args.suite,
+        args.reports,
+        policy=ClaimPolicy.from_yaml(args.policy),
+        evidence=ClaimEvidence.from_yaml(args.evidence),
+        evidence_base=args.evidence.parent if args.evidence else None,
+    )
+    markdown = claim_readiness_markdown(result)
+    if args.output:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(result.model_dump_json(indent=2) + "\n", encoding="utf-8")
+    if args.markdown:
+        args.markdown.parent.mkdir(parents=True, exist_ok=True)
+        args.markdown.write_text(markdown, encoding="utf-8")
+    if args.json:
+        print(result.model_dump_json(indent=2))
+    elif not args.markdown:
+        print(markdown, end="")
+    return 0 if result.ready else 1
+
+
+def _challenge(args: argparse.Namespace) -> int:
+    if args.challenge_action == "export":
+        manifest = export_blinded_challenge(
+            args.suite,
+            challenge_path=args.challenge,
+            gold_path=args.gold,
+            manifest_path=args.manifest,
+            minimum_cases_per_lane=args.minimum_cases_per_lane,
+            minimum_holdout_cases_per_lane=args.minimum_holdout_cases_per_lane,
+        )
+        print(manifest.model_dump_json(indent=2))
+        return 0
+    if args.challenge_action == "materialize":
+        suite = materialize_blinded_challenge(args.challenge, args.gold, output_path=args.output)
+        print(f"materialized: {suite.name} {suite.version} ({len(suite.cases)} cases)")
+        return 0
+    raise AssertionError(f"unhandled challenge action: {args.challenge_action}")
 
 
 if __name__ == "__main__":

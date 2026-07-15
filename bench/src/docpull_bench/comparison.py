@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
 import math
+import random
 from collections import defaultdict
 from itertools import combinations
 from pathlib import Path
@@ -72,6 +74,7 @@ def compare_reports(paths: list[Path]) -> ComparisonReport:
     rows.sort(key=lambda row: (row.lane.value, order[row.slice_type], row.slice_value, row.system))
     case_rows.sort(key=lambda row: (row.lane.value, row.case_id, row.system))
     return ComparisonReport(
+        analysis_version="v3-ops-quality-slice-holm-paired-bootstrap",
         suite_name=first.suite_name,
         suite_version=first.suite_version,
         suite_sha256=first.suite_sha256,
@@ -97,6 +100,9 @@ def _comparison_row(
     pass_all = {case_id: all(item.passed for item in items) for case_id, items in by_case.items()}
     passed_count = sum(pass_all.values())
     ci_low, ci_high = wilson_interval(passed_count, len(pass_all))
+    completed_scores = [score for score in scores if score.completed]
+    completion_count = len(completed_scores)
+    completion_low, completion_high = wilson_interval(completion_count, len(scores))
     family_rates = [
         mean(float(pass_all[case_id]) for case_id in pass_all if by_case[case_id][0].family == family)
         for family in sorted({score.family for score in scores})
@@ -128,6 +134,12 @@ def _comparison_row(
         accounted_cost_usd=cost,
         cost_per_passing_case_usd=cost / passed_count if passed_count else None,
         latency_comparable=latency_comparable,
+        completion_ci95_low=completion_low,
+        completion_ci95_high=completion_high,
+        quality_eligible_trials=completion_count,
+        quality_pass_rate_completed=(
+            mean(float(score.passed) for score in completed_scores) if completed_scores else 0
+        ),
     )
 
 
@@ -197,6 +209,10 @@ def _pairwise_rows(rows: list[ComparisonCaseRow]) -> list[PairwiseComparisonRow]
                 b_only = sum(b and not a for a, b in outcomes)
                 neither = len(common) - both - a_only - b_only
                 p_value = exact_mcnemar(a_only, b_only)
+                delta_low, delta_high = paired_bootstrap_interval(
+                    outcomes,
+                    seed=f"{lane.value}:{slice_type}:{slice_value}:{system_a}:{system_b}",
+                )
                 output.append(
                     PairwiseComparisonRow(
                         lane=lane,
@@ -213,6 +229,9 @@ def _pairwise_rows(rows: list[ComparisonCaseRow]) -> list[PairwiseComparisonRow]
                         exact_mcnemar_p_value=p_value,
                         holm_adjusted_p_value=p_value,
                         verdict="no_significant_difference",
+                        pass_rate_delta_ci95_low=delta_low,
+                        pass_rate_delta_ci95_high=delta_high,
+                        discordant_cases=a_only + b_only,
                     )
                 )
     return output
@@ -221,13 +240,17 @@ def _pairwise_rows(rows: list[ComparisonCaseRow]) -> list[PairwiseComparisonRow]
 def _holm_adjust(rows: list[PairwiseComparisonRow]) -> list[PairwiseComparisonRow]:
     if not rows:
         return rows
-    ordered = sorted(enumerate(rows), key=lambda pair: pair[1].exact_mcnemar_p_value)
     adjusted: list[float] = [1.0] * len(rows)
-    running = 0.0
-    count = len(rows)
-    for rank, (original_index, row) in enumerate(ordered):
-        running = max(running, min(1.0, (count - rank) * row.exact_mcnemar_p_value))
-        adjusted[original_index] = running
+    families: dict[tuple[Lane, str, str], list[tuple[int, PairwiseComparisonRow]]] = defaultdict(list)
+    for index, row in enumerate(rows):
+        families[(row.lane, row.slice_type, row.slice_value)].append((index, row))
+    for family in families.values():
+        ordered = sorted(family, key=lambda pair: pair[1].exact_mcnemar_p_value)
+        running = 0.0
+        count = len(ordered)
+        for rank, (original_index, row) in enumerate(ordered):
+            running = max(running, min(1.0, (count - rank) * row.exact_mcnemar_p_value))
+            adjusted[original_index] = running
     output: list[PairwiseComparisonRow] = []
     for index, row in enumerate(rows):
         verdict: Literal["a_better", "b_better", "no_significant_difference"]
@@ -267,6 +290,26 @@ def exact_mcnemar(a_only: int, b_only: int) -> float:
     return float(min(1.0, 2 * tail))
 
 
+def paired_bootstrap_interval(
+    outcomes: list[tuple[bool, bool]], *, seed: str, resamples: int = 5000
+) -> tuple[float, float]:
+    """Deterministic paired bootstrap interval for the pass-rate effect size."""
+    if not outcomes:
+        return (0.0, 0.0)
+    random_seed = int.from_bytes(hashlib.sha256(seed.encode()).digest()[:8], "big")
+    generator = random.Random(random_seed)
+    count = len(outcomes)
+    deltas = [
+        sum(
+            int(outcomes[index][0]) - int(outcomes[index][1])
+            for index in (generator.randrange(count) for _ in range(count))
+        )
+        / count
+        for _ in range(resamples)
+    ]
+    return (percentile(deltas, 0.025), percentile(deltas, 0.975))
+
+
 def comparison_markdown(report: ComparisonReport) -> str:
     lines = [
         f"# {report.suite_name} comparison",
@@ -276,8 +319,9 @@ def comparison_markdown(report: ComparisonReport) -> str:
         "",
         "Every pass requires all lane assertions. No cross-lane composite or winner is computed.",
         "",
-        "| Lane | System | Cases | Trial pass | pass@k | pass^k | Stability | Checks | p50/p95 s | Cost |",
-        "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+        "| Lane | System | Cases | Ops | Quality (completed) | Strict trial pass | "
+        "pass@k | pass^k | Stability | Checks | p50/p95 s | Cost |",
+        "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
     ]
     for row in report.rows:
         if row.slice_type != "overall":
@@ -286,7 +330,8 @@ def comparison_markdown(report: ComparisonReport) -> str:
         if not row.latency_comparable:
             latency += " (not comparable)"
         lines.append(
-            f"| {row.lane.value} | {row.system} | {row.case_count} | {row.trial_pass_rate:.1%} | "
+            f"| {row.lane.value} | {row.system} | {row.case_count} | {row.completion_rate:.1%} | "
+            f"{row.quality_pass_rate_completed:.1%} | {row.trial_pass_rate:.1%} | "
             f"{row.pass_any_trial_rate:.1%} | {row.pass_all_trials_rate:.1%} | "
             f"{row.trial_stability_rate:.1%} | {row.mean_required_check_rate:.1%} | "
             f"{latency} | ${row.accounted_cost_usd:.6f} |"
@@ -297,15 +342,21 @@ def comparison_markdown(report: ComparisonReport) -> str:
             "Paired tests use exact McNemar p-values with Holm correction. A non-significant result "
             "does not establish equivalence.",
             "",
-            "| Lane | A | B | Cases | Delta | Exact p | Holm p | Verdict |",
-            "| --- | --- | --- | ---: | ---: | ---: | ---: | --- |",
+            "Holm correction is scoped to the compared systems within each declared slice; "
+            "exploratory family slices do not dilute the overall hypothesis family.",
+            "",
+            "| Lane | A | B | Cases | Delta (95% paired bootstrap CI) | Discordant | "
+            "Exact p | Holm p | Verdict |",
+            "| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | --- |",
         ]
     )
     for pair in report.pairwise:
         if pair.slice_type == "overall":
             lines.append(
                 f"| {pair.lane.value} | {pair.system_a} | {pair.system_b} | {pair.common_cases} | "
-                f"{pair.pass_rate_delta:+.1%} | {pair.exact_mcnemar_p_value:.4f} | "
+                f"{pair.pass_rate_delta:+.1%} ({pair.pass_rate_delta_ci95_low:+.1%} to "
+                f"{pair.pass_rate_delta_ci95_high:+.1%}) | {pair.discordant_cases} | "
+                f"{pair.exact_mcnemar_p_value:.4f} | "
                 f"{pair.holm_adjusted_p_value:.4f} | {pair.verdict} |"
             )
     return "\n".join(lines) + "\n"

@@ -58,7 +58,14 @@ def publish_results(
     (output_dir / "comparison.json").write_text(comparison.model_dump_json(indent=2) + "\n", encoding="utf-8")
     (output_dir / "COMPARISON.md").write_text(comparison_markdown(comparison), encoding="utf-8")
     (output_dir / "METHODOLOGY.md").write_text(
-        _methodology(suite, reports, comparison.protocol_sha256, provisional), encoding="utf-8"
+        _methodology(
+            suite,
+            reports,
+            comparison.protocol_sha256,
+            comparison.analysis_version,
+            provisional,
+        ),
+        encoding="utf-8",
     )
     (output_dir / "README.md").write_text(_readme(suite, provisional, unavailable or []), encoding="utf-8")
     hashes = {
@@ -74,6 +81,7 @@ def publish_results(
         "suite_version": suite.version,
         "suite_sha256": suite_hash,
         "protocol_sha256": comparison.protocol_sha256,
+        "analysis_version": comparison.analysis_version,
         "source_reports": sources,
         "unavailable_systems": _parse_unavailable(unavailable or []),
         "files": hashes,
@@ -88,6 +96,7 @@ def _methodology(
     suite: BenchmarkSuite,
     reports: list[PortableReport],
     protocol_hash: str,
+    analysis_version: str,
     provisional: bool,
 ) -> str:
     lanes = ", ".join(sorted({case.input.lane.value for case in suite.cases}))
@@ -101,6 +110,7 @@ def _methodology(
         "",
         f"Suite version: `{suite.version}`",
         f"Protocol SHA-256: `{protocol_hash}`",
+        f"Analysis version: `{analysis_version}`",
         f"Lanes: {lanes}",
         "",
         "| System | Version | Revision | Dirty | Environment | Network | Cache | Retry | Trials |",

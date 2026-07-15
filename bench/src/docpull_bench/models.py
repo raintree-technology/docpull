@@ -654,6 +654,10 @@ class ComparisonRow(StrictModel):
     accounted_cost_usd: float = Field(ge=0)
     cost_per_passing_case_usd: float | None = Field(default=None, ge=0)
     latency_comparable: bool
+    completion_ci95_low: float = Field(default=0, ge=0, le=1)
+    completion_ci95_high: float = Field(default=0, ge=0, le=1)
+    quality_eligible_trials: int = Field(default=0, ge=0)
+    quality_pass_rate_completed: float = Field(default=0, ge=0, le=1)
 
 
 class ComparisonCaseRow(StrictModel):
@@ -688,10 +692,14 @@ class PairwiseComparisonRow(StrictModel):
     exact_mcnemar_p_value: float = Field(ge=0, le=1)
     holm_adjusted_p_value: float = Field(ge=0, le=1)
     verdict: Literal["a_better", "b_better", "no_significant_difference"]
+    pass_rate_delta_ci95_low: float = Field(default=0, ge=-1, le=1)
+    pass_rate_delta_ci95_high: float = Field(default=0, ge=-1, le=1)
+    discordant_cases: int = Field(default=0, ge=0)
 
 
 class ComparisonReport(StrictModel):
     schema_version: Literal[2] = 2
+    analysis_version: str = "v2-legacy"
     suite_name: str
     suite_version: str
     suite_sha256: str

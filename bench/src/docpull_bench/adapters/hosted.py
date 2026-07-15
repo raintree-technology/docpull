@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ipaddress
+import json
 import os
 import re
 import time
@@ -137,7 +138,7 @@ class HostedAdapter(ABC):
                 cost_basis="Conservative reservation for one attempted request.",
                 request_count=1,
                 adapter_version=self.version,
-                error=scrub_secrets(f"{type(error).__name__}: {error}"),
+                error=scrub_secrets(f"{type(error).__name__}: {error}", extra_secrets=(api_key,)),
             )
         has_output = bool(
             result.payload.records if isinstance(result.payload, ContentPayload) else result.payload.results
@@ -166,12 +167,16 @@ class HostedAdapter(ABC):
             "retry_policy": self.retry_policy,
             "pricing_snapshot": self.pricing_snapshot,
             "operations": {lane.value: value for lane, value in self.operation_by_lane.items()},
+            "request_profile": self._request_profile(),
             "pricing_entries": {
                 lane.value: self.pricing.public_entry(self._provider_name(), operation)
                 for lane, operation in self.operation_by_lane.items()
             },
-            "maximum_cost_usd": self.ledger.maximum_usd,
+            "budget_policy": "reserve full plan and every attempt; no paid retries",
         }
+
+    def _request_profile(self) -> dict[str, Any]:
+        return {"implementation_version": self.version}
 
     def _provider_name(self) -> str:
         return self.system.split("-", 1)[0].replace("context.dev", "contextdev")
@@ -193,6 +198,16 @@ class TavilyExtractAdapter(HostedAdapter):
     operation_by_lane = {Lane.EXTRACT: "extract_basic"}
     extract_depth = "basic"
 
+    def _request_profile(self) -> dict[str, Any]:
+        return {
+            "method": "POST",
+            "endpoint": TAVILY_EXTRACT_URL,
+            "extract_depth": self.extract_depth,
+            "format": "markdown",
+            "images": False,
+            "usage": True,
+        }
+
     def _execute(self, client: httpx.Client, inputs: BenchmarkInput, api_key: str) -> _ProviderResult:
         assert isinstance(inputs, ExtractInput)
         response = client.post(
@@ -208,7 +223,7 @@ class TavilyExtractAdapter(HostedAdapter):
                 "include_usage": True,
             },
         )
-        payload = _response_object(response, self.system)
+        payload = _response_object(response, self.system, api_key)
         records = [
             ArtifactRecord(
                 url=str(result.get("url") or inputs.url),
@@ -253,6 +268,20 @@ class TavilyCrawlAdapter(HostedAdapter):
     extract_depth = "basic"
     instructions: str | None = None
 
+    def _request_profile(self) -> dict[str, Any]:
+        return {
+            "method": "POST",
+            "endpoint": TAVILY_CRAWL_URL,
+            "extract_depth": self.extract_depth,
+            "instructions": self.instructions,
+            "max_depth": "case bounded 1..5",
+            "max_breadth": "case max_pages bounded 1..500",
+            "limit": "case max_pages",
+            "path_filters": "case regex prefixes",
+            "allow_external": False,
+            "format": "markdown",
+        }
+
     def _provider_name(self) -> str:
         return "tavily"
 
@@ -289,7 +318,7 @@ class TavilyCrawlAdapter(HostedAdapter):
                 "include_usage": True,
             },
         )
-        payload = _response_object(response, self.system)
+        payload = _response_object(response, self.system, api_key)
         records = [
             ArtifactRecord(
                 url=str(result.get("url") or ""),
@@ -324,6 +353,17 @@ class TavilySearchAdapter(HostedAdapter):
     capabilities = frozenset({Lane.SEARCH})
     operation_by_lane = {Lane.SEARCH: "search_advanced"}
 
+    def _request_profile(self) -> dict[str, Any]:
+        return {
+            "method": "POST",
+            "endpoint": TAVILY_SEARCH_URL,
+            "search_depth": "advanced",
+            "max_results": "case bounded",
+            "domain_filters": "case supplied",
+            "answer": False,
+            "raw_content": False,
+        }
+
     def _provider_name(self) -> str:
         return "tavily"
 
@@ -343,7 +383,7 @@ class TavilySearchAdapter(HostedAdapter):
                 "include_usage": True,
             },
         )
-        payload = _response_object(response, self.system)
+        payload = _response_object(response, self.system, api_key)
         results = [
             RankedResult(
                 identity=str(item.get("url") or ""),
@@ -372,6 +412,15 @@ class ExaContentsAdapter(HostedAdapter):
     operation_by_lane = {Lane.EXTRACT: "contents_text"}
     text_options: bool | dict[str, Any] = True
 
+    def _request_profile(self) -> dict[str, Any]:
+        return {
+            "method": "POST",
+            "endpoint": EXA_CONTENTS_URL,
+            "urls": "one case URL",
+            "text": self.text_options,
+            "max_age_hours": 0,
+        }
+
     def _execute(self, client: httpx.Client, inputs: BenchmarkInput, api_key: str) -> _ProviderResult:
         assert isinstance(inputs, ExtractInput)
         response = client.post(
@@ -379,7 +428,7 @@ class ExaContentsAdapter(HostedAdapter):
             headers={"x-api-key": api_key},
             json={"urls": [inputs.url], "text": self.text_options, "maxAgeHours": 0},
         )
-        payload = _response_object(response, self.system)
+        payload = _response_object(response, self.system, api_key)
         records = [
             ArtifactRecord(
                 url=str(result.get("url") or result.get("id") or inputs.url),
@@ -418,6 +467,16 @@ class ExaSearchAdapter(HostedAdapter):
     capabilities = frozenset({Lane.SEARCH})
     operation_by_lane = {Lane.SEARCH: "search"}
 
+    def _request_profile(self) -> dict[str, Any]:
+        return {
+            "method": "POST",
+            "endpoint": EXA_SEARCH_URL,
+            "type": "auto",
+            "num_results": "case bounded",
+            "domain_filters": "case supplied",
+            "text_max_characters": 2000,
+        }
+
     def _provider_name(self) -> str:
         return "exa"
 
@@ -432,7 +491,7 @@ class ExaSearchAdapter(HostedAdapter):
         if inputs.include_domains:
             body["includeDomains"] = inputs.include_domains
         response = client.post(EXA_SEARCH_URL, headers={"x-api-key": api_key}, json=body)
-        payload = _response_object(response, self.system)
+        payload = _response_object(response, self.system, api_key)
         results = [
             RankedResult(
                 identity=str(item.get("url") or item.get("id") or ""),
@@ -463,6 +522,16 @@ class ParallelFullExtractAdapter(HostedAdapter):
     capabilities = frozenset({Lane.EXTRACT})
     operation_by_lane = {Lane.EXTRACT: "extract"}
 
+    def _request_profile(self) -> dict[str, Any]:
+        return {
+            "method": "POST",
+            "endpoint": PARALLEL_EXTRACT_URL,
+            "urls": "one case URL",
+            "full_content": True,
+            "max_age_seconds": 600,
+            "cache_fallback": True,
+        }
+
     def _execute(self, client: httpx.Client, inputs: BenchmarkInput, api_key: str) -> _ProviderResult:
         assert isinstance(inputs, ExtractInput)
         response = client.post(
@@ -480,7 +549,7 @@ class ParallelFullExtractAdapter(HostedAdapter):
                 },
             },
         )
-        payload = _response_object(response, self.system)
+        payload = _response_object(response, self.system, api_key)
         records = []
         for item in _object_list(payload.get("results")):
             excerpts = item.get("excerpts")
@@ -512,6 +581,16 @@ class ParallelSearchAdapter(HostedAdapter):
     capabilities = frozenset({Lane.SEARCH})
     operation_by_lane = {Lane.SEARCH: "search"}
 
+    def _request_profile(self) -> dict[str, Any]:
+        return {
+            "method": "POST",
+            "endpoint": PARALLEL_SEARCH_URL,
+            "mode": "one objective and one search query",
+            "max_results": "case bounded",
+            "domain_filters": "case supplied",
+            "excerpts": True,
+        }
+
     def _provider_name(self) -> str:
         return "parallel"
 
@@ -530,7 +609,7 @@ class ParallelSearchAdapter(HostedAdapter):
                 "advanced_settings": advanced_settings,
             },
         )
-        payload = _response_object(response, self.system)
+        payload = _response_object(response, self.system, api_key)
         results = [
             RankedResult(
                 identity=str(item.get("url") or ""),
@@ -557,6 +636,18 @@ class FirecrawlScrapeAdapter(HostedAdapter):
     capabilities = frozenset({Lane.EXTRACT})
     operation_by_lane = {Lane.EXTRACT: "scrape"}
 
+    def _request_profile(self) -> dict[str, Any]:
+        return {
+            "method": "POST",
+            "endpoint": FIRECRAWL_SCRAPE_URL,
+            "formats": ["markdown"],
+            "main_content": True,
+            "clean_content": False,
+            "cache": False,
+            "proxy": "basic",
+            "tls_verification": True,
+        }
+
     def _execute(self, client: httpx.Client, inputs: BenchmarkInput, api_key: str) -> _ProviderResult:
         assert isinstance(inputs, ExtractInput)
         response = client.post(
@@ -576,7 +667,7 @@ class FirecrawlScrapeAdapter(HostedAdapter):
                 "timeout": max(1000, min(round(inputs.timeout_seconds * 1000), 300000)),
             },
         )
-        payload = _response_object(response, self.system)
+        payload = _response_object(response, self.system, api_key)
         data = _object(payload.get("data"))
         metadata = _object(data.get("metadata"))
         content = str(data.get("markdown") or "")
@@ -610,6 +701,21 @@ class FirecrawlCrawlAdapter(HostedAdapter):
     api_key_env = "FIRECRAWL_API_KEY"
     capabilities = frozenset({Lane.CRAWL})
     operation_by_lane = {Lane.CRAWL: "crawl_page"}
+
+    def _request_profile(self) -> dict[str, Any]:
+        return {
+            "method": "POST then bounded status polling",
+            "endpoint": FIRECRAWL_CRAWL_URL,
+            "path_filters": "case pathname regex prefixes",
+            "depth_and_limit": "case bounded",
+            "sitemap": "skip",
+            "robots": "enforced",
+            "external_links": False,
+            "subdomains": False,
+            "page_concurrency": 1,
+            "format": "markdown",
+            "cache": False,
+        }
 
     def _provider_name(self) -> str:
         return "firecrawl"
@@ -656,7 +762,7 @@ class FirecrawlCrawlAdapter(HostedAdapter):
                 },
             },
         )
-        created = _response_object(response, self.system)
+        created = _response_object(response, self.system, api_key)
         job_id = str(created.get("id") or "").strip()
         if not job_id:
             raise AdapterError("firecrawl crawl response omitted the job id")
@@ -670,7 +776,7 @@ class FirecrawlCrawlAdapter(HostedAdapter):
                 headers={"Authorization": f"Bearer {api_key}"},
             )
             request_count += 1
-            payload = _response_object(status_response, self.system)
+            payload = _response_object(status_response, self.system, api_key)
             status = str(payload.get("status") or "").casefold()
             if status in {"completed", "failed", "cancelled"}:
                 break
@@ -716,6 +822,16 @@ class FirecrawlSearchAdapter(HostedAdapter):
     capabilities = frozenset({Lane.SEARCH})
     operation_by_lane = {Lane.SEARCH: "search_10_results"}
 
+    def _request_profile(self) -> dict[str, Any]:
+        return {
+            "method": "POST",
+            "endpoint": FIRECRAWL_SEARCH_URL,
+            "sources": ["web"],
+            "limit": "case bounded",
+            "domain_filters": "case supplied",
+            "scrape_content": False,
+        }
+
     def _provider_name(self) -> str:
         return "firecrawl"
 
@@ -741,7 +857,7 @@ class FirecrawlSearchAdapter(HostedAdapter):
             headers={"Authorization": f"Bearer {api_key}"},
             json=body,
         )
-        payload = _response_object(response, self.system)
+        payload = _response_object(response, self.system, api_key)
         data = _object(payload.get("data"))
         results = [
             RankedResult(
@@ -772,6 +888,15 @@ class ContextMarkdownAdapter(HostedAdapter):
     capabilities = frozenset({Lane.EXTRACT})
     operation_by_lane = {Lane.EXTRACT: "markdown"}
 
+    def _request_profile(self) -> dict[str, Any]:
+        return {
+            "method": "GET",
+            "endpoint": CONTEXT_MARKDOWN_URL,
+            "links": True,
+            "images": False,
+            "main_content": True,
+        }
+
     def _provider_name(self) -> str:
         return "contextdev"
 
@@ -788,7 +913,7 @@ class ContextMarkdownAdapter(HostedAdapter):
                 "timeoutMs": str(max(1, min(round(inputs.timeout_seconds * 1000), 300000))),
             },
         )
-        payload = _response_object(response, self.system)
+        payload = _response_object(response, self.system, api_key)
         content = str(payload.get("markdown") or "")
         metadata = _object(payload.get("metadata"))
         records = (
@@ -823,6 +948,17 @@ class ContextCrawlAdapter(HostedAdapter):
     capabilities = frozenset({Lane.CRAWL})
     operation_by_lane = {Lane.CRAWL: "crawl_page"}
 
+    def _request_profile(self) -> dict[str, Any]:
+        return {
+            "method": "POST",
+            "endpoint": CONTEXT_CRAWL_URL,
+            "depth_and_limit": "case bounded",
+            "path_filters": "case regex prefixes",
+            "main_content": True,
+            "subdomains": False,
+            "cache": False,
+        }
+
     def _provider_name(self) -> str:
         return "contextdev"
 
@@ -849,7 +985,7 @@ class ContextCrawlAdapter(HostedAdapter):
                 "includeFrames": False,
             },
         )
-        payload = _response_object(response, self.system)
+        payload = _response_object(response, self.system, api_key)
         pages = _object_list(payload.get("pages") or payload.get("results"))
         records = [
             ArtifactRecord(
@@ -920,15 +1056,40 @@ def _require_api_key(name: str, explicit: str | None) -> str:
     return value
 
 
-def _response_object(response: httpx.Response, system: str) -> dict[str, Any]:
+def _response_object(response: httpx.Response, system: str, secret: str) -> dict[str, Any]:
     if response.is_error:
-        raise AdapterError(f"{system} returned HTTP {response.status_code}; response body omitted")
+        detail = _bounded_error_detail(response, secret)
+        suffix = f"; detail={detail}" if detail else "; response body omitted"
+        raise AdapterError(f"{system} returned HTTP {response.status_code}{suffix}")
     if len(response.content) > MAX_RESPONSE_BYTES:
         raise AdapterError(f"{system} response exceeds {MAX_RESPONSE_BYTES} bytes")
     payload = response.json()
     if not isinstance(payload, dict):
         raise AdapterError("provider returned a non-object JSON response")
     return payload
+
+
+def _bounded_error_detail(response: httpx.Response, secret: str) -> str:
+    """Keep schema diagnostics while excluding arbitrary provider response bodies."""
+    if len(response.content) > min(MAX_RESPONSE_BYTES, 64 * 1024):
+        return ""
+    try:
+        payload = response.json()
+    except ValueError:
+        return ""
+    if not isinstance(payload, dict):
+        return ""
+    selected = {
+        key: payload[key]
+        for key in ("error", "message", "details", "code")
+        if key in payload and isinstance(payload[key], str | int | float | bool | list | dict)
+    }
+    if not selected:
+        return ""
+    detail = json.dumps(selected, sort_keys=True, default=str)
+    if secret:
+        detail = detail.replace(secret, "[REDACTED]")
+    return scrub_secrets(detail, limit=500, extra_secrets=(secret,))
 
 
 def _object(value: Any) -> dict[str, Any]:

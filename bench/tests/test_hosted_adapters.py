@@ -75,6 +75,26 @@ def test_exa_uses_provider_reported_actual_cost(tmp_path: Path) -> None:
     assert observation.cost_kind == "actual"
 
 
+def test_transport_errors_scrub_explicit_api_key(tmp_path: Path) -> None:
+    secret = "explicit-test-key-that-must-not-escape"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ReadError(f"transport diagnostic included {secret}", request=request)
+
+    adapter = TavilyExtractAdapter(
+        max_cost_usd=0.008,
+        api_key=secret,
+        transport=httpx.MockTransport(handler),
+    )
+    adapter.preflight([_extract()], repeat=1)
+    observation = adapter.run(_extract(), tmp_path)
+
+    assert observation.status == "failed"
+    assert observation.error is not None
+    assert secret not in observation.error
+    assert "[REDACTED]" in observation.error
+
+
 @pytest.mark.parametrize(
     ("factory", "response"),
     [
@@ -279,6 +299,16 @@ def test_firecrawl_search_returns_ranked_web_results(tmp_path: Path) -> None:
     assert observation.payload and observation.payload.kind == "search"
 
 
+def test_public_protocol_config_is_budget_independent_and_request_specific() -> None:
+    small = TavilyExtractAdapter(max_cost_usd=0.008, api_key="test-key")
+    large = TavilyExtractAdapter(max_cost_usd=8.0, api_key="test-key")
+    assert small.public_config() == large.public_config()
+    profile = small.public_config()["request_profile"]
+    assert profile["endpoint"] == "https://api.tavily.com/extract"
+    assert profile["extract_depth"] == "basic"
+    assert "maximum_cost_usd" not in small.public_config()
+
+
 def test_budget_exhaustion_happens_before_credentials_or_requests() -> None:
     requests = 0
 
@@ -333,6 +363,35 @@ def test_http_errors_are_bounded_and_secret_scrubbed(tmp_path: Path) -> None:
     assert "response body omitted" in (observation.error or "")
     assert "secret-key" not in (observation.error or "")
     assert observation.attempt_count == 1
+
+
+def test_structured_http_error_keeps_bounded_schema_diagnostics(tmp_path: Path) -> None:
+    adapter = FirecrawlCrawlAdapter(
+        max_cost_usd=0.018,
+        api_key="secret-key",
+        transport=httpx.MockTransport(
+            lambda _: httpx.Response(
+                400,
+                json={
+                    "error": "invalid request for secret-key",
+                    "details": {"field": "maxConcurrency"},
+                    "ignored": "raw page content must not enter the report",
+                },
+            )
+        ),
+    )
+    inputs = CrawlInput(
+        case_id="crawl.example",
+        lane="crawl",
+        url="https://example.com/docs",
+        max_pages=3,
+        max_depth=1,
+    )
+    adapter.preflight([inputs], repeat=1)
+    observation = adapter.run(inputs, tmp_path)
+    assert "maxConcurrency" in (observation.error or "")
+    assert "secret-key" not in (observation.error or "")
+    assert "raw page content" not in (observation.error or "")
 
 
 def test_oversized_provider_response_is_rejected(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

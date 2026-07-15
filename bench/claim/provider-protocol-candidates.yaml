@@ -1,0 +1,50 @@
+schema_version: 1
+as_of: "2026-07-14"
+status: candidate-configurations-require-external-signature
+interpretation: >-
+  These are reproducible request profiles backed by first-party documentation.
+  They are not provider endorsements or signed protocol attestations.
+protocols:
+  tavily-extract-basic:
+    endpoint: https://api.tavily.com/extract
+    documentation: https://docs.tavily.com/documentation/api-reference/endpoint/extract
+    profile: one URL, basic Markdown, images disabled, usage enabled
+  tavily-crawl-basic:
+    endpoint: https://api.tavily.com/crawl
+    documentation: https://docs.tavily.com/documentation/api-reference/endpoint/crawl
+    profile: bounded depth/breadth/limit, selected paths, no external links, basic Markdown
+  tavily-search-advanced:
+    endpoint: https://api.tavily.com/search
+    documentation: https://docs.tavily.com/documentation/api-reference/endpoint/search
+    profile: advanced search, ten results, requested domain filters, no generated answer
+  exa-contents-full:
+    endpoint: https://api.exa.ai/contents
+    documentation: https://exa.ai/docs/reference/contents-retrieval
+    profile: one URL, full text, live crawl always, cache disabled
+  exa-search:
+    endpoint: https://api.exa.ai/search
+    documentation: https://exa.ai/docs/reference/search
+    profile: automatic search, ten results, requested domain filters, text excerpts
+  parallel-extract:
+    endpoint: https://api.parallel.ai/v1/extract
+    documentation: https://docs.parallel.ai/api-reference/extract
+    profile: one URL, full content, 10-minute freshness, provider cache fallback enabled
+  parallel-search:
+    endpoint: https://api.parallel.ai/v1/search
+    documentation: https://docs.parallel.ai/api-reference/search
+    profile: objective plus one search query, ten excerpts, requested domain filters
+  firecrawl-scrape:
+    endpoint: https://api.firecrawl.dev/v2/scrape
+    documentation: https://docs.firecrawl.dev/api-reference/endpoint/scrape
+    profile: Markdown, main content, basic proxy, cache disabled, TLS verification enabled
+  firecrawl-crawl:
+    endpoint: https://api.firecrawl.dev/v2/crawl
+    documentation: https://docs.firecrawl.dev/api-reference/endpoint/crawl-post
+    profile: bounded path-regex crawl, sitemap skipped, robots enforced, no external links
+    known_issue: >-
+      July 14 live attempts returned HTTP 400 followed by account-level HTTP 429 responses;
+      a successful conformance run is required before this protocol can be attested.
+  firecrawl-search:
+    endpoint: https://api.firecrawl.dev/v2/search
+    documentation: https://docs.firecrawl.dev/api-reference/endpoint/search
+    profile: web-only search, ten results, requested domain filters, no page scraping

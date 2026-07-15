@@ -14,8 +14,11 @@ _SENSITIVE_QUERY_RE = re.compile(
 )
 
 
-def scrub_secrets(value: str, *, limit: int = 4000) -> str:
+def scrub_secrets(value: str, *, limit: int = 4000, extra_secrets: tuple[str, ...] = ()) -> str:
     text = _BEARER_RE.sub("Bearer [REDACTED]", value)
+    for secret in extra_secrets:
+        if len(secret) >= 4:
+            text = text.replace(secret, "[REDACTED]")
     for name, secret in os.environ.items():
         if _SECRET_NAME_RE.search(name) and len(secret) >= 4:
             text = text.replace(secret, "[REDACTED]")

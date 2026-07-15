@@ -34,6 +34,14 @@ on:
           - firecrawl-search
           - contextdev
           - contextdev-crawl
+      purpose:
+        description: Exploratory run or candidate public-claim evidence
+        required: true
+        default: exploratory
+        type: choice
+        options:
+          - exploratory
+          - claim-evidence
       repeat:
         description: Trial count
         required: true
@@ -63,11 +71,11 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
-      TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
-      EXA_API_KEY: ${{ secrets.EXA_API_KEY }}
-      PARALLEL_API_KEY: ${{ secrets.PARALLEL_API_KEY }}
-      FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
-      CONTEXT_DEV_API_KEY: ${{ secrets.CONTEXT_DEV_API_KEY }}
+      TAVILY_API_KEY: ${{ startsWith(inputs.adapter, 'tavily') && secrets.TAVILY_API_KEY || '' }}
+      EXA_API_KEY: ${{ startsWith(inputs.adapter, 'exa') && secrets.EXA_API_KEY || '' }}
+      PARALLEL_API_KEY: ${{ startsWith(inputs.adapter, 'parallel') && secrets.PARALLEL_API_KEY || '' }}
+      FIRECRAWL_API_KEY: ${{ startsWith(inputs.adapter, 'firecrawl') && secrets.FIRECRAWL_API_KEY || '' }}
+      CONTEXT_DEV_API_KEY: ${{ startsWith(inputs.adapter, 'contextdev') && secrets.CONTEXT_DEV_API_KEY || '' }}
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
@@ -89,10 +97,44 @@ jobs:
           SUITE: ${{ inputs.suite }}
           ADAPTER: ${{ inputs.adapter }}
           REPEAT: ${{ inputs.repeat }}
+          PURPOSE: ${{ inputs.purpose }}
           CASE_FILTER: ${{ inputs.case_filter }}
           ENVIRONMENT_LABEL: ${{ inputs.environment_label }}
           MAX_COST_USD: ${{ inputs.max_cost_usd }}
         run: |
+          if [[ ! "$REPEAT" =~ ^[1-9][0-9]*$ ]]; then
+            echo "repeat must be a positive integer" >&2
+            exit 2
+          fi
+          if [[ ! "$MAX_COST_USD" =~ ^([0-9]+([.][0-9]+)?|[.][0-9]+)$ ]]; then
+            echo "max_cost_usd must be a non-negative decimal" >&2
+            exit 2
+          fi
+          if [[ "$PURPOSE" == claim-evidence ]]; then
+            if (( REPEAT < 5 )); then
+              echo "claim-evidence runs require at least five trials" >&2
+              exit 2
+            fi
+            if [[ -n "$CASE_FILTER" ]]; then
+              echo "claim-evidence runs cannot use a case filter" >&2
+              exit 2
+            fi
+            suite_listing="$(
+              uv run --project bench --locked docpull-bench list \
+                bench/cases/"$SUITE" --json
+            )"
+            if ! jq -e '
+              sort_by(.lane)
+              | group_by(.lane)
+              | all(.[];
+                  length >= 100
+                  and ([.[] | select(.split == "test")] | length) >= 30
+                )
+            ' <<< "$suite_listing" > /dev/null; then
+              echo "claim-evidence runs require 100 cases and 30 test cases per lane" >&2
+              exit 2
+            fi
+          fi
           case "$ADAPTER" in
             docpull) SYSTEM=docpull ;;
             tavily) SYSTEM=tavily ;;

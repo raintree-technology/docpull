@@ -1,0 +1,19 @@
+# This is a shape example, not evidence. Zero hashes and example signatures can
+# never satisfy `docpull-bench claim check` for a real suite.
+schema_version: 1
+holdout:
+  suite_sha256: 0000000000000000000000000000000000000000000000000000000000000000
+  gold_sha256: 0000000000000000000000000000000000000000000000000000000000000000
+  held_case_ids:
+    - example.test.001
+  origin: never_published
+  encryption: external_vault
+  ciphertext_sha256: 0000000000000000000000000000000000000000000000000000000000000000
+  sealed_at: "2026-07-14T00:00:00Z"
+  opened_at: null
+  custodian_identity_sha256: 0000000000000000000000000000000000000000000000000000000000000000
+  signature_method: gpg
+  signature_reference: signatures/holdout.asc
+reviews: []
+protocols: []
+billing: []

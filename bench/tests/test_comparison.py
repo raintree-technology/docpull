@@ -1,12 +1,19 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Literal
 
 import pytest
 
 from docpull_bench.adapters import ReplayAdapter
-from docpull_bench.comparison import compare_reports, comparison_markdown, exact_mcnemar
-from docpull_bench.models import PortableReport
+from docpull_bench.comparison import (
+    _holm_adjust,
+    compare_reports,
+    comparison_markdown,
+    exact_mcnemar,
+    paired_bootstrap_interval,
+)
+from docpull_bench.models import Lane, PairwiseComparisonRow, PortableReport
 from docpull_bench.runner import run_suite
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -68,3 +75,52 @@ def test_latency_comparability_requires_environment_and_cache_match(tmp_path: Pa
     paths[1].write_text(changed.model_dump_json(), encoding="utf-8")
     comparison = compare_reports(paths)
     assert not any(row.latency_comparable for row in comparison.rows)
+
+
+def _pair(
+    slice_type: Literal["overall", "split", "family"], slice_value: str, p_value: float
+) -> PairwiseComparisonRow:
+    return PairwiseComparisonRow(
+        lane=Lane.EXTRACT,
+        slice_type=slice_type,
+        slice_value=slice_value,
+        system_a="a",
+        system_b="b",
+        common_cases=100,
+        both_pass=70,
+        a_only_pass=20,
+        b_only_pass=5,
+        neither_pass=5,
+        pass_rate_delta=0.15,
+        exact_mcnemar_p_value=p_value,
+        holm_adjusted_p_value=p_value,
+        verdict="no_significant_difference",
+    )
+
+
+def test_holm_correction_does_not_mix_exploratory_slices_into_overall_claims() -> None:
+    rows = [_pair("overall", "all", 0.01), _pair("overall", "all", 0.02)]
+    rows.extend(_pair("family", f"family-{index}", 0.001) for index in range(20))
+    adjusted = _holm_adjust(rows)
+    assert adjusted[0].holm_adjusted_p_value == pytest.approx(0.02)
+    assert adjusted[1].holm_adjusted_p_value == pytest.approx(0.02)
+    assert all(row.holm_adjusted_p_value == 0.001 for row in adjusted[2:])
+
+
+def test_paired_bootstrap_interval_is_deterministic_and_contains_effect() -> None:
+    outcomes = [(True, False)] * 20 + [(False, True)] * 5 + [(True, True)] * 75
+    first = paired_bootstrap_interval(outcomes, seed="fixed")
+    second = paired_bootstrap_interval(outcomes, seed="fixed")
+    assert first == second
+    assert first[0] <= 0.15 <= first[1]
+
+
+def test_comparison_separates_operational_success_from_completed_output_quality() -> None:
+    base = ROOT / "results" / "manual" / "2026-07-14-live-search-v2" / "reports"
+    comparison = compare_reports([base / "exa-search.report.json", base / "firecrawl-search.report.json"])
+    row = next(
+        item for item in comparison.rows if item.slice_type == "overall" and item.system == "firecrawl-search"
+    )
+    assert row.completion_rate == pytest.approx(59 / 60)
+    assert row.quality_eligible_trials == 59
+    assert row.quality_pass_rate_completed > row.trial_pass_rate
