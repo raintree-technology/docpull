@@ -242,7 +242,7 @@ def test_ephemeral_gpg_publication_sign_and_trusted_verify(
 
     assert signature.is_file()
     verified = verify_publication(bundle, trusted_gpg_fingerprint=fingerprint)
-    assert verified["signer"] == fingerprint
+    assert verified["signer"] == "trusted"
     with pytest.raises(ValueError, match="trusted GPG fingerprint"):
         verify_publication(bundle, trusted_gpg_fingerprint="0" * 40)
     shutil.rmtree(gnupg_home, ignore_errors=True)

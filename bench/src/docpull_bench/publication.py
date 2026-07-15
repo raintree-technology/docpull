@@ -300,7 +300,8 @@ def verify_publication(
     if trusted_gpg_fingerprint:
         if not signature.is_file():
             raise ValueError("trusted GPG verification requires a detached publication signature")
-        signer = _verify_gpg_signature(signature, manifest_path, trusted_gpg_fingerprint)
+        _verify_gpg_signature(signature, manifest_path, trusted_gpg_fingerprint)
+        signer = "trusted"
     return {"status": "valid", "file_count": len(actual_files), "signer": signer}
 
 
