@@ -215,7 +215,13 @@ def _run_command_gates(
             "required",
         ),
         ("pip_audit", [python, "-m", "pip_audit"], repo, 240, "required"),
-        ("package_build", [python, "-m", "build", "--no-isolation"], repo, 300, "required"),
+        (
+            "package_build",
+            [python, "scripts/build_release.py", "--verify-reproducible"],
+            repo,
+            300,
+            "required",
+        ),
         (
             "twine_check",
             [
