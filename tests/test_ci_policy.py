@@ -97,7 +97,7 @@ def test_ci_builds_checks_and_smoke_installs_distribution() -> None:
     assert "\n  package:\n" in ci
     assert "python scripts/sync_release_metadata.py --check" in ci
     assert "python -m pip install -r requirements-release.txt" in ci
-    assert "python -m build --no-isolation" in ci
+    assert "python scripts/build_release.py --verify-reproducible" in ci
     assert "python -m twine check dist/*" in ci
     assert "python -m venv .pkg-smoke" in ci
     assert ".pkg-smoke/bin/python -m pip install dist/*.whl" in ci
@@ -109,7 +109,7 @@ def test_publish_workflow_builds_artifact_before_unlocked_release_gates() -> Non
     build_section, gate_and_publish = publish.split("\n  release-gates:\n", 1)
     gate_section, publish_section = gate_and_publish.split("\n  publish:\n", 1)
 
-    assert "python -m build --no-isolation" in build_section
+    assert "python scripts/build_release.py --verify-reproducible" in build_section
     assert "actions/upload-artifact" in build_section
     assert "if-no-files-found: error" in build_section
     assert "retention-days: 7" in build_section
