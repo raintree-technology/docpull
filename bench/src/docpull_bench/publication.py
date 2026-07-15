@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -74,7 +75,7 @@ def publish_results(
         if path.is_file()
     }
     manifest = {
-        "schema_version": 2,
+        "schema_version": 3,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "status": "provisional-not-current-evidence-not-for-marketing" if provisional else "data-only",
         "suite_name": suite.name,
@@ -94,6 +95,109 @@ def publish_results(
         json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
     return output_dir
+
+
+def sign_publication(bundle: Path, *, key: str | None = None) -> Path:
+    bundle = bundle.resolve()
+    verify_publication(bundle)
+    manifest = bundle / "publication.manifest.json"
+    signature = bundle / "publication.manifest.json.asc"
+    if signature.exists():
+        raise ValueError("publication signature already exists")
+    command = ["gpg", "--batch", "--yes", "--armor", "--detach-sign", "--output", str(signature)]
+    if key:
+        command.extend(["--local-user", key])
+    command.append(str(manifest))
+    try:
+        result = subprocess.run(command, capture_output=True, check=False, timeout=30)
+    except (OSError, subprocess.TimeoutExpired) as error:
+        raise ValueError("GPG publication signing failed") from error
+    if result.returncode != 0 or not signature.is_file():
+        signature.unlink(missing_ok=True)
+        raise ValueError("GPG publication signing failed")
+    return signature
+
+
+def verify_publication(
+    bundle: Path,
+    *,
+    trusted_gpg_fingerprint: str | None = None,
+) -> dict[str, str | int]:
+    bundle = bundle.resolve()
+    manifest_path = bundle / "publication.manifest.json"
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise ValueError("publication manifest is missing or invalid") from error
+    if not isinstance(manifest, dict) or manifest.get("schema_version") != 3:
+        raise ValueError("publication manifest must use schema version 3")
+    expected_hashes = manifest.get("files")
+    if not isinstance(expected_hashes, dict) or not all(
+        isinstance(path, str) and isinstance(digest, str) for path, digest in expected_hashes.items()
+    ):
+        raise ValueError("publication manifest file map is invalid")
+    actual_files = {
+        str(path.relative_to(bundle))
+        for path in bundle.rglob("*")
+        if path.is_file() and path.name not in {"publication.manifest.json", "publication.manifest.json.asc"}
+    }
+    if actual_files != set(expected_hashes):
+        missing = sorted(set(expected_hashes) - actual_files)
+        extra = sorted(actual_files - set(expected_hashes))
+        raise ValueError(f"publication file set mismatch; missing={missing} extra={extra}")
+    for relative, expected in expected_hashes.items():
+        path = (bundle / relative).resolve()
+        if bundle not in path.parents or _file_sha256(path) != expected:
+            raise ValueError(f"publication file hash mismatch: {relative}")
+
+    report_paths = sorted((bundle / "reports").glob("*.report.json"))
+    if len(report_paths) < 2:
+        raise ValueError("publication must contain at least two portable reports")
+    for path in report_paths:
+        PortableReport.model_validate_json(path.read_text(encoding="utf-8"))
+    comparison = compare_reports(report_paths)
+    stored_comparison = json.loads((bundle / "comparison.json").read_text(encoding="utf-8"))
+    if comparison.model_dump(mode="json") != stored_comparison:
+        raise ValueError("publication comparison does not match regenerated report analysis")
+    suite_path = bundle / "suite.yaml"
+    BenchmarkSuite.from_yaml(suite_path)
+    if _file_sha256(suite_path) != manifest.get("suite_sha256"):
+        raise ValueError("publication suite hash does not match manifest")
+    if comparison.suite_sha256 != manifest.get("suite_sha256"):
+        raise ValueError("publication reports do not match the bundled suite")
+
+    signer = "unsigned"
+    signature = bundle / "publication.manifest.json.asc"
+    if trusted_gpg_fingerprint:
+        if not signature.is_file():
+            raise ValueError("trusted GPG verification requires a detached publication signature")
+        signer = _verify_gpg_signature(
+            signature,
+            manifest_path,
+            trusted_gpg_fingerprint,
+        )
+    return {"status": "valid", "file_count": len(actual_files), "signer": signer}
+
+
+def _verify_gpg_signature(signature: Path, payload: Path, trusted_fingerprint: str) -> str:
+    try:
+        result = subprocess.run(
+            ["gpg", "--batch", "--status-fd", "1", "--verify", str(signature), str(payload)],
+            capture_output=True,
+            check=False,
+            timeout=30,
+        )
+    except (OSError, subprocess.TimeoutExpired) as error:
+        raise ValueError("GPG publication verification failed") from error
+    valid = {
+        line.split()[2].upper()
+        for line in result.stdout.decode(errors="replace").splitlines()
+        if line.startswith("[GNUPG:] VALIDSIG ") and len(line.split()) >= 3
+    }
+    trusted = trusted_fingerprint.replace(" ", "").upper()
+    if result.returncode != 0 or trusted not in valid:
+        raise ValueError("publication signature is not from the trusted GPG fingerprint")
+    return trusted
 
 
 def _methodology(

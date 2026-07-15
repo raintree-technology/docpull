@@ -14,6 +14,7 @@ import tempfile
 import time
 import uuid
 from collections.abc import Callable
+from contextvars import ContextVar
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal
@@ -29,6 +30,7 @@ BENCH_ROOT = Path(__file__).resolve().parents[2]
 LifecycleCategory = Literal[
     "contract", "provenance", "reproducibility", "diff", "offline", "export", "ci", "policy"
 ]
+_PYTHON_EXECUTABLE: ContextVar[str] = ContextVar("docpull_bench_python", default=sys.executable)
 
 
 class LifecycleCheck(BaseModel):
@@ -64,7 +66,12 @@ class LifecycleError(RuntimeError):
     """A benchmark assertion failed with portable evidence."""
 
 
-def run_lifecycle_case(check: str, *, work_dir: Path) -> dict[str, str | int | float | bool | list[str]]:
+def run_lifecycle_case(
+    check: str,
+    *,
+    work_dir: Path,
+    python_executable: str = sys.executable,
+) -> dict[str, str | int | float | bool | list[str]]:
     """Run one lifecycle assertion for the unified schema-v2 benchmark runner."""
     work_dir.mkdir(parents=True, exist_ok=True)
     fixture_v1 = work_dir / "fixture-v1"
@@ -98,7 +105,11 @@ def run_lifecycle_case(check: str, *, work_dir: Path) -> dict[str, str | int | f
         selected = checks[check]
     except KeyError as error:
         raise LifecycleError(f"unknown lifecycle check: {check}") from error
-    return selected()
+    token = _PYTHON_EXECUTABLE.set(python_executable)
+    try:
+        return selected()
+    finally:
+        _PYTHON_EXECUTABLE.reset(token)
 
 
 def run_lifecycle_benchmark(*, output_dir: Path) -> tuple[LifecycleReport, Path]:
@@ -629,7 +640,7 @@ def _run_cli(
     env: dict[str, str] | None = None,
     network_disabled: bool = False,
 ) -> subprocess.CompletedProcess[str]:
-    command = [sys.executable, "-m", "docpull", *arguments]
+    command = [_PYTHON_EXECUTABLE.get(), "-m", "docpull", *arguments]
     process_env = os.environ.copy()
     process_env.update(env or {})
     if network_disabled:

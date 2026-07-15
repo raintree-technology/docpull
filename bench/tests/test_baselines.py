@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+from pydantic import ValidationError
+
 from docpull_bench.adapters import ReplayAdapter
 from docpull_bench.baselines import check_baseline, update_baseline
 from docpull_bench.models import PortableReport
@@ -32,7 +35,7 @@ def test_baseline_update_is_explicit_and_records_previous_hash(tmp_path: Path) -
     assert not result["blocking_regression"]
 
 
-def test_critical_pass_to_fail_blocks_but_performance_is_advisory(tmp_path: Path) -> None:
+def test_forged_score_outcome_is_rejected_before_baseline_comparison(tmp_path: Path) -> None:
     report_path = _report(tmp_path)
     baseline = tmp_path / "baseline.json"
     update_baseline(report_path, baseline, reason="initial")
@@ -41,13 +44,8 @@ def test_critical_pass_to_fail_blocks_but_performance_is_advisory(tmp_path: Path
     changed_score = first.model_copy(update={"passed": False, "elapsed_seconds": first.elapsed_seconds + 1.0})
     changed = report.model_copy(update={"scores": [changed_score, *report.scores[1:]]})
     report_path.write_text(changed.model_dump_json(), encoding="utf-8")
-    result, passed = check_baseline(report_path, baseline)
-    assert not passed
-    assert result["blocking_regression"]
-    row = next(item for item in result["rows"] if item["case_id"] == first.case_id)
-    assert row["classification"] == "regression"
-    # Performance findings never flip the blocking decision on their own.
-    assert all(not item["blocking"] for item in result["performance_advisories"])
+    with pytest.raises(ValidationError, match="passed must equal"):
+        check_baseline(report_path, baseline)
 
 
 def test_baseline_requires_reason(tmp_path: Path) -> None:

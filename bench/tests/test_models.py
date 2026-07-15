@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from pydantic import TypeAdapter, ValidationError
 
-from docpull_bench.models import BenchmarkInput, BenchmarkSuite, Lane
+from docpull_bench.models import BenchmarkInput, BenchmarkSuite, CaseMetadata, Lane, RightsMetadata
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -57,3 +57,16 @@ def test_gold_never_appears_in_serialized_input() -> None:
     serialized = case.input.model_dump_json()
     assert "extract-marker" not in serialized
     assert "required_terms" not in serialized
+
+
+def test_boundary_scope_requires_a_predeclared_reason() -> None:
+    rights = RightsMetadata(redistribution="allowed", source="fixture")
+    with pytest.raises(ValidationError, match="boundary_reason"):
+        CaseMetadata(description="boundary", comparison_scope="boundary", rights=rights)
+    with pytest.raises(ValidationError, match="cannot declare"):
+        CaseMetadata(
+            description="core",
+            comparison_scope="core",
+            boundary_reason="robots_policy",
+            rights=rights,
+        )

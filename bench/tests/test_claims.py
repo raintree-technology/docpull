@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from pathlib import Path
 
 from docpull_bench.claims import (
@@ -134,15 +135,16 @@ def test_claim_gate_fails_closed_without_external_evidence() -> None:
     assert "# Claim readiness: NOT READY" in claim_readiness_markdown(result)
 
 
-def test_claim_gate_accepts_complete_matching_evidence_under_explicit_policy() -> None:
+def test_claim_gate_rejects_complete_matching_evidence_when_report_is_legacy_v2() -> None:
     result = check_claim_readiness(
         SUITE,
         [REPORT],
         policy=_relaxed_policy(),
         evidence=_evidence(),
     )
-    assert result.ready
-    assert all(check.passed for check in result.checks)
+    assert not result.ready
+    schema_check = next(check for check in result.checks if check.id == "reports.schema_v3")
+    assert not schema_check.passed
     assert len(result.policy_sha256) == 64
     assert len(result.evidence_sha256) == 64
     assert result.report_sha256s["exa-search"] == _sha256(REPORT)
@@ -207,3 +209,33 @@ def test_v2_requires_referenced_protocol_and_billing_evidence(tmp_path: Path) ->
 
     assert not next(item for item in result.checks if item.id == "protocol.exa-search").passed
     assert not next(item for item in result.checks if item.id == "billing.exa-search").passed
+
+
+def test_billing_reconciliation_accepts_only_actual_total_or_reported_upper_bound(
+    tmp_path: Path,
+) -> None:
+    payload = json.loads(REPORT.read_text(encoding="utf-8"))
+    for observation in payload["observations"]:
+        if observation.get("cost_usd") is not None:
+            observation["cost_kind"] = "upper_bound"
+    for score in payload["scores"]:
+        if score.get("cost_usd") is not None:
+            score["cost_kind"] = "upper_bound"
+    path = tmp_path / "upper-bound.report.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    evidence = _evidence()
+
+    def billing_check(actual_cost_usd: float) -> bool:
+        billing = evidence.billing[0].model_copy(
+            update={"report_sha256": _sha256(path), "actual_cost_usd": actual_cost_usd}
+        )
+        result = check_claim_readiness(
+            SUITE,
+            [path],
+            policy=_relaxed_policy(),
+            evidence=evidence.model_copy(update={"billing": [billing]}),
+        )
+        return next(item for item in result.checks if item.id == "billing.exa-search").passed
+
+    assert billing_check(0.41)
+    assert not billing_check(0.43)

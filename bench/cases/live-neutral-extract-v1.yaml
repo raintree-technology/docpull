@@ -16,6 +16,7 @@ cases:
     timeout_seconds: 90
   expected:
     minimum_records: 1
+    maximum_long_token_rate: 0.01
     minimum_content_chars: 8000
     required_terms:
     - More Control Flow Tools
@@ -25,6 +26,7 @@ cases:
     - docs.python.org
     lane: extract
   metadata:
+    comparison_scope: core
     description: Versioned Sphinx tutorial page with code and nested sections.
     split: dev
     family: technical-docs
@@ -50,6 +52,7 @@ cases:
     timeout_seconds: 90
   expected:
     minimum_records: 1
+    maximum_long_token_rate: 0.01
     minimum_content_chars: 10000
     required_terms:
     - Simple Select Processing
@@ -59,6 +62,7 @@ cases:
     - sqlite.org
     lane: extract
   metadata:
+    comparison_scope: core
     description: Large reference page containing railroad diagrams and dense SQL prose.
     split: dev
     family: long-reference
@@ -84,6 +88,7 @@ cases:
     timeout_seconds: 90
   expected:
     minimum_records: 1
+    maximum_long_token_rate: 0.01
     minimum_content_chars: 5000
     required_terms:
     - git-rebase
@@ -93,6 +98,7 @@ cases:
     - git-scm.com
     lane: extract
   metadata:
+    comparison_scope: core
     description: Long manual page with options, code blocks, and version navigation.
     split: dev
     family: long-reference
@@ -119,6 +125,7 @@ cases:
     timeout_seconds: 90
   expected:
     minimum_records: 1
+    maximum_long_token_rate: 0.01
     minimum_content_chars: 2000
     required_terms:
     - Object Names and IDs
@@ -128,6 +135,7 @@ cases:
     - kubernetes.io
     lane: extract
   metadata:
+    comparison_scope: core
     description: Hugo documentation page with navigation, callouts, and anchors.
     split: dev
     family: technical-docs
@@ -153,6 +161,7 @@ cases:
     timeout_seconds: 90
   expected:
     minimum_records: 1
+    maximum_long_token_rate: 0.01
     minimum_content_chars: 4000
     required_terms:
     - Using the Fetch API
@@ -162,6 +171,7 @@ cases:
     - developer.mozilla.org
     lane: extract
   metadata:
+    comparison_scope: core
     description: Content-heavy reference article with examples and broad site chrome.
     split: dev
     family: technical-docs
@@ -187,6 +197,7 @@ cases:
     timeout_seconds: 120
   expected:
     minimum_records: 1
+    maximum_long_token_rate: 0.01
     minimum_content_chars: 20000
     required_terms:
     - Web Content Accessibility Guidelines (WCAG) 2.2
@@ -196,6 +207,8 @@ cases:
     - w3.org
     lane: extract
   metadata:
+    comparison_scope: boundary
+    boundary_reason: robots_policy
     description: Large normative W3C recommendation with deeply nested requirements.
     split: dev
     family: standards
@@ -221,6 +234,7 @@ cases:
     timeout_seconds: 120
   expected:
     minimum_records: 1
+    maximum_long_token_rate: 0.01
     minimum_content_chars: 20000
     required_terms:
     - HTTP Semantics
@@ -230,6 +244,7 @@ cases:
     - rfc-editor.org
     lane: extract
   metadata:
+    comparison_scope: core
     description: Very long standards HTML with cross-references and formal terminology.
     split: dev
     family: standards
@@ -255,6 +270,7 @@ cases:
     timeout_seconds: 60
   expected:
     minimum_records: 1
+    maximum_long_token_rate: 0.01
     minimum_content_chars: 3000
     required_terms:
     - This is Python version 3.13.5
@@ -264,6 +280,7 @@ cases:
     - raw.githubusercontent.com
     lane: extract
   metadata:
+    comparison_scope: core
     description: Immutable tagged reStructuredText source served as plain text.
     split: dev
     family: raw-text
@@ -289,6 +306,7 @@ cases:
     timeout_seconds: 60
   expected:
     minimum_records: 1
+    maximum_long_token_rate: 0.01
     minimum_content_chars: 1500
     required_terms:
     - Kubernetes
@@ -298,6 +316,7 @@ cases:
     - raw.githubusercontent.com
     lane: extract
   metadata:
+    comparison_scope: core
     description: Immutable tagged Markdown README served as plain text.
     split: dev
     family: raw-text
@@ -323,6 +342,7 @@ cases:
     timeout_seconds: 90
   expected:
     minimum_records: 1
+    maximum_long_token_rate: 0.01
     minimum_content_chars: 10000
     required_terms:
     - Grace Hopper
@@ -332,6 +352,8 @@ cases:
     - en.wikipedia.org
     lane: extract
   metadata:
+    comparison_scope: boundary
+    boundary_reason: robots_policy
     description: Long encyclopedic article with infoboxes, citations, and navigation
       noise.
     split: dev
@@ -358,6 +380,7 @@ cases:
     timeout_seconds: 90
   expected:
     minimum_records: 1
+    maximum_long_token_rate: 0.01
     minimum_content_chars: 1500
     required_terms:
     - Attention Is All You Need
@@ -367,6 +390,7 @@ cases:
     - arxiv.org
     lane: extract
   metadata:
+    comparison_scope: core
     description: Research landing page with abstract, author metadata, and links.
     split: dev
     family: long-form
@@ -392,6 +416,7 @@ cases:
     timeout_seconds: 180
   expected:
     minimum_records: 1
+    maximum_long_token_rate: 0.01
     minimum_content_chars: 10000
     required_terms:
     - Attention Is All You Need
@@ -401,6 +426,7 @@ cases:
     - arxiv.org
     lane: extract
   metadata:
+    comparison_scope: core
     description: Multi-column research PDF with equations, tables, and references.
     split: dev
     family: pdf
@@ -426,6 +452,7 @@ cases:
     timeout_seconds: 120
   expected:
     minimum_records: 1
+    maximum_long_token_rate: 0.01
     minimum_content_chars: 2000
     required_terms:
     - Installation
@@ -435,6 +462,7 @@ cases:
     - nextjs.org
     lane: extract
   metadata:
+    comparison_scope: core
     description: Modern Next.js documentation page with a large rendered navigation
       surface.
     split: dev
@@ -461,6 +489,7 @@ cases:
     timeout_seconds: 120
   expected:
     minimum_records: 1
+    maximum_long_token_rate: 0.01
     minimum_content_chars: 1000
     required_terms:
     - Pydantic
@@ -473,6 +502,8 @@ cases:
     - pypi.org
     lane: extract
   metadata:
+    comparison_scope: boundary
+    boundary_reason: managed_access
     description: Public package page that returned a JavaScript client challenge during
       source verification; reported only in the managed-access slice.
     split: dev
@@ -499,6 +530,7 @@ cases:
     timeout_seconds: 60
   expected:
     minimum_records: 1
+    maximum_long_token_rate: 0.01
     minimum_content_chars: 500
     required_terms:
     - 'openapi: 3.0.0'
@@ -508,6 +540,7 @@ cases:
     - raw.githubusercontent.com
     lane: extract
   metadata:
+    comparison_scope: core
     description: Immutable tagged OpenAPI YAML example served as plain text.
     split: dev
     family: raw-text
@@ -534,6 +567,7 @@ cases:
     timeout_seconds: 90
   expected:
     minimum_records: 1
+    maximum_long_token_rate: 0.01
     minimum_content_chars: 10000
     required_terms:
     - The JavaScript Object Notation (JSON) Data Interchange Format
@@ -543,6 +577,7 @@ cases:
     - rfc-editor.org
     lane: extract
   metadata:
+    comparison_scope: core
     description: Plain-text RFC with form-feed pagination and fixed-width formatting.
     split: dev
     family: standards
@@ -568,6 +603,7 @@ cases:
     timeout_seconds: 90
   expected:
     minimum_records: 1
+    maximum_long_token_rate: 0.01
     minimum_content_chars: 4000
     required_terms:
     - Writing your first Django app
@@ -577,6 +613,7 @@ cases:
     - docs.djangoproject.com
     lane: extract
   metadata:
+    comparison_scope: core
     description: Versioned Sphinx tutorial with code, callouts, and navigation.
     split: test
     family: technical-docs
@@ -602,6 +639,7 @@ cases:
     timeout_seconds: 120
   expected:
     minimum_records: 1
+    maximum_long_token_rate: 0.01
     minimum_content_chars: 10000
     required_terms:
     - The Go Programming Language Specification
@@ -611,6 +649,7 @@ cases:
     - go.dev
     lane: extract
   metadata:
+    comparison_scope: core
     description: Long language specification with grammar, code, and anchors.
     split: test
     family: standards
@@ -636,6 +675,7 @@ cases:
     timeout_seconds: 120
   expected:
     minimum_records: 1
+    maximum_long_token_rate: 0.01
     minimum_content_chars: 10000
     required_terms:
     - File system
@@ -645,6 +685,8 @@ cases:
     - nodejs.org
     lane: extract
   metadata:
+    comparison_scope: boundary
+    boundary_reason: robots_policy
     description: Very long generated API reference with stability markers and code.
     split: test
     family: long-reference
@@ -670,6 +712,7 @@ cases:
     timeout_seconds: 90
   expected:
     minimum_records: 1
+    maximum_long_token_rate: 0.01
     minimum_content_chars: 3000
     required_terms:
     - Architectural Fundamentals
@@ -679,6 +722,7 @@ cases:
     - postgresql.org
     lane: extract
   metadata:
+    comparison_scope: core
     description: Versioned database tutorial page with multi-level documentation chrome.
     split: test
     family: technical-docs
@@ -704,6 +748,7 @@ cases:
     timeout_seconds: 90
   expected:
     minimum_records: 1
+    maximum_long_token_rate: 0.01
     minimum_content_chars: 5000
     required_terms:
     - What Is Ownership?
@@ -713,6 +758,7 @@ cases:
     - doc.rust-lang.org
     lane: extract
   metadata:
+    comparison_scope: core
     description: mdBook chapter with code, side navigation, and semantic headings.
     split: test
     family: technical-docs
@@ -738,6 +784,7 @@ cases:
     timeout_seconds: 120
   expected:
     minimum_records: 1
+    maximum_long_token_rate: 0.01
     minimum_content_chars: 5000
     required_terms:
     - What is Docker?
@@ -747,6 +794,7 @@ cases:
     - docs.docker.com
     lane: extract
   metadata:
+    comparison_scope: core
     description: Modern documentation page with extensive navigation and embedded
       UI scripts.
     split: test
@@ -773,6 +821,7 @@ cases:
     timeout_seconds: 120
   expected:
     minimum_records: 1
+    maximum_long_token_rate: 0.01
     minimum_content_chars: 10000
     required_terms:
     - JSON Schema Core
@@ -782,6 +831,7 @@ cases:
     - json-schema.org
     lane: extract
   metadata:
+    comparison_scope: core
     description: Long technical specification with formal vocabulary and anchors.
     split: test
     family: standards
@@ -807,6 +857,7 @@ cases:
     timeout_seconds: 120
   expected:
     minimum_records: 1
+    maximum_long_token_rate: 0.01
     minimum_content_chars: 10000
     required_terms:
     - OpenAPI Specification
@@ -816,6 +867,7 @@ cases:
     - spec.openapis.org
     lane: extract
   metadata:
+    comparison_scope: core
     description: Versioned long-form API standard with tables and schema fragments.
     split: test
     family: standards
@@ -841,6 +893,7 @@ cases:
     timeout_seconds: 120
   expected:
     minimum_records: 1
+    maximum_long_token_rate: 0.01
     minimum_content_chars: 10000
     required_terms:
     - 'ECMAScript Language: Lexical Grammar'
@@ -850,6 +903,7 @@ cases:
     - tc39.es
     lane: extract
   metadata:
+    comparison_scope: core
     description: Dense generated standards page containing grammar productions and
       algorithms.
     split: test
@@ -876,6 +930,7 @@ cases:
     timeout_seconds: 90
   expected:
     minimum_records: 1
+    maximum_long_token_rate: 0.01
     minimum_content_chars: 2000
     required_terms:
     - Serialization framework
@@ -885,6 +940,7 @@ cases:
     - docs.rs
     lane: extract
   metadata:
+    comparison_scope: core
     description: Versioned rustdoc crate landing page with source navigation.
     split: test
     family: technical-docs
@@ -910,6 +966,7 @@ cases:
     timeout_seconds: 90
   expected:
     minimum_records: 1
+    maximum_long_token_rate: 0.01
     minimum_content_chars: 5000
     required_terms:
     - 'NumPy: the absolute basics for beginners'
@@ -919,6 +976,7 @@ cases:
     - numpy.org
     lane: extract
   metadata:
+    comparison_scope: core
     description: Versioned PyData Sphinx tutorial with equations, code, and navigation.
     split: test
     family: technical-docs
@@ -944,6 +1002,7 @@ cases:
     timeout_seconds: 90
   expected:
     minimum_records: 1
+    maximum_long_token_rate: 0.01
     minimum_content_chars: 5000
     required_terms:
     - First Steps
@@ -953,6 +1012,7 @@ cases:
     - fastapi.tiangolo.com
     lane: extract
   metadata:
+    comparison_scope: core
     description: Material for MkDocs tutorial with code tabs, sponsors, and annotations.
     split: test
     family: technical-docs
@@ -978,6 +1038,7 @@ cases:
     timeout_seconds: 90
   expected:
     minimum_records: 1
+    maximum_long_token_rate: 0.01
     minimum_content_chars: 3000
     required_terms:
     - Tutorial
@@ -987,6 +1048,7 @@ cases:
     - docs.astral.sh
     lane: extract
   metadata:
+    comparison_scope: core
     description: Modern MkDocs documentation with tabs and code snippets.
     split: test
     family: technical-docs
@@ -1012,6 +1074,7 @@ cases:
     timeout_seconds: 90
   expected:
     minimum_records: 1
+    maximum_long_token_rate: 0.01
     minimum_content_chars: 3000
     required_terms:
     - Beginner’s Guide
@@ -1021,6 +1084,7 @@ cases:
     - nginx.org
     lane: extract
   metadata:
+    comparison_scope: core
     description: Compact hand-authored guide with configuration snippets.
     split: test
     family: technical-docs
@@ -1046,6 +1110,7 @@ cases:
     timeout_seconds: 120
   expected:
     minimum_records: 1
+    maximum_long_token_rate: 0.01
     minimum_content_chars: 10000
     required_terms:
     - curl - transfer a URL
@@ -1055,6 +1120,7 @@ cases:
     - curl.se
     lane: extract
   metadata:
+    comparison_scope: core
     description: Very long generated command manual with hundreds of options.
     split: test
     family: long-reference
@@ -1080,6 +1146,7 @@ cases:
     timeout_seconds: 180
   expected:
     minimum_records: 1
+    maximum_long_token_rate: 0.01
     minimum_content_chars: 10000
     required_terms:
     - 'Ray: A Distributed Framework'
@@ -1089,6 +1156,7 @@ cases:
     - usenix.org
     lane: extract
   metadata:
+    comparison_scope: core
     description: Multi-column conference paper PDF with figures, tables, and references.
     split: test
     family: pdf

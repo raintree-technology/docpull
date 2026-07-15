@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import importlib.metadata
 import json
 import shutil
 import subprocess
@@ -46,10 +45,7 @@ class DocPullAdapter:
     """Exercise the user-visible DocPull surface without private module imports."""
 
     system = "docpull"
-    try:
-        version = importlib.metadata.version("docpull")
-    except importlib.metadata.PackageNotFoundError:
-        version = "unknown"
+    version = "unknown"
     capabilities = frozenset(
         {
             Lane.EXTRACT,
@@ -66,7 +62,12 @@ class DocPullAdapter:
     retry_policy = "docpull_public_defaults"
     pricing_snapshot: str | None = None
 
-    def __init__(self) -> None:
+    def __init__(self, *, python_executable: Path | None = None) -> None:
+        # Virtualenv launchers are commonly symlinks to a shared base Python.
+        # Resolving that symlink escapes the selected environment and defeats
+        # clean-wheel subject isolation, so retain the absolute launcher path.
+        self.python_executable = str((python_executable or Path(sys.executable)).expanduser().absolute())
+        self.version = _installed_docpull_version(self.python_executable)
         self._fixture_lock = threading.Lock()
         self._retrieval_packs: dict[Path, Path] = {}
 
@@ -89,6 +90,7 @@ class DocPullAdapter:
             "browser": False,
             "remote_documents": "pdf",
             "remote_document_backend": "auto",
+            "python_executable_basename": Path(self.python_executable).name,
         }
 
     def run(self, inputs: BenchmarkInput, output_root: Path) -> RunObservation:
@@ -119,7 +121,7 @@ class DocPullAdapter:
         output_root: Path,
     ) -> RunObservation:
         command = [
-            sys.executable,
+            self.python_executable,
             "-m",
             "docpull",
             inputs.url,
@@ -165,7 +167,7 @@ class DocPullAdapter:
     def _parse(self, inputs: ParseInput, case_dir: Path, output_root: Path) -> RunObservation:
         backend = "text" if inputs.backend == "builtin" else inputs.backend
         command = [
-            sys.executable,
+            self.python_executable,
             "-m",
             "docpull",
             "parse",
@@ -213,7 +215,7 @@ class DocPullAdapter:
         if fixture_records.exists() and not (pack / "documents.ndjson").exists():
             process, setup_elapsed = _run(
                 [
-                    sys.executable,
+                    self.python_executable,
                     "-m",
                     "docpull",
                     "parse",
@@ -234,7 +236,7 @@ class DocPullAdapter:
             and inputs.action == "validate"
             and inputs.contract_level in {"agent", "eval"}
         ):
-            prepare = [sys.executable, "-m", "docpull", "pack", "prepare", str(pack)]
+            prepare = [self.python_executable, "-m", "docpull", "pack", "prepare", str(pack)]
             if inputs.contract_level == "eval":
                 prepare.append("--eval-grade")
             process, prepare_elapsed = _run(prepare, timeout=inputs.timeout_seconds)
@@ -242,7 +244,7 @@ class DocPullAdapter:
         if inputs.action == "validate":
             output = case_dir / "validation.json"
             command = [
-                sys.executable,
+                self.python_executable,
                 "-m",
                 "docpull",
                 "pack",
@@ -256,13 +258,13 @@ class DocPullAdapter:
                 str(output),
             ]
         elif inputs.action == "prepare":
-            command = [sys.executable, "-m", "docpull", "pack", "prepare", str(pack)]
+            command = [self.python_executable, "-m", "docpull", "pack", "prepare", str(pack)]
             if inputs.contract_level == "eval":
                 command.append("--eval-grade")
         else:
             destination = case_dir / "export"
             command = [
-                sys.executable,
+                self.python_executable,
                 "-m",
                 "docpull",
                 "export",
@@ -307,7 +309,11 @@ class DocPullAdapter:
     def _lifecycle(self, inputs: LifecycleInput, case_dir: Path) -> RunObservation:
         started = time.perf_counter()
         try:
-            details = run_lifecycle_case(inputs.check, work_dir=case_dir / "work")
+            details = run_lifecycle_case(
+                inputs.check,
+                work_dir=case_dir / "work",
+                python_executable=self.python_executable,
+            )
         except Exception as error:  # noqa: BLE001 - benchmark outcome
             return RunObservation(
                 case_id=inputs.case_id,
@@ -343,7 +349,7 @@ class DocPullAdapter:
             return _unsupported(self, inputs)
         output = case_dir / "diff.json"
         command = [
-            sys.executable,
+            self.python_executable,
             "-m",
             "docpull",
             "pack",
@@ -396,7 +402,7 @@ class DocPullAdapter:
             )
         output = case_dir / "search.json"
         command = [
-            sys.executable,
+            self.python_executable,
             "-m",
             "docpull",
             "pack",
@@ -455,7 +461,7 @@ class DocPullAdapter:
             pack = output_root / "_context_retrieval_pack"
             documents = sorted(path for path in source.iterdir() if path.is_file())
             command = [
-                sys.executable,
+                self.python_executable,
                 "-m",
                 "docpull",
                 "parse",
@@ -482,7 +488,7 @@ class DocPullAdapter:
             return self._lifecycle(lifecycle, case_dir)
         if inputs.scenario == "zero_budget":
             command = [
-                sys.executable,
+                self.python_executable,
                 "-m",
                 "docpull",
                 "render",
@@ -497,7 +503,7 @@ class DocPullAdapter:
             ]
         elif inputs.scenario == "private_target":
             command = [
-                sys.executable,
+                self.python_executable,
                 "-m",
                 "docpull",
                 inputs.target_url or "https://127.0.0.1/private",
@@ -509,7 +515,7 @@ class DocPullAdapter:
             ]
         elif inputs.scenario == "malformed_config" and inputs.fixture_path:
             command = [
-                sys.executable,
+                self.python_executable,
                 "-m",
                 "docpull",
                 "policy",
@@ -690,3 +696,20 @@ def _unsupported(adapter: DocPullAdapter, inputs: BenchmarkInput) -> RunObservat
         adapter_version=adapter.version,
         error=f"DocPull public CLI does not claim the {inputs.lane.value} lane/configuration.",
     )
+
+
+def _installed_docpull_version(python_executable: str) -> str:
+    process = subprocess.run(
+        [
+            python_executable,
+            "-c",
+            "import importlib.metadata; print(importlib.metadata.version('docpull'))",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=10,
+    )
+    if process.returncode != 0 or not process.stdout.strip():
+        raise ValueError("--docpull-python does not provide an installed docpull distribution")
+    return process.stdout.strip()

@@ -116,7 +116,7 @@ def test_malformed_observation_fails_schema_validation() -> None:
         )
 
 
-def test_extract_term_matching_tolerates_formatting_artifacts_but_not_missing_terms() -> None:
+def test_extract_term_matching_tolerates_punctuation_but_rejects_fused_terms() -> None:
     suite = BenchmarkSuite.from_yaml(ROOT / "cases" / "live-neutral-extract-v1.yaml")
     case = next(item for item in suite.cases if item.id == "test.pdf.ray-paper")
     observation = RunObservation(
@@ -140,18 +140,89 @@ def test_extract_term_matching_tolerates_formatting_artifacts_but_not_missing_te
         adapter_version="test",
     )
 
-    assert score_observation(case, observation).passed
-    missing = observation.model_copy(
+    assert not score_observation(case, observation).passed
+    separated = observation.model_copy(
         update={
             "payload": ContentPayload(
                 records=[
                     ArtifactRecord(
                         url=case.input.url,
-                        content="Ray: A Distributed Framework." + (" supporting evidence" * 700),
+                        content=(
+                            "Ray: A Distributed Framework. Reinforcement learning workloads use "
+                            "distributed-systems." + (" supporting evidence" * 700)
+                        ),
                     )
                 ],
                 selected_urls=[case.input.url],
             )
         }
     )
-    assert not score_observation(case, missing).passed
+    assert score_observation(case, separated).passed
+
+
+def test_explicit_line_break_hyphenation_is_repaired() -> None:
+    suite = BenchmarkSuite.from_yaml(ROOT / "cases" / "live-neutral-extract-v1.yaml")
+    case = next(item for item in suite.cases if item.id == "test.pdf.ray-paper")
+    observation = RunObservation(
+        case_id=case.id,
+        system="docpull",
+        status="completed",
+        payload=ContentPayload(
+            records=[
+                ArtifactRecord(
+                    url=case.input.url,
+                    content=(
+                        "Ray: A Distributed Framework. Reinforce-\nment learning workloads use "
+                        "distributed systems." + (" supporting evidence" * 700)
+                    ),
+                )
+            ],
+            selected_urls=[case.input.url],
+        ),
+        elapsed_seconds=0.1,
+        adapter_version="test",
+    )
+
+    assert score_observation(case, observation).passed
+
+
+def test_optional_content_quality_assertions_are_deterministic() -> None:
+    original = next(case for case in _cases() if case.input.lane is Lane.EXTRACT)
+    expected = original.expected.model_copy(
+        update={
+            "minimum_records": 1,
+            "minimum_content_chars": 20,
+            "maximum_content_chars": 500,
+            "required_terms": ["openapi: 3.0.0"],
+            "forbidden_terms": ["secret"],
+            "required_ordered_terms": ["openapi", "value"],
+            "maximum_long_token_rate": 0.0,
+            "minimum_markdown_links": 1,
+            "minimum_fenced_code_blocks": 1,
+            "minimum_markdown_table_rows": 2,
+            "required_urls": [],
+            "allowed_domains": [],
+            "required_headings": [],
+        }
+    )
+    case = original.model_copy(update={"expected": expected})
+    content = (
+        "OpenAPI: 3.0.0\n\n[Specification](https://example.com/spec)\n\n"
+        '```json\n{"ok": true}\n```\n\n| Name | Value |\n| --- | --- |\n'
+    )
+    observation = RunObservation(
+        case_id=case.id,
+        system="fixture",
+        status="completed",
+        payload=ContentPayload(records=[ArtifactRecord(url=case.input.url, content=content)]),
+        elapsed_seconds=0.1,
+        adapter_version="test",
+    )
+
+    score = score_observation(case, observation)
+
+    assert score.passed
+    assert score.metrics["markdown_links"] == 1
+    assert score.metrics["fenced_code_blocks"] == 1
+    assert score.metrics["markdown_table_rows"] == 2
+    assert score.metrics["long_token_rate"] == 0.0

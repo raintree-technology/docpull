@@ -1912,12 +1912,12 @@
     }
   },
   "environment_label": "local",
-  "previous_sha256": "6c7ae36c68dfc751b02b20c52bbdb114523d6b089fde355a9b187baec98c120a",
-  "protocol_sha256": "669ea459cf36f3f702b377488ee7c18ec1912c14ca461f02c63d18648bb5181a",
-  "reason": "Refresh after deterministic encrypted/OCR PDF fixtures and scorer-version protocol binding",
+  "previous_sha256": "6cf972022da3ca80dbcd757addafead9aec2261fa362f940f0c363002919f9a0",
+  "protocol_sha256": "f22d41f3b5df7c1a9f4d9cc5a61af98b513d68fbdec3ba49aea5aefda1385278",
+  "reason": "scorer v4 and portable report v3 integrity remediation",
   "schema_version": 2,
-  "source_report_sha256": "af2d5a495ae0d5b58a60b714e2e46ca1bb440edb5ba8510aad96c9ae3ccc1e60",
+  "source_report_sha256": "b4eb08033405283fb15795c09f12e84c2f077c44daeac8628d918f30bc8d7d88",
   "suite_sha256": "21ea6cca08e27dcb7f52d1ebc6b38f969949240576ac9b6a1b13a1aa3374d639",
   "system": "fixture",
-  "updated_at": "2026-07-15T02:53:30.703929+00:00"
+  "updated_at": "2026-07-15T04:57:34.843445+00:00"
 }

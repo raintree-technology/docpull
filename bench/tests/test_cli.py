@@ -35,3 +35,12 @@ def test_context_alias_selects_all_supported_context_contract_lanes(
     assert args.repeat == 2
     assert args.max_concurrency == 3
     assert args.network_isolation == "enforced"
+
+
+def test_claim_grade_validation_retains_external_holdout_sample_gate() -> None:
+    with pytest.raises(ValueError, match="too few cases"):
+        cli._validate_suite(
+            Path("bench/cases/live-neutral-extract-v1.yaml"),
+            allow_stale=False,
+            claim_grade=True,
+        )

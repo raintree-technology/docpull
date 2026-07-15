@@ -98,6 +98,7 @@ def compare_reports(paths: list[Path]) -> ComparisonReport:
         protocol_sha256=first.protocol_sha256,
         scorer_version=first.scorer_version,
         system_count=len(reports),
+        source_report_schema_versions=[report.schema_version for report in reports],
         boundary_cases=boundary_cases,
         rows=rows,
         case_rows=case_rows,
@@ -279,16 +280,22 @@ def _pairwise_rows(rows: list[ComparisonCaseRow]) -> list[PairwiseComparisonRow]
 
 
 def _boundary_cases(reports: list[PortableReport]) -> dict[str, list[str]]:
-    reasons: dict[str, set[str]] = defaultdict(set)
+    classifications: dict[str, set[tuple[str, str | None]]] = defaultdict(set)
     for report in reports:
-        for score in report.scores:
-            if score.family == "managed-access":
-                reasons[score.case_id].add("managed-access fixture outside default product boundary")
         for observation in report.observations:
-            error = (observation.error or "").casefold()
-            if "robots.txt" in error or "blocked by robots" in error:
-                reasons[observation.case_id].add("robots policy blocked acquisition")
-    return {case_id: sorted(values) for case_id, values in sorted(reasons.items())}
+            scope = observation.comparison_scope or "core"
+            classifications[observation.case_id].add((scope, observation.boundary_reason))
+    conflicts = sorted(case_id for case_id, values in classifications.items() if len(values) != 1)
+    if conflicts:
+        raise ValueError(
+            "reports contain conflicting predeclared scope classifications for: " + ", ".join(conflicts)
+        )
+    return {
+        case_id: [reason]
+        for case_id, values in sorted(classifications.items())
+        for scope, reason in values
+        if scope == "boundary" and reason is not None
+    }
 
 
 def _holm_adjust(rows: list[PairwiseComparisonRow]) -> list[PairwiseComparisonRow]:

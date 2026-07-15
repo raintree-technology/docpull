@@ -51,33 +51,38 @@ from .models import (
 )
 
 _SPACE_RE = re.compile(r"\s+")
-_NON_WORD_RE = re.compile(r"[^\w]+", re.UNICODE)
-SCORER_VERSION = "v3-format-tolerant-concept-matching"
+_LINE_BREAK_HYPHEN_RE = re.compile(r"(?<=\w)-[ \t]*\r?\n[ \t]*(?=\w)")
+_TOKEN_RE = re.compile(r"\w+", re.UNICODE)
+_ALPHA_TOKEN_RE = re.compile(r"[^\W\d_]+", re.UNICODE)
+_MARKDOWN_LINK_RE = re.compile(r"\[[^\]\n]+\]\([^\s)]+(?:\s+[^)]*)?\)")
+_FENCE_LINE_RE = re.compile(r"(?m)^\s*(`{3,}|~{3,})")
+_TABLE_ROW_RE = re.compile(r"(?m)^\s*\|[^\n]+\|\s*$")
+SCORER_VERSION = "v4-token-boundary-quality-assertions"
 
 
 def _normalized_text(value: str) -> str:
-    return _SPACE_RE.sub(" ", value).strip().casefold()
+    repaired = _LINE_BREAK_HYPHEN_RE.sub("", value)
+    return _SPACE_RE.sub(" ", repaired).strip().casefold()
 
 
-def _compact_text(value: str) -> str:
-    return _NON_WORD_RE.sub("", _normalized_text(value))
+def _tokens(value: str) -> list[str]:
+    return _TOKEN_RE.findall(_normalized_text(value))
 
 
 def _term_present(combined: str, term: str) -> bool:
-    normalized = _normalized_text(term)
-    if normalized in combined:
-        return True
-    compact_term = _compact_text(normalized)
-    return len(compact_term) >= 8 and compact_term in _compact_text(combined)
+    return _term_position(combined, term) >= 0
 
 
 def _term_position(combined: str, term: str) -> int:
-    normalized = _normalized_text(term)
-    position = combined.find(normalized)
-    if position >= 0:
-        return position
-    compact_term = _compact_text(normalized)
-    return _compact_text(combined).find(compact_term) if len(compact_term) >= 8 else -1
+    haystack = _tokens(combined)
+    needle = _tokens(term)
+    if not needle:
+        return -1
+    width = len(needle)
+    return next(
+        (index for index in range(len(haystack) - width + 1) if haystack[index : index + width] == needle),
+        -1,
+    )
 
 
 def _normalized_url(value: str) -> str:
@@ -158,7 +163,8 @@ def _content_checks(
     expected: ExtractExpected | CrawlExpected | ParseExpected,
 ) -> tuple[list[AssertionResult], dict[str, MetricValue]]:
     records = _records(observation)
-    combined = _normalized_text("\n".join(record.content for record in records))
+    raw_combined = "\n".join(record.content for record in records)
+    combined = _normalized_text(raw_combined)
     content_chars = sum(len(record.content) for record in records)
     assertions = [
         _assert("status.completed", observation.status == "completed", actual=observation.status),
@@ -175,6 +181,15 @@ def _content_checks(
             expected=expected.minimum_content_chars,
         ),
     ]
+    if expected.maximum_content_chars is not None:
+        assertions.append(
+            _assert(
+                "content.maximum_chars",
+                content_chars <= expected.maximum_content_chars,
+                actual=content_chars,
+                expected=expected.maximum_content_chars,
+            )
+        )
     required_terms = [_normalized_text(term) for term in expected.required_terms]
     forbidden_terms = [_normalized_text(term) for term in expected.forbidden_terms]
     term_found = sum(_term_present(combined, term) for term in required_terms)
@@ -183,11 +198,47 @@ def _content_checks(
         assertions.append(_assert(f"term.required:{term}", _term_present(combined, term)))
     for term in forbidden_terms:
         assertions.append(_assert(f"term.forbidden:{term}", not _term_present(combined, term)))
+    positions = [_term_position(combined, term) for term in expected.required_ordered_terms]
+    if expected.required_ordered_terms:
+        assertions.append(
+            _assert(
+                "content.required_order",
+                all(position >= 0 for position in positions) and positions == sorted(positions),
+            )
+        )
+    alpha_tokens = [token for token in _TOKEN_RE.findall(raw_combined) if _ALPHA_TOKEN_RE.fullmatch(token)]
+    long_token_rate = (
+        sum(len(token) >= 25 for token in alpha_tokens) / len(alpha_tokens) if alpha_tokens else 0.0
+    )
+    if expected.maximum_long_token_rate is not None:
+        assertions.append(
+            _assert(
+                "content.maximum_long_token_rate",
+                long_token_rate <= expected.maximum_long_token_rate,
+                actual=long_token_rate,
+                expected=expected.maximum_long_token_rate,
+            )
+        )
+    markdown_links = len(_MARKDOWN_LINK_RE.findall(raw_combined))
+    fenced_code_blocks = len(_FENCE_LINE_RE.findall(raw_combined)) // 2
+    markdown_table_rows = len(_TABLE_ROW_RE.findall(raw_combined))
+    for name, actual, minimum in (
+        ("markdown.links", markdown_links, expected.minimum_markdown_links),
+        ("markdown.fenced_code_blocks", fenced_code_blocks, expected.minimum_fenced_code_blocks),
+        ("markdown.table_rows", markdown_table_rows, expected.minimum_markdown_table_rows),
+    ):
+        if minimum:
+            assertions.append(_assert(f"{name}.minimum", actual >= minimum, actual=actual, expected=minimum))
     metrics: dict[str, MetricValue] = {
         "record_count": len(records),
         "content_chars": content_chars,
         "term_coverage": _ratio(term_found, len(required_terms)),
         "forbidden_term_cleanliness": _ratio(forbidden_absent, len(forbidden_terms)),
+        "ordered_term_recovery": _ratio(sum(position >= 0 for position in positions), len(positions)),
+        "long_token_rate": long_token_rate,
+        "markdown_links": markdown_links,
+        "fenced_code_blocks": fenced_code_blocks,
+        "markdown_table_rows": markdown_table_rows,
     }
     return assertions, metrics
 
@@ -252,15 +303,9 @@ def _score_parse(case: BenchmarkCase, observation: RunObservation) -> CaseScore:
         )
     assertions, metrics = _content_checks(case, observation, expected)
     records = _records(observation)
-    combined = _normalized_text("\n".join(record.content for record in records))
-    positions = [_term_position(combined, term) for term in expected.required_ordered_terms]
-    order_ok = all(position >= 0 for position in positions) and positions == sorted(positions)
-    if expected.required_ordered_terms:
-        assertions.append(_assert("content.required_order", order_ok))
     for key, value in expected.required_metadata.items():
         found = any(str(record.metadata.get(key)) == value for record in records)
         assertions.append(_assert(f"metadata.required:{key}", found, expected=value))
-    metrics["ordered_term_recovery"] = _ratio(sum(position >= 0 for position in positions), len(positions))
     return _finalize(case, observation, assertions, metrics)
 
 
@@ -452,7 +497,7 @@ def _score_search(case: BenchmarkCase, observation: RunObservation) -> CaseScore
         "\n".join(f"{result.url or ''} {result.title} {result.excerpt}" for result in results)
     )
     identifier_coverage = _ratio(
-        sum(_normalized_text(value) in result_text for value in expected.required_identifiers),
+        sum(_term_present(result_text, value) for value in expected.required_identifiers),
         len(expected.required_identifiers),
     )
     assertions = [
@@ -489,7 +534,7 @@ def _score_research(case: BenchmarkCase, observation: RunObservation) -> CaseSco
         value_ok = bool(candidate and candidate.value == claim.value)
         evidence_ok = bool(candidate and set(claim.evidence_ids).issubset(candidate.evidence_ids))
         excerpt_text = _normalized_text("\n".join(candidate.excerpts if candidate else []))
-        excerpt_ok = all(_normalized_text(term) in excerpt_text for term in claim.required_excerpt_terms)
+        excerpt_ok = all(_term_present(excerpt_text, term) for term in claim.required_excerpt_terms)
         value_matches += value_ok
         evidence_matches += evidence_ok
         excerpt_matches += excerpt_ok
@@ -535,7 +580,7 @@ def _score_policy(case: BenchmarkCase, observation: RunObservation) -> CaseScore
         ),
     ]
     assertions.extend(
-        _assert(f"error.required:{term}", _normalized_text(term) in error_text)
+        _assert(f"error.required:{term}", _term_present(error_text, term))
         for term in expected.required_error_terms
     )
     assertions.extend(

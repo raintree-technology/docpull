@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Literal
 
@@ -80,6 +81,32 @@ def test_comparison_requires_identical_scorer_version(tmp_path: Path) -> None:
         compare_reports(paths)
 
 
+def test_comparison_rejects_conflicting_predeclared_scope(tmp_path: Path) -> None:
+    paths = _reports(tmp_path)
+    payload = json.loads(paths[1].read_text(encoding="utf-8"))
+    case_id = payload["observations"][0]["case_id"]
+    for observation in payload["observations"]:
+        if observation["case_id"] == case_id:
+            observation["comparison_scope"] = "boundary"
+            observation["boundary_reason"] = "robots_policy"
+    paths[1].write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="conflicting predeclared scope"):
+        compare_reports(paths)
+
+
+def test_v3_runtime_error_text_cannot_change_core_scope(tmp_path: Path) -> None:
+    paths = _reports(tmp_path)
+    for path in paths:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        payload["observations"][0]["error"] = "blocked by robots.txt"
+        path.write_text(json.dumps(payload), encoding="utf-8")
+
+    comparison = compare_reports(paths)
+
+    assert comparison.boundary_cases == {}
+
+
 def test_latency_comparability_requires_environment_and_cache_match(tmp_path: Path) -> None:
     paths = _reports(tmp_path)
     report = PortableReport.model_validate_json(paths[1].read_text())
@@ -154,26 +181,10 @@ def test_pairwise_quality_verdict_requires_operational_conformance() -> None:
     assert "| crawl | firecrawl-crawl | 8 | 0.0% | N/A |" in markdown
 
 
-def test_comparison_reports_robots_and_managed_access_as_separate_boundaries() -> None:
+def test_legacy_comparison_never_infers_scope_from_runtime_errors() -> None:
     base = ROOT / "results" / "manual" / "2026-07-14-live-neutral-extract-v2" / "reports"
     comparison = compare_reports([base / "docpull.report.json", base / "firecrawl.report.json"])
 
-    assert set(comparison.boundary_cases) == {
-        "dev.access.pypi-pydantic",
-        "dev.long.wikipedia-grace-hopper",
-        "dev.standard.wcag-22",
-        "test.docs.node-filesystem",
-    }
-    core = next(
-        row
-        for row in comparison.rows
-        if row.system == "docpull" and row.slice_type == "scope" and row.slice_value == "core"
-    )
-    boundary = next(
-        row
-        for row in comparison.rows
-        if row.system == "docpull" and row.slice_type == "scope" and row.slice_value == "boundary"
-    )
-    assert core.case_count == 28
-    assert boundary.case_count == 4
-    assert "the evaluator never bypasses robots" in comparison_markdown(comparison)
+    assert comparison.source_report_schema_versions == [2, 2]
+    assert comparison.boundary_cases == {}
+    assert not any(row.slice_type == "scope" for row in comparison.rows)

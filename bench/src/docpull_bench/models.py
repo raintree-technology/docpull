@@ -3,17 +3,21 @@
 from __future__ import annotations
 
 import hashlib
+from collections import defaultdict
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
+from statistics import mean
 from typing import Annotated, Any, Literal, TypeAlias
 from urllib.parse import urlparse
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 MetricValue: TypeAlias = bool | int | float | str | None
+ComparisonScope: TypeAlias = Literal["core", "boundary"]
+BoundaryReason: TypeAlias = Literal["managed_access", "robots_policy", "browser_required", "auth_required"]
 
 
 class StrictModel(BaseModel):
@@ -62,7 +66,7 @@ class CrawlInput(InputBase):
 class ParseInput(InputBase):
     lane: Literal[Lane.PARSE]
     path: str
-    backend: Literal["auto", "builtin", "markitdown", "unstructured"] = "auto"
+    backend: Literal["auto", "builtin", "pypdf", "markitdown", "unstructured"] = "auto"
 
 
 class PackInput(InputBase):
@@ -158,8 +162,14 @@ BenchmarkInput: TypeAlias = Annotated[
 class ExpectedBase(StrictModel):
     minimum_records: int = Field(default=0, ge=0)
     minimum_content_chars: int = Field(default=0, ge=0)
+    maximum_content_chars: int | None = Field(default=None, ge=0)
     required_terms: list[str] = Field(default_factory=list)
     forbidden_terms: list[str] = Field(default_factory=list)
+    required_ordered_terms: list[str] = Field(default_factory=list)
+    maximum_long_token_rate: float | None = Field(default=None, ge=0, le=1)
+    minimum_markdown_links: int = Field(default=0, ge=0)
+    minimum_fenced_code_blocks: int = Field(default=0, ge=0)
+    minimum_markdown_table_rows: int = Field(default=0, ge=0)
 
 
 class ExtractExpected(ExpectedBase):
@@ -179,7 +189,6 @@ class CrawlExpected(ExpectedBase):
 
 class ParseExpected(ExpectedBase):
     lane: Literal[Lane.PARSE]
-    required_ordered_terms: list[str] = Field(default_factory=list)
     required_metadata: dict[str, str] = Field(default_factory=dict)
     expected_status: Literal["completed", "failed", "unsupported"] = "completed"
 
@@ -281,7 +290,17 @@ class CaseMetadata(StrictModel):
     tags: list[str] = Field(default_factory=list)
     reference_checked_at: str | None = None
     reference_expires_at: str | None = None
+    comparison_scope: ComparisonScope = "core"
+    boundary_reason: BoundaryReason | None = None
     rights: RightsMetadata
+
+    @model_validator(mode="after")
+    def validate_scope(self) -> CaseMetadata:
+        if self.comparison_scope == "boundary" and self.boundary_reason is None:
+            raise ValueError("boundary cases require boundary_reason")
+        if self.comparison_scope == "core" and self.boundary_reason is not None:
+            raise ValueError("core cases cannot declare boundary_reason")
+        return self
 
 
 class BenchmarkCase(StrictModel):
@@ -459,13 +478,15 @@ class ArtifactRecordSummary(StrictModel):
 
 
 class ReportObservation(StrictModel):
-    schema_version: Literal[2] = 2
+    schema_version: Literal[2, 3] = 3
     case_id: str
     trial_index: int = Field(default=1, ge=1)
     lane: Lane
     split: Literal["dev", "test"]
     family: str
     critical: bool
+    comparison_scope: ComparisonScope | None = None
+    boundary_reason: BoundaryReason | None = None
     system: str
     status: Literal["completed", "failed", "unsupported", "budget_blocked"]
     payload_summary: dict[str, Any] = Field(default_factory=dict)
@@ -481,6 +502,16 @@ class ReportObservation(StrictModel):
     adapter_version: str
     error: str | None = None
     artifacts: dict[str, str] = Field(default_factory=dict)
+    normalized_output_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    evidence_ciphertext_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+
+    @model_validator(mode="after")
+    def validate_scope(self) -> ReportObservation:
+        if self.comparison_scope == "boundary" and self.boundary_reason is None:
+            raise ValueError("boundary observations require boundary_reason")
+        if self.comparison_scope in {"core", None} and self.boundary_reason is not None:
+            raise ValueError("non-boundary observations cannot declare boundary_reason")
+        return self
 
 
 class AssertionResult(StrictModel):
@@ -508,6 +539,21 @@ class ScoreBase(StrictModel):
     cost_usd: float | None = Field(default=None, ge=0)
     cost_kind: Literal["actual", "estimated", "upper_bound", "unknown"] = "unknown"
     status: Literal["completed", "failed", "unsupported", "budget_blocked"]
+
+    @model_validator(mode="after")
+    def validate_derived_score(self) -> ScoreBase:
+        if not self.assertions:
+            raise ValueError("scores require at least one assertion")
+        expected_completed = self.status == "completed"
+        expected_passed = all(assertion.passed for assertion in self.assertions)
+        expected_rate = sum(assertion.passed for assertion in self.assertions) / len(self.assertions)
+        if self.completed != expected_completed:
+            raise ValueError("completed must be derived from score status")
+        if self.passed != expected_passed:
+            raise ValueError("passed must equal the conjunction of score assertions")
+        if abs(self.required_check_rate - expected_rate) > 1e-12:
+            raise ValueError("required_check_rate must be derived from score assertions")
+        return self
 
 
 class ExtractScore(ScoreBase):
@@ -570,8 +616,37 @@ CaseScore: TypeAlias = Annotated[
 ]
 
 
+class SubjectIdentity(StrictModel):
+    kind: Literal["wheel", "source-tree", "remote-service", "command", "replay"]
+    artifact_basename: str | None = None
+    artifact_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    package_version: str | None = None
+    source_revision: str | None = None
+    clean_build: bool | None = None
+    public_request_profile: dict[str, Any] | None = None
+    public_request_profile_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+
+    @model_validator(mode="after")
+    def validate_identity(self) -> SubjectIdentity:
+        if self.kind == "wheel" and not all(
+            (
+                self.artifact_basename,
+                self.artifact_sha256,
+                self.package_version,
+                self.source_revision,
+                self.clean_build is not None,
+            )
+        ):
+            raise ValueError("wheel subjects require artifact, version, revision, and build cleanliness")
+        if self.kind == "remote-service" and not (
+            self.public_request_profile and self.public_request_profile_sha256
+        ):
+            raise ValueError("remote-service subjects require an exact public request profile and hash")
+        return self
+
+
 class RunManifest(StrictModel):
-    schema_version: Literal[2] = 2
+    schema_version: Literal[2, 3] = 3
     run_id: str
     created_at: str
     suite_name: str
@@ -597,6 +672,7 @@ class RunManifest(StrictModel):
     repeat: int = Field(ge=1)
     max_concurrency: int = Field(ge=1)
     command: list[str]
+    subject: SubjectIdentity | None = None
 
     @classmethod
     def now(cls, **kwargs: Any) -> RunManifest:
@@ -624,12 +700,100 @@ class RunSummary(StrictModel):
     cost_unknown_runs: int = Field(ge=0)
 
 
+def canonical_run_summary(
+    observations: list[ReportObservation],
+    scores: list[CaseScore],
+    repeat: int,
+) -> RunSummary:
+    """Recompute every report aggregate from immutable per-trial facts."""
+    if not scores:
+        raise ValueError("reports require at least one score")
+    passed_by_case: dict[str, list[bool]] = defaultdict(list)
+    for score in scores:
+        passed_by_case[score.case_id].append(score.passed)
+    observed_costs = [item.cost_usd for item in observations if item.cost_usd is not None]
+    case_ids = sorted(passed_by_case)
+    return RunSummary(
+        case_count=len(case_ids),
+        case_runs=len(scores),
+        repeat=repeat,
+        completed=sum(score.completed for score in scores),
+        unsupported=sum(score.status == "unsupported" for score in scores),
+        completion_rate=mean(float(score.completed) for score in scores),
+        trial_pass_rate=mean(float(score.passed) for score in scores),
+        pass_all_trials_rate=mean(float(all(passed_by_case[case_id])) for case_id in case_ids),
+        pass_any_trial_rate=mean(float(any(passed_by_case[case_id])) for case_id in case_ids),
+        trial_stability_rate=mean(float(len(set(passed_by_case[case_id])) == 1) for case_id in case_ids),
+        mean_required_check_rate=mean(score.required_check_rate for score in scores),
+        mean_elapsed_seconds=mean(score.elapsed_seconds for score in scores),
+        observed_cost_usd=sum(observed_costs),
+        cost_observed_runs=len(observed_costs),
+        cost_actual_runs=sum(item.cost_kind == "actual" for item in observations),
+        cost_estimated_runs=sum(item.cost_kind == "estimated" for item in observations),
+        cost_upper_bound_runs=sum(item.cost_kind == "upper_bound" for item in observations),
+        cost_unknown_runs=sum(item.cost_kind == "unknown" for item in observations),
+    )
+
+
 class PortableReport(StrictModel):
-    schema_version: Literal[2] = 2
+    schema_version: Literal[2, 3] = 3
+    evidence_status: Literal["legacy-v2", "integrity-checked-v3"] = "legacy-v2"
     manifest: RunManifest
     observations: list[ReportObservation]
     scores: list[CaseScore]
     summary: RunSummary
+
+    @model_validator(mode="after")
+    def validate_report_integrity(self) -> PortableReport:
+        if self.schema_version == 2:
+            if self.manifest.schema_version != 2 or self.evidence_status != "legacy-v2":
+                raise ValueError("v2 reports must be labeled legacy-v2")
+            return self
+        if self.manifest.schema_version != 3 or self.evidence_status != "integrity-checked-v3":
+            raise ValueError("v3 reports require matching manifest and integrity label")
+        if self.manifest.subject is None:
+            raise ValueError("v3 reports require subject provenance")
+        observation_keys = [(item.case_id, item.trial_index) for item in self.observations]
+        score_keys = [(item.case_id, item.trial_index) for item in self.scores]
+        if len(observation_keys) != len(set(observation_keys)):
+            raise ValueError("v3 report contains duplicate observation trials")
+        if len(score_keys) != len(set(score_keys)):
+            raise ValueError("v3 report contains duplicate score trials")
+        if set(observation_keys) != set(score_keys):
+            raise ValueError("v3 report observation and score trial keys must match exactly")
+        expected_indices = set(range(1, self.manifest.repeat + 1))
+        observed_indices: dict[str, set[int]] = defaultdict(set)
+        for case_id, trial_index in observation_keys:
+            observed_indices[case_id].add(trial_index)
+        if any(indices != expected_indices for indices in observed_indices.values()):
+            raise ValueError("v3 report trial indices must exactly match manifest.repeat")
+        observations = {(item.case_id, item.trial_index): item for item in self.observations}
+        for score in self.scores:
+            observation = observations[(score.case_id, score.trial_index)]
+            if observation.system != self.manifest.system or score.system != self.manifest.system:
+                raise ValueError("v3 report contains conflicting system identity")
+            if observation.adapter_version != self.manifest.adapter_version:
+                raise ValueError("v3 report contains conflicting adapter version")
+            if (
+                observation.lane != score.lane
+                or observation.split != score.split
+                or observation.family != score.family
+                or observation.critical != score.critical
+                or observation.status != score.status
+                or observation.elapsed_seconds != score.elapsed_seconds
+                or observation.peak_rss_bytes != score.peak_rss_bytes
+                or observation.cost_usd != score.cost_usd
+                or observation.cost_kind != score.cost_kind
+            ):
+                raise ValueError("v3 observation and score trial facts conflict")
+            if observation.comparison_scope is None:
+                raise ValueError("v3 observations require predeclared comparison scope")
+            if observation.normalized_output_sha256 is None:
+                raise ValueError("v3 observations require normalized output commitments")
+        canonical = canonical_run_summary(self.observations, self.scores, self.manifest.repeat)
+        if self.summary != canonical:
+            raise ValueError("v3 report summary does not match canonical trial facts")
+        return self
 
 
 class ComparisonRow(StrictModel):
@@ -706,7 +870,7 @@ class PairwiseComparisonRow(StrictModel):
 
 
 class ComparisonReport(StrictModel):
-    schema_version: Literal[2] = 2
+    schema_version: Literal[3] = 3
     analysis_version: str = "v2-legacy"
     suite_name: str
     suite_version: str
@@ -714,6 +878,7 @@ class ComparisonReport(StrictModel):
     protocol_sha256: str
     scorer_version: str = "v2-unversioned"
     system_count: int = Field(ge=1)
+    source_report_schema_versions: list[Literal[2, 3]] = Field(default_factory=list)
     boundary_cases: dict[str, list[str]] = Field(default_factory=dict)
     rows: list[ComparisonRow] = Field(min_length=1)
     case_rows: list[ComparisonCaseRow] = Field(min_length=1)

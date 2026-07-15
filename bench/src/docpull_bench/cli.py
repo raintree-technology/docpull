@@ -6,6 +6,8 @@ import argparse
 import hashlib
 import json
 import sys
+from collections import Counter, defaultdict
+from datetime import date
 from pathlib import Path
 from typing import Any, cast
 
@@ -52,7 +54,7 @@ from .models import (
     PortableReport,
     RunObservation,
 )
-from .publication import publish_results
+from .publication import publish_results, sign_publication, verify_publication
 from .runner import run_suite
 
 
@@ -62,6 +64,7 @@ def _build_parser() -> argparse.ArgumentParser:
     validate = actions.add_parser("validate", help="validate suite schema, freshness, and fixtures")
     validate.add_argument("suite", type=Path)
     validate.add_argument("--allow-stale-gold", action="store_true")
+    validate.add_argument("--claim-grade", action="store_true")
     listing = actions.add_parser("list", help="list suite cases")
     listing.add_argument("suite", type=Path)
     listing.add_argument("--json", action="store_true")
@@ -111,12 +114,22 @@ def _build_parser() -> argparse.ArgumentParser:
     baseline_update.add_argument("baseline", type=Path)
     baseline_update.add_argument("--reason", required=True)
 
-    publish = actions.add_parser("publish", help="build data and methodology bundle")
-    publish.add_argument("suite", type=Path)
-    publish.add_argument("reports", nargs="+", type=Path)
-    publish.add_argument("--output-dir", type=Path, required=True)
-    publish.add_argument("--unavailable", action="append", default=[])
-    publish.add_argument("--provisional", action="store_true")
+    publish = actions.add_parser("publish", help="create, sign, or verify a publication bundle")
+    publish_actions = publish.add_subparsers(dest="publish_action", required=True)
+    publish_create = publish_actions.add_parser("create", help="build a data and methodology bundle")
+    publish_create.add_argument("suite", type=Path)
+    publish_create.add_argument("reports", nargs="+", type=Path)
+    publish_create.add_argument("--output-dir", type=Path, required=True)
+    publish_create.add_argument("--unavailable", action="append", default=[])
+    publish_create.add_argument("--provisional", action="store_true")
+    publish_sign = publish_actions.add_parser("sign", help="GPG-sign a verified publication manifest")
+    publish_sign.add_argument("bundle", type=Path)
+    publish_sign.add_argument("--key")
+    publish_verify = publish_actions.add_parser(
+        "verify", help="recompute hashes, reports, and comparison for a publication"
+    )
+    publish_verify.add_argument("bundle", type=Path)
+    publish_verify.add_argument("--trusted-gpg-fingerprint")
 
     claim = actions.add_parser("claim", help="fail-closed public-claim evidence gates").add_subparsers(
         dest="claim_action", required=True
@@ -195,14 +208,38 @@ def _add_run_arguments(run: argparse.ArgumentParser) -> None:
         "--network-isolation", choices=("enforced", "best_effort", "open"), default="best_effort"
     )
     run.add_argument("--allow-stale-gold", action="store_true")
+    run.add_argument(
+        "--docpull-python",
+        type=Path,
+        help="Python interpreter containing the isolated DocPull subject installation",
+    )
+    run.add_argument(
+        "--subject-artifact",
+        type=Path,
+        help="Exact DocPull wheel installed in --docpull-python",
+    )
+    run.add_argument("--evidence-dir", type=Path, help="External directory for encrypted output escrow")
+    run.add_argument("--evidence-recipient", help="age recipient for direct output encryption")
     run.add_argument("--json", action="store_true")
 
 
 def main(argv: list[str] | None = None) -> int:
-    args = _build_parser().parse_args(argv)
+    normalized_argv = list(argv) if argv is not None else list(sys.argv[1:])
+    if (
+        normalized_argv
+        and normalized_argv[0] == "publish"
+        and len(normalized_argv) > 1
+        and normalized_argv[1] not in {"create", "sign", "verify"}
+    ):
+        normalized_argv.insert(1, "create")
+    args = _build_parser().parse_args(normalized_argv)
     try:
         if args.action == "validate":
-            suite = _validate_suite(args.suite, allow_stale=args.allow_stale_gold)
+            suite = _validate_suite(
+                args.suite,
+                allow_stale=args.allow_stale_gold,
+                claim_grade=args.claim_grade,
+            )
             print(f"valid: {suite.name} {suite.version} ({len(suite.cases)} cases)")
             return 0
         if args.action == "list":
@@ -224,14 +261,29 @@ def main(argv: list[str] | None = None) -> int:
         if args.action == "baseline":
             return _baseline(args)
         if args.action == "publish":
-            output = publish_results(
-                args.suite,
-                args.reports,
-                output_dir=args.output_dir,
-                unavailable=args.unavailable,
-                provisional=args.provisional,
-            )
-            print(f"publication: {output}")
+            if args.publish_action == "create":
+                output = publish_results(
+                    args.suite,
+                    args.reports,
+                    output_dir=args.output_dir,
+                    unavailable=args.unavailable,
+                    provisional=args.provisional,
+                )
+                print(f"publication: {output}")
+            elif args.publish_action == "sign":
+                print(f"signature: {sign_publication(args.bundle, key=args.key)}")
+            elif args.publish_action == "verify":
+                print(
+                    json.dumps(
+                        verify_publication(
+                            args.bundle,
+                            trusted_gpg_fingerprint=args.trusted_gpg_fingerprint,
+                        ),
+                        indent=2,
+                    )
+                )
+            else:
+                raise AssertionError(f"unhandled publish action: {args.publish_action}")
             return 0
         if args.action == "claim":
             return _claim(args)
@@ -243,7 +295,12 @@ def main(argv: list[str] | None = None) -> int:
     raise AssertionError(f"unhandled action: {args.action}")
 
 
-def _validate_suite(path: Path, *, allow_stale: bool) -> BenchmarkSuite:
+def _validate_suite(
+    path: Path,
+    *,
+    allow_stale: bool,
+    claim_grade: bool = False,
+) -> BenchmarkSuite:
     from .runner import _validate_freshness
 
     suite = BenchmarkSuite.from_yaml(path)
@@ -254,7 +311,67 @@ def _validate_suite(path: Path, *, allow_stale: bool) -> BenchmarkSuite:
         digest = hashlib.sha256(manifest.read_bytes()).hexdigest()
         if digest != suite.fixture_manifest_sha256:
             raise ValueError("suite fixture manifest hash does not match")
+    if claim_grade:
+        _validate_claim_grade_suite(suite)
     return suite
+
+
+def _validate_claim_grade_suite(suite: BenchmarkSuite) -> None:
+    from .claims import ClaimPolicy
+
+    policy = ClaimPolicy.from_yaml(Path("bench/claim/policy-v2.yaml"))
+    by_lane: dict[Lane, list[Any]] = defaultdict(list)
+    for case in suite.cases:
+        by_lane[case.input.lane].append(case)
+        if "comparison_scope" not in case.metadata.model_fields_set:
+            raise ValueError(f"claim-grade case {case.id} must predeclare comparison_scope")
+        if case.metadata.live:
+            if not case.metadata.reference_checked_at or not case.metadata.reference_expires_at:
+                raise ValueError(f"claim-grade case {case.id} requires fresh references")
+            if date.fromisoformat(case.metadata.reference_expires_at) < date.today():
+                raise ValueError(f"claim-grade case {case.id} has stale references")
+        if case.input.lane in {Lane.EXTRACT, Lane.CRAWL, Lane.PARSE}:
+            expected = case.expected
+            check_count = (
+                int(expected.minimum_records > 0)
+                + int(expected.minimum_content_chars > 0)
+                + int(expected.maximum_content_chars is not None)
+                + len(expected.required_terms)
+                + len(expected.forbidden_terms)
+                + int(bool(expected.required_ordered_terms))
+                + int(expected.maximum_long_token_rate is not None)
+                + int(expected.minimum_markdown_links > 0)
+                + int(expected.minimum_fenced_code_blocks > 0)
+                + int(expected.minimum_markdown_table_rows > 0)
+                + len(getattr(expected, "required_urls", []))
+                + len(getattr(expected, "required_headings", []))
+                + len(getattr(expected, "required_metadata", {}))
+                + int(hasattr(expected, "maximum_duplicate_rate"))
+            )
+            if check_count < 5:
+                raise ValueError(
+                    f"claim-grade content case {case.id} requires at least five independent evidence checks"
+                )
+            has_cleanliness = bool(
+                expected.forbidden_terms
+                or expected.maximum_content_chars is not None
+                or expected.maximum_long_token_rate is not None
+                or hasattr(expected, "maximum_duplicate_rate")
+            )
+            if not has_cleanliness:
+                raise ValueError(
+                    f"claim-grade content case {case.id} requires a cleanliness or upper-bound check"
+                )
+    for lane, cases in by_lane.items():
+        families = Counter(case.metadata.family for case in cases)
+        if len(cases) < policy.minimum_cases_per_lane:
+            raise ValueError(f"claim-grade lane {lane.value} has too few cases")
+        if sum(case.metadata.split == "test" for case in cases) < policy.minimum_test_cases_per_lane:
+            raise ValueError(f"claim-grade lane {lane.value} has too few test cases")
+        if len(families) < policy.minimum_families_per_lane:
+            raise ValueError(f"claim-grade lane {lane.value} has too few families")
+        if max(families.values()) / len(cases) > policy.maximum_family_share:
+            raise ValueError(f"claim-grade lane {lane.value} exceeds maximum family share")
 
 
 def _list_cases(path: Path, as_json: bool) -> int:
@@ -321,7 +438,7 @@ def _adapter(args: argparse.Namespace) -> SystemAdapter:
     if args.adapter == "docpull":
         if args.system != "docpull":
             raise ValueError("docpull adapter requires --system docpull")
-        return DocPullAdapter()
+        return DocPullAdapter(python_executable=args.docpull_python)
     if args.adapter in hosted:
         if args.max_cost_usd is None:
             raise ValueError("hosted adapters require --max-cost-usd")
@@ -346,9 +463,12 @@ def _adapter(args: argparse.Namespace) -> SystemAdapter:
 def _run(args: argparse.Namespace) -> int:
     if args.repeat < 1 or args.max_concurrency < 1:
         raise ValueError("repeat and concurrency must be at least one")
+    adapter = _adapter(args)
+    if args.subject_artifact is not None and adapter.system != "docpull":
+        raise ValueError("--subject-artifact is only valid with the DocPull adapter")
     report, run_dir = run_suite(
         args.suite,
-        _adapter(args),
+        adapter,
         output_dir=args.output_dir,
         repeat=args.repeat,
         max_concurrency=args.max_concurrency,
@@ -358,6 +478,9 @@ def _run(args: argparse.Namespace) -> int:
         environment_label=args.environment_label,
         network_isolation=args.network_isolation,
         allow_stale_gold=args.allow_stale_gold,
+        subject_artifact=args.subject_artifact,
+        evidence_dir=args.evidence_dir,
+        evidence_recipient=args.evidence_recipient,
     )
     if args.json:
         print(report.model_dump_json(indent=2))
@@ -388,6 +511,10 @@ def _lifecycle(args: argparse.Namespace) -> int:
         environment_label="local",
         network_isolation="best_effort",
         allow_stale_gold=False,
+        docpull_python=None,
+        subject_artifact=None,
+        evidence_dir=None,
+        evidence_recipient=None,
         json=args.json,
     )
     return _run(namespace)
@@ -420,6 +547,10 @@ def _context(args: argparse.Namespace) -> int:
         environment_label="controlled-local",
         network_isolation="enforced",
         allow_stale_gold=False,
+        docpull_python=None,
+        subject_artifact=None,
+        evidence_dir=None,
+        evidence_recipient=None,
         json=args.json,
     )
     return _run(namespace)

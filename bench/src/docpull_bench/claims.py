@@ -218,6 +218,11 @@ def check_claim_readiness(
         len(systems) >= policy.minimum_systems,
         f"observed={len(systems)} minimum={policy.minimum_systems}",
     )
+    add(
+        "reports.schema_v3",
+        all(report.schema_version == 3 for report in reports),
+        "claim evidence requires integrity-checked portable report schema v3",
+    )
     add("reports.unique_systems", len(systems) == len(set(systems)), f"systems={','.join(sorted(systems))}")
     add(
         "evidence.unique_reviews",
@@ -278,6 +283,31 @@ def check_claim_readiness(
                 f"repository_clean.{report.manifest.system}",
                 not report.manifest.git_dirty,
                 f"git_dirty={report.manifest.git_dirty}",
+            )
+        subject = report.manifest.subject
+        if report.manifest.system == "docpull":
+            subject_ok = bool(
+                subject
+                and subject.kind == "wheel"
+                and subject.artifact_sha256
+                and subject.artifact_basename
+                and subject.package_version == report.manifest.adapter_version
+                and subject.source_revision
+                and subject.clean_build
+            )
+            add(
+                "subject.docpull",
+                subject_ok,
+                "DocPull claim evidence requires a clean, hashed wheel subject",
+            )
+        elif subject and subject.kind == "remote-service":
+            profile_hash = _json_hash(subject.public_request_profile)
+            add(
+                f"subject.{report.manifest.system}",
+                bool(
+                    subject.public_request_profile and subject.public_request_profile_sha256 == profile_hash
+                ),
+                "hosted claim evidence requires an exact hashed public request profile",
             )
 
     outcomes: dict[str, dict[str, bool]] = {}
@@ -484,12 +514,25 @@ def check_claim_readiness(
 
     billing_by_report = {item.report_sha256: item for item in evidence.billing}
     for report_sha256, report in report_hashes.items():
-        has_provider_cost = report.summary.observed_cost_usd > 0
+        recomputed_total = sum(item.cost_usd or 0 for item in report.observations)
+        actual_total = sum(item.cost_usd or 0 for item in report.observations if item.cost_kind == "actual")
+        upper_bound_total = sum(
+            item.cost_usd or 0 for item in report.observations if item.cost_kind in {"actual", "upper_bound"}
+        )
+        has_provider_cost = recomputed_total > 0
         reconciliation = billing_by_report.get(report_sha256)
         billing_signer = (
             _signature_fingerprint(reconciliation, policy, evidence_base, role="billing")
             if reconciliation
             else None
+        )
+        reconciled_total_ok = bool(
+            reconciliation
+            and (
+                abs(reconciliation.actual_cost_usd - actual_total) <= 0.01
+                if any(item.cost_kind == "actual" for item in report.observations)
+                else reconciliation.actual_cost_usd <= upper_bound_total
+            )
         )
         billing_ok = not has_provider_cost or bool(
             reconciliation
@@ -497,7 +540,7 @@ def check_claim_readiness(
             and reconciliation.signature_method in policy.allowed_signature_methods
             and billing_signer
             and _timestamp_is_not_future(reconciliation.captured_at)
-            and abs(reconciliation.actual_cost_usd - report.summary.observed_cost_usd) <= 0.01
+            and reconciled_total_ok
             and (
                 policy.schema_version < 2
                 or bool(
@@ -626,15 +669,22 @@ def _timestamp_is_not_future(value: str) -> bool:
 
 
 def _ordered_timestamps(*values: str) -> bool:
-    parsed = [_parse_timestamp(value) for value in values]
-    return bool(all(parsed) and all(a <= b for a, b in zip(parsed, parsed[1:], strict=False)))
+    previous: datetime | None = None
+    for value in values:
+        current = _parse_timestamp(value)
+        if current is None or (previous is not None and previous > current):
+            return False
+        previous = current
+    return True
 
 
 def _timestamp_between(value: str, lower: str, upper: str) -> bool:
     parsed = _parse_timestamp(value)
     lower_parsed = _parse_timestamp(lower)
     upper_parsed = _parse_timestamp(upper)
-    return bool(parsed and lower_parsed and upper_parsed and lower_parsed <= parsed <= upper_parsed)
+    if parsed is None or lower_parsed is None or upper_parsed is None:
+        return False
+    return lower_parsed <= parsed <= upper_parsed
 
 
 def _normalized_fingerprint(value: str) -> str:
