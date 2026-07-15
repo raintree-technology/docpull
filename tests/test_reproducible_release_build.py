@@ -8,7 +8,7 @@ import os
 import sys
 import tarfile
 from pathlib import Path
-from types import ModuleType, SimpleNamespace
+from types import ModuleType
 
 import pytest
 
@@ -34,23 +34,18 @@ def test_release_epoch_prefers_explicit_value_and_environment(
     module = _load_module()
     monkeypatch.setenv("SOURCE_DATE_EPOCH", "1700000000")
 
-    assert module._source_date_epoch(ROOT) == 1700000000
-    assert module._source_date_epoch(ROOT, 1800000000) == 1800000000
+    assert module._source_date_epoch() == 1700000000
+    assert module._source_date_epoch(1800000000) == 1800000000
 
 
-def test_release_epoch_uses_commit_timestamp(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_release_epoch_uses_content_independent_default(monkeypatch: pytest.MonkeyPatch) -> None:
     module = _load_module()
     monkeypatch.delenv("SOURCE_DATE_EPOCH", raising=False)
-    monkeypatch.setattr(
-        module.subprocess,
-        "run",
-        lambda *_args, **_kwargs: SimpleNamespace(returncode=0, stdout="1900000000\n"),
-    )
 
-    assert module._source_date_epoch(ROOT) == 1900000000
+    assert module._source_date_epoch() == module.MINIMUM_ZIP_EPOCH
 
 
-@pytest.mark.parametrize("value", ["invalid", "1"])
+@pytest.mark.parametrize("value", ["invalid", "1", str(2**32)])
 def test_release_epoch_rejects_invalid_or_pre_zip_values(
     monkeypatch: pytest.MonkeyPatch,
     value: str,
@@ -59,7 +54,7 @@ def test_release_epoch_rejects_invalid_or_pre_zip_values(
     monkeypatch.setenv("SOURCE_DATE_EPOCH", value)
 
     with pytest.raises(ValueError, match="SOURCE_DATE_EPOCH"):
-        module._source_date_epoch(ROOT)
+        module._source_date_epoch()
 
 
 def test_release_build_fails_closed_on_nonempty_output(tmp_path: Path) -> None:
@@ -135,6 +130,34 @@ def test_sdist_canonicalization_removes_host_metadata(tmp_path: Path) -> None:
     assert (member.uid, member.gid, member.uname, member.gname) == (0, 0, "", "")
 
 
+@pytest.mark.parametrize(
+    ("name", "kind"),
+    [("../escape.txt", "file"), ("/absolute.txt", "file"), ("safe/link", "symlink")],
+)
+def test_sdist_canonicalization_rejects_unsafe_members(
+    tmp_path: Path,
+    name: str,
+    kind: str,
+) -> None:
+    module = _load_module()
+    archive = tmp_path / "unsafe.tar.gz"
+    with tarfile.open(archive, "w:gz") as output:
+        member = tarfile.TarInfo(name)
+        if kind == "symlink":
+            member.type = tarfile.SYMTYPE
+            member.linkname = "../../outside"
+            output.addfile(member)
+        else:
+            member.size = 1
+            output.addfile(member, io.BytesIO(b"x"))
+
+    original = archive.read_bytes()
+    with pytest.raises(RuntimeError, match="unsafe path|unsupported link"):
+        module._canonicalize_sdist(archive, epoch=1_900_000_000)
+
+    assert archive.read_bytes() == original
+
+
 def test_release_paths_use_reproducibility_verification() -> None:
     required = "scripts/build_release.py --verify-reproducible"
     for path in (
@@ -152,5 +175,5 @@ def test_release_script_does_not_mutate_parent_epoch(monkeypatch: pytest.MonkeyP
     monkeypatch.delenv("SOURCE_DATE_EPOCH", raising=False)
     before = os.environ.copy()
 
-    assert module._source_date_epoch(ROOT, 1700000000) == 1700000000
+    assert module._source_date_epoch(1700000000) == 1700000000
     assert os.environ == before

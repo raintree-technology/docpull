@@ -14,6 +14,7 @@ import tempfile
 from pathlib import Path
 
 MINIMUM_ZIP_EPOCH = 315532800  # 1980-01-01T00:00:00Z
+MAXIMUM_GZIP_EPOCH = (2**32) - 1
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -33,24 +34,10 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _source_date_epoch(repo: Path, requested: int | None = None) -> int:
+def _source_date_epoch(requested: int | None = None) -> int:
     candidate: str | int | None = requested
     if candidate is None:
         candidate = os.environ.get("SOURCE_DATE_EPOCH")
-    if candidate is None:
-        try:
-            result = subprocess.run(
-                ["git", "show", "-s", "--format=%ct", "HEAD"],
-                cwd=repo,
-                capture_output=True,
-                check=False,
-                text=True,
-                timeout=10,
-            )
-        except (OSError, subprocess.TimeoutExpired):
-            result = None
-        if result is not None and result.returncode == 0 and result.stdout.strip():
-            candidate = result.stdout.strip()
     if candidate is None:
         candidate = MINIMUM_ZIP_EPOCH
     try:
@@ -59,6 +46,8 @@ def _source_date_epoch(repo: Path, requested: int | None = None) -> int:
         raise ValueError("SOURCE_DATE_EPOCH must be an integer Unix timestamp") from error
     if epoch < MINIMUM_ZIP_EPOCH:
         raise ValueError("SOURCE_DATE_EPOCH must be at least 1980-01-01 for wheel compatibility")
+    if epoch > MAXIMUM_GZIP_EPOCH:
+        raise ValueError("SOURCE_DATE_EPOCH exceeds the portable gzip timestamp range")
     return epoch
 
 
@@ -112,11 +101,22 @@ def _canonicalize_sdist(path: Path, *, epoch: int) -> None:
             ):
                 seen: set[str] = set()
                 for member in source:
+                    segments = member.name.split("/")
+                    if (
+                        not member.name
+                        or member.name.startswith("/")
+                        or "\\" in member.name
+                        or any(segment in {"", ".", ".."} for segment in segments)
+                        or ":" in segments[0]
+                    ):
+                        raise RuntimeError(f"unsafe path in source distribution: {member.name}")
                     if member.name in seen:
                         raise RuntimeError(f"duplicate path in source distribution: {member.name}")
                     seen.add(member.name)
-                    if not (member.isfile() or member.isdir() or member.issym() or member.islnk()):
-                        raise RuntimeError(f"unsupported special file in source distribution: {member.name}")
+                    if not (member.isfile() or member.isdir()):
+                        raise RuntimeError(
+                            f"unsupported link or special file in source distribution: {member.name}"
+                        )
                     member.uid = 0
                     member.gid = 0
                     member.uname = ""
@@ -127,8 +127,6 @@ def _canonicalize_sdist(path: Path, *, epoch: int) -> None:
                         member.mode = 0o755
                     elif member.isfile():
                         member.mode = 0o755 if member.mode & 0o111 else 0o644
-                    else:
-                        member.mode = 0o777
                     content = source.extractfile(member) if member.isfile() else None
                     target.addfile(member, content)
             raw_output.flush()
@@ -189,7 +187,7 @@ def main(argv: list[str] | None = None) -> int:
         if output_path.is_symlink():
             raise ValueError(f"release output directory must not be a symlink: {output_path}")
         output_dir = output_path.resolve()
-        epoch = _source_date_epoch(repo, args.epoch)
+        epoch = _source_date_epoch(args.epoch)
         if args.clean:
             _clean_release_artifacts(output_dir)
         artifacts = _build(repo, output_dir, epoch=epoch)
