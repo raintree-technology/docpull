@@ -343,9 +343,23 @@ Examples:
     )
     parser.add_argument(
         "--remote-document-backend",
-        choices=["auto", "markitdown", "unstructured"],
+        choices=["auto", "pypdf", "markitdown", "unstructured"],
         default=None,
         help="Local parser backend for --remote-documents (default: auto)",
+    )
+    parser.add_argument(
+        "--remote-document-timeout-seconds",
+        type=int,
+        default=None,
+        metavar="SECONDS",
+        help="Wall-time limit for each isolated remote-document parser (default: 60)",
+    )
+    parser.add_argument(
+        "--remote-document-memory-mib",
+        type=int,
+        default=None,
+        metavar="MIB",
+        help="Address-space limit for each isolated remote-document parser (default: 1024)",
     )
 
     # Crawl settings
@@ -693,6 +707,10 @@ def run_fetcher(args: argparse.Namespace) -> int:
         filter_kwargs["remote_documents"] = args.remote_documents
     if args.remote_document_backend:
         filter_kwargs["remote_document_backend"] = args.remote_document_backend
+    if args.remote_document_timeout_seconds is not None:
+        filter_kwargs["remote_document_timeout_seconds"] = args.remote_document_timeout_seconds
+    if args.remote_document_memory_mib is not None:
+        filter_kwargs["remote_document_memory_mib"] = args.remote_document_memory_mib
     if filter_kwargs:
         config_kwargs["content_filter"] = filter_kwargs
 
@@ -1180,7 +1198,7 @@ def run_render_cli(argv: list[str]) -> int:
         args.cloud_max_estimated_cost if backend in {"vercel-sandbox", "e2b-sandbox"} else None,
     )
     cloud_estimated_cost = (
-        estimate_cloud_render_cost_usd(cast(Literal["vercel-sandbox", "e2b-sandbox"], backend), config)
+        estimate_cloud_render_cost_usd(backend, config)
         if backend in {"vercel-sandbox", "e2b-sandbox"}
         else 0.0
     )

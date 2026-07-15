@@ -3,11 +3,17 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
+import contextlib
 import hashlib
 import importlib
 import json
+import math
 import mimetypes
 import os
+import re
+import signal
+import subprocess
 import sys
 import tempfile
 from collections.abc import Sequence
@@ -21,7 +27,24 @@ from .output_contract import default_rights_state, validate_pack_contract, valid
 from .pipeline.manifest import CorpusManifest
 from .time_utils import utc_now_iso
 
-ParseBackend = Literal["auto", "markitdown", "unstructured", "text"]
+ParseBackend = Literal["auto", "pypdf", "markitdown", "unstructured", "text"]
+
+REMOTE_DOCUMENT_MAX_INPUT_BYTES = 50 * 1024 * 1024
+REMOTE_DOCUMENT_MAX_OUTPUT_BYTES = 100 * 1024 * 1024
+REMOTE_DOCUMENT_DEFAULT_TIMEOUT_SECONDS = 60
+REMOTE_DOCUMENT_DEFAULT_MEMORY_MIB = 1024
+_REMOTE_RESULT_REQUIRED_KEYS = {
+    "backend",
+    "content",
+    "error_code",
+    "metadata",
+    "source_mime_type",
+    "source_url",
+    "status",
+    "title",
+}
+_TOKEN_RE = re.compile(r"\w+", re.UNICODE)
+_ALPHA_TOKEN_RE = re.compile(r"[^\W\d_]+", re.UNICODE)
 
 TEXT_COMPATIBLE_SUFFIXES = {
     ".csv",
@@ -215,7 +238,7 @@ def _create_parse_parser() -> argparse.ArgumentParser:
     parser.add_argument("-o", "--output-dir", required=True, help="Directory for the generated pack")
     parser.add_argument(
         "--backend",
-        choices=["auto", "markitdown", "unstructured", "text"],
+        choices=["auto", "pypdf", "markitdown", "unstructured", "text"],
         default="auto",
         help="Parser backend (default: auto)",
     )
@@ -261,8 +284,6 @@ def parse_one_document(
 ) -> ParsedDocument:
     """Parse one local file into normalized Markdown without writing a pack."""
     source_mime_type = _guess_mime_type(path)
-    if source_mime_type == "application/pdf":
-        _validate_pdf_container(path)
     if backend == "text":
         content, metadata = _parse_text(path)
         return _parsed_document(
@@ -274,7 +295,21 @@ def parse_one_document(
             source_mime_type=source_mime_type,
             metadata=metadata,
         )
+    if backend == "pypdf":
+        if source_mime_type != "application/pdf":
+            raise DocumentParseError("The pypdf backend only supports PDF inputs.")
+        content, metadata = _parse_pypdf(path)
+        return _parsed_document(
+            path,
+            source_url=source_url,
+            title=title or _metadata_title(metadata),
+            content=content,
+            backend="pypdf",
+            source_mime_type=source_mime_type,
+            metadata=metadata,
+        )
     if backend == "markitdown":
+        structure = _validate_pdf_structure(path) if source_mime_type == "application/pdf" else {}
         content, metadata = _parse_markitdown(path)
         return _parsed_document(
             path,
@@ -283,9 +318,10 @@ def parse_one_document(
             content=content,
             backend="markitdown",
             source_mime_type=source_mime_type,
-            metadata=metadata,
+            metadata={**structure, **metadata},
         )
     if backend == "unstructured":
+        structure = _validate_pdf_structure(path) if source_mime_type == "application/pdf" else {}
         content, metadata = _parse_unstructured(path)
         return _parsed_document(
             path,
@@ -294,7 +330,7 @@ def parse_one_document(
             content=content,
             backend="unstructured",
             source_mime_type=source_mime_type,
-            metadata=metadata,
+            metadata={**structure, **metadata},
         )
     return _parse_auto(path, source_url=source_url, title=title, source_mime_type=source_mime_type)
 
@@ -305,40 +341,288 @@ def parse_remote_document_bytes(
     source_url: str,
     content_type: str,
     backend: ParseBackend = "auto",
+    timeout_seconds: int = REMOTE_DOCUMENT_DEFAULT_TIMEOUT_SECONDS,
+    memory_mib: int = REMOTE_DOCUMENT_DEFAULT_MEMORY_MIB,
 ) -> ParsedDocument:
-    """Parse explicitly authorized remote document bytes without retaining the source file."""
-    media_type = content_type.split(";", 1)[0].strip().casefold()
-    suffix_by_type = {"application/pdf": ".pdf"}
-    suffix = suffix_by_type.get(media_type)
-    if suffix is None:
-        raise DocumentParseError(f"Unsupported remote document content type: {media_type or 'unknown'}")
-    if media_type == "application/pdf" and not body.startswith(b"%PDF-"):
-        raise DocumentParseError("Remote PDF response did not contain a PDF signature.")
+    """Parse remote document bytes in a dedicated, resource-bounded subprocess."""
+    prepared = _prepare_remote_document(
+        body,
+        source_url=source_url,
+        content_type=content_type,
+        backend=backend,
+        timeout_seconds=timeout_seconds,
+        memory_mib=memory_mib,
+    )
+    with prepared as request:
+        command = _remote_worker_command(request)
+        process = subprocess.Popen(  # noqa: S603
+            command,
+            env=_remote_worker_environment(),
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            start_new_session=True,
+            preexec_fn=_resource_limit_setup(timeout_seconds, memory_mib),
+        )
+        try:
+            process.communicate(timeout=timeout_seconds)
+        except subprocess.TimeoutExpired as err:
+            _terminate_process_group(process.pid)
+            process.communicate()
+            raise DocumentParseError("Remote document parsing exceeded its wall-time limit.") from err
+        if process.returncode != 0 and not request.result_path.exists():
+            raise DocumentParseError("Remote document worker failed safely.")
+        return _read_remote_worker_result(request)
 
-    with tempfile.TemporaryDirectory(prefix="docpull-remote-document-") as directory:
-        path = Path(directory) / f"source{suffix}"
-        path.write_bytes(body)
-        os.chmod(path, 0o600)
-        parsed = parse_one_document(
-            path,
-            backend=backend,
-            source_url=source_url,
-            title=None,
+
+async def parse_remote_document_bytes_async(
+    body: bytes,
+    *,
+    source_url: str,
+    content_type: str,
+    backend: ParseBackend = "auto",
+    timeout_seconds: int = REMOTE_DOCUMENT_DEFAULT_TIMEOUT_SECONDS,
+    memory_mib: int = REMOTE_DOCUMENT_DEFAULT_MEMORY_MIB,
+) -> ParsedDocument:
+    """Asynchronously supervise the dedicated remote-document worker."""
+    prepared = _prepare_remote_document(
+        body,
+        source_url=source_url,
+        content_type=content_type,
+        backend=backend,
+        timeout_seconds=timeout_seconds,
+        memory_mib=memory_mib,
+    )
+    with prepared as request:
+        process = await asyncio.create_subprocess_exec(
+            *_remote_worker_command(request),
+            env=_remote_worker_environment(),
+            stdin=asyncio.subprocess.DEVNULL,
+            stdout=asyncio.subprocess.DEVNULL,
+            stderr=asyncio.subprocess.PIPE,
+            start_new_session=True,
+            preexec_fn=_resource_limit_setup(timeout_seconds, memory_mib),
         )
-        return ParsedDocument(
-            path=Path(f"remote{suffix}"),
-            source_url=parsed.source_url,
-            title=parsed.title,
-            content=parsed.content,
-            backend=parsed.backend,
-            source_mime_type=media_type,
-            metadata={
-                **parsed.metadata,
-                "remote_source_retained": False,
-                "source_bytes": len(body),
-                "source_sha256": hashlib.sha256(body).hexdigest(),
+        try:
+            await asyncio.wait_for(process.communicate(), timeout=timeout_seconds)
+        except asyncio.CancelledError:
+            _terminate_process_group(process.pid)
+            with contextlib.suppress(ProcessLookupError):
+                await process.wait()
+            if process.returncode is None:
+                process.kill()
+                await process.wait()
+            raise
+        except TimeoutError as err:
+            _terminate_process_group(process.pid)
+            with contextlib.suppress(ProcessLookupError):
+                await process.wait()
+            if process.returncode is None:
+                process.kill()
+                await process.wait()
+            raise DocumentParseError("Remote document parsing exceeded its wall-time limit.") from err
+        if process.returncode != 0 and not request.result_path.exists():
+            raise DocumentParseError("Remote document worker failed safely.")
+        return _read_remote_worker_result(request)
+
+
+@dataclass
+class _RemoteDocumentRequest:
+    temporary_directory: tempfile.TemporaryDirectory[str]
+    source_path: Path
+    request_path: Path
+    result_path: Path
+    source_url: str
+    media_type: str
+    backend: ParseBackend
+    source_bytes: int
+    source_sha256: str
+
+    def __enter__(self) -> _RemoteDocumentRequest:
+        return self
+
+    def __exit__(self, *_args: object) -> None:
+        self.temporary_directory.cleanup()
+
+
+def _prepare_remote_document(
+    body: bytes,
+    *,
+    source_url: str,
+    content_type: str,
+    backend: ParseBackend,
+    timeout_seconds: int,
+    memory_mib: int,
+) -> _RemoteDocumentRequest:
+    media_type = content_type.split(";", 1)[0].strip().casefold()
+    if media_type != "application/pdf":
+        raise DocumentParseError(f"Unsupported remote document content type: {media_type or 'unknown'}")
+    if len(body) > REMOTE_DOCUMENT_MAX_INPUT_BYTES:
+        raise DocumentParseError("Remote PDF exceeds the 50 MiB input limit.")
+    if not body.startswith(b"%PDF-"):
+        raise DocumentParseError("Remote PDF response did not contain a PDF signature.")
+    if timeout_seconds <= 0:
+        raise DocumentParseError("Remote document timeout must be greater than zero.")
+    if memory_mib < 64:
+        raise DocumentParseError("Remote document memory limit must be at least 64 MiB.")
+
+    temporary_directory = tempfile.TemporaryDirectory(prefix="docpull-remote-document-")
+    root = Path(temporary_directory.name)
+    os.chmod(root, 0o700)
+    source_path = root / "source.pdf"
+    request_path = root / "request.json"
+    result_path = root / "result.json"
+    _write_private_bytes(source_path, body)
+    _write_private_bytes(
+        request_path,
+        json.dumps(
+            {
+                "backend": backend,
+                "max_output_bytes": REMOTE_DOCUMENT_MAX_OUTPUT_BYTES,
+                "source_url": source_url,
             },
+            ensure_ascii=False,
+            separators=(",", ":"),
+        ).encode("utf-8"),
+    )
+    return _RemoteDocumentRequest(
+        temporary_directory=temporary_directory,
+        source_path=source_path,
+        request_path=request_path,
+        result_path=result_path,
+        source_url=source_url,
+        media_type=media_type,
+        backend=backend,
+        source_bytes=len(body),
+        source_sha256=hashlib.sha256(body).hexdigest(),
+    )
+
+
+def _remote_worker_command(request: _RemoteDocumentRequest) -> list[str]:
+    return [
+        sys.executable,
+        "-m",
+        "docpull.document_worker",
+        "--source",
+        str(request.source_path),
+        "--result",
+        str(request.result_path),
+        "--request",
+        str(request.request_path),
+    ]
+
+
+def _remote_worker_environment() -> dict[str, str]:
+    allowed = {
+        "LANG",
+        "LC_ALL",
+        "LC_CTYPE",
+        "PATH",
+        "PYTHONIOENCODING",
+        "PYTHONUTF8",
+        "SYSTEMROOT",
+        "TEMP",
+        "TMP",
+        "TMPDIR",
+        "WINDIR",
+    }
+    environment = {key: value for key, value in os.environ.items() if key in allowed}
+    environment.update({"PYTHONIOENCODING": "utf-8", "PYTHONUTF8": "1"})
+    return environment
+
+
+def _resource_limit_setup(timeout_seconds: int, memory_mib: int) -> Any:
+    if os.name != "posix":
+        return None
+
+    def apply_limits() -> None:
+        import resource
+
+        cpu_seconds = max(1, math.ceil(timeout_seconds))
+        memory_bytes = memory_mib * 1024 * 1024
+        with contextlib.suppress(OSError, ValueError):
+            resource.setrlimit(resource.RLIMIT_CPU, (cpu_seconds, cpu_seconds))
+        if hasattr(resource, "RLIMIT_AS"):
+            with contextlib.suppress(OSError, ValueError):
+                resource.setrlimit(resource.RLIMIT_AS, (memory_bytes, memory_bytes))
+
+    return apply_limits
+
+
+def _terminate_process_group(pid: int) -> None:
+    if os.name == "posix":
+        with contextlib.suppress(ProcessLookupError):
+            os.killpg(pid, signal.SIGKILL)
+    else:
+        with contextlib.suppress(OSError):
+            os.kill(pid, signal.SIGTERM)
+
+
+def _read_remote_worker_result(request: _RemoteDocumentRequest) -> ParsedDocument:
+    try:
+        result_size = request.result_path.stat().st_size
+    except OSError as err:
+        raise DocumentParseError("Remote document worker returned no validated result.") from err
+    if result_size > REMOTE_DOCUMENT_MAX_OUTPUT_BYTES:
+        raise DocumentParseError("Remote document parsed output exceeds the 100 MiB limit.")
+    try:
+        payload = json.loads(request.result_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as err:
+        raise DocumentParseError("Remote document worker returned an invalid result.") from err
+    if not isinstance(payload, dict) or set(payload) != _REMOTE_RESULT_REQUIRED_KEYS:
+        raise DocumentParseError("Remote document worker returned an invalid result schema.")
+    if payload.get("status") != "ok":
+        messages = {
+            "encrypted": "Encrypted PDF input is not supported.",
+            "empty": "PDF contains no extractable text.",
+            "image_only": "PDF appears image-only and requires an explicitly configured OCR backend.",
+            "malformed": "Malformed or truncated PDF container.",
+            "output_limit": "Remote document parsed output exceeds the 100 MiB limit.",
+        }
+        error_code = payload.get("error_code")
+        message = (
+            messages.get(error_code, "Remote document worker failed safely.")
+            if isinstance(error_code, str)
+            else "Remote document worker failed safely."
         )
+        raise DocumentParseError(message)
+    content = payload.get("content")
+    metadata = payload.get("metadata")
+    title = payload.get("title")
+    parsed_backend = payload.get("backend")
+    if not isinstance(content, str) or not isinstance(title, str) or not isinstance(parsed_backend, str):
+        raise DocumentParseError("Remote document worker returned invalid field types.")
+    if not isinstance(metadata, dict) or not all(isinstance(key, str) for key in metadata):
+        raise DocumentParseError("Remote document worker returned invalid metadata.")
+    if parsed_backend not in {"pypdf", "markitdown", "unstructured"}:
+        raise DocumentParseError("Remote document worker returned an invalid parser identity.")
+    if (
+        payload.get("source_url") != request.source_url
+        or payload.get("source_mime_type") != request.media_type
+    ):
+        raise DocumentParseError("Remote document worker returned conflicting source identity.")
+    if len(content.encode("utf-8")) > REMOTE_DOCUMENT_MAX_OUTPUT_BYTES:
+        raise DocumentParseError("Remote document parsed output exceeds the 100 MiB limit.")
+    return ParsedDocument(
+        path=Path("remote.pdf"),
+        source_url=request.source_url,
+        title=title,
+        content=content,
+        backend=parsed_backend,
+        source_mime_type=request.media_type,
+        metadata={
+            **metadata,
+            "remote_source_retained": False,
+            "source_bytes": request.source_bytes,
+            "source_sha256": request.source_sha256,
+        },
+    )
+
+
+def _write_private_bytes(path: Path, body: bytes) -> None:
+    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(descriptor, "wb") as stream:
+        stream.write(body)
 
 
 _parse_one = parse_one_document
@@ -358,27 +642,56 @@ def _parse_auto(path: Path, *, source_url: str, title: str | None, source_mime_t
         )
 
     errors: list[str] = []
+    pdf_metadata: dict[str, Any] = {}
+    if source_mime_type == "application/pdf":
+        try:
+            content, pdf_metadata = _parse_pypdf(path)
+        except DocumentParseError as err:
+            if str(err).startswith(("Encrypted PDF", "Malformed or truncated PDF", "PDF contains no pages")):
+                raise
+            errors.append(str(err))
+        else:
+            if content.strip():
+                return _parsed_document(
+                    path,
+                    source_url=source_url,
+                    title=title or _metadata_title(pdf_metadata),
+                    content=content,
+                    backend="pypdf",
+                    source_mime_type=source_mime_type,
+                    metadata=pdf_metadata,
+                )
+            errors.append("pypdf produced no text")
     for backend in ("markitdown", "unstructured"):
         try:
             if backend == "markitdown":
                 content, metadata = _parse_markitdown(path)
             else:
                 content, metadata = _parse_unstructured(path)
+            parsed = _parsed_document(
+                path,
+                source_url=source_url,
+                title=title or _metadata_title(metadata) or _metadata_title(pdf_metadata),
+                content=content,
+                backend=backend,
+                source_mime_type=source_mime_type,
+                metadata={**pdf_metadata, **metadata},
+            )
         except DocumentParseError as err:
             errors.append(str(err))
             continue
-        return _parsed_document(
-            path,
-            source_url=source_url,
-            title=title or _metadata_title(metadata),
-            content=content,
-            backend=backend,
-            source_mime_type=source_mime_type,
-            metadata=metadata,
-        )
+        return parsed
+
+    if source_mime_type == "application/pdf" and pdf_metadata:
+        if int(pdf_metadata.get("image_count", 0)) > 0:
+            raise DocumentParseError(
+                "PDF appears image-only and requires an explicitly configured OCR backend."
+            )
+        raise DocumentParseError("PDF contains no extractable text.")
 
     install_hint = (
-        "Install an optional parser with `pip install 'docpull[markitdown]'`, "
+        "Install an optional parser with `pip install 'docpull[pdf]'`, "
+        "`pip install 'docpull[markitdown]'`, "
         "`pip install 'docpull[unstructured]'`, or `pip install 'docpull[parse]'`."
     )
     detail = " ".join(errors)
@@ -394,6 +707,73 @@ def _parse_text(path: Path) -> tuple[str, dict[str, Any]]:
         text = raw.decode("utf-8", errors="replace")
         encoding = "utf-8-replacement"
     return text, {"encoding": encoding, "bytes_read": len(raw)}
+
+
+def _parse_pypdf(path: Path) -> tuple[str, dict[str, Any]]:
+    try:
+        module = importlib.import_module("pypdf")
+    except ImportError as err:
+        raise DocumentParseError(
+            "pypdf parsing requires the optional dependency. Install it with `pip install 'docpull[pdf]'`."
+        ) from err
+    reader_class = getattr(module, "PdfReader", None)
+    if reader_class is None:
+        raise DocumentParseError("Installed pypdf package does not expose PdfReader.")
+    try:
+        reader = reader_class(str(path), strict=False)
+        if bool(reader.is_encrypted):
+            raise DocumentParseError("Encrypted PDF input is not supported.")
+        pages = list(reader.pages)
+    except DocumentParseError:
+        raise
+    except Exception as err:  # noqa: BLE001
+        raise DocumentParseError("Malformed or truncated PDF container.") from err
+    if not pages:
+        raise DocumentParseError("PDF contains no pages.")
+
+    blocks: list[str] = []
+    warnings: list[str] = []
+    image_count = 0
+    for page_index, page in enumerate(pages, start=1):
+        image_count += _pypdf_page_image_count(page)
+        try:
+            text = page.extract_text() or ""
+        except Exception:  # noqa: BLE001
+            warnings.append(f"page {page_index}: text extraction failed")
+            continue
+        if text.strip():
+            blocks.append(text.strip())
+    metadata: dict[str, Any] = {
+        "bytes_read": path.stat().st_size,
+        "page_count": len(pages),
+        "image_count": image_count,
+        "extraction_warnings": warnings,
+    }
+    document_metadata = getattr(reader, "metadata", None)
+    metadata_title = getattr(document_metadata, "title", None)
+    if isinstance(metadata_title, str) and metadata_title.strip():
+        metadata["result_title"] = metadata_title.strip()
+    return "\n\n".join(blocks), metadata
+
+
+def _validate_pdf_structure(path: Path) -> dict[str, Any]:
+    content, metadata = _parse_pypdf(path)
+    if not content.strip():
+        if int(metadata.get("image_count", 0)) > 0:
+            raise DocumentParseError(
+                "PDF appears image-only and requires an explicitly configured OCR backend."
+            )
+        raise DocumentParseError("PDF contains no extractable text.")
+    return metadata
+
+
+def _pypdf_page_image_count(page: Any) -> int:
+    try:
+        resources = page.get("/Resources") or {}
+        xobjects = resources.get("/XObject") or {}
+        return sum(1 for value in xobjects.values() if value.get_object().get("/Subtype") == "/Image")
+    except Exception:  # noqa: BLE001
+        return 0
 
 
 def _parse_markitdown(path: Path) -> tuple[str, dict[str, Any]]:
@@ -471,11 +851,12 @@ def _parsed_document(
 ) -> ParsedDocument:
     normalized_content = content.strip()
     if not normalized_content:
-        if source_mime_type == "application/pdf" and b"/Subtype /Image" in path.read_bytes():
+        if source_mime_type == "application/pdf" and int(metadata.get("image_count", 0)) > 0:
             raise DocumentParseError(
                 f"PDF appears image-only and requires an explicitly configured OCR backend: {path}"
             )
         raise DocumentParseError(f"Parser backend {backend} produced no text for {path}.")
+    source_sha256 = hashlib.sha256(path.read_bytes()).hexdigest()
     return ParsedDocument(
         path=path,
         source_url=source_url,
@@ -483,17 +864,34 @@ def _parsed_document(
         content=normalized_content,
         backend=backend,
         source_mime_type=source_mime_type,
-        metadata=metadata,
+        metadata={
+            **metadata,
+            "parser": backend,
+            "source_sha256": source_sha256,
+            **_extraction_quality_metadata(normalized_content),
+        },
     )
 
 
-def _validate_pdf_container(path: Path) -> None:
-    body = path.read_bytes()
-    tail = body[-4096:]
-    if not body.startswith(b"%PDF-") or b"startxref" not in tail or b"%%EOF" not in tail:
-        raise DocumentParseError(f"Malformed or truncated PDF container: {path}")
-    if b"/Encrypt" in body:
-        raise DocumentParseError(f"Encrypted PDF input is not supported: {path}")
+def _extraction_quality_metadata(content: str) -> dict[str, Any]:
+    tokens = _TOKEN_RE.findall(content)
+    alphabetic_tokens = [token for token in tokens if _ALPHA_TOKEN_RE.fullmatch(token)]
+    long_tokens = [token for token in alphabetic_tokens if len(token) >= 25]
+    alphabetic_count = len(alphabetic_tokens)
+    return {
+        "token_count": len(tokens),
+        "alphabetic_token_count": alphabetic_count,
+        "average_alphabetic_token_length": (
+            round(sum(map(len, alphabetic_tokens)) / alphabetic_count, 4) if alphabetic_count else 0.0
+        ),
+        "long_alphabetic_token_count": len(long_tokens),
+        "long_alphabetic_token_rate": round(len(long_tokens) / alphabetic_count, 8)
+        if alphabetic_count
+        else 0.0,
+        "longest_alphabetic_token_length": max(map(len, alphabetic_tokens), default=0),
+        "fused_word_proxy_count": len(long_tokens),
+        "fused_word_proxy_rate": round(len(long_tokens) / alphabetic_count, 8) if alphabetic_count else 0.0,
+    }
 
 
 def _records_for_parsed_document(

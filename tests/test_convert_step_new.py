@@ -105,8 +105,16 @@ async def test_remote_pdf_is_locally_parsed_only_when_explicitly_enabled(monkeyp
 
     calls = []
 
-    def fake_parse(body, *, source_url, content_type, backend):
-        calls.append((body, source_url, content_type, backend))
+    async def fake_parse(
+        body,
+        *,
+        source_url,
+        content_type,
+        backend,
+        timeout_seconds,
+        memory_mib,
+    ):
+        calls.append((body, source_url, content_type, backend, timeout_seconds, memory_mib))
         return ParsedDocument(
             path=Path("remote.pdf"),
             source_url=source_url,
@@ -117,7 +125,7 @@ async def test_remote_pdf_is_locally_parsed_only_when_explicitly_enabled(monkeyp
             metadata={"source_sha256": "a" * 64, "remote_source_retained": False},
         )
 
-    monkeypatch.setattr("docpull.document_parse.parse_remote_document_bytes", fake_parse)
+    monkeypatch.setattr("docpull.document_parse.parse_remote_document_bytes_async", fake_parse)
     ctx = _page_context("https://example.com/paper.pdf", b"%PDF-1.7\nfixture")
     ctx.content_type = "application/pdf"
 
@@ -132,17 +140,17 @@ async def test_remote_pdf_is_locally_parsed_only_when_explicitly_enabled(monkeyp
     assert ctx.title == "Controlled Paper"
     assert ctx.markdown is not None and "Transformer" in ctx.markdown
     assert ctx.extraction_info["parser"] == "markitdown"
-    assert calls and calls[0][2:] == ("application/pdf", "markitdown")
+    assert calls and calls[0][2:] == ("application/pdf", "markitdown", 60, 1024)
 
 
 @pytest.mark.asyncio
 async def test_remote_pdf_signature_mismatch_fails_closed(monkeypatch):
     from docpull.document_parse import DocumentParseError
 
-    def fail_parse(*args, **kwargs):
+    async def fail_parse(*args, **kwargs):
         raise DocumentParseError("Remote PDF response did not contain a PDF signature.")
 
-    monkeypatch.setattr("docpull.document_parse.parse_remote_document_bytes", fail_parse)
+    monkeypatch.setattr("docpull.document_parse.parse_remote_document_bytes_async", fail_parse)
     ctx = _page_context("https://example.com/paper", b"not a pdf")
     ctx.content_type = "application/pdf"
 

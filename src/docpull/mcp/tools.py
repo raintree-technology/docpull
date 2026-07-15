@@ -318,6 +318,9 @@ async def fetch_url(
     *,
     max_tokens: int | None = None,
     remote_documents: Literal["off", "pdf"] = "off",
+    remote_document_backend: Literal["auto", "pypdf", "markitdown", "unstructured"] = "auto",
+    remote_document_timeout_seconds: int = 60,
+    remote_document_memory_mib: int = 1024,
 ) -> ToolResult:
     """Fetch a single arbitrary URL and return its Markdown.
 
@@ -335,7 +338,12 @@ async def fetch_url(
         url=url,
         profile=ProfileName.CUSTOM,
         output=output_cfg,
-        content_filter=ContentFilterConfig(remote_documents=remote_documents),
+        content_filter=ContentFilterConfig(
+            remote_documents=remote_documents,
+            remote_document_backend=remote_document_backend,
+            remote_document_timeout_seconds=remote_document_timeout_seconds,
+            remote_document_memory_mib=remote_document_memory_mib,
+        ),
     )
     async with Fetcher(config) as fetcher:
         ctx = await fetcher.fetch_one(url, save=False)

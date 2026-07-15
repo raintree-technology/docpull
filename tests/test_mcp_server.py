@@ -189,6 +189,15 @@ async def test_stdio_server_lists_and_calls_tools(tmp_path):
 
         tools = await session.list_tools()
         names = {tool.name for tool in tools.tools}
+        fetch_tool = next(tool for tool in tools.tools if tool.name == "fetch_url")
+        assert fetch_tool.inputSchema["properties"]["remote_document_backend"]["enum"] == [
+            "auto",
+            "pypdf",
+            "markitdown",
+            "unstructured",
+        ]
+        assert fetch_tool.inputSchema["properties"]["remote_document_timeout_seconds"]["default"] == 60
+        assert fetch_tool.inputSchema["properties"]["remote_document_memory_mib"]["default"] == 1024
         render_tool = next(tool for tool in tools.tools if tool.name == "render_url")
         assert render_tool.inputSchema["properties"]["runtime"]["enum"] == [
             "local",

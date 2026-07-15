@@ -497,6 +497,90 @@ class TestRawTextExtractor:
             result = RawTextExtractor().try_extract(body, url, content_type=content_type)
             assert result is not None
 
+    @pytest.mark.parametrize(
+        ("url", "content_type", "body", "language"),
+        [
+            ("https://example.com/data.json", "application/json", '{"ok": true}', "json"),
+            ("https://example.com/data.ndjson", "application/x-ndjson", '{"id": 1}', "ndjson"),
+            ("https://example.com/spec.yaml", "text/yaml", "openapi: 3.0.0", "yaml"),
+            ("https://example.com/feed.xml", "text/xml", "<feed><entry/></feed>", "xml"),
+            ("https://example.com/data.csv", "text/csv", "name,value\na,1", "csv"),
+            ("https://example.com/data.tsv", "text/tab-separated-values", "name\tvalue", "tsv"),
+            ("https://example.com/readme.rst", "text/x-rst", "Title\n=====", "rst"),
+        ],
+    )
+    def test_structured_raw_formats_are_fenced(
+        self,
+        url: str,
+        content_type: str,
+        body: str,
+        language: str,
+    ) -> None:
+        result = RawTextExtractor().try_extract(body.encode(), url, content_type=content_type)
+
+        assert result is not None
+        assert result.markdown.startswith(f"```{language}\n")
+        assert result.markdown.endswith("\n```\n")
+
+    def test_structured_raw_fence_expands_past_embedded_backticks(self):
+        result = RawTextExtractor().try_extract(
+            b'{"example": "```danger```"}',
+            "https://example.com/data.json",
+            content_type="application/json",
+        )
+
+        assert result is not None
+        assert result.markdown.startswith("````json\n")
+        assert result.markdown.endswith("\n````\n")
+
+    def test_raw_script_markup_is_inert_inside_xml_fence(self):
+        body = b"<script>alert('never active')</script>"
+
+        result = RawTextExtractor().try_extract(
+            body,
+            "https://example.com/payload.xml",
+            content_type="application/xml",
+        )
+
+        assert result is not None
+        assert result.markdown == "```xml\n<script>alert('never active')</script>\n```\n"
+
+    def test_raw_script_markup_is_escaped_in_direct_markdown(self):
+        result = RawTextExtractor().try_extract(
+            b"# Docs\n\n<script>alert('never active')</script>",
+            "https://example.com/readme.md",
+            content_type="text/markdown",
+        )
+
+        assert result is not None
+        assert "<script" not in result.markdown.casefold()
+        assert "&lt;script" in result.markdown
+
+    def test_markdown_and_rfc_plain_text_remain_direct(self):
+        markdown = RawTextExtractor().try_extract(
+            b"# Direct Markdown\n\nContent.",
+            "https://example.com/readme.md",
+            content_type="text/markdown",
+        )
+        plain = RawTextExtractor().try_extract(
+            b"Request for Comments\n\nProtocol requirements.",
+            "https://www.rfc-editor.org/rfc/rfc9999.txt",
+            content_type="text/plain; charset=utf-8",
+        )
+
+        assert markdown is not None and markdown.markdown.startswith("# Direct Markdown")
+        assert plain is not None and not plain.markdown.startswith("```")
+
+    def test_declared_charset_is_honored_before_fencing(self):
+        result = RawTextExtractor().try_extract(
+            "name,value\nCafé,1".encode("latin-1"),
+            "https://example.com/data.csv",
+            content_type="text/csv; charset=iso-8859-1",
+        )
+
+        assert result is not None
+        assert "Café" in result.markdown
+
     def test_rejects_html_mislabeled_as_text(self):
         result = RawTextExtractor().try_extract(
             b"<!doctype html><html><body>challenge</body></html>",

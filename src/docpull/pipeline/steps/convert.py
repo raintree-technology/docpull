@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import re
 from datetime import datetime, timezone
@@ -117,6 +116,8 @@ class ConvertStep:
         clean_inline_xbrl: bool = False,
         remote_documents: str = "off",
         remote_document_backend: str = "auto",
+        remote_document_timeout_seconds: int = 60,
+        remote_document_memory_mib: int = 1024,
     ):
         """Initialize the convert step.
 
@@ -146,6 +147,8 @@ class ConvertStep:
         self._clean_inline_xbrl = clean_inline_xbrl
         self._remote_documents = remote_documents
         self._remote_document_backend = remote_document_backend
+        self._remote_document_timeout_seconds = remote_document_timeout_seconds
+        self._remote_document_memory_mib = remote_document_memory_mib
 
         # Exactly one route is active: trafilatura, ensemble, or generic.
         self._trafilatura: TrafilaturaExtractor | None = None
@@ -282,14 +285,15 @@ class ConvertStep:
         looks_like_pdf = bool(ctx.html and ctx.html.startswith(b"%PDF-"))
         if self._remote_documents != "pdf" or (media_type != "application/pdf" and not looks_like_pdf):
             return None
-        from ...document_parse import parse_remote_document_bytes
+        from ...document_parse import parse_remote_document_bytes_async
 
-        parsed = await asyncio.to_thread(
-            parse_remote_document_bytes,
+        parsed = await parse_remote_document_bytes_async(
             ctx.html or b"",
             source_url=ctx.url,
             content_type="application/pdf",
             backend=self._remote_document_backend,  # type: ignore[arg-type]
+            timeout_seconds=self._remote_document_timeout_seconds,
+            memory_mib=self._remote_document_memory_mib,
         )
         ctx.content_type = "application/pdf"
         ctx.title = parsed.title

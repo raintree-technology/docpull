@@ -427,6 +427,8 @@ class Fetcher:
                 clean_inline_xbrl=self.config.content_filter.clean_inline_xbrl,
                 remote_documents=self.config.content_filter.remote_documents,
                 remote_document_backend=self.config.content_filter.remote_document_backend,
+                remote_document_timeout_seconds=(self.config.content_filter.remote_document_timeout_seconds),
+                remote_document_memory_mib=self.config.content_filter.remote_document_memory_mib,
             )
         )
 
