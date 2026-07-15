@@ -40,6 +40,9 @@ CONTEXT_MARKDOWN_URL = "https://api.context.dev/v1/web/scrape/markdown"
 CONTEXT_CRAWL_URL = "https://api.context.dev/v1/web/crawl"
 PARALLEL_EXTRACT_URL = "https://api.parallel.ai/v1/extract"
 PARALLEL_SEARCH_URL = "https://api.parallel.ai/v1/search"
+FIRECRAWL_SCRAPE_URL = "https://api.firecrawl.dev/v2/scrape"
+FIRECRAWL_CRAWL_URL = "https://api.firecrawl.dev/v2/crawl"
+FIRECRAWL_SEARCH_URL = "https://api.firecrawl.dev/v2/search"
 MAX_RESPONSE_BYTES = 16 * 1024 * 1024
 
 
@@ -50,6 +53,7 @@ class _ProviderResult:
     cost_kind: Literal["actual", "estimated", "upper_bound"]
     cost_basis: str
     usage: dict[str, int | float | str | bool | None] = field(default_factory=dict)
+    request_count: int = 1
 
 
 class HostedAdapter(ABC):
@@ -148,7 +152,7 @@ class HostedAdapter(ABC):
             cost_kind=result.cost_kind,
             cost_basis=result.cost_basis,
             usage=result.usage,
-            request_count=1,
+            request_count=result.request_count,
             adapter_version=self.version,
             error=None if has_output else f"{self.system} returned no normalized results.",
         )
@@ -543,6 +547,221 @@ class ParallelSearchAdapter(HostedAdapter):
             cost_kind="upper_bound",
             cost_basis=f"{self.pricing_snapshot}: Parallel Search ceiling.",
             usage={"result_count": len(results)},
+        )
+
+
+class FirecrawlScrapeAdapter(HostedAdapter):
+    system = "firecrawl"
+    version = "v2-scrape-main-v1"
+    api_key_env = "FIRECRAWL_API_KEY"
+    capabilities = frozenset({Lane.EXTRACT})
+    operation_by_lane = {Lane.EXTRACT: "scrape"}
+
+    def _execute(self, client: httpx.Client, inputs: BenchmarkInput, api_key: str) -> _ProviderResult:
+        assert isinstance(inputs, ExtractInput)
+        response = client.post(
+            FIRECRAWL_SCRAPE_URL,
+            headers={"Authorization": f"Bearer {api_key}"},
+            json={
+                "url": inputs.url,
+                "formats": ["markdown"],
+                "onlyMainContent": True,
+                "onlyCleanContent": False,
+                "maxAge": 0,
+                "skipTlsVerification": False,
+                "removeBase64Images": True,
+                "blockAds": True,
+                "proxy": "basic",
+                "storeInCache": False,
+                "timeout": max(1000, min(round(inputs.timeout_seconds * 1000), 300000)),
+            },
+        )
+        payload = _response_object(response, self.system)
+        data = _object(payload.get("data"))
+        metadata = _object(data.get("metadata"))
+        content = str(data.get("markdown") or "")
+        records = (
+            [
+                ArtifactRecord(
+                    url=str(metadata.get("url") or metadata.get("sourceURL") or inputs.url),
+                    title=str(metadata.get("title") or ""),
+                    content=content,
+                    metadata={"provider": self.system},
+                )
+            ]
+            if content.strip()
+            else []
+        )
+        credit_count = _optional_number(payload.get("creditsUsed"))
+        return _ProviderResult(
+            payload=ContentPayload(records=records, selected_urls=[record.url for record in records]),
+            cost_usd=(credit_count * self.pricing.price("firecrawl", "credit").usd)
+            if credit_count is not None
+            else self.estimate_case_cost(inputs),
+            cost_kind="upper_bound",
+            cost_basis=f"{self.pricing_snapshot}: Firecrawl scrape auto-recharge ceiling.",
+            usage={"credits": credit_count, "provider_success": bool(payload.get("success"))},
+        )
+
+
+class FirecrawlCrawlAdapter(HostedAdapter):
+    system = "firecrawl-crawl"
+    version = "v2-crawl-bounded-v1"
+    api_key_env = "FIRECRAWL_API_KEY"
+    capabilities = frozenset({Lane.CRAWL})
+    operation_by_lane = {Lane.CRAWL: "crawl_page"}
+
+    def _provider_name(self) -> str:
+        return "firecrawl"
+
+    def estimate_case_cost(self, inputs: BenchmarkInput) -> float:
+        if not isinstance(inputs, CrawlInput):
+            return 0.0
+        return inputs.max_pages * self.pricing.price("firecrawl", "crawl_page").usd
+
+    def _execute(self, client: httpx.Client, inputs: BenchmarkInput, api_key: str) -> _ProviderResult:
+        assert isinstance(inputs, CrawlInput)
+        response = client.post(
+            FIRECRAWL_CRAWL_URL,
+            headers={"Authorization": f"Bearer {api_key}"},
+            json={
+                "url": inputs.url,
+                "includePaths": [
+                    f"{re.escape(prefix.lstrip('/'))}.*" for prefix in inputs.include_path_prefixes
+                ]
+                or None,
+                "excludePaths": [
+                    f"{re.escape(prefix.lstrip('/'))}.*" for prefix in inputs.exclude_path_prefixes
+                ]
+                or None,
+                "maxDiscoveryDepth": inputs.max_depth,
+                "sitemap": "skip",
+                "ignoreQueryParameters": True,
+                "limit": inputs.max_pages,
+                "crawlEntireDomain": True,
+                "allowExternalLinks": False,
+                "allowSubdomains": False,
+                "ignoreRobotsTxt": False,
+                "maxConcurrency": 1,
+                "scrapeOptions": {
+                    "formats": ["markdown"],
+                    "onlyMainContent": True,
+                    "onlyCleanContent": False,
+                    "maxAge": 0,
+                    "skipTlsVerification": False,
+                    "removeBase64Images": True,
+                    "blockAds": True,
+                    "proxy": "basic",
+                    "storeInCache": False,
+                },
+            },
+        )
+        created = _response_object(response, self.system)
+        job_id = str(created.get("id") or "").strip()
+        if not job_id:
+            raise AdapterError("firecrawl crawl response omitted the job id")
+        deadline = time.monotonic() + inputs.timeout_seconds
+        request_count = 1
+        while True:
+            if time.monotonic() >= deadline:
+                raise AdapterError("firecrawl crawl timed out while awaiting a terminal status")
+            status_response = client.get(
+                f"{FIRECRAWL_CRAWL_URL}/{job_id}",
+                headers={"Authorization": f"Bearer {api_key}"},
+            )
+            request_count += 1
+            payload = _response_object(status_response, self.system)
+            status = str(payload.get("status") or "").casefold()
+            if status in {"completed", "failed", "cancelled"}:
+                break
+            if status != "scraping":
+                raise AdapterError("firecrawl crawl returned an unknown status")
+            time.sleep(min(0.5, max(0.0, deadline - time.monotonic())))
+        pages = _object_list(payload.get("data"))
+        records = []
+        for item in pages:
+            metadata = _object(item.get("metadata"))
+            content = str(item.get("markdown") or "")
+            url = str(metadata.get("url") or metadata.get("sourceURL") or "")
+            if url.strip() and content.strip():
+                records.append(
+                    ArtifactRecord(
+                        url=url,
+                        title=str(metadata.get("title") or ""),
+                        content=content,
+                        metadata={"provider": self.system},
+                    )
+                )
+        credit_count = _optional_number(payload.get("creditsUsed"))
+        return _ProviderResult(
+            payload=ContentPayload(records=records, selected_urls=[record.url for record in records]),
+            cost_usd=(credit_count * self.pricing.price("firecrawl", "credit").usd)
+            if credit_count is not None
+            else self.estimate_case_cost(inputs),
+            cost_kind="upper_bound",
+            cost_basis=f"{self.pricing_snapshot}: Firecrawl bounded crawl auto-recharge ceiling.",
+            usage={
+                "credits": credit_count,
+                "completed_pages": _number(payload.get("completed")),
+                "terminal_status": status,
+            },
+            request_count=request_count,
+        )
+
+
+class FirecrawlSearchAdapter(HostedAdapter):
+    system = "firecrawl-search"
+    version = "v2-search-web-v1"
+    api_key_env = "FIRECRAWL_API_KEY"
+    capabilities = frozenset({Lane.SEARCH})
+    operation_by_lane = {Lane.SEARCH: "search_10_results"}
+
+    def _provider_name(self) -> str:
+        return "firecrawl"
+
+    def estimate_case_cost(self, inputs: BenchmarkInput) -> float:
+        if not isinstance(inputs, SearchInput):
+            return 0.0
+        units = max(1, (inputs.max_results + 9) // 10)
+        return units * self.pricing.price("firecrawl", "search_10_results").usd
+
+    def _execute(self, client: httpx.Client, inputs: BenchmarkInput, api_key: str) -> _ProviderResult:
+        assert isinstance(inputs, SearchInput)
+        body: dict[str, Any] = {
+            "query": inputs.query,
+            "limit": inputs.max_results,
+            "sources": [{"type": "web"}],
+            "country": "US",
+            "ignoreInvalidURLs": True,
+        }
+        if inputs.include_domains:
+            body["includeDomains"] = inputs.include_domains
+        response = client.post(
+            FIRECRAWL_SEARCH_URL,
+            headers={"Authorization": f"Bearer {api_key}"},
+            json=body,
+        )
+        payload = _response_object(response, self.system)
+        data = _object(payload.get("data"))
+        results = [
+            RankedResult(
+                identity=str(item.get("url") or ""),
+                url=str(item.get("url") or ""),
+                title=str(item.get("title") or ""),
+                excerpt=str(item.get("description") or ""),
+            )
+            for item in _object_list(data.get("web"))[: inputs.max_results]
+            if str(item.get("url") or "").strip()
+        ]
+        credit_count = _optional_number(payload.get("creditsUsed"))
+        return _ProviderResult(
+            payload=SearchPayload(results=results),
+            cost_usd=(credit_count * self.pricing.price("firecrawl", "credit").usd)
+            if credit_count is not None
+            else self.estimate_case_cost(inputs),
+            cost_kind="upper_bound",
+            cost_basis=f"{self.pricing_snapshot}: Firecrawl web search auto-recharge ceiling.",
+            usage={"credits": credit_count, "result_count": len(results)},
         )
 
 

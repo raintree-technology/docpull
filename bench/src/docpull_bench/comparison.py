@@ -271,7 +271,7 @@ def comparison_markdown(report: ComparisonReport) -> str:
     lines = [
         f"# {report.suite_name} comparison",
         "",
-        f"Suite: `{report.suite_sha256}`  ",
+        f"Suite: `{report.suite_sha256}`",
         f"Protocol: `{report.protocol_sha256}`",
         "",
         "Every pass requires all lane assertions. No cross-lane composite or winner is computed.",

@@ -12,6 +12,9 @@ from docpull_bench.adapters import (
     ContextMarkdownAdapter,
     ExaContentsAdapter,
     ExaSearchAdapter,
+    FirecrawlCrawlAdapter,
+    FirecrawlScrapeAdapter,
+    FirecrawlSearchAdapter,
     ParallelFullExtractAdapter,
     ParallelSearchAdapter,
     TavilyExtractAdapter,
@@ -154,6 +157,126 @@ def test_context_crawl_normalizes_bounded_pages(tmp_path: Path) -> None:
     assert observation.status == "completed"
     assert observation.cost_usd == pytest.approx(0.0045)
     assert observation.payload and len(observation.payload.records) == 2
+
+
+def test_firecrawl_scrape_uses_deterministic_basic_mode(tmp_path: Path) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.headers["Authorization"] == "Bearer test-key"
+        body = json.loads(request.content)
+        assert body["formats"] == ["markdown"]
+        assert body["onlyCleanContent"] is False
+        assert body["proxy"] == "basic"
+        assert body["storeInCache"] is False
+        return httpx.Response(
+            200,
+            json={
+                "success": True,
+                "creditsUsed": 1,
+                "data": {
+                    "markdown": "# Evidence",
+                    "metadata": {
+                        "url": "https://example.com/article",
+                        "title": "Evidence",
+                    },
+                },
+            },
+        )
+
+    adapter = FirecrawlScrapeAdapter(
+        max_cost_usd=0.006,
+        api_key="test-key",
+        transport=httpx.MockTransport(handler),
+    )
+    adapter.preflight([_extract()], repeat=1)
+    observation = adapter.run(_extract(), tmp_path)
+    assert observation.status == "completed"
+    assert observation.cost_usd == pytest.approx(0.006)
+    assert observation.usage["credits"] == 1
+
+
+def test_firecrawl_crawl_polls_and_normalizes_bounded_pages(tmp_path: Path) -> None:
+    inputs = CrawlInput(
+        case_id="crawl.example",
+        lane="crawl",
+        url="https://example.com/docs",
+        include_path_prefixes=["/docs/"],
+        max_pages=3,
+        max_depth=1,
+    )
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "POST":
+            body = json.loads(request.content)
+            assert body["limit"] == 3
+            assert body["sitemap"] == "skip"
+            assert body["ignoreRobotsTxt"] is False
+            assert body["includePaths"] == ["docs/.*"]
+            assert body["maxConcurrency"] == 1
+            return httpx.Response(200, json={"success": True, "id": "crawl-id"})
+        assert request.url.path == "/v2/crawl/crawl-id"
+        return httpx.Response(
+            200,
+            json={
+                "status": "completed",
+                "completed": 2,
+                "creditsUsed": 2,
+                "data": [
+                    {
+                        "markdown": "A",
+                        "metadata": {"url": "https://example.com/docs/a"},
+                    },
+                    {
+                        "markdown": "B",
+                        "metadata": {"url": "https://example.com/docs/b"},
+                    },
+                ],
+            },
+        )
+
+    adapter = FirecrawlCrawlAdapter(
+        max_cost_usd=0.018,
+        api_key="test-key",
+        transport=httpx.MockTransport(handler),
+    )
+    adapter.preflight([inputs], repeat=1)
+    observation = adapter.run(inputs, tmp_path)
+    assert observation.status == "completed"
+    assert observation.request_count == 2
+    assert observation.cost_usd == pytest.approx(0.012)
+    assert observation.payload and len(observation.payload.records) == 2
+
+
+def test_firecrawl_search_returns_ranked_web_results(tmp_path: Path) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        assert body["sources"] == [{"type": "web"}]
+        return httpx.Response(
+            200,
+            json={
+                "success": True,
+                "creditsUsed": 2,
+                "data": {
+                    "web": [
+                        {
+                            "url": "https://example.com/result",
+                            "title": "Identifier",
+                            "description": "Excerpt",
+                        }
+                    ]
+                },
+            },
+        )
+
+    adapter = FirecrawlSearchAdapter(
+        max_cost_usd=0.012,
+        api_key="test-key",
+        transport=httpx.MockTransport(handler),
+    )
+    adapter.preflight([_search()], repeat=1)
+    observation = adapter.run(_search(), tmp_path)
+    assert observation.status == "completed"
+    assert observation.cost_usd == pytest.approx(0.012)
+    assert observation.payload and observation.payload.kind == "search"
 
 
 def test_budget_exhaustion_happens_before_credentials_or_requests() -> None:

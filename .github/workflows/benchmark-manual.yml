@@ -29,6 +29,9 @@ on:
           - exa-search
           - parallel
           - parallel-search
+          - firecrawl
+          - firecrawl-crawl
+          - firecrawl-search
           - contextdev
           - contextdev-crawl
       repeat:
@@ -63,6 +66,7 @@ jobs:
       TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
       EXA_API_KEY: ${{ secrets.EXA_API_KEY }}
       PARALLEL_API_KEY: ${{ secrets.PARALLEL_API_KEY }}
+      FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
       CONTEXT_DEV_API_KEY: ${{ secrets.CONTEXT_DEV_API_KEY }}
     steps:
       - name: Checkout
@@ -101,6 +105,9 @@ jobs:
             exa-search) SYSTEM=exa-search ;;
             parallel) SYSTEM=parallel ;;
             parallel-search) SYSTEM=parallel-search ;;
+            firecrawl) SYSTEM=firecrawl ;;
+            firecrawl-crawl) SYSTEM=firecrawl-crawl ;;
+            firecrawl-search) SYSTEM=firecrawl-search ;;
             contextdev) SYSTEM=context.dev ;;
             contextdev-crawl) SYSTEM=context.dev-crawl ;;
             *) exit 2 ;;

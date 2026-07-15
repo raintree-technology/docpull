@@ -1,0 +1,56 @@
+{
+  "files": {
+    "COMPARISON.md": "c3ee7499dc1e163a4740cc48aa79835210a149d8c0b936137a2e886b170dd69b",
+    "METHODOLOGY.md": "53a72158a226a7009a999bae015439f740b854b8143eaf6621f035bd52eda4be",
+    "README.md": "31afd47b53ca38bd3a211c2b3e0c97d04f8f221a190565440dba2953cc0da910",
+    "comparison.json": "0300b7c8f58a4cd031916a0ba7921c0060b3d08864424f0a7d78b5e10ef8e90e",
+    "reports/exa-search.report.json": "0cb6dbff24e0be39b043fc6f747a58a94d04007bf31ffc0fb27766a3860e99a6",
+    "reports/firecrawl-search.report.json": "4fc4df7834c04b1edb44b09d330f8e0162e0930dabc1ef60ab9669b1de01351d",
+    "reports/parallel-search.report.json": "cafa051faadc2c705e98195c25795627553377e5975ce3ba594b1fc9610f45ec",
+    "reports/tavily-search.report.json": "4630f9d38b31663121f0e79bb997309c78667d648dbf3f1984d85a9c38c8da24",
+    "suite.yaml": "13acf083e57757ed0e012f5df12e9bde7a4ba785503efe70b1ce036e30736910"
+  },
+  "generated_at": "2026-07-15T01:11:24.925622+00:00",
+  "protocol_sha256": "daf74d9c3b6f1649c1beae1fef8e7e81ad6ea5c406a257619247996932698552",
+  "schema_version": 2,
+  "source_reports": [
+    {
+      "published_path": "reports/tavily-search.report.json",
+      "published_sha256": "4630f9d38b31663121f0e79bb997309c78667d648dbf3f1984d85a9c38c8da24",
+      "source_sha256": "4630f9d38b31663121f0e79bb997309c78667d648dbf3f1984d85a9c38c8da24",
+      "system": "tavily-search"
+    },
+    {
+      "published_path": "reports/exa-search.report.json",
+      "published_sha256": "0cb6dbff24e0be39b043fc6f747a58a94d04007bf31ffc0fb27766a3860e99a6",
+      "source_sha256": "0cb6dbff24e0be39b043fc6f747a58a94d04007bf31ffc0fb27766a3860e99a6",
+      "system": "exa-search"
+    },
+    {
+      "published_path": "reports/parallel-search.report.json",
+      "published_sha256": "cafa051faadc2c705e98195c25795627553377e5975ce3ba594b1fc9610f45ec",
+      "source_sha256": "cafa051faadc2c705e98195c25795627553377e5975ce3ba594b1fc9610f45ec",
+      "system": "parallel-search"
+    },
+    {
+      "published_path": "reports/firecrawl-search.report.json",
+      "published_sha256": "4fc4df7834c04b1edb44b09d330f8e0162e0930dabc1ef60ab9669b1de01351d",
+      "source_sha256": "4fc4df7834c04b1edb44b09d330f8e0162e0930dabc1ef60ab9669b1de01351d",
+      "system": "firecrawl-search"
+    }
+  ],
+  "status": "data-only",
+  "suite_name": "docpull-live-search",
+  "suite_sha256": "13acf083e57757ed0e012f5df12e9bde7a4ba785503efe70b1ce036e30736910",
+  "suite_version": "2.0.0",
+  "unavailable_systems": [
+    {
+      "reason": "Public DocPull search workflow is unsupported by policy.",
+      "system": "docpull"
+    },
+    {
+      "reason": "Skipped at user request; no credential was configured and no requests were made.",
+      "system": "context.dev"
+    }
+  ]
+}

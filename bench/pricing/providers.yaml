@@ -50,6 +50,27 @@ providers:
       usd: 0.005
       kind: upper_bound
       source: https://docs.parallel.ai/getting-started/pricing
+  firecrawl:
+    credit:
+      unit: credit using the smallest published auto-recharge pack
+      usd: 0.006
+      kind: upper_bound
+      source: https://www.firecrawl.dev/pricing
+    scrape:
+      unit: one-page Markdown scrape
+      usd: 0.006
+      kind: upper_bound
+      source: https://www.firecrawl.dev/pricing
+    crawl_page:
+      unit: maximum successfully crawled page
+      usd: 0.006
+      kind: upper_bound
+      source: https://www.firecrawl.dev/pricing
+    search_10_results:
+      unit: search request returning up to 10 results
+      usd: 0.012
+      kind: upper_bound
+      source: https://www.firecrawl.dev/pricing
   contextdev:
     markdown:
       unit: successful page using highest published paid overage tier

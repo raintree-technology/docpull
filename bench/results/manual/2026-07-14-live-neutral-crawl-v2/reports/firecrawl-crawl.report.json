@@ -1,0 +1,2138 @@
+{
+  "schema_version": 2,
+  "manifest": {
+    "schema_version": 2,
+    "run_id": "2c15e70c41e94bd5b372dab5c2d97404",
+    "created_at": "2026-07-15T00:59:49.307250+00:00",
+    "suite_name": "live-neutral-crawl",
+    "suite_version": "1.0.0",
+    "suite_sha256": "897d2a54e8f4c3f9f5954ee3107c789a6445944d0f3049b64b455ca3d3e0ec2c",
+    "fixture_manifest_sha256": null,
+    "protocol_sha256": "fbde4f4a0782d9e8a085e7b12cba464a4bbbfdd7a0b8daded026212977c33c40",
+    "system": "firecrawl-crawl",
+    "adapter_version": "v2-crawl-bounded-v1",
+    "adapter_config_sha256": "117fb06e54292855addbeb93cfe0741a3d7d33d9689e2518325039f80cc89be1",
+    "git_revision": "fcac51d1b6b670466303a45524bedf8ff157892f",
+    "git_dirty": true,
+    "dependency_lock_sha256": "b7465c512ffac93ecea81e54dce47ea257369b74f74dd290a843f29f74e44ea1",
+    "python_version": "3.12.13",
+    "operating_system": "Darwin",
+    "architecture": "arm64",
+    "environment_label": "local-macos-live-2026-07-14",
+    "network_isolation": "open",
+    "cache_policy": "provider_managed",
+    "retry_policy": "max_attempts=1",
+    "pricing_snapshot": "2026-07-14-official-list-prices",
+    "repeat": 2,
+    "max_concurrency": 1,
+    "command": [
+      "docpull-bench",
+      "run",
+      "bench/cases/live-neutral-crawl-v1.yaml",
+      "--adapter",
+      "firecrawl-crawl",
+      "--system",
+      "firecrawl-crawl",
+      "--repeat",
+      "2",
+      "--max-concurrency",
+      "1",
+      "--max-cost-usd",
+      "0.768",
+      "--output-dir",
+      "bench/runs/live-2026-07-14/crawl",
+      "--environment-label",
+      "local-macos-live-2026-07-14",
+      "--network-isolation",
+      "open"
+    ]
+  },
+  "observations": [
+    {
+      "schema_version": 2,
+      "case_id": "crawl.python-asyncio",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "critical": false,
+      "system": "firecrawl-crawl",
+      "status": "failed",
+      "payload_summary": {},
+      "records": [],
+      "elapsed_seconds": 0.6916911250009434,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.048,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Conservative reservation for one attempted request.",
+      "usage": {},
+      "request_count": 1,
+      "attempt_count": 1,
+      "adapter_version": "v2-crawl-bounded-v1",
+      "error": "AdapterError: firecrawl-crawl returned HTTP 400; response body omitted",
+      "artifacts": {}
+    },
+    {
+      "schema_version": 2,
+      "case_id": "crawl.python-asyncio",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "critical": false,
+      "system": "firecrawl-crawl",
+      "status": "failed",
+      "payload_summary": {},
+      "records": [],
+      "elapsed_seconds": 0.5273482919983508,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.048,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Conservative reservation for one attempted request.",
+      "usage": {},
+      "request_count": 1,
+      "attempt_count": 1,
+      "adapter_version": "v2-crawl-bounded-v1",
+      "error": "AdapterError: firecrawl-crawl returned HTTP 400; response body omitted",
+      "artifacts": {}
+    },
+    {
+      "schema_version": 2,
+      "case_id": "crawl.sqlite-language",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "critical": false,
+      "system": "firecrawl-crawl",
+      "status": "failed",
+      "payload_summary": {},
+      "records": [],
+      "elapsed_seconds": 0.37811524999779067,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.048,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Conservative reservation for one attempted request.",
+      "usage": {},
+      "request_count": 1,
+      "attempt_count": 1,
+      "adapter_version": "v2-crawl-bounded-v1",
+      "error": "AdapterError: firecrawl-crawl returned HTTP 429; response body omitted",
+      "artifacts": {}
+    },
+    {
+      "schema_version": 2,
+      "case_id": "crawl.sqlite-language",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "critical": false,
+      "system": "firecrawl-crawl",
+      "status": "failed",
+      "payload_summary": {},
+      "records": [],
+      "elapsed_seconds": 0.2778019580000546,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.048,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Conservative reservation for one attempted request.",
+      "usage": {},
+      "request_count": 1,
+      "attempt_count": 1,
+      "adapter_version": "v2-crawl-bounded-v1",
+      "error": "AdapterError: firecrawl-crawl returned HTTP 429; response body omitted",
+      "artifacts": {}
+    },
+    {
+      "schema_version": 2,
+      "case_id": "crawl.mdn-http",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "critical": false,
+      "system": "firecrawl-crawl",
+      "status": "failed",
+      "payload_summary": {},
+      "records": [],
+      "elapsed_seconds": 0.37333262500033015,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.048,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Conservative reservation for one attempted request.",
+      "usage": {},
+      "request_count": 1,
+      "attempt_count": 1,
+      "adapter_version": "v2-crawl-bounded-v1",
+      "error": "AdapterError: firecrawl-crawl returned HTTP 429; response body omitted",
+      "artifacts": {}
+    },
+    {
+      "schema_version": 2,
+      "case_id": "crawl.mdn-http",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "critical": false,
+      "system": "firecrawl-crawl",
+      "status": "failed",
+      "payload_summary": {},
+      "records": [],
+      "elapsed_seconds": 0.36285695799961104,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.048,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Conservative reservation for one attempted request.",
+      "usage": {},
+      "request_count": 1,
+      "attempt_count": 1,
+      "adapter_version": "v2-crawl-bounded-v1",
+      "error": "AdapterError: firecrawl-crawl returned HTTP 429; response body omitted",
+      "artifacts": {}
+    },
+    {
+      "schema_version": 2,
+      "case_id": "crawl.docker-get-started",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "framework-tutorial-crawl",
+      "critical": false,
+      "system": "firecrawl-crawl",
+      "status": "failed",
+      "payload_summary": {},
+      "records": [],
+      "elapsed_seconds": 0.2613112920007552,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.048,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Conservative reservation for one attempted request.",
+      "usage": {},
+      "request_count": 1,
+      "attempt_count": 1,
+      "adapter_version": "v2-crawl-bounded-v1",
+      "error": "AdapterError: firecrawl-crawl returned HTTP 429; response body omitted",
+      "artifacts": {}
+    },
+    {
+      "schema_version": 2,
+      "case_id": "crawl.docker-get-started",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "dev",
+      "family": "framework-tutorial-crawl",
+      "critical": false,
+      "system": "firecrawl-crawl",
+      "status": "failed",
+      "payload_summary": {},
+      "records": [],
+      "elapsed_seconds": 0.40623908300040057,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.048,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Conservative reservation for one attempted request.",
+      "usage": {},
+      "request_count": 1,
+      "attempt_count": 1,
+      "adapter_version": "v2-crawl-bounded-v1",
+      "error": "AdapterError: firecrawl-crawl returned HTTP 429; response body omitted",
+      "artifacts": {}
+    },
+    {
+      "schema_version": 2,
+      "case_id": "crawl.go-docs",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "test",
+      "family": "language-reference-crawl",
+      "critical": false,
+      "system": "firecrawl-crawl",
+      "status": "failed",
+      "payload_summary": {},
+      "records": [],
+      "elapsed_seconds": 0.3762551660001918,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.048,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Conservative reservation for one attempted request.",
+      "usage": {},
+      "request_count": 1,
+      "attempt_count": 1,
+      "adapter_version": "v2-crawl-bounded-v1",
+      "error": "AdapterError: firecrawl-crawl returned HTTP 429; response body omitted",
+      "artifacts": {}
+    },
+    {
+      "schema_version": 2,
+      "case_id": "crawl.go-docs",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "test",
+      "family": "language-reference-crawl",
+      "critical": false,
+      "system": "firecrawl-crawl",
+      "status": "failed",
+      "payload_summary": {},
+      "records": [],
+      "elapsed_seconds": 0.36315012500199373,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.048,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Conservative reservation for one attempted request.",
+      "usage": {},
+      "request_count": 1,
+      "attempt_count": 1,
+      "adapter_version": "v2-crawl-bounded-v1",
+      "error": "AdapterError: firecrawl-crawl returned HTTP 429; response body omitted",
+      "artifacts": {}
+    },
+    {
+      "schema_version": 2,
+      "case_id": "crawl.rust-book",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "critical": false,
+      "system": "firecrawl-crawl",
+      "status": "failed",
+      "payload_summary": {},
+      "records": [],
+      "elapsed_seconds": 0.3747137499995006,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.048,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Conservative reservation for one attempted request.",
+      "usage": {},
+      "request_count": 1,
+      "attempt_count": 1,
+      "adapter_version": "v2-crawl-bounded-v1",
+      "error": "AdapterError: firecrawl-crawl returned HTTP 429; response body omitted",
+      "artifacts": {}
+    },
+    {
+      "schema_version": 2,
+      "case_id": "crawl.rust-book",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "critical": false,
+      "system": "firecrawl-crawl",
+      "status": "failed",
+      "payload_summary": {},
+      "records": [],
+      "elapsed_seconds": 0.39105208399996627,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.048,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Conservative reservation for one attempted request.",
+      "usage": {},
+      "request_count": 1,
+      "attempt_count": 1,
+      "adapter_version": "v2-crawl-bounded-v1",
+      "error": "AdapterError: firecrawl-crawl returned HTTP 429; response body omitted",
+      "artifacts": {}
+    },
+    {
+      "schema_version": 2,
+      "case_id": "crawl.fastapi-tutorial",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "critical": false,
+      "system": "firecrawl-crawl",
+      "status": "failed",
+      "payload_summary": {},
+      "records": [],
+      "elapsed_seconds": 0.28953916700265836,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.048,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Conservative reservation for one attempted request.",
+      "usage": {},
+      "request_count": 1,
+      "attempt_count": 1,
+      "adapter_version": "v2-crawl-bounded-v1",
+      "error": "AdapterError: firecrawl-crawl returned HTTP 429; response body omitted",
+      "artifacts": {}
+    },
+    {
+      "schema_version": 2,
+      "case_id": "crawl.fastapi-tutorial",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "critical": false,
+      "system": "firecrawl-crawl",
+      "status": "failed",
+      "payload_summary": {},
+      "records": [],
+      "elapsed_seconds": 13.508975707998616,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.048,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Conservative reservation for one attempted request.",
+      "usage": {},
+      "request_count": 1,
+      "attempt_count": 1,
+      "adapter_version": "v2-crawl-bounded-v1",
+      "error": "AdapterError: firecrawl-crawl returned HTTP 429; response body omitted",
+      "artifacts": {}
+    },
+    {
+      "schema_version": 2,
+      "case_id": "crawl.kubernetes-concepts",
+      "trial_index": 1,
+      "lane": "crawl",
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "critical": false,
+      "system": "firecrawl-crawl",
+      "status": "failed",
+      "payload_summary": {},
+      "records": [],
+      "elapsed_seconds": 0.26899791700270725,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.048,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Conservative reservation for one attempted request.",
+      "usage": {},
+      "request_count": 1,
+      "attempt_count": 1,
+      "adapter_version": "v2-crawl-bounded-v1",
+      "error": "AdapterError: firecrawl-crawl returned HTTP 429; response body omitted",
+      "artifacts": {}
+    },
+    {
+      "schema_version": 2,
+      "case_id": "crawl.kubernetes-concepts",
+      "trial_index": 2,
+      "lane": "crawl",
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "critical": false,
+      "system": "firecrawl-crawl",
+      "status": "failed",
+      "payload_summary": {},
+      "records": [],
+      "elapsed_seconds": 0.3904646250011865,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.048,
+      "cost_kind": "upper_bound",
+      "cost_basis": "Conservative reservation for one attempted request.",
+      "usage": {},
+      "request_count": 1,
+      "attempt_count": 1,
+      "adapter_version": "v2-crawl-bounded-v1",
+      "error": "AdapterError: firecrawl-crawl returned HTTP 429; response body omitted",
+      "artifacts": {}
+    }
+  ],
+  "scores": [
+    {
+      "case_id": "crawl.python-asyncio",
+      "system": "firecrawl-crawl",
+      "trial_index": 1,
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "critical": false,
+      "completed": false,
+      "passed": false,
+      "required_check_rate": 0.18181818181818182,
+      "assertions": [
+        {
+          "name": "status.completed",
+          "passed": false,
+          "actual": "failed",
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "records.minimum",
+          "passed": false,
+          "actual": 0,
+          "expected": 5,
+          "detail": null
+        },
+        {
+          "name": "content.minimum_chars",
+          "passed": false,
+          "actual": 0,
+          "expected": 20000,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:b1e1a3d63d1e1e1ab5f2d31ed97ac25e6218a372b6bf8d11a03b9c83d8568bad",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:ec4c93adb907273ec2660a5c0ca3094b0603abd925a38af5beec25e654c5cdb7",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:c5d2de3f68e5311ce75d84a13ff583da1bf22cd82859a854af61dff1b04f9c7b",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:dc7a45a9f79bd4eee598086aad87066bae2659c279032881173bee0fe566e764",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:eb33d36da592855b5796694f3ce252b91bcbc19ea06f926195e4f54065760e27",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:8648139190e534786d6204dff7161d395d89e1688db509a72c2f161c4389e645",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "urls.allowed_domains",
+          "passed": true,
+          "actual": 1.0,
+          "expected": 1.0,
+          "detail": null
+        },
+        {
+          "name": "records.maximum_duplicate_rate",
+          "passed": true,
+          "actual": 0.0,
+          "expected": 1.0,
+          "detail": null
+        }
+      ],
+      "metrics": {
+        "record_count": 0,
+        "content_chars": 0,
+        "term_coverage": 0.0,
+        "forbidden_term_cleanliness": 1.0,
+        "url_recall": 0.0,
+        "domain_precision": 1.0,
+        "duplicate_rate": 0.0
+      },
+      "elapsed_seconds": 0.6916911250009434,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.048,
+      "cost_kind": "upper_bound",
+      "status": "failed",
+      "lane": "crawl"
+    },
+    {
+      "case_id": "crawl.python-asyncio",
+      "system": "firecrawl-crawl",
+      "trial_index": 2,
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "critical": false,
+      "completed": false,
+      "passed": false,
+      "required_check_rate": 0.18181818181818182,
+      "assertions": [
+        {
+          "name": "status.completed",
+          "passed": false,
+          "actual": "failed",
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "records.minimum",
+          "passed": false,
+          "actual": 0,
+          "expected": 5,
+          "detail": null
+        },
+        {
+          "name": "content.minimum_chars",
+          "passed": false,
+          "actual": 0,
+          "expected": 20000,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:b1e1a3d63d1e1e1ab5f2d31ed97ac25e6218a372b6bf8d11a03b9c83d8568bad",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:ec4c93adb907273ec2660a5c0ca3094b0603abd925a38af5beec25e654c5cdb7",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:c5d2de3f68e5311ce75d84a13ff583da1bf22cd82859a854af61dff1b04f9c7b",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:dc7a45a9f79bd4eee598086aad87066bae2659c279032881173bee0fe566e764",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:eb33d36da592855b5796694f3ce252b91bcbc19ea06f926195e4f54065760e27",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:8648139190e534786d6204dff7161d395d89e1688db509a72c2f161c4389e645",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "urls.allowed_domains",
+          "passed": true,
+          "actual": 1.0,
+          "expected": 1.0,
+          "detail": null
+        },
+        {
+          "name": "records.maximum_duplicate_rate",
+          "passed": true,
+          "actual": 0.0,
+          "expected": 1.0,
+          "detail": null
+        }
+      ],
+      "metrics": {
+        "record_count": 0,
+        "content_chars": 0,
+        "term_coverage": 0.0,
+        "forbidden_term_cleanliness": 1.0,
+        "url_recall": 0.0,
+        "domain_precision": 1.0,
+        "duplicate_rate": 0.0
+      },
+      "elapsed_seconds": 0.5273482919983508,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.048,
+      "cost_kind": "upper_bound",
+      "status": "failed",
+      "lane": "crawl"
+    },
+    {
+      "case_id": "crawl.sqlite-language",
+      "system": "firecrawl-crawl",
+      "trial_index": 1,
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "critical": false,
+      "completed": false,
+      "passed": false,
+      "required_check_rate": 0.18181818181818182,
+      "assertions": [
+        {
+          "name": "status.completed",
+          "passed": false,
+          "actual": "failed",
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "records.minimum",
+          "passed": false,
+          "actual": 0,
+          "expected": 5,
+          "detail": null
+        },
+        {
+          "name": "content.minimum_chars",
+          "passed": false,
+          "actual": 0,
+          "expected": 20000,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:97c2aa171b5a85199090a90237b73f71fd34a3afb89779300deec19ff90856c8",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:8c6e5779190acc89b92b7c3e11c6e63aa94cb50fba5bcbe518749de056687a2a",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:f8d95b2ada8f59f8f2f7607d5d36365339aac22fba721d4ddd759783dc602654",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:fbbe8a457e79190dc2e7f4e8a809dd7f170155849764a23e68f8c43122fef2bb",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:ea2a39fa56649580d31dcb2bbbd4345cd059ba240e2d2200b72ed2f8334db5cf",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:f4e27cf031502cf57b0a76b16b1b04c62e518980434d99d3a9b08880552eedd7",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "urls.allowed_domains",
+          "passed": true,
+          "actual": 1.0,
+          "expected": 1.0,
+          "detail": null
+        },
+        {
+          "name": "records.maximum_duplicate_rate",
+          "passed": true,
+          "actual": 0.0,
+          "expected": 1.0,
+          "detail": null
+        }
+      ],
+      "metrics": {
+        "record_count": 0,
+        "content_chars": 0,
+        "term_coverage": 0.0,
+        "forbidden_term_cleanliness": 1.0,
+        "url_recall": 0.0,
+        "domain_precision": 1.0,
+        "duplicate_rate": 0.0
+      },
+      "elapsed_seconds": 0.37811524999779067,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.048,
+      "cost_kind": "upper_bound",
+      "status": "failed",
+      "lane": "crawl"
+    },
+    {
+      "case_id": "crawl.sqlite-language",
+      "system": "firecrawl-crawl",
+      "trial_index": 2,
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "critical": false,
+      "completed": false,
+      "passed": false,
+      "required_check_rate": 0.18181818181818182,
+      "assertions": [
+        {
+          "name": "status.completed",
+          "passed": false,
+          "actual": "failed",
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "records.minimum",
+          "passed": false,
+          "actual": 0,
+          "expected": 5,
+          "detail": null
+        },
+        {
+          "name": "content.minimum_chars",
+          "passed": false,
+          "actual": 0,
+          "expected": 20000,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:97c2aa171b5a85199090a90237b73f71fd34a3afb89779300deec19ff90856c8",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:8c6e5779190acc89b92b7c3e11c6e63aa94cb50fba5bcbe518749de056687a2a",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:f8d95b2ada8f59f8f2f7607d5d36365339aac22fba721d4ddd759783dc602654",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:fbbe8a457e79190dc2e7f4e8a809dd7f170155849764a23e68f8c43122fef2bb",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:ea2a39fa56649580d31dcb2bbbd4345cd059ba240e2d2200b72ed2f8334db5cf",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:f4e27cf031502cf57b0a76b16b1b04c62e518980434d99d3a9b08880552eedd7",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "urls.allowed_domains",
+          "passed": true,
+          "actual": 1.0,
+          "expected": 1.0,
+          "detail": null
+        },
+        {
+          "name": "records.maximum_duplicate_rate",
+          "passed": true,
+          "actual": 0.0,
+          "expected": 1.0,
+          "detail": null
+        }
+      ],
+      "metrics": {
+        "record_count": 0,
+        "content_chars": 0,
+        "term_coverage": 0.0,
+        "forbidden_term_cleanliness": 1.0,
+        "url_recall": 0.0,
+        "domain_precision": 1.0,
+        "duplicate_rate": 0.0
+      },
+      "elapsed_seconds": 0.2778019580000546,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.048,
+      "cost_kind": "upper_bound",
+      "status": "failed",
+      "lane": "crawl"
+    },
+    {
+      "case_id": "crawl.mdn-http",
+      "system": "firecrawl-crawl",
+      "trial_index": 1,
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "critical": false,
+      "completed": false,
+      "passed": false,
+      "required_check_rate": 0.18181818181818182,
+      "assertions": [
+        {
+          "name": "status.completed",
+          "passed": false,
+          "actual": "failed",
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "records.minimum",
+          "passed": false,
+          "actual": 0,
+          "expected": 5,
+          "detail": null
+        },
+        {
+          "name": "content.minimum_chars",
+          "passed": false,
+          "actual": 0,
+          "expected": 30000,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:1ce579b389b2d306c0767dd6088c8501989239b73e66b2d1076d373d431928ac",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:39f99965ca686f95b46bd622456286bc182b671da9d6995a76d0218e5d6972ff",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:eaa4a020751a5c9c98a4f52594699c9b5b9f150de54b8fc639865c2e614b98d8",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:df35fd04b143019402bac6f648283e1869ca3987116e041ab16606a48a67bb4b",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:e47b60754748a593db89cbe0d44a62b15034bb0f17af8db900d7d155019fccd4",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:59e2ed660294603a108e5c39013b2d39fffb768408e3b551daf4b5da5a40a83d",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "urls.allowed_domains",
+          "passed": true,
+          "actual": 1.0,
+          "expected": 1.0,
+          "detail": null
+        },
+        {
+          "name": "records.maximum_duplicate_rate",
+          "passed": true,
+          "actual": 0.0,
+          "expected": 1.0,
+          "detail": null
+        }
+      ],
+      "metrics": {
+        "record_count": 0,
+        "content_chars": 0,
+        "term_coverage": 0.0,
+        "forbidden_term_cleanliness": 1.0,
+        "url_recall": 0.0,
+        "domain_precision": 1.0,
+        "duplicate_rate": 0.0
+      },
+      "elapsed_seconds": 0.37333262500033015,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.048,
+      "cost_kind": "upper_bound",
+      "status": "failed",
+      "lane": "crawl"
+    },
+    {
+      "case_id": "crawl.mdn-http",
+      "system": "firecrawl-crawl",
+      "trial_index": 2,
+      "split": "dev",
+      "family": "language-reference-crawl",
+      "critical": false,
+      "completed": false,
+      "passed": false,
+      "required_check_rate": 0.18181818181818182,
+      "assertions": [
+        {
+          "name": "status.completed",
+          "passed": false,
+          "actual": "failed",
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "records.minimum",
+          "passed": false,
+          "actual": 0,
+          "expected": 5,
+          "detail": null
+        },
+        {
+          "name": "content.minimum_chars",
+          "passed": false,
+          "actual": 0,
+          "expected": 30000,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:1ce579b389b2d306c0767dd6088c8501989239b73e66b2d1076d373d431928ac",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:39f99965ca686f95b46bd622456286bc182b671da9d6995a76d0218e5d6972ff",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:eaa4a020751a5c9c98a4f52594699c9b5b9f150de54b8fc639865c2e614b98d8",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:df35fd04b143019402bac6f648283e1869ca3987116e041ab16606a48a67bb4b",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:e47b60754748a593db89cbe0d44a62b15034bb0f17af8db900d7d155019fccd4",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:59e2ed660294603a108e5c39013b2d39fffb768408e3b551daf4b5da5a40a83d",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "urls.allowed_domains",
+          "passed": true,
+          "actual": 1.0,
+          "expected": 1.0,
+          "detail": null
+        },
+        {
+          "name": "records.maximum_duplicate_rate",
+          "passed": true,
+          "actual": 0.0,
+          "expected": 1.0,
+          "detail": null
+        }
+      ],
+      "metrics": {
+        "record_count": 0,
+        "content_chars": 0,
+        "term_coverage": 0.0,
+        "forbidden_term_cleanliness": 1.0,
+        "url_recall": 0.0,
+        "domain_precision": 1.0,
+        "duplicate_rate": 0.0
+      },
+      "elapsed_seconds": 0.36285695799961104,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.048,
+      "cost_kind": "upper_bound",
+      "status": "failed",
+      "lane": "crawl"
+    },
+    {
+      "case_id": "crawl.docker-get-started",
+      "system": "firecrawl-crawl",
+      "trial_index": 1,
+      "split": "dev",
+      "family": "framework-tutorial-crawl",
+      "critical": false,
+      "completed": false,
+      "passed": false,
+      "required_check_rate": 0.18181818181818182,
+      "assertions": [
+        {
+          "name": "status.completed",
+          "passed": false,
+          "actual": "failed",
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "records.minimum",
+          "passed": false,
+          "actual": 0,
+          "expected": 5,
+          "detail": null
+        },
+        {
+          "name": "content.minimum_chars",
+          "passed": false,
+          "actual": 0,
+          "expected": 20000,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:c4a6c83a400aa7480d2b7763ee73cf91a15125a75587946f3b3f9658669e4f9c",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:09b6c21c0f50ab269ad7d3f8c98edc5a7209522509434ba760a38be32455172f",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:e6ee83c6cb1d7b7fcae1c4509970407d44763bbb572a70a1195912c88fc8e722",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:60283338fee3ec054be4e5d95328d16616c4f8eeb735282bb1d987edce7c2952",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:63a3913d648022d8c0024273ffbfc25d99d73fb48e3ee7346ec9aa526af39718",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:0fb7f5c10e2dc7a9e5df62ed20a42fdeaed95ff3af42d64ea220e09a49812841",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "urls.allowed_domains",
+          "passed": true,
+          "actual": 1.0,
+          "expected": 1.0,
+          "detail": null
+        },
+        {
+          "name": "records.maximum_duplicate_rate",
+          "passed": true,
+          "actual": 0.0,
+          "expected": 1.0,
+          "detail": null
+        }
+      ],
+      "metrics": {
+        "record_count": 0,
+        "content_chars": 0,
+        "term_coverage": 0.0,
+        "forbidden_term_cleanliness": 1.0,
+        "url_recall": 0.0,
+        "domain_precision": 1.0,
+        "duplicate_rate": 0.0
+      },
+      "elapsed_seconds": 0.2613112920007552,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.048,
+      "cost_kind": "upper_bound",
+      "status": "failed",
+      "lane": "crawl"
+    },
+    {
+      "case_id": "crawl.docker-get-started",
+      "system": "firecrawl-crawl",
+      "trial_index": 2,
+      "split": "dev",
+      "family": "framework-tutorial-crawl",
+      "critical": false,
+      "completed": false,
+      "passed": false,
+      "required_check_rate": 0.18181818181818182,
+      "assertions": [
+        {
+          "name": "status.completed",
+          "passed": false,
+          "actual": "failed",
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "records.minimum",
+          "passed": false,
+          "actual": 0,
+          "expected": 5,
+          "detail": null
+        },
+        {
+          "name": "content.minimum_chars",
+          "passed": false,
+          "actual": 0,
+          "expected": 20000,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:c4a6c83a400aa7480d2b7763ee73cf91a15125a75587946f3b3f9658669e4f9c",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:09b6c21c0f50ab269ad7d3f8c98edc5a7209522509434ba760a38be32455172f",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:e6ee83c6cb1d7b7fcae1c4509970407d44763bbb572a70a1195912c88fc8e722",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:60283338fee3ec054be4e5d95328d16616c4f8eeb735282bb1d987edce7c2952",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:63a3913d648022d8c0024273ffbfc25d99d73fb48e3ee7346ec9aa526af39718",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:0fb7f5c10e2dc7a9e5df62ed20a42fdeaed95ff3af42d64ea220e09a49812841",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "urls.allowed_domains",
+          "passed": true,
+          "actual": 1.0,
+          "expected": 1.0,
+          "detail": null
+        },
+        {
+          "name": "records.maximum_duplicate_rate",
+          "passed": true,
+          "actual": 0.0,
+          "expected": 1.0,
+          "detail": null
+        }
+      ],
+      "metrics": {
+        "record_count": 0,
+        "content_chars": 0,
+        "term_coverage": 0.0,
+        "forbidden_term_cleanliness": 1.0,
+        "url_recall": 0.0,
+        "domain_precision": 1.0,
+        "duplicate_rate": 0.0
+      },
+      "elapsed_seconds": 0.40623908300040057,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.048,
+      "cost_kind": "upper_bound",
+      "status": "failed",
+      "lane": "crawl"
+    },
+    {
+      "case_id": "crawl.go-docs",
+      "system": "firecrawl-crawl",
+      "trial_index": 1,
+      "split": "test",
+      "family": "language-reference-crawl",
+      "critical": false,
+      "completed": false,
+      "passed": false,
+      "required_check_rate": 0.18181818181818182,
+      "assertions": [
+        {
+          "name": "status.completed",
+          "passed": false,
+          "actual": "failed",
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "records.minimum",
+          "passed": false,
+          "actual": 0,
+          "expected": 5,
+          "detail": null
+        },
+        {
+          "name": "content.minimum_chars",
+          "passed": false,
+          "actual": 0,
+          "expected": 30000,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:6bca165cc1174c7c86a65abfa4663a4c939b6694b8c4a5a08cde9f93a01bb352",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:48fa0b0a9d39daaa82c3474df1180ce1054f7ea8eb32107c8e3e8919987b1759",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:10244246d395080ebf22adf2916956678fd6647cc94df91c3e9c817fcb9a9b6b",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:5ba657a1b59eaea19f425c7b99a6c5e0842e7988126a3751d02dcd03befc68ba",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:5d82dc9a454dc245a9c2c6f7318c3dc7ecc584aff60ddccd5711f93cba6105cf",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:3f4be4138e8609715789c6cbac2cbb2f361acfc7e78f2b3a0ba80abf613e5496",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "urls.allowed_domains",
+          "passed": true,
+          "actual": 1.0,
+          "expected": 1.0,
+          "detail": null
+        },
+        {
+          "name": "records.maximum_duplicate_rate",
+          "passed": true,
+          "actual": 0.0,
+          "expected": 1.0,
+          "detail": null
+        }
+      ],
+      "metrics": {
+        "record_count": 0,
+        "content_chars": 0,
+        "term_coverage": 0.0,
+        "forbidden_term_cleanliness": 1.0,
+        "url_recall": 0.0,
+        "domain_precision": 1.0,
+        "duplicate_rate": 0.0
+      },
+      "elapsed_seconds": 0.3762551660001918,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.048,
+      "cost_kind": "upper_bound",
+      "status": "failed",
+      "lane": "crawl"
+    },
+    {
+      "case_id": "crawl.go-docs",
+      "system": "firecrawl-crawl",
+      "trial_index": 2,
+      "split": "test",
+      "family": "language-reference-crawl",
+      "critical": false,
+      "completed": false,
+      "passed": false,
+      "required_check_rate": 0.18181818181818182,
+      "assertions": [
+        {
+          "name": "status.completed",
+          "passed": false,
+          "actual": "failed",
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "records.minimum",
+          "passed": false,
+          "actual": 0,
+          "expected": 5,
+          "detail": null
+        },
+        {
+          "name": "content.minimum_chars",
+          "passed": false,
+          "actual": 0,
+          "expected": 30000,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:6bca165cc1174c7c86a65abfa4663a4c939b6694b8c4a5a08cde9f93a01bb352",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:48fa0b0a9d39daaa82c3474df1180ce1054f7ea8eb32107c8e3e8919987b1759",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:10244246d395080ebf22adf2916956678fd6647cc94df91c3e9c817fcb9a9b6b",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:5ba657a1b59eaea19f425c7b99a6c5e0842e7988126a3751d02dcd03befc68ba",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:5d82dc9a454dc245a9c2c6f7318c3dc7ecc584aff60ddccd5711f93cba6105cf",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:3f4be4138e8609715789c6cbac2cbb2f361acfc7e78f2b3a0ba80abf613e5496",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "urls.allowed_domains",
+          "passed": true,
+          "actual": 1.0,
+          "expected": 1.0,
+          "detail": null
+        },
+        {
+          "name": "records.maximum_duplicate_rate",
+          "passed": true,
+          "actual": 0.0,
+          "expected": 1.0,
+          "detail": null
+        }
+      ],
+      "metrics": {
+        "record_count": 0,
+        "content_chars": 0,
+        "term_coverage": 0.0,
+        "forbidden_term_cleanliness": 1.0,
+        "url_recall": 0.0,
+        "domain_precision": 1.0,
+        "duplicate_rate": 0.0
+      },
+      "elapsed_seconds": 0.36315012500199373,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.048,
+      "cost_kind": "upper_bound",
+      "status": "failed",
+      "lane": "crawl"
+    },
+    {
+      "case_id": "crawl.rust-book",
+      "system": "firecrawl-crawl",
+      "trial_index": 1,
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "critical": false,
+      "completed": false,
+      "passed": false,
+      "required_check_rate": 0.18181818181818182,
+      "assertions": [
+        {
+          "name": "status.completed",
+          "passed": false,
+          "actual": "failed",
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "records.minimum",
+          "passed": false,
+          "actual": 0,
+          "expected": 5,
+          "detail": null
+        },
+        {
+          "name": "content.minimum_chars",
+          "passed": false,
+          "actual": 0,
+          "expected": 12000,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:6aa8c23898e151632078c750e6169c08590a303e114156c2b73c074c24037796",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:561f0a3d84e3c5cf22f379912b7513b40c4e08edd60dc8b936a407db52b9579c",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:4ec5d59a585b99d542c05e08e61fdada3245978de910743d5333253142ee8908",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:5f6e6a555f869b3725667170e5067ff6961611dedb499bcf1e2d3d2c6f9bd8fc",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:e247e75ada8cb835493898aafe22e5f069fe501a8ac9694e795bb2c6c1dd2ba7",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:89c47e72f4f20c2238dcc47715002862e43df8ecfc48733160b2931e51fac8c9",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "urls.allowed_domains",
+          "passed": true,
+          "actual": 1.0,
+          "expected": 1.0,
+          "detail": null
+        },
+        {
+          "name": "records.maximum_duplicate_rate",
+          "passed": true,
+          "actual": 0.0,
+          "expected": 1.0,
+          "detail": null
+        }
+      ],
+      "metrics": {
+        "record_count": 0,
+        "content_chars": 0,
+        "term_coverage": 0.0,
+        "forbidden_term_cleanliness": 1.0,
+        "url_recall": 0.0,
+        "domain_precision": 1.0,
+        "duplicate_rate": 0.0
+      },
+      "elapsed_seconds": 0.3747137499995006,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.048,
+      "cost_kind": "upper_bound",
+      "status": "failed",
+      "lane": "crawl"
+    },
+    {
+      "case_id": "crawl.rust-book",
+      "system": "firecrawl-crawl",
+      "trial_index": 2,
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "critical": false,
+      "completed": false,
+      "passed": false,
+      "required_check_rate": 0.18181818181818182,
+      "assertions": [
+        {
+          "name": "status.completed",
+          "passed": false,
+          "actual": "failed",
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "records.minimum",
+          "passed": false,
+          "actual": 0,
+          "expected": 5,
+          "detail": null
+        },
+        {
+          "name": "content.minimum_chars",
+          "passed": false,
+          "actual": 0,
+          "expected": 12000,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:6aa8c23898e151632078c750e6169c08590a303e114156c2b73c074c24037796",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:561f0a3d84e3c5cf22f379912b7513b40c4e08edd60dc8b936a407db52b9579c",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:4ec5d59a585b99d542c05e08e61fdada3245978de910743d5333253142ee8908",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:5f6e6a555f869b3725667170e5067ff6961611dedb499bcf1e2d3d2c6f9bd8fc",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:e247e75ada8cb835493898aafe22e5f069fe501a8ac9694e795bb2c6c1dd2ba7",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:89c47e72f4f20c2238dcc47715002862e43df8ecfc48733160b2931e51fac8c9",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "urls.allowed_domains",
+          "passed": true,
+          "actual": 1.0,
+          "expected": 1.0,
+          "detail": null
+        },
+        {
+          "name": "records.maximum_duplicate_rate",
+          "passed": true,
+          "actual": 0.0,
+          "expected": 1.0,
+          "detail": null
+        }
+      ],
+      "metrics": {
+        "record_count": 0,
+        "content_chars": 0,
+        "term_coverage": 0.0,
+        "forbidden_term_cleanliness": 1.0,
+        "url_recall": 0.0,
+        "domain_precision": 1.0,
+        "duplicate_rate": 0.0
+      },
+      "elapsed_seconds": 0.39105208399996627,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.048,
+      "cost_kind": "upper_bound",
+      "status": "failed",
+      "lane": "crawl"
+    },
+    {
+      "case_id": "crawl.fastapi-tutorial",
+      "system": "firecrawl-crawl",
+      "trial_index": 1,
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "critical": false,
+      "completed": false,
+      "passed": false,
+      "required_check_rate": 0.18181818181818182,
+      "assertions": [
+        {
+          "name": "status.completed",
+          "passed": false,
+          "actual": "failed",
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "records.minimum",
+          "passed": false,
+          "actual": 0,
+          "expected": 5,
+          "detail": null
+        },
+        {
+          "name": "content.minimum_chars",
+          "passed": false,
+          "actual": 0,
+          "expected": 20000,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:c7d9c7e23dba42077fce391346b6dfc8722923f907e766fca5997389c0cb3c16",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:ba2680e9b3122235ec76233cfbe242b01b4abdf24503b6af5522cec3ffae989e",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:7f07c8b7eadc73f2755c60efb1d9d7ac0f094dd7c1dba3069d3be0214be10fb6",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:6634008cc0069f6528f5c6a79d0b3f98169d3156a378c4336e9c96c626251455",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:a106cd5ebeea2961ab8d1ad42db31a448b5c9311e980b049564cb36b66044854",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:2cdbc329c377e57a3fef165dad7b33d23b9598644f5e232a2089e66ccab5c8ea",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "urls.allowed_domains",
+          "passed": true,
+          "actual": 1.0,
+          "expected": 1.0,
+          "detail": null
+        },
+        {
+          "name": "records.maximum_duplicate_rate",
+          "passed": true,
+          "actual": 0.0,
+          "expected": 1.0,
+          "detail": null
+        }
+      ],
+      "metrics": {
+        "record_count": 0,
+        "content_chars": 0,
+        "term_coverage": 0.0,
+        "forbidden_term_cleanliness": 1.0,
+        "url_recall": 0.0,
+        "domain_precision": 1.0,
+        "duplicate_rate": 0.0
+      },
+      "elapsed_seconds": 0.28953916700265836,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.048,
+      "cost_kind": "upper_bound",
+      "status": "failed",
+      "lane": "crawl"
+    },
+    {
+      "case_id": "crawl.fastapi-tutorial",
+      "system": "firecrawl-crawl",
+      "trial_index": 2,
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "critical": false,
+      "completed": false,
+      "passed": false,
+      "required_check_rate": 0.18181818181818182,
+      "assertions": [
+        {
+          "name": "status.completed",
+          "passed": false,
+          "actual": "failed",
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "records.minimum",
+          "passed": false,
+          "actual": 0,
+          "expected": 5,
+          "detail": null
+        },
+        {
+          "name": "content.minimum_chars",
+          "passed": false,
+          "actual": 0,
+          "expected": 20000,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:c7d9c7e23dba42077fce391346b6dfc8722923f907e766fca5997389c0cb3c16",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:ba2680e9b3122235ec76233cfbe242b01b4abdf24503b6af5522cec3ffae989e",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:7f07c8b7eadc73f2755c60efb1d9d7ac0f094dd7c1dba3069d3be0214be10fb6",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:6634008cc0069f6528f5c6a79d0b3f98169d3156a378c4336e9c96c626251455",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:a106cd5ebeea2961ab8d1ad42db31a448b5c9311e980b049564cb36b66044854",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:2cdbc329c377e57a3fef165dad7b33d23b9598644f5e232a2089e66ccab5c8ea",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "urls.allowed_domains",
+          "passed": true,
+          "actual": 1.0,
+          "expected": 1.0,
+          "detail": null
+        },
+        {
+          "name": "records.maximum_duplicate_rate",
+          "passed": true,
+          "actual": 0.0,
+          "expected": 1.0,
+          "detail": null
+        }
+      ],
+      "metrics": {
+        "record_count": 0,
+        "content_chars": 0,
+        "term_coverage": 0.0,
+        "forbidden_term_cleanliness": 1.0,
+        "url_recall": 0.0,
+        "domain_precision": 1.0,
+        "duplicate_rate": 0.0
+      },
+      "elapsed_seconds": 13.508975707998616,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.048,
+      "cost_kind": "upper_bound",
+      "status": "failed",
+      "lane": "crawl"
+    },
+    {
+      "case_id": "crawl.kubernetes-concepts",
+      "system": "firecrawl-crawl",
+      "trial_index": 1,
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "critical": false,
+      "completed": false,
+      "passed": false,
+      "required_check_rate": 0.18181818181818182,
+      "assertions": [
+        {
+          "name": "status.completed",
+          "passed": false,
+          "actual": "failed",
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "records.minimum",
+          "passed": false,
+          "actual": 0,
+          "expected": 5,
+          "detail": null
+        },
+        {
+          "name": "content.minimum_chars",
+          "passed": false,
+          "actual": 0,
+          "expected": 20000,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:2294a8c9606d7367684b6159133fc5ee55f03f9b05e10eb23ccd2af84b7f0d4d",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:01366d7dabda289fd567b8afa93a1fdc0be11b962254a027caec2e4be5a94c16",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:21b2eed1e328a2c62fe4c17d51188bdea73450f29956dc5c8c95429313ddd72c",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:4b5ae5aa6ab24aa40a7ab028f4be686a7a62f83ac576f517ddf3d47c5890c608",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:6a7a1f3dc1324368067ac095ae142621845921b667c4a9663def8e7d6191249d",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:cb6952ad5a8ac8a37b7d70fd2acbddf9c1ab729e20b208f4dd982f48fead54b1",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "urls.allowed_domains",
+          "passed": true,
+          "actual": 1.0,
+          "expected": 1.0,
+          "detail": null
+        },
+        {
+          "name": "records.maximum_duplicate_rate",
+          "passed": true,
+          "actual": 0.0,
+          "expected": 1.0,
+          "detail": null
+        }
+      ],
+      "metrics": {
+        "record_count": 0,
+        "content_chars": 0,
+        "term_coverage": 0.0,
+        "forbidden_term_cleanliness": 1.0,
+        "url_recall": 0.0,
+        "domain_precision": 1.0,
+        "duplicate_rate": 0.0
+      },
+      "elapsed_seconds": 0.26899791700270725,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.048,
+      "cost_kind": "upper_bound",
+      "status": "failed",
+      "lane": "crawl"
+    },
+    {
+      "case_id": "crawl.kubernetes-concepts",
+      "system": "firecrawl-crawl",
+      "trial_index": 2,
+      "split": "test",
+      "family": "framework-tutorial-crawl",
+      "critical": false,
+      "completed": false,
+      "passed": false,
+      "required_check_rate": 0.18181818181818182,
+      "assertions": [
+        {
+          "name": "status.completed",
+          "passed": false,
+          "actual": "failed",
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "records.minimum",
+          "passed": false,
+          "actual": 0,
+          "expected": 5,
+          "detail": null
+        },
+        {
+          "name": "content.minimum_chars",
+          "passed": false,
+          "actual": 0,
+          "expected": 20000,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:2294a8c9606d7367684b6159133fc5ee55f03f9b05e10eb23ccd2af84b7f0d4d",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:01366d7dabda289fd567b8afa93a1fdc0be11b962254a027caec2e4be5a94c16",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "term.required:sha256:21b2eed1e328a2c62fe4c17d51188bdea73450f29956dc5c8c95429313ddd72c",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:4b5ae5aa6ab24aa40a7ab028f4be686a7a62f83ac576f517ddf3d47c5890c608",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:6a7a1f3dc1324368067ac095ae142621845921b667c4a9663def8e7d6191249d",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "url.required:sha256:cb6952ad5a8ac8a37b7d70fd2acbddf9c1ab729e20b208f4dd982f48fead54b1",
+          "passed": false,
+          "actual": null,
+          "expected": null,
+          "detail": null
+        },
+        {
+          "name": "urls.allowed_domains",
+          "passed": true,
+          "actual": 1.0,
+          "expected": 1.0,
+          "detail": null
+        },
+        {
+          "name": "records.maximum_duplicate_rate",
+          "passed": true,
+          "actual": 0.0,
+          "expected": 1.0,
+          "detail": null
+        }
+      ],
+      "metrics": {
+        "record_count": 0,
+        "content_chars": 0,
+        "term_coverage": 0.0,
+        "forbidden_term_cleanliness": 1.0,
+        "url_recall": 0.0,
+        "domain_precision": 1.0,
+        "duplicate_rate": 0.0
+      },
+      "elapsed_seconds": 0.3904646250011865,
+      "peak_rss_bytes": null,
+      "cost_usd": 0.048,
+      "cost_kind": "upper_bound",
+      "status": "failed",
+      "lane": "crawl"
+    }
+  ],
+  "summary": {
+    "case_count": 8,
+    "case_runs": 16,
+    "repeat": 2,
+    "completed": 0,
+    "unsupported": 0,
+    "completion_rate": 0.0,
+    "trial_pass_rate": 0.0,
+    "pass_all_trials_rate": 0.0,
+    "pass_any_trial_rate": 0.0,
+    "trial_stability_rate": 1.0,
+    "mean_required_check_rate": 0.18181818181818182,
+    "mean_elapsed_seconds": 1.202615320312816,
+    "observed_cost_usd": 0.768,
+    "cost_observed_runs": 16,
+    "cost_actual_runs": 0,
+    "cost_estimated_runs": 0,
+    "cost_upper_bound_runs": 16,
+    "cost_unknown_runs": 0
+  }
+}

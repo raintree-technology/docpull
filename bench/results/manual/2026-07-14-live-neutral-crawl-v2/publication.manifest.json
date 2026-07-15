@@ -1,0 +1,53 @@
+{
+  "files": {
+    "COMPARISON.md": "ccbdcf26f76bf0971188f4905160b3e89774fbbb8983e65a47bcfb2b03adda2c",
+    "METHODOLOGY.md": "bb7f114c9d9dba8eb8b03a29ce3d60ac662c3f92e48d323e803247016225582b",
+    "README.md": "244764b3d8b02b5c840dbdd42c506615145afae47c44b0614bed21a834796d37",
+    "comparison.json": "5d383c88ab6440d0e37380095f3aa4b48a1dbac8a6db8d2e0b17d52c1b789570",
+    "reports/docpull.report.json": "a97003c652edd10f1a32035884638a95e1010902741dce173471772e6bbc9960",
+    "reports/firecrawl-crawl.report.json": "8fae0c09a4cc1300f22c7739f75b77d141a88308091734dd30b85ac4909a5414",
+    "reports/tavily-crawl-basic.report.json": "b32000d726864c7f2759fd8598faf3f135c94b95cc730d1001820933b17a0fba",
+    "suite.yaml": "897d2a54e8f4c3f9f5954ee3107c789a6445944d0f3049b64b455ca3d3e0ec2c"
+  },
+  "generated_at": "2026-07-15T01:11:24.173700+00:00",
+  "protocol_sha256": "fbde4f4a0782d9e8a085e7b12cba464a4bbbfdd7a0b8daded026212977c33c40",
+  "schema_version": 2,
+  "source_reports": [
+    {
+      "published_path": "reports/docpull.report.json",
+      "published_sha256": "a97003c652edd10f1a32035884638a95e1010902741dce173471772e6bbc9960",
+      "source_sha256": "52eee24676d7cbe719d169baa9a7f129c2df3494d5a51d7f0e2876db8c2c357b",
+      "system": "docpull"
+    },
+    {
+      "published_path": "reports/tavily-crawl-basic.report.json",
+      "published_sha256": "b32000d726864c7f2759fd8598faf3f135c94b95cc730d1001820933b17a0fba",
+      "source_sha256": "b32000d726864c7f2759fd8598faf3f135c94b95cc730d1001820933b17a0fba",
+      "system": "tavily-crawl-basic"
+    },
+    {
+      "published_path": "reports/firecrawl-crawl.report.json",
+      "published_sha256": "8fae0c09a4cc1300f22c7739f75b77d141a88308091734dd30b85ac4909a5414",
+      "source_sha256": "8fae0c09a4cc1300f22c7739f75b77d141a88308091734dd30b85ac4909a5414",
+      "system": "firecrawl-crawl"
+    }
+  ],
+  "status": "data-only",
+  "suite_name": "live-neutral-crawl",
+  "suite_sha256": "897d2a54e8f4c3f9f5954ee3107c789a6445944d0f3049b64b455ca3d3e0ec2c",
+  "suite_version": "1.0.0",
+  "unavailable_systems": [
+    {
+      "reason": "No comparable native crawl adapter is registered.",
+      "system": "exa"
+    },
+    {
+      "reason": "No comparable native crawl adapter is registered.",
+      "system": "parallel"
+    },
+    {
+      "reason": "Skipped at user request; no credential was configured and no requests were made.",
+      "system": "context.dev"
+    }
+  ]
+}

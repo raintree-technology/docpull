@@ -1,0 +1,59 @@
+{
+  "files": {
+    "COMPARISON.md": "b863c246ccf681a79541ed9a0559713d9cd9bc9fea87463807b2d17434e8d4e5",
+    "METHODOLOGY.md": "86c0a2646331271f0757d3d1f701098dc8912296408bccb49707c35301a74d8b",
+    "README.md": "549d62e8751f8bccf499ebf425960d7d4cf9519bbfe3fead54f4890641705647",
+    "comparison.json": "4f9ce95bd7f962752faab728484f1f05859c5acb3cc0bc6766b796fe75454491",
+    "reports/docpull.report.json": "d910f7d6f3ce6ccd934d4265efb2abe8a5509b1077e7fbc03fac9b7fc267a2be",
+    "reports/exa-full.report.json": "06e3d0b3484f625b4c6fdc0f3dd4472795956cc3df9c8dde43da949d2a148abd",
+    "reports/firecrawl.report.json": "0c02d08746cbedeeafed9ae87c973484ef3fe5e1e9e0a741db7cbca0df7fb566",
+    "reports/parallel.report.json": "ae5e4112ef56625bbdb8265545965f8fade46252d4bb312423a71850c65a41ea",
+    "reports/tavily.report.json": "f5fa85740bf3357a112f8e341fa6d5840f3313ee9c3c4ece615c7342e4866851",
+    "suite.yaml": "efb2d4094f7070ed59221123bee2e9245f8c11ad76fb12dba036ef80771293c3"
+  },
+  "generated_at": "2026-07-15T01:11:23.432004+00:00",
+  "protocol_sha256": "8e8af82f7ee7ee8d891af143ac877ef9944615f6f4b53bd9de64d2788910808d",
+  "schema_version": 2,
+  "source_reports": [
+    {
+      "published_path": "reports/docpull.report.json",
+      "published_sha256": "d910f7d6f3ce6ccd934d4265efb2abe8a5509b1077e7fbc03fac9b7fc267a2be",
+      "source_sha256": "5c684d9bfe35ccf5198b3a4f9fd9ed2628c568f3fbbb7a198585e65bf184e71c",
+      "system": "docpull"
+    },
+    {
+      "published_path": "reports/tavily.report.json",
+      "published_sha256": "f5fa85740bf3357a112f8e341fa6d5840f3313ee9c3c4ece615c7342e4866851",
+      "source_sha256": "f5fa85740bf3357a112f8e341fa6d5840f3313ee9c3c4ece615c7342e4866851",
+      "system": "tavily"
+    },
+    {
+      "published_path": "reports/exa-full.report.json",
+      "published_sha256": "06e3d0b3484f625b4c6fdc0f3dd4472795956cc3df9c8dde43da949d2a148abd",
+      "source_sha256": "06e3d0b3484f625b4c6fdc0f3dd4472795956cc3df9c8dde43da949d2a148abd",
+      "system": "exa-full"
+    },
+    {
+      "published_path": "reports/parallel.report.json",
+      "published_sha256": "ae5e4112ef56625bbdb8265545965f8fade46252d4bb312423a71850c65a41ea",
+      "source_sha256": "ae5e4112ef56625bbdb8265545965f8fade46252d4bb312423a71850c65a41ea",
+      "system": "parallel"
+    },
+    {
+      "published_path": "reports/firecrawl.report.json",
+      "published_sha256": "0c02d08746cbedeeafed9ae87c973484ef3fe5e1e9e0a741db7cbca0df7fb566",
+      "source_sha256": "0c02d08746cbedeeafed9ae87c973484ef3fe5e1e9e0a741db7cbca0df7fb566",
+      "system": "firecrawl"
+    }
+  ],
+  "status": "data-only",
+  "suite_name": "live-neutral-extract",
+  "suite_sha256": "efb2d4094f7070ed59221123bee2e9245f8c11ad76fb12dba036ef80771293c3",
+  "suite_version": "1.0.0",
+  "unavailable_systems": [
+    {
+      "reason": "Skipped at user request; no credential was configured and no requests were made.",
+      "system": "context.dev"
+    }
+  ]
+}

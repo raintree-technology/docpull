@@ -58,7 +58,8 @@ DOCX and PDF bytes must remain identical.
 ## Providers
 
 Native comparable adapters exist for Tavily, Exa, and Parallel extract/search,
-Tavily and Context.dev crawl, and Context.dev Markdown extract. Prices come from
+Firecrawl extract/search/crawl, Tavily and Context.dev crawl, and Context.dev
+Markdown extract. Prices come from
 `pricing/providers.yaml`, including dated official source URLs. No provider
 workflow is scheduled.
 
@@ -84,6 +85,9 @@ docpull-bench publish SUITE REPORT_A REPORT_B --output-dir BUNDLE
 Critical controlled pass→fail changes block. Performance changes above both 20%
 and the 100 ms/10 MiB floors are advisory. Publication emits data and
 manifest-derived methodology only; narrative findings are hand-reviewed.
+
+Current manual live evidence and its hand-reviewed decision note are indexed in
+[`results/manual/README.md`](results/manual/README.md).
 
 ## WANDR
 
