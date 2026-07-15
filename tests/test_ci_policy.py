@@ -175,6 +175,15 @@ def test_security_and_publish_bandit_scan_scripts() -> None:
     assert "python -m bandit -q -c pyproject.toml -r src scripts" in publish
 
 
+def test_security_workflow_uses_patched_release_backend() -> None:
+    security = (WORKFLOW_DIR / "security.yml").read_text()
+    release_requirements = (REPO_ROOT / "requirements-release.txt").read_text()
+
+    assert "setuptools==83.0.0" in security
+    assert "setuptools==83.0.0" in release_requirements
+    assert "working-directory: web" not in security
+
+
 def test_workflows_use_module_entrypoints_for_python_tooling() -> None:
     raw_tool_prefixes = (
         "ruff ",
