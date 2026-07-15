@@ -140,7 +140,7 @@ def run_scorecard(args: argparse.Namespace) -> dict[str, Any]:
             gates.append(GateResult(name=name, status="skip", note="--skip-commands was supplied"))
 
     gate_by_name = {gate.name: gate for gate in gates}
-    areas = _grade_areas(gate_by_name, smoke_payload)
+    areas = _grade_areas(gate_by_name, smoke_payload, area_gates=_active_area_gates(repo))
     all_a_plus = all(area["grade"] == "A+" for area in areas)
     payload = {
         "schema_version": SCORECARD_SCHEMA_VERSION,
@@ -476,11 +476,13 @@ def _smoke_gate_from_payload(payload: dict[str, Any], path: Path) -> GateResult:
 
 
 def _grade_areas(
-    gate_by_name: dict[str, GateResult], smoke_payload: dict[str, Any] | None
+    gate_by_name: dict[str, GateResult],
+    smoke_payload: dict[str, Any] | None,
+    *,
+    area_gates: dict[str, tuple[str, ...]] | None = None,
 ) -> list[dict[str, Any]]:
     areas: list[dict[str, Any]] = []
-    for area in AREAS:
-        required = AREA_GATES[area]
+    for area, required in (area_gates or AREA_GATES).items():
         gate_statuses: dict[str, str] = {}
         for name in required:
             gate = gate_by_name.get(name)
@@ -504,6 +506,17 @@ def _grade_areas(
             }
         )
     return areas
+
+
+def _active_area_gates(repo: Path) -> dict[str, tuple[str, ...]]:
+    """Return gates for product surfaces that exist in this checkout."""
+    active = dict(AREA_GATES)
+    if not (repo / "web" / "package.json").is_file():
+        active.pop("Web/docs copy")
+        active["Security/static quality"] = tuple(
+            name for name in active["Security/static quality"] if name != "web_bun_audit"
+        )
+    return active
 
 
 def _missing_smoke_markers(area: str, smoke_payload: dict[str, Any] | None) -> list[str]:
@@ -610,8 +623,9 @@ def create_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = create_parser().parse_args(argv)
     if args.plan_only:
-        areas = list(AREAS)
-        commands = _planned_command_names(Path(args.repo).resolve())
+        repo = Path(args.repo).resolve()
+        areas = list(_active_area_gates(repo))
+        commands = _planned_command_names(repo)
         smoke_command = (
             "scripts/real_feature_smoke.py --json --full-mcp --strict-ci --auth-matrix --monitor-soak-minutes"
         )
