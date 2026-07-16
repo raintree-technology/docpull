@@ -40,13 +40,9 @@ jobs:
         env:
           METRICS_MAX_AGE_HOURS: "168"
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            uv run --locked python .github/scripts/check_metrics_fresh.py || {
-              echo "::warning::Metrics are stale; run the scheduled Update metrics workflow after merge."
-            }
-          else
-            uv run --locked python .github/scripts/check_metrics_fresh.py
-          fi
+          uv run --locked python .github/scripts/check_metrics_fresh.py || {
+            echo "::warning::Metrics are stale; run the scheduled Update metrics workflow."
+          }
 
   test:
     runs-on: ubuntu-24.04
