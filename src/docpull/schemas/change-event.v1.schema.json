@@ -1,0 +1,243 @@
+{
+  "$defs": {
+    "EvidenceSpan": {
+      "additionalProperties": true,
+      "properties": {
+        "char_end": {
+          "minimum": 0,
+          "title": "Char End",
+          "type": "integer"
+        },
+        "char_start": {
+          "minimum": 0,
+          "title": "Char Start",
+          "type": "integer"
+        },
+        "citation_id": {
+          "title": "Citation Id",
+          "type": "string"
+        },
+        "document_id": {
+          "title": "Document Id",
+          "type": "string"
+        },
+        "document_version": {
+          "title": "Document Version",
+          "type": "string"
+        },
+        "exact_text": {
+          "title": "Exact Text",
+          "type": "string"
+        },
+        "exact_text_sha256": {
+          "title": "Exact Text Sha256",
+          "type": "string"
+        },
+        "record_citation_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Record Citation Id"
+        },
+        "url": {
+          "title": "Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "citation_id",
+        "document_id",
+        "document_version",
+        "url",
+        "char_start",
+        "char_end",
+        "exact_text",
+        "exact_text_sha256"
+      ],
+      "title": "EvidenceSpan",
+      "type": "object"
+    },
+    "ReplayConfiguration": {
+      "additionalProperties": true,
+      "properties": {
+        "browser_enabled": {
+          "default": false,
+          "title": "Browser Enabled",
+          "type": "boolean"
+        },
+        "configuration": {
+          "additionalProperties": true,
+          "title": "Configuration",
+          "type": "object"
+        },
+        "local_first": {
+          "default": true,
+          "title": "Local First",
+          "type": "boolean"
+        },
+        "paid_routes_enabled": {
+          "default": false,
+          "title": "Paid Routes Enabled",
+          "type": "boolean"
+        },
+        "scheduler": {
+          "default": null,
+          "title": "Scheduler",
+          "type": "null"
+        }
+      },
+      "title": "ReplayConfiguration",
+      "type": "object"
+    }
+  },
+  "$id": "https://docpull.dev/schemas/change-event.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "classifications": {
+      "items": {
+        "enum": [
+          "pricing",
+          "positioning",
+          "product",
+          "security",
+          "policy",
+          "other"
+        ],
+        "type": "string"
+      },
+      "title": "Classifications",
+      "type": "array"
+    },
+    "contract_version": {
+      "const": "change.event.v1",
+      "default": "change.event.v1",
+      "title": "Contract Version",
+      "type": "string"
+    },
+    "event_id": {
+      "title": "Event Id",
+      "type": "string"
+    },
+    "idempotency_key": {
+      "title": "Idempotency Key",
+      "type": "string"
+    },
+    "new_document_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "New Document Id"
+    },
+    "new_evidence": {
+      "items": {
+        "$ref": "#/$defs/EvidenceSpan"
+      },
+      "title": "New Evidence",
+      "type": "array"
+    },
+    "new_hash": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "New Hash"
+    },
+    "old_document_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Old Document Id"
+    },
+    "old_evidence": {
+      "items": {
+        "$ref": "#/$defs/EvidenceSpan"
+      },
+      "title": "Old Evidence",
+      "type": "array"
+    },
+    "old_hash": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Old Hash"
+    },
+    "replay_configuration": {
+      "$ref": "#/$defs/ReplayConfiguration"
+    },
+    "schema_version": {
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "semantic_candidates": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Semantic Candidates",
+      "type": "array"
+    },
+    "structural_changes": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Structural Changes",
+      "type": "array"
+    },
+    "textual_changes": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Textual Changes",
+      "type": "array"
+    },
+    "url": {
+      "title": "Url",
+      "type": "string"
+    },
+    "workflow": {
+      "title": "Workflow",
+      "type": "string"
+    }
+  },
+  "required": [
+    "event_id",
+    "idempotency_key",
+    "workflow",
+    "url"
+  ],
+  "title": "ChangeEvent",
+  "type": "object"
+}

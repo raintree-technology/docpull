@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.2.0] - 2026-07-16
+
+### Added
+- Define DocPull as the evidence and acquisition engine and publish versioned
+  `WorkflowRequest`, `WorkflowResult`, `ArtifactManifest`,
+  `intelligence.bundle.v1`, and `ChangeEvent` contracts with bundled JSON
+  Schemas.
+- Add generic progress, warnings, failures, budget usage, SHA-256 artifact
+  hashes, pack/run identity, and scheduler-neutral replay settings.
+- Promote brand, product, styleguide, image, screenshot, and new policy packs to
+  public CLI, SDK, and MCP workflows, plus declarative project source types for
+  brand, product, styleguide, visual, and policy evidence.
+- Add policy discovery/classification, effective dates, stable clause hashes,
+  and clause-level before/after candidates without legal conclusions.
+- Add deterministic tracker bundles with source snapshots, document versions,
+  precise evidence spans, observations, confidence, evidence strength, source
+  authority, warnings, and change candidates.
+- Add idempotent change events separating structural, textual, and semantic
+  candidates for pricing, positioning, product, security, and policy changes.
+
+### Changed
+- Enrich product pricing extraction with plans, currencies, billing intervals,
+  trials, feature gating, page-text provenance, and incidental/visual price
+  exclusion.
+- Make JSON-only eval preparation retain the required `PACK_CARD.md` artifact.
+- Keep `company_brain.bundle.json` and its SDK builder as compatibility aliases
+  for `intelligence.bundle.v1`.
+
+### Compatibility
+- Validate old packs remain readable and retain legacy result filenames while
+  new workflow sidecars and schema fields are additive.
+
 ## [6.1.0] - 2026-07-14
 
 ### Added

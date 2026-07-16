@@ -198,7 +198,6 @@ def capture_screenshot_pack(
         markdown_text=_screenshot_markdown(payload),
         pack_filename="screenshot.pack.json",
         extra_artifacts={"screenshot": payload["path"]},
-        local_pack_records=False,
     )
 
 

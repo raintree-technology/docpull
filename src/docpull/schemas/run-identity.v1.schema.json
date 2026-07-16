@@ -1,0 +1,121 @@
+{
+  "$id": "https://docpull.dev/schemas/run-identity.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Stable, non-secret description of the semantics of a docpull run.",
+  "properties": {
+    "auth_type": {
+      "title": "Auth Type",
+      "type": "string"
+    },
+    "emit_chunks": {
+      "title": "Emit Chunks",
+      "type": "boolean"
+    },
+    "enable_special_cases": {
+      "title": "Enable Special Cases",
+      "type": "boolean"
+    },
+    "exclude_paths": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Exclude Paths",
+      "type": "array"
+    },
+    "extractor": {
+      "title": "Extractor",
+      "type": "string"
+    },
+    "include_paths": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Include Paths",
+      "type": "array"
+    },
+    "max_depth": {
+      "title": "Max Depth",
+      "type": "integer"
+    },
+    "max_pages": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Max Pages"
+    },
+    "max_tokens_per_file": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Max Tokens Per File"
+    },
+    "naming_strategy": {
+      "title": "Naming Strategy",
+      "type": "string"
+    },
+    "output_format": {
+      "title": "Output Format",
+      "type": "string"
+    },
+    "profile": {
+      "title": "Profile",
+      "type": "string"
+    },
+    "rich_metadata": {
+      "title": "Rich Metadata",
+      "type": "boolean"
+    },
+    "schema_version": {
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "start_url": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Start Url"
+    },
+    "strict_js_required": {
+      "title": "Strict Js Required",
+      "type": "boolean"
+    },
+    "tokenizer": {
+      "title": "Tokenizer",
+      "type": "string"
+    }
+  },
+  "required": [
+    "profile",
+    "max_depth",
+    "output_format",
+    "naming_strategy",
+    "rich_metadata",
+    "extractor",
+    "enable_special_cases",
+    "strict_js_required",
+    "emit_chunks",
+    "tokenizer",
+    "auth_type"
+  ],
+  "title": "RunIdentity",
+  "type": "object"
+}

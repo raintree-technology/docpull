@@ -13,6 +13,9 @@ from urllib.parse import urlparse
 from rich.console import Console
 from rich.markup import escape
 
+from .change_events import build_change_events, write_change_events
+from .contracts import canonical_sha256, stable_id
+from .evidence import classify_source_authority, evidence_span_payload
 from .output_contract import (
     VALIDATION_LEVELS,
     OutputContractError,
@@ -285,6 +288,27 @@ def create_pack_parser() -> argparse.ArgumentParser:
     )
     prepare.add_argument("--no-markdown", action="store_true", help="Write JSON artifacts only")
 
+    for command_name in ("intelligence-bundle", "company-brain"):
+        bundle = subparsers.add_parser(
+            command_name,
+            help=(
+                "Write deterministic intelligence.bundle.v1 tracker import"
+                if command_name == "intelligence-bundle"
+                else "Compatibility alias for intelligence-bundle"
+            ),
+        )
+        bundle.add_argument("pack_dir", type=Path, help="Context pack directory")
+        bundle.add_argument("--objective")
+        bundle.add_argument("--market")
+        bundle.add_argument("--search-query", action="append", dest="search_queries", default=[])
+        bundle.add_argument("--no-search", action="store_true")
+        bundle.add_argument("--require-domain", action="append", dest="required_domains", default=[])
+        bundle.add_argument("--max-excerpts", type=int, default=DEFAULT_BRIEF_EXCERPTS)
+        bundle.add_argument("--entity-limit", type=int, default=DEFAULT_BRIEF_ENTITY_LIMIT)
+        bundle.add_argument("--search-limit", type=int, default=DEFAULT_SEARCH_LIMIT)
+        bundle.add_argument("--output", type=Path)
+        bundle.add_argument("--markdown", type=Path)
+
     return parser
 
 
@@ -386,6 +410,10 @@ def run_pack_cli(argv: list[str] | None = None) -> int:
             payload = diff_packs(args.old_pack_dir, args.new_pack_dir)
             output = args.output or (args.new_pack_dir / "pack.diff.json")
             _write_json(output, payload)
+            write_change_events(
+                args.new_pack_dir / "change.events.jsonl",
+                list(payload.get("change_events") or []),
+            )
             semantic = payload.get("semantic_diff")
             if isinstance(semantic, dict):
                 _write_json(args.new_pack_dir / "semantic.diff.json", semantic)
@@ -489,6 +517,40 @@ def run_pack_cli(argv: list[str] | None = None) -> int:
                 "[green]Prepared pack:[/green] "
                 f"{payload['summary']['artifact_count']} artifacts -> "
                 f"{payload['artifacts']['prepare']}"
+            )
+            return 0
+        if args.command in {"intelligence-bundle", "company-brain"}:
+            if args.command == "company-brain":
+                payload = build_company_brain_bundle(
+                    args.pack_dir,
+                    objective=args.objective,
+                    market=args.market,
+                    search_queries=[] if args.no_search else (args.search_queries or None),
+                    default_search=not args.no_search,
+                    required_domains=args.required_domains,
+                    max_excerpts=args.max_excerpts,
+                    entity_limit=args.entity_limit,
+                    search_limit=args.search_limit,
+                    output=args.output,
+                    markdown_path=args.markdown,
+                )
+            else:
+                payload = build_intelligence_bundle(
+                    args.pack_dir,
+                    objective=args.objective,
+                    market=args.market,
+                    search_queries=[] if args.no_search else (args.search_queries or None),
+                    default_search=not args.no_search,
+                    required_domains=args.required_domains,
+                    max_excerpts=args.max_excerpts,
+                    entity_limit=args.entity_limit,
+                    search_limit=args.search_limit,
+                    output=args.output,
+                    markdown_path=args.markdown,
+                )
+            console.print(
+                f"[green]Intelligence bundle:[/green] {payload['bundle_id']} -> "
+                f"{payload['artifacts']['intelligence_bundle']}"
             )
             return 0
         parser.error(f"Unknown command: {args.command}")
@@ -768,7 +830,7 @@ def build_research_brief(
     }
 
 
-def build_company_brain_bundle(
+def build_intelligence_bundle(
     pack_dir: Path,
     *,
     objective: str | None = None,
@@ -780,9 +842,10 @@ def build_company_brain_bundle(
     entity_limit: int = DEFAULT_BRIEF_ENTITY_LIMIT,
     search_limit: int = DEFAULT_SEARCH_LIMIT,
     output: Path | None = None,
+    compatibility_output: Path | None = None,
     markdown_path: Path | None = None,
 ) -> dict[str, Any]:
-    """Write an app-ready Company Brain import bundle from a local context pack."""
+    """Write a deterministic ``intelligence.bundle.v1`` tracker import."""
     if max_excerpts < 1:
         raise PackToolError("--max-excerpts must be at least 1.")
     if entity_limit < 0:
@@ -838,19 +901,58 @@ def build_company_brain_bundle(
         artifacts=artifacts,
     )
 
+    records = _read_pack_records(pack_dir)
     source_snapshots = _company_brain_source_snapshots(citations_payload)
     claims = _company_brain_claims(brief_payload)
     entities = _company_brain_entities(entities_payload)
     signals = _company_brain_signals(search_payloads)
-    bundle_path = (output or (pack_dir / "company_brain.bundle.json")).resolve()
+    bundle_path = (output or (pack_dir / "intelligence.bundle.v1.json")).resolve()
+    compatibility_path = (
+        compatibility_output.resolve()
+        if compatibility_output
+        else (pack_dir / "company_brain.bundle.json").resolve()
+    )
     summary_path = (markdown_path or (pack_dir / "COMPANY_BRAIN.md")).resolve()
-    artifacts["bundle"] = _artifact_ref(pack_dir, bundle_path)
+    artifacts["intelligence_bundle"] = _artifact_ref(pack_dir, bundle_path)
+    artifacts["bundle"] = _artifact_ref(pack_dir, compatibility_path)
+    artifacts["company_brain_compatibility_alias"] = _artifact_ref(pack_dir, compatibility_path)
     artifacts["company_brain_markdown"] = _artifact_ref(pack_dir, summary_path)
-
-    payload = {
+    content_hashes = sorted(
+        str(record.get("content_hash")) for record in records if record.get("content_hash")
+    )
+    pack_identity = {
+        "pack_id": stable_id("pack", {"content_hashes": content_hashes}),
+        "content_hash": canonical_sha256(content_hashes),
+        "record_count": len(records),
+    }
+    run_seed = {
+        "pack_id": pack_identity["pack_id"],
+        "objective": brain_objective,
+        "market": workspace_label,
+        "queries": queries,
+    }
+    run_identity = {
+        "run_id": stable_id("run", run_seed),
+        "scheduler": None,
+        "replay": {
+            "objective": brain_objective,
+            "market": workspace_label,
+            "search_queries": queries,
+            "required_domains": sorted(required_domains or []),
+            "max_excerpts": max_excerpts,
+            "entity_limit": entity_limit,
+            "search_limit": search_limit,
+        },
+    }
+    canonical_snapshots = _intelligence_source_snapshots(source_snapshots, records)
+    observations = _intelligence_observations(claims, records, citations_payload)
+    document_versions = _intelligence_document_versions(records)
+    change_candidates = _intelligence_change_candidates(pack_dir)
+    bundle_core = {
+        "contract_version": "intelligence.bundle.v1",
         "schema_version": COMPANY_BRAIN_SCHEMA_VERSION,
-        "generated_at": utc_now_iso(),
-        "pack_dir": str(pack_dir),
+        "pack_identity": pack_identity,
+        "run_identity": run_identity,
         "workspace": {
             "name": workspace_label,
             "market": workspace_label,
@@ -869,6 +971,20 @@ def build_company_brain_bundle(
             ),
             "expected_domains": citations_payload["expected_domains"],
         },
+        "source_snapshots": canonical_snapshots,
+        "document_versions": document_versions,
+        "observations": observations,
+        "change_candidates": change_candidates,
+        "warnings": _intelligence_warnings(score_payload, source_scores_payload),
+        "artifacts": artifacts,
+    }
+    bundle_hash = canonical_sha256(bundle_core)
+    payload = {
+        **bundle_core,
+        "bundle_id": f"bundle_{bundle_hash[:24]}",
+        "bundle_hash": bundle_hash,
+        # Compatibility envelope for company_brain.bundle.json readers.
+        "pack_dir": str(pack_dir),
         "records": {
             "sources": citations_payload["sources"],
             "source_snapshots": source_snapshots,
@@ -881,14 +997,14 @@ def build_company_brain_bundle(
                 "key_excerpts": brief_payload["key_excerpts"],
             },
             "gate_inputs": {
-                "pack_score": score_payload,
-                "source_scores": source_scores_payload,
+                "pack_score": _deterministic_contract_value(score_payload),
+                "source_scores": _deterministic_contract_value(source_scores_payload),
                 "required_domains": citations_payload["expected_domains"],
                 "claim_policy": "Every promoted claim must carry a citation_id and source URL.",
             },
         },
         "agent_run_seed": {
-            "trigger": "docpull.pack.company-brain",
+            "trigger": "docpull.pack.intelligence-bundle",
             "tool": "docpull",
             "status": "ready_for_control_plane_import",
             "policy_checks": [
@@ -898,12 +1014,44 @@ def build_company_brain_bundle(
                 "pack_integrity_score",
             ],
         },
-        "artifacts": artifacts,
     }
     summary_path.parent.mkdir(parents=True, exist_ok=True)
     summary_path.write_text(_company_brain_markdown(payload), encoding="utf-8")
     _write_json(bundle_path, payload)
+    if compatibility_path != bundle_path:
+        _write_json(compatibility_path, payload)
     return payload
+
+
+def build_company_brain_bundle(
+    pack_dir: Path,
+    *,
+    objective: str | None = None,
+    market: str | None = None,
+    search_queries: list[str] | None = None,
+    default_search: bool = True,
+    required_domains: list[str] | None = None,
+    max_excerpts: int = DEFAULT_BRIEF_EXCERPTS,
+    entity_limit: int = DEFAULT_BRIEF_ENTITY_LIMIT,
+    search_limit: int = DEFAULT_SEARCH_LIMIT,
+    output: Path | None = None,
+    markdown_path: Path | None = None,
+) -> dict[str, Any]:
+    """Compatibility alias for :func:`build_intelligence_bundle`."""
+
+    return build_intelligence_bundle(
+        pack_dir,
+        objective=objective,
+        market=market,
+        search_queries=search_queries,
+        default_search=default_search,
+        required_domains=required_domains,
+        max_excerpts=max_excerpts,
+        entity_limit=entity_limit,
+        search_limit=search_limit,
+        compatibility_output=output,
+        markdown_path=markdown_path,
+    )
 
 
 def prepare_pack(
@@ -1368,6 +1516,179 @@ def _company_brain_signals(search_payloads: list[dict[str, Any]]) -> list[dict[s
     return signals
 
 
+def _intelligence_source_snapshots(
+    snapshots: list[dict[str, Any]],
+    records: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    official_domain = str(snapshots[0].get("domain") or "") if snapshots else ""
+    records_by_url = {
+        str(record.get("url")): record for record in records if isinstance(record, dict) and record.get("url")
+    }
+    output: list[dict[str, Any]] = []
+    for snapshot in snapshots:
+        url = str(snapshot.get("url") or "")
+        record = records_by_url.get(url, {})
+        content_hashes = sorted(str(item) for item in snapshot.get("content_hashes") or [])
+        output.append(
+            {
+                "source_snapshot_id": str(snapshot.get("source_snapshot_id") or ""),
+                "source_id": str(snapshot.get("source_id") or ""),
+                "url": url,
+                "document_id": record.get("document_id"),
+                "document_version": record.get("content_hash"),
+                "content_hash": canonical_sha256(content_hashes) if content_hashes else None,
+                "fetched_at": snapshot.get("latest_fetched_at"),
+                "authority": classify_source_authority(
+                    url,
+                    official_domain=official_domain,
+                ).model_dump(mode="json"),
+            }
+        )
+    return output
+
+
+def _intelligence_document_versions(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return sorted(
+        [
+            {
+                "document_id": record.get("document_id"),
+                "document_version": record.get("content_hash"),
+                "url": record.get("url"),
+                "fetched_at": record.get("fetched_at"),
+                "title": record.get("title"),
+            }
+            for record in records
+            if record.get("document_id") and record.get("content_hash") and record.get("url")
+        ],
+        key=lambda item: (str(item["url"]), str(item["document_id"])),
+    )
+
+
+def _intelligence_observations(
+    claims: list[dict[str, Any]],
+    records: list[dict[str, Any]],
+    citations_payload: dict[str, Any],
+) -> list[dict[str, Any]]:
+    expected_domains = [str(item) for item in citations_payload.get("expected_domains") or []]
+    official_domain = expected_domains[0] if expected_domains else ""
+    by_url = {
+        str(record.get("url")): record for record in records if isinstance(record, dict) and record.get("url")
+    }
+    observations: list[dict[str, Any]] = []
+    for claim in claims:
+        url = str(claim.get("url") or "")
+        text = str(claim.get("text") or "").strip()
+        record = by_url.get(url)
+        if not url or not text or record is None:
+            continue
+        content = str(record.get("content") or "")
+        authority = classify_source_authority(url, official_domain=official_domain)
+        evidence = evidence_span_payload(
+            url=url,
+            content=content,
+            exact_text=text,
+            citation_id=str(claim.get("citation_id") or "S0"),
+            record_citation_id=(
+                str(claim.get("record_citation_id")) if claim.get("record_citation_id") else None
+            ),
+        )
+        observation_seed = {
+            "type": "source_excerpt",
+            "text": text,
+            "document_version": evidence["document_version"],
+            "char_start": evidence["char_start"],
+            "char_end": evidence["char_end"],
+        }
+        observations.append(
+            {
+                "observation_id": stable_id("observation", observation_seed),
+                "type": "source_excerpt",
+                "text": text,
+                "status": "observation",
+                "evidence_strength": "strong" if claim.get("citation_id") else "moderate",
+                "confidence": 0.9 if claim.get("citation_id") else 0.65,
+                "source_authority": authority.model_dump(mode="json"),
+                "evidence": [evidence],
+                "warnings": [],
+            }
+        )
+    return observations
+
+
+def _intelligence_change_candidates(pack_dir: Path) -> list[dict[str, Any]]:
+    path = pack_dir / "change.events.jsonl"
+    if not path.exists():
+        return []
+    candidates: list[dict[str, Any]] = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(event, dict):
+            continue
+        classifications = [str(item) for item in event.get("classifications") or []]
+        classification = classifications[0] if classifications else "other"
+        if classification not in {"pricing", "positioning", "product", "security", "policy", "other"}:
+            classification = "other"
+        candidate = {
+            "classification": classification,
+            "status": "candidate",
+            "before": list(event.get("old_evidence") or []),
+            "after": list(event.get("new_evidence") or []),
+            "confidence": 0.7,
+            "warnings": ["Semantic classification is a review candidate, not an approved claim."],
+        }
+        candidate["change_candidate_id"] = stable_id("change_candidate", candidate)
+        candidates.append(candidate)
+    return candidates
+
+
+def _intelligence_warnings(
+    score_payload: dict[str, Any],
+    source_scores_payload: dict[str, Any],
+) -> list[dict[str, Any]]:
+    warnings: list[dict[str, Any]] = []
+    for item in [*list(score_payload.get("issues") or []), *list(score_payload.get("warnings") or [])]:
+        if not isinstance(item, dict):
+            continue
+        warnings.append(
+            {
+                "code": str(item.get("code") or "pack_quality"),
+                "message": str(item.get("message") or "Pack quality warning"),
+                "metadata": {"severity": item.get("severity")},
+            }
+        )
+    weak_sources = [
+        source
+        for source in source_scores_payload.get("sources") or []
+        if isinstance(source, dict) and _safe_int(source.get("score")) < 60
+    ]
+    if weak_sources:
+        warnings.append(
+            {
+                "code": "weak_source_authority",
+                "message": f"{len(weak_sources)} source records scored below 60.",
+                "metadata": {},
+            }
+        )
+    return warnings
+
+
+def _deterministic_contract_value(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {
+            str(key): _deterministic_contract_value(item)
+            for key, item in value.items()
+            if key not in {"generated_at", "pack_dir", "output_dir"}
+        }
+    if isinstance(value, list):
+        return [_deterministic_contract_value(item) for item in value]
+    return value
+
+
 def search_pack(
     pack_dir: Path,
     query: str,
@@ -1456,6 +1777,13 @@ def diff_packs(old_pack_dir: Path, new_pack_dir: Path) -> dict[str, Any]:
         new_pack_dir,
         diff_payload=payload,
     )
+    change_events = build_change_events(
+        old_records,
+        new_records,
+        workflow="pack-diff",
+    )
+    payload["change_events"] = change_events
+    payload["change_event_count"] = len(change_events)
     return payload
 
 

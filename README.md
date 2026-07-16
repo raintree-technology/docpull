@@ -15,6 +15,11 @@ web sources an agent depends on, sync them into cited context packs, diff what
 changed, and export reproducible context for Cursor, Claude, OpenAI,
 LlamaIndex, LangChain, MCP clients, and RAG pipelines.
 
+Architecturally, DocPull is the evidence and acquisition engine: it acquires,
+versions, cites, hashes, and replays evidence. Downstream products own
+scheduling, review, approved claims, legal conclusions, and notifications. See
+the [architecture decision](docs/adr/0001-evidence-acquisition-engine.md).
+
 The core workflow is a `docpull.yaml` plus a `.docpull/context.lock.json`,
 similar in spirit to code dependency manifests and lockfiles:
 
@@ -170,6 +175,11 @@ docpull standards-pack rfc:9110 -o packs/standard
 docpull dataset-pack ./metrics.csv -o packs/dataset
 docpull transcript-pack ./meeting.vtt -o packs/transcript
 docpull wiki-pack wiki:Web_scraping -o packs/wiki
+docpull brand-pack example.com -o packs/brand
+docpull product-pack https://example.com/pricing -o packs/product
+docpull styleguide-pack example.com -o packs/styleguide
+docpull image-pack example.com -o packs/visuals
+docpull policy-pack example.com -o packs/policies
 docpull pack prepare packs/docs --eval-grade
 docpull pack validate packs/docs --level eval
 docpull export packs/docs --format openai-vector-jsonl -o exports/openai.jsonl
@@ -444,6 +454,11 @@ special handling for common web, documentation, and API surfaces.
 | Local datasets | `docpull dataset-pack` emits bounded schema, exact row counts where streamable, column, null-count, and sample summaries |
 | Transcripts | `docpull transcript-pack` emits timestamped segment records from VTT, SRT, text, JSON, or direct transcript URLs |
 | Wikimedia / Wikipedia | `docpull wiki-pack` emits MediaWiki REST page metadata, license/revision metadata, and section-level records |
+| Brand evidence | `docpull brand-pack` emits cited identity, firmographic, social, logo, and color observations |
+| Product and pricing | `docpull product-pack` emits plans, currencies, intervals, trials, feature gates, and page-text provenance |
+| Styleguide | `docpull styleguide-pack` emits cited CSS variables, colors, fonts, spacing, and component samples |
+| Visual assets | `docpull image-pack` emits bounded image candidates and optional validated local assets |
+| Policy documents | `docpull policy-pack` discovers policy/security pages and emits effective dates, stable clauses, and textual change candidates without legal conclusions |
 | Docusaurus / Sphinx / MkDocs | Extracts static article or document regions |
 | VitePress / VuePress / Astro Starlight | Extracts static content regions |
 | GitBook / ReadMe.io | Extracts available article or content regions |
@@ -495,6 +510,16 @@ types remain blocked.
 Every file-backed run writes `corpus.manifest.json` with stable document IDs,
 chunk IDs, hashes, output paths, and chunk counts. See
 [Corpus Manifest](docs/corpus-manifest.md).
+
+Evidence-pack workflows also write `workflow.request.json`,
+`workflow.result.json`, and `artifact.manifest.json`. Export their Draft 2020-12
+schemas with `docpull contracts export -o schemas/`. The complete inventory and
+compatibility rules are in [Public Contracts](docs/contracts.md).
+
+For tracker imports, run `docpull pack intelligence-bundle PACK`. The canonical
+output is `intelligence.bundle.v1.json`; `company_brain.bundle.json` remains a
+compatibility alias. See the
+[competitor-tracker integration contract](docs/competitor-tracker-integration.md).
 
 ## Profiles
 
@@ -612,7 +637,8 @@ part of the package release contract.
   `docpull parse`, `docpull openapi-pack`, `docpull feed-pack`,
   `docpull paper-pack`, `docpull repo-pack`, `docpull package-pack`,
   `docpull standards-pack`, `docpull dataset-pack`, `docpull transcript-pack`,
-  `docpull wiki-pack`,
+  `docpull wiki-pack`, `docpull brand-pack`, `docpull product-pack`,
+  `docpull styleguide-pack`, `docpull image-pack`, `docpull policy-pack`,
   `docpull pack validate`,
   `docpull pack audit`, `docpull export`,
   `docpull serve`, `docpull share`, `docpull render`, `docpull auth check`,

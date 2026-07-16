@@ -1,0 +1,381 @@
+{
+  "$defs": {
+    "BudgetUsage": {
+      "additionalProperties": true,
+      "properties": {
+        "actual_usd": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Actual Usd"
+        },
+        "blocked_actions": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Blocked Actions",
+          "type": "array"
+        },
+        "cache_hit_count": {
+          "default": 0,
+          "title": "Cache Hit Count",
+          "type": "integer"
+        },
+        "estimated_usd": {
+          "default": 0.0,
+          "title": "Estimated Usd",
+          "type": "number"
+        },
+        "http_request_count": {
+          "default": 0,
+          "title": "Http Request Count",
+          "type": "integer"
+        },
+        "limit_usd": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Limit Usd"
+        },
+        "local_browser_seconds": {
+          "default": 0.0,
+          "title": "Local Browser Seconds",
+          "type": "number"
+        },
+        "paid_request_count": {
+          "default": 0,
+          "title": "Paid Request Count",
+          "type": "integer"
+        }
+      },
+      "title": "BudgetUsage",
+      "type": "object"
+    },
+    "HashDigest": {
+      "additionalProperties": true,
+      "properties": {
+        "algorithm": {
+          "const": "sha256",
+          "default": "sha256",
+          "title": "Algorithm",
+          "type": "string"
+        },
+        "digest": {
+          "title": "Digest",
+          "type": "string"
+        }
+      },
+      "required": [
+        "digest"
+      ],
+      "title": "HashDigest",
+      "type": "object"
+    },
+    "ReplayConfiguration": {
+      "additionalProperties": true,
+      "properties": {
+        "browser_enabled": {
+          "default": false,
+          "title": "Browser Enabled",
+          "type": "boolean"
+        },
+        "configuration": {
+          "additionalProperties": true,
+          "title": "Configuration",
+          "type": "object"
+        },
+        "local_first": {
+          "default": true,
+          "title": "Local First",
+          "type": "boolean"
+        },
+        "paid_routes_enabled": {
+          "default": false,
+          "title": "Paid Routes Enabled",
+          "type": "boolean"
+        },
+        "scheduler": {
+          "default": null,
+          "title": "Scheduler",
+          "type": "null"
+        }
+      },
+      "title": "ReplayConfiguration",
+      "type": "object"
+    },
+    "WorkflowFailure": {
+      "additionalProperties": true,
+      "properties": {
+        "code": {
+          "default": "workflow_error",
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "metadata": {
+          "additionalProperties": true,
+          "title": "Metadata",
+          "type": "object"
+        },
+        "retryable": {
+          "default": false,
+          "title": "Retryable",
+          "type": "boolean"
+        },
+        "source_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Url"
+        }
+      },
+      "required": [
+        "message"
+      ],
+      "title": "WorkflowFailure",
+      "type": "object"
+    },
+    "WorkflowProgressEvent": {
+      "additionalProperties": true,
+      "properties": {
+        "current": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Current"
+        },
+        "event_id": {
+          "title": "Event Id",
+          "type": "string"
+        },
+        "message": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Message"
+        },
+        "metadata": {
+          "additionalProperties": true,
+          "title": "Metadata",
+          "type": "object"
+        },
+        "phase": {
+          "title": "Phase",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "started",
+            "progress",
+            "completed",
+            "warning",
+            "failed"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "timestamp": {
+          "title": "Timestamp",
+          "type": "string"
+        },
+        "total": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Total"
+        }
+      },
+      "required": [
+        "event_id",
+        "phase",
+        "status",
+        "timestamp"
+      ],
+      "title": "WorkflowProgressEvent",
+      "type": "object"
+    },
+    "WorkflowWarning": {
+      "additionalProperties": true,
+      "properties": {
+        "code": {
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "metadata": {
+          "additionalProperties": true,
+          "title": "Metadata",
+          "type": "object"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "title": "WorkflowWarning",
+      "type": "object"
+    }
+  },
+  "$id": "https://docpull.dev/schemas/workflow-result.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "artifact_manifest": {
+      "default": "artifact.manifest.json",
+      "title": "Artifact Manifest",
+      "type": "string"
+    },
+    "budget_usage": {
+      "$ref": "#/$defs/BudgetUsage"
+    },
+    "compatibility_artifacts": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "title": "Compatibility Artifacts",
+      "type": "object"
+    },
+    "contract_version": {
+      "const": "workflow.result.v1",
+      "default": "workflow.result.v1",
+      "title": "Contract Version",
+      "type": "string"
+    },
+    "data": {
+      "additionalProperties": true,
+      "title": "Data",
+      "type": "object"
+    },
+    "failures": {
+      "items": {
+        "$ref": "#/$defs/WorkflowFailure"
+      },
+      "title": "Failures",
+      "type": "array"
+    },
+    "finished_at": {
+      "title": "Finished At",
+      "type": "string"
+    },
+    "hashes": {
+      "additionalProperties": {
+        "$ref": "#/$defs/HashDigest"
+      },
+      "title": "Hashes",
+      "type": "object"
+    },
+    "pack_identity": {
+      "additionalProperties": true,
+      "title": "Pack Identity",
+      "type": "object"
+    },
+    "progress_events": {
+      "items": {
+        "$ref": "#/$defs/WorkflowProgressEvent"
+      },
+      "title": "Progress Events",
+      "type": "array"
+    },
+    "replay_configuration": {
+      "$ref": "#/$defs/ReplayConfiguration"
+    },
+    "request_id": {
+      "title": "Request Id",
+      "type": "string"
+    },
+    "run_identity": {
+      "additionalProperties": true,
+      "title": "Run Identity",
+      "type": "object"
+    },
+    "schema_version": {
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "started_at": {
+      "title": "Started At",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "completed",
+        "completed_with_warnings",
+        "failed",
+        "cancelled"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "summary": {
+      "additionalProperties": true,
+      "title": "Summary",
+      "type": "object"
+    },
+    "warnings": {
+      "items": {
+        "$ref": "#/$defs/WorkflowWarning"
+      },
+      "title": "Warnings",
+      "type": "array"
+    },
+    "workflow": {
+      "title": "Workflow",
+      "type": "string"
+    }
+  },
+  "required": [
+    "request_id",
+    "workflow",
+    "status",
+    "started_at",
+    "finished_at",
+    "pack_identity",
+    "run_identity"
+  ],
+  "title": "WorkflowResult",
+  "type": "object"
+}

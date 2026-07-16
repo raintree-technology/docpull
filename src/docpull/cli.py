@@ -1489,6 +1489,10 @@ def main(argv: list[str] | None = None) -> int:
         from .pack_tools import run_pack_cli
 
         return run_pack_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "contracts":
+        from .contracts_cli import run_contracts_cli
+
+        return run_contracts_cli(raw_argv[1:])
     if raw_argv and raw_argv[0] == "graph":
         from .graph import run_graph_cli
 
@@ -1525,6 +1529,32 @@ def main(argv: list[str] | None = None) -> int:
         from .monitor import run_monitor_cli
 
         return run_monitor_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] in {
+        "brand-pack",
+        "product-pack",
+        "styleguide-pack",
+        "image-pack",
+        "screenshot-pack",
+        "policy-pack",
+    }:
+        from .context_packs.workflow_cli import (
+            run_brand_pack_cli,
+            run_image_pack_cli,
+            run_policy_pack_cli,
+            run_product_pack_cli,
+            run_screenshot_pack_cli,
+            run_styleguide_pack_cli,
+        )
+
+        workflow_runners = {
+            "brand-pack": run_brand_pack_cli,
+            "product-pack": run_product_pack_cli,
+            "styleguide-pack": run_styleguide_pack_cli,
+            "image-pack": run_image_pack_cli,
+            "screenshot-pack": run_screenshot_pack_cli,
+            "policy-pack": run_policy_pack_cli,
+        }
+        return workflow_runners[raw_argv[0]](raw_argv[1:])
     if raw_argv and raw_argv[0] == "openapi-pack":
         from .context_packs.cli import run_openapi_pack_cli
 

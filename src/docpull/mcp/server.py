@@ -61,6 +61,7 @@ from ..local_workflows import audit_pack, refresh_pack
 from ..pack_reader import load_pack
 from ..pack_tools import (
     build_citation_map,
+    build_intelligence_bundle,
     build_research_brief,
     diff_packs,
     extract_pack_entities,
@@ -71,6 +72,7 @@ from ..pack_tools import (
 from ..policy import PolicyConfig
 from ..rendering import render_url_to_directory
 from ..surface import PRUNED_MCP_TOOLS
+from ..workflows import create_workflow_request, run_workflow
 from .tools import (
     ToolResult,
     add_source,
@@ -504,6 +506,64 @@ _SERVE_PACK_STATUS_OUTPUT_SCHEMA = {
     "required": ["status", "pack_dir", "document_count", "source_count"],
 }
 
+_WORKFLOW_RESULT_OUTPUT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "contract_version": {"const": "workflow.result.v1"},
+        "request_id": {"type": "string"},
+        "workflow": {"type": "string"},
+        "status": {"type": "string"},
+        "pack_identity": {"type": "object"},
+        "run_identity": {"type": "object"},
+        "progress_events": {"type": "array", "items": {"type": "object"}},
+        "warnings": {"type": "array", "items": {"type": "object"}},
+        "failures": {"type": "array", "items": {"type": "object"}},
+        "budget_usage": {"type": "object"},
+        "hashes": {"type": "object"},
+        "replay_configuration": {"type": "object"},
+    },
+    "required": [
+        "contract_version",
+        "request_id",
+        "workflow",
+        "status",
+        "pack_identity",
+        "run_identity",
+        "progress_events",
+        "warnings",
+        "failures",
+        "budget_usage",
+        "hashes",
+        "replay_configuration",
+    ],
+}
+
+_INTELLIGENCE_BUNDLE_OUTPUT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "contract_version": {"const": "intelligence.bundle.v1"},
+        "bundle_id": {"type": "string"},
+        "bundle_hash": {"type": "string"},
+        "pack_identity": {"type": "object"},
+        "run_identity": {"type": "object"},
+        "source_snapshots": {"type": "array", "items": {"type": "object"}},
+        "document_versions": {"type": "array", "items": {"type": "object"}},
+        "observations": {"type": "array", "items": {"type": "object"}},
+        "change_candidates": {"type": "array", "items": {"type": "object"}},
+    },
+    "required": [
+        "contract_version",
+        "bundle_id",
+        "bundle_hash",
+        "pack_identity",
+        "run_identity",
+        "source_snapshots",
+        "document_versions",
+        "observations",
+        "change_candidates",
+    ],
+}
+
 
 def _coerce_int(value: Any, *, name: str, default: int) -> int:
     """Accept int or numeric string; reject anything else with a clear error."""
@@ -809,6 +869,93 @@ async def _dispatch_tool(
                 path,
                 line_start=_coerce_int(line_start, name="line_start", default=0) or None,
                 line_end=_coerce_int(line_end, name="line_end", default=0) or None,
+            )
+
+        elif name in {
+            "workflow_run",
+            "brand_pack",
+            "product_pack",
+            "styleguide_pack",
+            "image_pack",
+            "screenshot_pack",
+            "policy_pack",
+        }:
+            workflow_aliases = {
+                "brand_pack": ("brand-pack", "domain_or_url", "packs/brand"),
+                "product_pack": ("product-pack", "url_or_domain", "packs/products"),
+                "styleguide_pack": ("styleguide-pack", "domain_or_url", "packs/styleguide"),
+                "image_pack": ("image-pack", "url_or_pack", "packs/images"),
+                "screenshot_pack": ("screenshot-pack", "url", "packs/screenshot"),
+                "policy_pack": ("policy-pack", "domain_or_url", "packs/policies"),
+            }
+            if name == "workflow_run":
+                workflow_name = _require_str(arguments, "workflow")
+                value = _require_str(arguments, "value")
+                default_output = f"packs/{workflow_name.replace('-pack', '').replace('_', '-')}"
+            else:
+                workflow_name, input_key, default_output = workflow_aliases[name]
+                value = _require_str(arguments, input_key)
+            output_dir = _path_arg(arguments, "output_dir", default_output)
+            policy_path_raw = arguments.get("policy")
+            if policy_path_raw is not None and not isinstance(policy_path_raw, str):
+                raise ValueError("'policy' must be a path string")
+            workflow_policy = PolicyConfig.from_file(Path(policy_path_raw)) if policy_path_raw else None
+            reserved = {
+                "workflow",
+                "value",
+                "domain_or_url",
+                "url_or_domain",
+                "url_or_pack",
+                "url",
+                "output_dir",
+                "policy",
+                "options",
+            }
+            options = {key: value for key, value in arguments.items() if key not in reserved}
+            nested_options = arguments.get("options")
+            if nested_options is not None:
+                if not isinstance(nested_options, dict):
+                    raise ValueError("'options' must be an object")
+                options.update(nested_options)
+            workflow_request = create_workflow_request(
+                workflow_name,
+                value,
+                output_dir=output_dir,
+                options=options,
+                policy=workflow_policy,
+            )
+            workflow_payload = await asyncio.to_thread(run_workflow, workflow_request)
+            result = ToolResult(
+                f"Workflow {workflow_payload['workflow']}: {workflow_payload['status']}",
+                data=workflow_payload,
+            )
+
+        elif name == "intelligence_bundle":
+            objective = arguments.get("objective")
+            market = arguments.get("market")
+            if objective is not None and not isinstance(objective, str):
+                raise ValueError("'objective' must be a string")
+            if market is not None and not isinstance(market, str):
+                raise ValueError("'market' must be a string")
+            output_raw = arguments.get("output")
+            if output_raw is not None and not isinstance(output_raw, str):
+                raise ValueError("'output' must be a path string")
+            bundle_payload = await asyncio.to_thread(
+                build_intelligence_bundle,
+                _path_arg(arguments, "pack_dir"),
+                objective=objective,
+                market=market,
+                search_queries=_string_list_arg(arguments, "search_queries") or None,
+                default_search=bool(arguments.get("default_search", True)),
+                required_domains=_string_list_arg(arguments, "required_domains"),
+                max_excerpts=_coerce_int(arguments.get("max_excerpts"), name="max_excerpts", default=8),
+                entity_limit=_coerce_int(arguments.get("entity_limit"), name="entity_limit", default=20),
+                search_limit=_coerce_int(arguments.get("search_limit"), name="search_limit", default=10),
+                output=Path(output_raw) if output_raw else None,
+            )
+            result = ToolResult(
+                f"Intelligence bundle: {bundle_payload['bundle_id']}",
+                data=bundle_payload,
             )
 
         elif name == "pack_score":
@@ -1416,6 +1563,230 @@ async def _run_stdio() -> int:
                     "required": ["library", "path"],
                 },
                 outputSchema=_READ_DOC_OUTPUT_SCHEMA,
+            ),
+            Tool(
+                name="workflow_run",
+                description=(
+                    "Run a registered evidence-pack workflow through workflow.request.v1 and return "
+                    "workflow.result.v1. Supported workflows are brand, product, styleguide, visual/image, "
+                    "screenshot, and policy. Browser use remains explicitly gated."
+                ),
+                annotations=ToolAnnotations(
+                    title="Run an evidence-pack workflow",
+                    readOnlyHint=False,
+                    destructiveHint=False,
+                    idempotentHint=False,
+                    openWorldHint=True,
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "workflow": {
+                            "type": "string",
+                            "enum": [
+                                "brand-pack",
+                                "product-pack",
+                                "styleguide-pack",
+                                "visual-pack",
+                                "image-pack",
+                                "screenshot-pack",
+                                "policy-pack",
+                            ],
+                        },
+                        "value": {"type": "string"},
+                        "output_dir": {"type": "string"},
+                        "policy": {"type": "string"},
+                        "options": {"type": "object"},
+                    },
+                    "required": ["workflow", "value", "output_dir"],
+                },
+                outputSchema=_WORKFLOW_RESULT_OUTPUT_SCHEMA,
+            ),
+            Tool(
+                name="brand_pack",
+                description="Build an evidence-backed brand pack through the common workflow protocol.",
+                annotations=ToolAnnotations(
+                    title="Build a brand pack",
+                    readOnlyHint=False,
+                    destructiveHint=False,
+                    idempotentHint=False,
+                    openWorldHint=True,
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "domain_or_url": {"type": "string"},
+                        "output_dir": {"type": "string"},
+                        "email": {"type": "string"},
+                        "name": {"type": "string"},
+                        "ticker": {"type": "string"},
+                        "download_assets": {"type": "boolean", "default": True},
+                        "max_pages": {"type": "integer", "minimum": 1, "default": 6},
+                        "policy": {"type": "string"},
+                    },
+                    "required": ["domain_or_url", "output_dir"],
+                },
+                outputSchema=_WORKFLOW_RESULT_OUTPUT_SCHEMA,
+            ),
+            Tool(
+                name="product_pack",
+                description="Build product and pricing evidence through the common workflow protocol.",
+                annotations=ToolAnnotations(
+                    title="Build a product pack",
+                    readOnlyHint=False,
+                    destructiveHint=False,
+                    idempotentHint=False,
+                    openWorldHint=True,
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "url_or_domain": {"type": "string"},
+                        "output_dir": {"type": "string"},
+                        "mode": {"type": "string", "enum": ["page", "site"], "default": "page"},
+                        "max_pages": {"type": "integer", "minimum": 1, "default": 8},
+                        "policy": {"type": "string"},
+                    },
+                    "required": ["url_or_domain", "output_dir"],
+                },
+                outputSchema=_WORKFLOW_RESULT_OUTPUT_SCHEMA,
+            ),
+            Tool(
+                name="styleguide_pack",
+                description=(
+                    "Build styleguide and design-token evidence through the common workflow protocol."
+                ),
+                annotations=ToolAnnotations(
+                    title="Build a styleguide pack",
+                    readOnlyHint=False,
+                    destructiveHint=False,
+                    idempotentHint=False,
+                    openWorldHint=True,
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "domain_or_url": {"type": "string"},
+                        "output_dir": {"type": "string"},
+                        "render": {"type": "boolean", "default": False},
+                        "max_stylesheets": {"type": "integer", "minimum": 1, "default": 12},
+                        "policy": {"type": "string"},
+                    },
+                    "required": ["domain_or_url", "output_dir"],
+                },
+                outputSchema=_WORKFLOW_RESULT_OUTPUT_SCHEMA,
+            ),
+            Tool(
+                name="image_pack",
+                description="Build a bounded visual-asset manifest through the common workflow protocol.",
+                annotations=ToolAnnotations(
+                    title="Build an image pack",
+                    readOnlyHint=False,
+                    destructiveHint=False,
+                    idempotentHint=False,
+                    openWorldHint=True,
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "url_or_pack": {"type": "string"},
+                        "output_dir": {"type": "string"},
+                        "download_assets": {"type": "boolean", "default": True},
+                        "max_assets": {"type": "integer", "minimum": 1, "default": 40},
+                        "policy": {"type": "string"},
+                    },
+                    "required": ["url_or_pack", "output_dir"],
+                },
+                outputSchema=_WORKFLOW_RESULT_OUTPUT_SCHEMA,
+            ),
+            Tool(
+                name="screenshot_pack",
+                description=(
+                    "Capture a screenshot pack through the explicitly trusted local browser gate and common "
+                    "workflow protocol."
+                ),
+                annotations=ToolAnnotations(
+                    title="Capture a screenshot pack",
+                    readOnlyHint=False,
+                    destructiveHint=False,
+                    idempotentHint=False,
+                    openWorldHint=True,
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "url": {"type": "string", "pattern": "^https://"},
+                        "output_dir": {"type": "string"},
+                        "viewport": {"type": "string", "default": "1280x720"},
+                        "full_page": {"type": "boolean", "default": False},
+                        "wait_for": {
+                            "type": "string",
+                            "enum": ["load", "domcontentloaded", "networkidle"],
+                            "default": "load",
+                        },
+                        "agent_browser_binary": {"type": "string"},
+                        "policy": {"type": "string"},
+                    },
+                    "required": ["url", "output_dir"],
+                },
+                outputSchema=_WORKFLOW_RESULT_OUTPUT_SCHEMA,
+            ),
+            Tool(
+                name="policy_pack",
+                description=(
+                    "Discover policy documents and emit stable clause evidence and textual change "
+                    "candidates; "
+                    "does not provide legal conclusions."
+                ),
+                annotations=ToolAnnotations(
+                    title="Build a policy evidence pack",
+                    readOnlyHint=False,
+                    destructiveHint=False,
+                    idempotentHint=False,
+                    openWorldHint=True,
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "domain_or_url": {"type": "string"},
+                        "output_dir": {"type": "string"},
+                        "max_pages": {"type": "integer", "minimum": 1, "default": 16},
+                        "baseline_pack": {"type": "string"},
+                        "policy": {"type": "string"},
+                    },
+                    "required": ["domain_or_url", "output_dir"],
+                },
+                outputSchema=_WORKFLOW_RESULT_OUTPUT_SCHEMA,
+            ),
+            Tool(
+                name="intelligence_bundle",
+                description=(
+                    "Generate a deterministic intelligence.bundle.v1 tracker import with source snapshots, "
+                    "document versions, precise observations, and change candidates."
+                ),
+                annotations=ToolAnnotations(
+                    title="Generate an intelligence bundle",
+                    readOnlyHint=False,
+                    destructiveHint=False,
+                    idempotentHint=True,
+                    openWorldHint=False,
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "pack_dir": {"type": "string"},
+                        "objective": {"type": "string"},
+                        "market": {"type": "string"},
+                        "search_queries": {"type": "array", "items": {"type": "string"}},
+                        "required_domains": {"type": "array", "items": {"type": "string"}},
+                        "max_excerpts": {"type": "integer", "minimum": 1, "default": 8},
+                        "entity_limit": {"type": "integer", "minimum": 0, "default": 20},
+                        "search_limit": {"type": "integer", "minimum": 1, "default": 10},
+                        "output": {"type": "string"},
+                    },
+                    "required": ["pack_dir"],
+                },
+                outputSchema=_INTELLIGENCE_BUNDLE_OUTPUT_SCHEMA,
             ),
             Tool(
                 name="pack_score",

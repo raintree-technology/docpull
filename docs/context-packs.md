@@ -18,6 +18,11 @@ docpull standards-pack rfc:9110 --output-dir packs/standard
 docpull dataset-pack ./metrics.csv --output-dir packs/dataset
 docpull transcript-pack ./meeting.vtt --output-dir packs/transcript
 docpull wiki-pack wiki:Web_scraping --output-dir packs/wiki
+docpull brand-pack example.com --output-dir packs/brand
+docpull product-pack https://example.com/pricing --output-dir packs/product
+docpull styleguide-pack example.com --output-dir packs/styleguide
+docpull image-pack example.com --output-dir packs/visuals
+docpull policy-pack example.com --output-dir packs/policies
 
 docpull pack prepare packs/example --eval-grade
 docpull pack validate packs/example --level eval
@@ -70,6 +75,21 @@ exported, or checked in Context CI.
 Remote typed lanes support `--cache --cache-dir .docpull-cache/typed-packs`
 for repeatable official API/metadata calls. Python SDK users can call the
 matching `async_build_*_pack` helpers when already inside an event loop.
+
+## Evidence Workflow Protocol
+
+Brand, product, styleguide, visual/image, screenshot, and policy lanes implement
+the common workflow protocol. Their existing result JSON and Markdown remain,
+and every run additionally writes:
+
+- `workflow.request.json` with stable input, policy, budget, and replay fields;
+- `workflow.result.json` with progress, warnings, failures, budget usage,
+  identities, and hashes;
+- `artifact.manifest.json` with byte sizes and SHA-256 for emitted artifacts.
+
+Use `docpull pack intelligence-bundle PACK` to create the deterministic tracker
+import. Use `docpull pack diff OLD NEW` to write `change.events.jsonl` alongside
+the existing diff artifacts.
 
 ## Release Smoke
 

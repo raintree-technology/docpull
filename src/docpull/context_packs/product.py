@@ -36,11 +36,27 @@ from .common import (
 PRODUCT_WORKFLOW = "product-pack"
 DEFAULT_PRODUCT_OUTPUT_DIR = Path("packs/products")
 PRICE_RE = re.compile(
-    r"(?P<currency>\$|USD|EUR|GBP|€|£)\s?(?P<amount>\d[\d,]*(?:\.\d+)?)"
-    r"(?:\s?/(?P<period>mo|month|monthly|yr|year|yearly|user|seat))?",
+    r"(?P<currency>US\$|CA\$|AU\$|\$|USD|CAD|AUD|EUR|GBP|JPY|INR|€|£|¥|₹)\s?"
+    r"(?P<amount>\d[\d,]*(?:\.\d+)?)"
+    r"(?:\s?(?:/|per\s+)(?P<period>mo|month|monthly|yr|year|yearly|user|seat|request|unit))?",
     re.IGNORECASE,
 )
+TRIAL_RE = re.compile(r"(?P<days>\d{1,3})[-\s]day\s+(?:free\s+)?trial|free\s+trial", re.IGNORECASE)
 PRODUCT_LINK_KEYWORDS = ("pricing", "product", "products", "plans", "shop", "store")
+PRICING_CONTEXT_TERMS = (
+    "pricing",
+    "price",
+    "plan",
+    "billing",
+    "monthly",
+    "annually",
+    "per month",
+    "per year",
+    "subscription",
+    "free trial",
+    "buy",
+    "checkout",
+)
 
 
 def build_product_pack(
@@ -110,6 +126,11 @@ def build_product_pack(
         },
         "products": products,
         "pricing_matrix": pricing_rows,
+        "pricing_extraction": {
+            "accepted_medium": "page_text",
+            "excluded_mediums": ["screenshot", "mockup", "image_alt_text"],
+            "incidental_value_policy": "Require pricing context outside explicit pricing components.",
+        },
         "warnings": run.warnings,
         "errors": run.errors,
         "replay_config": {"url_or_domain": url_or_domain, "mode": mode, "max_pages": max_pages},
@@ -227,6 +248,10 @@ def _offers_from_jsonld(raw: Any, page: PageSnapshot, pages: list[PageSnapshot])
                 "price": price,
                 "currency": _string_or_none(item.get("priceCurrency")),
                 "billing_frequency": _billing_from_text(json.dumps(item, ensure_ascii=False)),
+                "billing_interval": _billing_interval(json.dumps(item, ensure_ascii=False)),
+                "trial": _trial_from_text(json.dumps(item, ensure_ascii=False)),
+                "feature_gates": _feature_gates(json.dumps(item, ensure_ascii=False)),
+                "price_source": {"medium": "structured_data", "context": "jsonld_offer"},
                 "availability": _string_or_none(item.get("availability")),
                 "url": public_url(str(item.get("url") or page.url)),
                 "evidence": evidence_for_page(
@@ -243,7 +268,7 @@ def _offers_from_jsonld(raw: Any, page: PageSnapshot, pages: list[PageSnapshot])
 def _pricing_rows(page: PageSnapshot, pages: list[PageSnapshot]) -> list[dict[str, Any]]:
     soup = soup_for(page)
     rows: list[dict[str, Any]] = []
-    text_blocks: list[str] = []
+    text_blocks: list[tuple[str, str]] = []
     for selector in ("table tr", '[class*="pricing" i]', '[class*="plan" i]', '[class*="price" i]'):
         tags: list[Any]
         try:
@@ -253,28 +278,44 @@ def _pricing_rows(page: PageSnapshot, pages: list[PageSnapshot]) -> list[dict[st
         for tag in tags[:80]:
             text = " ".join(tag.get_text(" ").split())
             if PRICE_RE.search(text):
-                text_blocks.append(text)
+                text_blocks.append((text, f"pricing_component:{selector}"))
     if not text_blocks:
-        text_blocks = [line.strip() for line in page.markdown.splitlines() if PRICE_RE.search(line)]
-    seen: set[str] = set()
-    for block in text_blocks:
-        if block in seen:
-            continue
-        seen.add(block)
-        match = PRICE_RE.search(block)
-        if not match:
-            continue
-        rows.append(
-            {
-                "plan_name": _plan_name_from_text(block),
-                "price": _parse_price_value(match.group("amount")),
-                "currency": _currency_code(match.group("currency")),
-                "billing_frequency": _billing_from_text(block) or match.group("period"),
-                "raw_text": block[:500],
-                "source_url": page.url,
-                "evidence": evidence_for_page(page, pages, field="pricing", excerpt=block[:240]).to_dict(),
-            }
-        )
+        text_blocks = [
+            (line.strip(), "page_text:contextual_line")
+            for line in page.markdown.splitlines()
+            if PRICE_RE.search(line) and _looks_like_pricing_text(line)
+        ]
+    seen: set[tuple[str, float | None, str | None]] = set()
+    for block, context in text_blocks:
+        for match in PRICE_RE.finditer(block):
+            price = _parse_price_value(match.group("amount"))
+            currency = _currency_code(match.group("currency"))
+            key = (block, price, currency)
+            if key in seen:
+                continue
+            seen.add(key)
+            rows.append(
+                {
+                    "plan_name": _plan_name_from_text(block),
+                    "price": price,
+                    "currency": currency,
+                    "billing_frequency": _billing_from_text(block) or match.group("period"),
+                    "billing_interval": _billing_interval(block, fallback=match.group("period")),
+                    "trial": _trial_from_text(block),
+                    "feature_gates": _feature_gates(block),
+                    "raw_text": block[:500],
+                    "source_url": page.url,
+                    "price_source": {"medium": "page_text", "context": context},
+                    "evidence": evidence_for_page(
+                        page,
+                        pages,
+                        field="pricing",
+                        excerpt=block[:500],
+                    ).to_dict(),
+                }
+            )
+            if len(rows) >= 60:
+                return rows
     return rows[:60]
 
 
@@ -360,7 +401,23 @@ def _parse_price_value(value: Any) -> float | None:
 def _currency_code(value: str | None) -> str | None:
     if not value:
         return None
-    mapping = {"$": "USD", "usd": "USD", "€": "EUR", "eur": "EUR", "£": "GBP", "gbp": "GBP"}
+    mapping = {
+        "$": "USD",
+        "us$": "USD",
+        "usd": "USD",
+        "ca$": "CAD",
+        "cad": "CAD",
+        "au$": "AUD",
+        "aud": "AUD",
+        "€": "EUR",
+        "eur": "EUR",
+        "£": "GBP",
+        "gbp": "GBP",
+        "¥": "JPY",
+        "jpy": "JPY",
+        "₹": "INR",
+        "inr": "INR",
+    }
     return mapping.get(value.lower(), value.upper())
 
 
@@ -375,6 +432,55 @@ def _billing_from_text(text: str) -> str | None:
     if "usage" in lowered:
         return "usage_based"
     return None
+
+
+def _billing_interval(text: str, *, fallback: str | None = None) -> dict[str, Any] | None:
+    lowered = text.lower()
+    if any(value in lowered for value in ("/mo", "monthly", "per month")):
+        return {"unit": "month", "count": 1}
+    if any(value in lowered for value in ("/yr", "yearly", "annually", "per year")):
+        return {"unit": "year", "count": 1}
+    if any(value in lowered for value in ("per user", "/user")):
+        return {"unit": "user", "count": 1}
+    if any(value in lowered for value in ("per seat", "/seat")):
+        return {"unit": "seat", "count": 1}
+    if fallback:
+        return {"unit": fallback.lower(), "count": 1}
+    return None
+
+
+def _trial_from_text(text: str) -> dict[str, Any] | None:
+    match = TRIAL_RE.search(text)
+    if not match:
+        return None
+    days = match.groupdict().get("days")
+    return {
+        "available": True,
+        "duration_days": int(days) if days else None,
+        "requires_payment_method": "unknown",
+    }
+
+
+def _feature_gates(text: str) -> list[dict[str, str]]:
+    gates: list[dict[str, str]] = []
+    for fragment in re.split(r"[•|;]", text):
+        cleaned = " ".join(fragment.split())
+        lowered = cleaned.lower()
+        if len(cleaned) < 4 or len(cleaned) > 180:
+            continue
+        if any(term in lowered for term in ("included", "unlimited", "only", "limit", "add-on")):
+            availability = "included"
+            if "only" in lowered or "add-on" in lowered:
+                availability = "gated"
+            elif "limit" in lowered and "unlimited" not in lowered:
+                availability = "limited"
+            gates.append({"feature": cleaned, "availability": availability})
+    return gates[:20]
+
+
+def _looks_like_pricing_text(text: str) -> bool:
+    lowered = text.lower()
+    return any(term in lowered for term in PRICING_CONTEXT_TERMS)
 
 
 def _plan_name_from_text(text: str) -> str | None:

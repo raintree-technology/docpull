@@ -476,8 +476,11 @@ async def test_mcp_dispatch_brand_pack(
         },
     )
 
-    assert result.is_error is True
-    assert result.text == "Unknown tool: brand_pack"
+    assert result.is_error is False
+    assert result.data is not None
+    assert result.data["contract_version"] == "workflow.result.v1"
+    assert result.data["workflow"] == "brand-pack"
+    assert result.data["status"] == "completed"
 
 
 def _html_for_url(url: str) -> str:

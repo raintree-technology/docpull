@@ -1,4 +1,4 @@
-.PHONY: clean clean-pyc clean-build clean-test help test test-inventory test-all-local benchmark benchmark-quick benchmark-parallel benchmark-compare benchmark-matrix benchmark-raindrop license-year metrics metrics-check metadata-check metadata-sync lint format release-pr release-publish release-publish-replace-tag release-dispatch
+.PHONY: clean clean-pyc clean-build clean-test help test test-inventory test-all-local benchmark benchmark-quick benchmark-parallel benchmark-compare benchmark-matrix benchmark-raindrop contracts-check contracts-sync license-year metrics metrics-check metadata-check metadata-sync lint format release-pr release-publish release-publish-replace-tag release-dispatch
 
 PYTHON ?= .venv/bin/python
 VERSION_ARG := $(if $(VERSION),--version $(VERSION),)
@@ -31,6 +31,8 @@ help:
 	@echo "metrics-check - fail if METRICS.md is older than METRICS_MAX_AGE_HOURS"
 	@echo "metadata-check - fail if generated release/plugin metadata is stale"
 	@echo "metadata-sync - refresh generated release/plugin metadata from source"
+	@echo "contracts-check - fail if bundled contract schemas are stale"
+	@echo "contracts-sync - regenerate bundled contract schemas"
 	@echo "lint - check style with ruff"
 	@echo "format - format code with ruff"
 	@echo "release-pr - push current release branch and open a protected-main PR"
@@ -127,7 +129,13 @@ metadata-check:
 metadata-sync:
 	$(PYTHON) scripts/sync_release_metadata.py --write
 
-lint: metadata-check
+contracts-check:
+	$(PYTHON) scripts/generate_contract_schemas.py --check
+
+contracts-sync:
+	$(PYTHON) scripts/generate_contract_schemas.py --write
+
+lint: metadata-check contracts-check
 	$(PYTHON) -m ruff check .
 
 format: license-year metadata-sync

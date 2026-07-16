@@ -1,0 +1,86 @@
+{
+  "$id": "https://docpull.dev/schemas/basis.v2.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "basis_id": {
+      "title": "Basis Id",
+      "type": "string"
+    },
+    "citation_ids": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Citation Ids",
+      "type": "array"
+    },
+    "claim": {
+      "title": "Claim",
+      "type": "string"
+    },
+    "claim_path": {
+      "title": "Claim Path",
+      "type": "string"
+    },
+    "confidence": {
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ],
+      "title": "Confidence",
+      "type": "string"
+    },
+    "evidence_state": {
+      "enum": [
+        "supported",
+        "partial",
+        "insufficient"
+      ],
+      "title": "Evidence State",
+      "type": "string"
+    },
+    "excerpts": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Excerpts",
+      "type": "array"
+    },
+    "producer": {
+      "title": "Producer",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 2,
+      "default": 2,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "source_urls": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Source Urls",
+      "type": "array"
+    },
+    "warnings": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Warnings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "basis_id",
+    "claim_path",
+    "claim",
+    "evidence_state",
+    "confidence",
+    "producer"
+  ],
+  "title": "BasisContractV2",
+  "type": "object"
+}

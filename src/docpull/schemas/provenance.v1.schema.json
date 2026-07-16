@@ -1,0 +1,32 @@
+{
+  "$id": "https://docpull.dev/schemas/provenance.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "edges": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Edges",
+      "type": "array"
+    },
+    "nodes": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Nodes",
+      "type": "array"
+    },
+    "schema_version": {
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "schema_version"
+  ],
+  "title": "ProvenanceContractV1",
+  "type": "object"
+}

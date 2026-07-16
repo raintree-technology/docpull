@@ -1,0 +1,428 @@
+{
+  "$defs": {
+    "ChangeCandidate": {
+      "additionalProperties": true,
+      "properties": {
+        "after": {
+          "items": {
+            "$ref": "#/$defs/EvidenceSpan"
+          },
+          "title": "After",
+          "type": "array"
+        },
+        "before": {
+          "items": {
+            "$ref": "#/$defs/EvidenceSpan"
+          },
+          "title": "Before",
+          "type": "array"
+        },
+        "change_candidate_id": {
+          "title": "Change Candidate Id",
+          "type": "string"
+        },
+        "classification": {
+          "enum": [
+            "pricing",
+            "positioning",
+            "product",
+            "security",
+            "policy",
+            "other"
+          ],
+          "title": "Classification",
+          "type": "string"
+        },
+        "confidence": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "status": {
+          "const": "candidate",
+          "default": "candidate",
+          "title": "Status",
+          "type": "string"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Warnings",
+          "type": "array"
+        }
+      },
+      "required": [
+        "change_candidate_id",
+        "classification",
+        "confidence"
+      ],
+      "title": "ChangeCandidate",
+      "type": "object"
+    },
+    "EvidenceSpan": {
+      "additionalProperties": true,
+      "properties": {
+        "char_end": {
+          "minimum": 0,
+          "title": "Char End",
+          "type": "integer"
+        },
+        "char_start": {
+          "minimum": 0,
+          "title": "Char Start",
+          "type": "integer"
+        },
+        "citation_id": {
+          "title": "Citation Id",
+          "type": "string"
+        },
+        "document_id": {
+          "title": "Document Id",
+          "type": "string"
+        },
+        "document_version": {
+          "title": "Document Version",
+          "type": "string"
+        },
+        "exact_text": {
+          "title": "Exact Text",
+          "type": "string"
+        },
+        "exact_text_sha256": {
+          "title": "Exact Text Sha256",
+          "type": "string"
+        },
+        "record_citation_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Record Citation Id"
+        },
+        "url": {
+          "title": "Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "citation_id",
+        "document_id",
+        "document_version",
+        "url",
+        "char_start",
+        "char_end",
+        "exact_text",
+        "exact_text_sha256"
+      ],
+      "title": "EvidenceSpan",
+      "type": "object"
+    },
+    "Observation": {
+      "additionalProperties": true,
+      "properties": {
+        "confidence": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/EvidenceSpan"
+          },
+          "title": "Evidence",
+          "type": "array"
+        },
+        "evidence_strength": {
+          "enum": [
+            "strong",
+            "moderate",
+            "weak",
+            "unknown"
+          ],
+          "title": "Evidence Strength",
+          "type": "string"
+        },
+        "observation_id": {
+          "title": "Observation Id",
+          "type": "string"
+        },
+        "source_authority": {
+          "$ref": "#/$defs/SourceAuthority"
+        },
+        "status": {
+          "const": "observation",
+          "default": "observation",
+          "title": "Status",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "type": {
+          "title": "Type",
+          "type": "string"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Warnings",
+          "type": "array"
+        }
+      },
+      "required": [
+        "observation_id",
+        "type",
+        "text",
+        "evidence_strength",
+        "confidence",
+        "source_authority"
+      ],
+      "title": "Observation",
+      "type": "object"
+    },
+    "SourceAuthority": {
+      "additionalProperties": true,
+      "properties": {
+        "rationale": {
+          "title": "Rationale",
+          "type": "string"
+        },
+        "role": {
+          "enum": [
+            "official_product",
+            "legal",
+            "documentation",
+            "social",
+            "marketplace",
+            "third_party"
+          ],
+          "title": "Role",
+          "type": "string"
+        },
+        "tier": {
+          "enum": [
+            "tier_1_authoritative",
+            "tier_2_owned",
+            "tier_3_distribution",
+            "tier_4_external"
+          ],
+          "title": "Tier",
+          "type": "string"
+        }
+      },
+      "required": [
+        "role",
+        "tier",
+        "rationale"
+      ],
+      "title": "SourceAuthority",
+      "type": "object"
+    },
+    "SourceSnapshot": {
+      "additionalProperties": true,
+      "properties": {
+        "authority": {
+          "$ref": "#/$defs/SourceAuthority"
+        },
+        "content_hash": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Content Hash"
+        },
+        "document_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Document Id"
+        },
+        "document_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Document Version"
+        },
+        "fetched_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fetched At"
+        },
+        "source_id": {
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_snapshot_id": {
+          "title": "Source Snapshot Id",
+          "type": "string"
+        },
+        "url": {
+          "title": "Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_snapshot_id",
+        "source_id",
+        "url",
+        "authority"
+      ],
+      "title": "SourceSnapshot",
+      "type": "object"
+    },
+    "WorkflowWarning": {
+      "additionalProperties": true,
+      "properties": {
+        "code": {
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "metadata": {
+          "additionalProperties": true,
+          "title": "Metadata",
+          "type": "object"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "title": "WorkflowWarning",
+      "type": "object"
+    }
+  },
+  "$id": "https://docpull.dev/schemas/intelligence-bundle.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "artifacts": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "title": "Artifacts",
+      "type": "object"
+    },
+    "bundle_hash": {
+      "title": "Bundle Hash",
+      "type": "string"
+    },
+    "bundle_id": {
+      "title": "Bundle Id",
+      "type": "string"
+    },
+    "change_candidates": {
+      "items": {
+        "$ref": "#/$defs/ChangeCandidate"
+      },
+      "title": "Change Candidates",
+      "type": "array"
+    },
+    "contract_version": {
+      "const": "intelligence.bundle.v1",
+      "default": "intelligence.bundle.v1",
+      "title": "Contract Version",
+      "type": "string"
+    },
+    "document_versions": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Document Versions",
+      "type": "array"
+    },
+    "observations": {
+      "items": {
+        "$ref": "#/$defs/Observation"
+      },
+      "title": "Observations",
+      "type": "array"
+    },
+    "pack_identity": {
+      "additionalProperties": true,
+      "title": "Pack Identity",
+      "type": "object"
+    },
+    "run_identity": {
+      "additionalProperties": true,
+      "title": "Run Identity",
+      "type": "object"
+    },
+    "schema_version": {
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "source_snapshots": {
+      "items": {
+        "$ref": "#/$defs/SourceSnapshot"
+      },
+      "title": "Source Snapshots",
+      "type": "array"
+    },
+    "summary": {
+      "additionalProperties": true,
+      "title": "Summary",
+      "type": "object"
+    },
+    "warnings": {
+      "items": {
+        "$ref": "#/$defs/WorkflowWarning"
+      },
+      "title": "Warnings",
+      "type": "array"
+    },
+    "workspace": {
+      "additionalProperties": true,
+      "title": "Workspace",
+      "type": "object"
+    }
+  },
+  "required": [
+    "bundle_id",
+    "bundle_hash",
+    "pack_identity",
+    "run_identity",
+    "workspace"
+  ],
+  "title": "IntelligenceBundle",
+  "type": "object"
+}

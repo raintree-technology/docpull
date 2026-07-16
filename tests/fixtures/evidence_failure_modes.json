@@ -1,0 +1,17 @@
+{
+  "pricing": {
+    "url": "https://acme.test/pricing",
+    "html": "<html><body><p>We raised $2 million in 2024.</p><img alt=\"Pricing mockup $999\" src=\"mock.png\"><section class=\"pricing-card\"><h2>Pro</h2><p>$29 per user per month</p><p>14-day free trial</p><p>Advanced API included; SSO only on Enterprise</p></section></body></html>",
+    "markdown": "We raised $2 million in 2024.\n\n## Pro pricing plan\n$29 per user per month — 14-day free trial — Advanced API included; SSO only on Enterprise"
+  },
+  "branding": {
+    "url": "https://acme.test/brand",
+    "html": "<html><head><script type=\"application/ld+json\">{broken</script></head><body><h1>Acme</h1><a href=\"https://example.org/acme\">Unofficial profile</a><svg><script>alert(1)</script></svg></body></html>",
+    "markdown": "# Acme\nUnofficial profiles and unsafe embedded assets must not become authoritative brand claims."
+  },
+  "legal": {
+    "url": "https://acme.test/legal/privacy",
+    "html": "<html><body><h1>Privacy Policy</h1><p>Last updated: July 1, 2026</p><h2>Data</h2><p>We collect account data.</p><h2>Data</h2><p>We retain billing records.</p></body></html>",
+    "markdown": "# Privacy Policy\n\nLast updated: July 1, 2026\n\n## Data\n\nWe collect account data.\n\n## Data\n\nWe retain billing records."
+  }
+}
