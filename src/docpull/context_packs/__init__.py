@@ -17,6 +17,7 @@ _LAZY_EXPORTS = {
     **{name: (".package", name) for name in ("async_build_package_pack", "build_package_pack")},
     **{name: (".paper", name) for name in ("async_build_paper_pack", "build_paper_pack")},
     "build_policy_pack": (".policy_pack", "build_policy_pack"),
+    "build_relationship_pack": (".relationship", "build_relationship_pack"),
     "build_product_pack": (".product", "build_product_pack"),
     **{name: (".repo", name) for name in ("async_build_repo_pack", "build_repo_pack")},
     **{name: (".standards", name) for name in ("async_build_standards_pack", "build_standards_pack")},
@@ -52,6 +53,7 @@ if TYPE_CHECKING:
     from .paper import async_build_paper_pack, build_paper_pack
     from .policy_pack import build_policy_pack
     from .product import build_product_pack
+    from .relationship import build_relationship_pack
     from .repo import async_build_repo_pack, build_repo_pack
     from .standards import async_build_standards_pack, build_standards_pack
     from .styleguide import build_styleguide_pack

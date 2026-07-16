@@ -53,6 +53,8 @@ class PageContext:
 
     # Additional data from fetch
     status_code: int | None = None
+    http_attempts: int | None = None
+    retry_after_seconds: float | None = None
     content_type: str | None = None
     bytes_downloaded: int = 0
     persisted_path: Path | None = None

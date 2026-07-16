@@ -1033,8 +1033,16 @@ def build_intelligence_bundle(
             "search_limit": search_limit,
         },
     }
-    canonical_snapshots = _intelligence_source_snapshots(source_snapshots, records)
+    expected_domains = [str(item) for item in citations_payload.get("expected_domains") or []]
+    canonical_snapshots = _intelligence_source_snapshots(
+        source_snapshots,
+        records,
+        expected_domains=expected_domains,
+    )
     observations = _intelligence_observations(claims, records, citations_payload)
+    from .context_packs.relationship import extract_relationship_candidates_from_records
+
+    relationship_candidates = extract_relationship_candidates_from_records(records)
     document_versions = _intelligence_document_versions(records)
     change_candidates = _intelligence_change_candidates(pack_dir)
     bundle_core = {
@@ -1054,6 +1062,7 @@ def build_intelligence_bundle(
             "record_count": citations_payload["record_count"],
             "entity_count": len(entities),
             "claim_count": len(claims),
+            "relationship_candidate_count": len(relationship_candidates),
             "search_query_count": len(search_payloads),
             "search_result_count": sum(
                 _safe_int(search_payload.get("result_count")) for search_payload in search_payloads
@@ -1063,6 +1072,7 @@ def build_intelligence_bundle(
         "source_snapshots": canonical_snapshots,
         "document_versions": document_versions,
         "observations": observations,
+        "relationship_candidates": relationship_candidates,
         "change_candidates": change_candidates,
         "warnings": _intelligence_warnings(score_payload, source_scores_payload),
         "artifacts": artifacts,
@@ -1669,8 +1679,9 @@ def _company_brain_signals(search_payloads: list[dict[str, Any]]) -> list[dict[s
 def _intelligence_source_snapshots(
     snapshots: list[dict[str, Any]],
     records: list[dict[str, Any]],
+    *,
+    expected_domains: list[str],
 ) -> list[dict[str, Any]]:
-    official_domain = str(snapshots[0].get("domain") or "") if snapshots else ""
     records_by_url = {
         str(record.get("url")): record for record in records if isinstance(record, dict) and record.get("url")
     }
@@ -1678,6 +1689,9 @@ def _intelligence_source_snapshots(
     for snapshot in snapshots:
         url = str(snapshot.get("url") or "")
         record = records_by_url.get(url, {})
+        official_domains = _record_official_domains(record, expected_domains, url=url)
+        raw_metadata = record.get("metadata")
+        metadata: dict[str, Any] = raw_metadata if isinstance(raw_metadata, dict) else {}
         content_hashes = sorted(str(item) for item in snapshot.get("content_hashes") or [])
         output.append(
             {
@@ -1688,9 +1702,12 @@ def _intelligence_source_snapshots(
                 "document_version": record.get("content_hash"),
                 "content_hash": canonical_sha256(content_hashes) if content_hashes else None,
                 "fetched_at": snapshot.get("latest_fetched_at"),
+                "entity_id": metadata.get("entity_id"),
+                "official_domains": official_domains,
                 "authority": classify_source_authority(
                     url,
-                    official_domain=official_domain,
+                    official_domains=official_domains,
+                    declared_role=(str(metadata.get("source_role")) if metadata.get("source_role") else None),
                 ).model_dump(mode="json"),
             }
         )
@@ -1720,7 +1737,6 @@ def _intelligence_observations(
     citations_payload: dict[str, Any],
 ) -> list[dict[str, Any]]:
     expected_domains = [str(item) for item in citations_payload.get("expected_domains") or []]
-    official_domain = expected_domains[0] if expected_domains else ""
     by_url = {
         str(record.get("url")): record for record in records if isinstance(record, dict) and record.get("url")
     }
@@ -1732,7 +1748,13 @@ def _intelligence_observations(
         if not url or not text or record is None:
             continue
         content = str(record.get("content") or "")
-        authority = classify_source_authority(url, official_domain=official_domain)
+        raw_metadata = record.get("metadata")
+        metadata: dict[str, Any] = raw_metadata if isinstance(raw_metadata, dict) else {}
+        authority = classify_source_authority(
+            url,
+            official_domains=_record_official_domains(record, expected_domains, url=url),
+            declared_role=(str(metadata.get("source_role")) if metadata.get("source_role") else None),
+        )
         evidence = evidence_span_payload(
             url=url,
             content=content,
@@ -1763,6 +1785,29 @@ def _intelligence_observations(
             }
         )
     return observations
+
+
+def _record_official_domains(
+    record: dict[str, Any],
+    expected_domains: list[str],
+    *,
+    url: str,
+) -> list[str]:
+    raw_metadata = record.get("metadata")
+    metadata: dict[str, Any] = raw_metadata if isinstance(raw_metadata, dict) else {}
+    declared = metadata.get("official_domains")
+    if isinstance(declared, str):
+        values = [declared]
+    elif isinstance(declared, list):
+        values = [str(item) for item in declared]
+    else:
+        single = metadata.get("official_domain")
+        values = [str(single)] if single else list(expected_domains)
+    normalized = {value.lower().removeprefix("www.").rstrip(".") for value in values if value.strip()}
+    host = (urlparse(url).hostname or "").lower().removeprefix("www.").rstrip(".")
+    if host and any(host == domain or host.endswith(f".{domain}") for domain in expected_domains):
+        normalized.add(host)
+    return sorted(normalized)
 
 
 def _intelligence_change_candidates(pack_dir: Path) -> list[dict[str, Any]]:

@@ -181,6 +181,8 @@ docpull repo-pack psf/requests -o packs/repo --cache
 docpull package-pack pypi:requests -o packs/package
 docpull standards-pack rfc:9110 -o packs/standard
 docpull dataset-pack ./metrics.csv -o packs/dataset
+docpull dataset-pack 'https://data.example.org/rows.json?$limit=100' -o packs/dataset
+docpull relationship-pack example.com --subject "Example Brand" -o packs/relationships
 docpull transcript-pack ./meeting.vtt -o packs/transcript
 docpull wiki-pack wiki:Web_scraping -o packs/wiki
 docpull brand-pack example.com -o packs/brand
@@ -459,7 +461,8 @@ special handling for common web, documentation, and API surfaces.
 | Public GitHub repos | `docpull repo-pack` emits repo metadata, README/docs/examples/changelog files, manifests, and releases |
 | npm / PyPI packages | `docpull package-pack` emits registry metadata, README/description, versions, license, dependencies, and install commands |
 | Standards | `docpull standards-pack` emits RFC, IETF, W3C, and WHATWG metadata plus section-level records |
-| Local datasets | `docpull dataset-pack` emits bounded schema, exact row counts where streamable, column, null-count, and sample summaries |
+| Local/remote datasets | `docpull dataset-pack` emits bounded schema, exact row counts where streamable, column/null/sample summaries, and HTTPS JSON/CSV snapshot provenance |
+| Relationship review | `docpull relationship-pack` emits cited observations and explicit coverage gaps without approving claims or inferring independence |
 | Transcripts | `docpull transcript-pack` emits timestamped segment records from VTT, SRT, text, JSON, or direct transcript URLs |
 | Wikimedia / Wikipedia | `docpull wiki-pack` emits MediaWiki REST page metadata, license/revision metadata, and section-level records |
 | Brand evidence | `docpull brand-pack` emits cited identity, firmographic, social, logo, and color observations |

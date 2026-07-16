@@ -184,9 +184,12 @@ def run_standards_pack_cli(argv: list[str] | None = None) -> int:
 def run_dataset_pack_cli(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="docpull dataset-pack",
-        description="Build a local v3 pack from local CSV, TSV, JSON, NDJSON, SQLite, or Parquet files",
+        description=(
+            "Build a v3 pack from local CSV, TSV, JSON, NDJSON, SQLite, or Parquet files, "
+            "or bounded HTTPS JSON/CSV snapshots"
+        ),
     )
-    parser.add_argument("sources", nargs="+", help="Local dataset files")
+    parser.add_argument("sources", nargs="+", help="Local dataset files or HTTPS JSON/CSV URLs")
     _add_typed_common_args(parser, DEFAULT_DATASET_OUTPUT_DIR, max_items_default=50)
     args = parser.parse_args(argv)
     return _run_and_print(

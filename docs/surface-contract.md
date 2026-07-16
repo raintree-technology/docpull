@@ -35,9 +35,9 @@ DocPull targets capability alignment, not 1:1 flag parity. MCP should not mirror
 
 | Capability | CLI | Python SDK/API | MCP | Contract |
 | --- | --- | --- | --- | --- |
-| Fetch one URL | `docpull <url> --single` or default crawl entry | `fetch_one`, `fetch_blocking`, `Fetcher` | `fetch_url` | Core-aligned |
+| Fetch one URL | `docpull <url> --single` or `workflow_run(fetch)` | `fetch_one`, `fetch_blocking`, `Fetcher`, `run_workflow` | `fetch_url`, `workflow_run` | Core-aligned |
 | Optional rendering | `docpull <url> --render ...`, `docpull render ... --runtime local\|vercel\|e2b`, trusted-target acknowledgement, cloud controls for live smoke, budget caps, prebuilt agent-browser templates, and E2B templates | `RenderConfig`, `Renderer`, `AgentBrowserRenderer`, `VercelSandboxRenderer`, `E2BSandboxRenderer`, `estimate_cloud_render_cost_usd`, `render_url`, `render_url_to_directory`, fetch config | `render_url` with runtime controls; `fetch_url` stays browser-free | Core-aligned |
-| Crawl public web/source | `docpull <url>` with crawl/output flags | `Fetcher` and config models | `ensure_docs` for named aliases | Adapted |
+| Crawl public web/source | `docpull <url>` with crawl/output flags and run-scoped result | `Fetcher`, config models, `run_workflow(crawl)` | `ensure_docs`, `workflow_run` | Core-aligned |
 | Output Markdown / NDJSON / SQLite / OKF | CLI output flags | Pipeline/config primitives | Indirect through fetched Markdown and pack tools | Adapted |
 | List configured sources | Not a primary CLI command | `docpull.mcp.sources` internals, not public SDK | `list_sources` | MCP-focused |
 | List cached/indexed sources | Not a primary CLI command | Local filesystem/search helpers | `list_indexed` | MCP-focused |
@@ -48,7 +48,7 @@ DocPull targets capability alignment, not 1:1 flag parity. MCP should not mirror
 | Refresh/score/diff/audit context packs | `docpull refresh`, `docpull pack score`, `docpull pack sources`, `docpull pack diff`, `docpull pack audit` | Pack helper modules, `refresh_pack`, `audit_pack` | `refresh_pack`, `pack_score`, `pack_diff`, `audit_pack` | Core-aligned |
 | Build pack citations/entities/search/briefs | `docpull pack citations`, `docpull pack entities`, `docpull pack search`, `docpull pack brief` | `build_citation_map`, `extract_pack_entities`, `search_pack`, `build_research_brief` | `pack_citations`, `pack_entities`, `pack_search`, `pack_brief` | Core-aligned |
 | Prepare full pack intelligence bundle | `docpull pack prepare` | `prepare_pack` in `docpull.pack_tools` | `pack_prepare` | Core-aligned |
-| Evidence-pack workflow protocol | `brand-pack`, `product-pack`, `styleguide-pack`, `image-pack`, `screenshot-pack`, `policy-pack` | concrete `build_*_pack` builders plus `WorkflowRequest`, `run_workflow`, `async_run_workflow` | `workflow_run` plus dedicated pack tools | Core-aligned |
+| Evidence-pack workflow protocol | `brand-pack`, `product-pack`, `styleguide-pack`, `image-pack`, `screenshot-pack`, `policy-pack`, `relationship-pack`, `dataset-pack` | concrete `build_*_pack` builders plus `WorkflowRequest`, `run_workflow`, `async_run_workflow` | `workflow_run` plus dedicated evidence tools | Core-aligned |
 | Tracker import bundle | `docpull pack intelligence-bundle` (`company-brain` alias) | `build_intelligence_bundle` (`build_company_brain_bundle` alias) | `intelligence_bundle` | Core-aligned |
 | Context CI and eval-grade context | `docpull ci`, `docpull pack prepare --eval-grade`, `docpull pack validate --level eval` | `run_context_ci`, `validate_pack_contract`, pack preparation helpers | Not exposed yet | Core-aligned |
 | Build/query local source graphs | `docpull graph build`, `docpull graph status`, `docpull graph query`, `docpull graph neighbors`, `docpull graph refresh` | `build_graph`, `load_graph`, `graph_status`, `query_graph`, `graph_neighbors`, `refresh_graph` | `graph_build`, `graph_status`, `graph_query`, `graph_neighbors`, `graph_refresh` | Core-aligned |

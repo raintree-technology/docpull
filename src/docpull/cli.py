@@ -140,14 +140,22 @@ def _output_dir_has_records(output_dir: Path) -> bool:
     return False
 
 
-def _fetch_exit_code(stats: object, output_dir: Path, *, allow_empty: bool = False) -> int:
+def _fetch_exit_code(
+    stats: object,
+    output_dir: Path,
+    *,
+    allow_empty: bool = False,
+    exit_policy: str = "strict",
+) -> int:
     if int(getattr(stats, "pages_failed", 0)) > 0:
         return 1
     if allow_empty:
         return 0
-    if int(getattr(stats, "pages_fetched", 0)) == 0 and not _output_dir_has_records(output_dir):
-        return 1
-    return 0
+    if int(getattr(stats, "pages_fetched", 0)) > 0:
+        return 0
+    if exit_policy == "usable-output" and _output_dir_has_records(output_dir):
+        return 0
+    return 1
 
 
 def _add_render_options(parser: argparse.ArgumentParser) -> None:
@@ -604,6 +612,15 @@ Examples:
         action="store_true",
         help="Suppress output",
     )
+    output_group.add_argument(
+        "--exit-policy",
+        choices=["strict", "usable-output"],
+        default="strict",
+        help=(
+            "Exit based on this run only (strict, default), or accept usable records "
+            "already present in the output directory (usable-output)"
+        ),
+    )
 
     return parser
 
@@ -626,9 +643,10 @@ def run_fetcher(args: argparse.Namespace) -> int:
         maybe_write_run_accounting,
     )
     from .models.config import DocpullConfig, ProfileName
-    from .models.events import EventType, SkipReason
+    from .models.events import EventType, FetchStats, SkipReason
     from .rendering import estimate_cloud_render_cost_usd
     from .skill_export import default_skill_root, expand_skill_agents
+    from .time_utils import utc_now_iso
 
     fetcher_class: Any = globals().get("Fetcher") or __getattr__("Fetcher")
     console = Console()
@@ -900,6 +918,27 @@ def run_fetcher(args: argparse.Namespace) -> int:
         console.print("[red]Budget error:[/red] " + escape(str(err)))
         return 1
 
+    acquisition_started_at = utc_now_iso()
+    run_events: list = []
+
+    def write_structured_result(
+        stats: object,
+        *,
+        contexts: list | None = None,
+        extra_failures: list | None = None,
+    ) -> None:
+        from .acquisition_workflows import write_cli_acquisition_contracts
+
+        write_cli_acquisition_contracts(
+            config=config,
+            workflow="fetch" if args.single else "crawl",
+            started_at=acquisition_started_at,
+            stats=stats,
+            events=run_events,
+            contexts=contexts,
+            extra_failures=extra_failures,
+        )
+
     async def run() -> int:
         if not args.quiet:
             console.print(f"[bold blue]docpull[/bold blue] v{__version__}")
@@ -924,6 +963,7 @@ def run_fetcher(args: argparse.Namespace) -> int:
                         return 1
                     ctx = await fetcher.fetch_one(config.url)
                     if ctx.error:
+                        write_structured_result(fetcher.stats, contexts=[ctx])
                         console.print(f"[red]Failed:[/red] {ctx.error}")
                         return 1
                     if ctx.should_skip:
@@ -936,6 +976,7 @@ def run_fetcher(args: argparse.Namespace) -> int:
                             SkipReason.NO_CONTENT_EXTRACTED,
                             SkipReason.NO_CONTENT_TO_SAVE,
                         }
+                        write_structured_result(fetcher.stats, contexts=[ctx])
                         return 1 if ctx.skip_code in failure_skips else 0
                     if not args.quiet:
                         n_chunks = len(ctx.chunks) if ctx.chunks else 0
@@ -950,6 +991,7 @@ def run_fetcher(args: argparse.Namespace) -> int:
                         render_estimated_cost=render_estimated_cost,
                         paid_capable=render_is_cloud,
                     )
+                    write_structured_result(fetcher.stats, contexts=[ctx])
                     return 0
 
                 # Track skip reasons for summary
@@ -959,6 +1001,7 @@ def run_fetcher(args: argparse.Namespace) -> int:
 
                 if args.quiet:
                     async for event in fetcher.run():
+                        run_events.append(event)
                         if event.type == EventType.FETCH_SKIPPED and event.skip_reason:
                             skip_counts[event.skip_reason] += 1
                 else:
@@ -971,6 +1014,7 @@ def run_fetcher(args: argparse.Namespace) -> int:
                         task = progress.add_task("Starting...", total=None)
 
                         async for event in fetcher.run():
+                            run_events.append(event)
                             if event.type == EventType.STARTED:
                                 progress.update(task, description=f"[cyan]{event.message}")
                             elif event.type == EventType.RESUMED:
@@ -1019,6 +1063,7 @@ def run_fetcher(args: argparse.Namespace) -> int:
                     paid_capable=render_is_cloud,
                     skip_counts=skip_counts,
                 )
+                write_structured_result(stats)
                 if not args.quiet:
                     console.print()
                     console.print("[bold]Results:[/bold]")
@@ -1035,12 +1080,26 @@ def run_fetcher(args: argparse.Namespace) -> int:
                         for reason, count in sorted(skip_counts.items(), key=lambda x: -x[1]):
                             console.print(f"  {reason.value}: {count}")
 
-                exit_code = _fetch_exit_code(stats, config.output.directory, allow_empty=args.dry_run)
+                exit_code = _fetch_exit_code(
+                    stats,
+                    config.output.directory,
+                    allow_empty=args.dry_run,
+                    exit_policy=args.exit_policy,
+                )
                 if exit_code and not args.quiet and stats.pages_fetched == 0 and stats.pages_failed == 0:
                     console.print("[yellow]No readable pages were fetched; output pack is empty.[/yellow]")
                 return exit_code
 
         except Exception as e:
+            from .contracts import workflow_failure_from_mapping
+
+            failure = workflow_failure_from_mapping(
+                {"error": str(e), "stage": "workflow", "code": "workflow_error"}
+            )
+            write_structured_result(
+                FetchStats(pages_failed=1),
+                extra_failures=[failure],
+            )
             console.print("[red]Error:[/red] " + escape(str(e)))
             if args.verbose:
                 import traceback
@@ -1607,12 +1666,14 @@ def main(argv: list[str] | None = None) -> int:
         "image-pack",
         "screenshot-pack",
         "policy-pack",
+        "relationship-pack",
     }:
         from .context_packs.workflow_cli import (
             run_brand_pack_cli,
             run_image_pack_cli,
             run_policy_pack_cli,
             run_product_pack_cli,
+            run_relationship_pack_cli,
             run_screenshot_pack_cli,
             run_styleguide_pack_cli,
         )
@@ -1624,6 +1685,7 @@ def main(argv: list[str] | None = None) -> int:
             "image-pack": run_image_pack_cli,
             "screenshot-pack": run_screenshot_pack_cli,
             "policy-pack": run_policy_pack_cli,
+            "relationship-pack": run_relationship_pack_cli,
         }
         return workflow_runners[raw_argv[0]](raw_argv[1:])
     if raw_argv and raw_argv[0] == "openapi-pack":

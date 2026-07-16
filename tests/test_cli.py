@@ -12,6 +12,11 @@ from docpull.cli import create_parser, main, run_fetcher
 from docpull.models.events import EventType, SkipReason
 
 
+@pytest.fixture(autouse=True)
+def _isolate_cli_outputs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.chdir(tmp_path)
+
+
 def _capture_fetcher_config(
     monkeypatch,
     *,
@@ -367,6 +372,47 @@ def test_crawl_returns_nonzero_when_no_records_are_written(tmp_path, monkeypatch
     args = parser.parse_args(["https://example.com", "--quiet", "-o", str(tmp_path)])
 
     assert run_fetcher(args) == 1
+    result = json.loads((tmp_path / "workflow.result.json").read_text(encoding="utf-8"))
+    manifest = json.loads((tmp_path / "current-run.manifest.json").read_text(encoding="utf-8"))
+    assert result["summary"]["current_run_record_count"] == 0
+    assert manifest["current_run_record_count"] == 0
+    assert manifest["run_id"] == result["run_identity"]["run_id"]
+
+
+def test_strict_exit_ignores_stale_records_and_usable_output_is_explicit(tmp_path, monkeypatch):
+    stale = {
+        "url": "https://stale.example/",
+        "content": "stale record from a previous run",
+    }
+    (tmp_path / "documents.ndjson").write_text(json.dumps(stale) + "\n", encoding="utf-8")
+    empty_stats = SimpleNamespace(
+        urls_discovered=1,
+        pages_fetched=0,
+        pages_skipped=1,
+        pages_failed=0,
+        duration_seconds=0.1,
+    )
+    events = [
+        SimpleNamespace(type=EventType.FETCH_SKIPPED, skip_reason=SkipReason.ROBOTS_DISALLOWED),
+        SimpleNamespace(type=EventType.COMPLETED, message="Done"),
+    ]
+    _capture_fetcher_config(monkeypatch, run_events=events, stats=empty_stats)
+    parser = create_parser()
+
+    strict = parser.parse_args(["https://example.com", "--quiet", "-o", str(tmp_path)])
+    assert run_fetcher(strict) == 1
+
+    usable = parser.parse_args(
+        [
+            "https://example.com",
+            "--quiet",
+            "-o",
+            str(tmp_path),
+            "--exit-policy",
+            "usable-output",
+        ]
+    )
+    assert run_fetcher(usable) == 0
 
 
 def test_non_quiet_crawl_renders_progress_and_summary(monkeypatch, capsys):

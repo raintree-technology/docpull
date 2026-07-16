@@ -1,64 +1,66 @@
 {
   "$defs": {
-    "ChangeCandidate": {
+    "CoverageResult": {
       "additionalProperties": true,
       "properties": {
-        "after": {
+        "acquired_document_count": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Acquired Document Count",
+          "type": "integer"
+        },
+        "candidates": {
           "items": {
-            "$ref": "#/$defs/EvidenceSpan"
+            "$ref": "#/$defs/RelationshipCandidate"
           },
-          "title": "After",
+          "title": "Candidates",
           "type": "array"
         },
-        "before": {
+        "coverage_gap": {
+          "default": false,
+          "title": "Coverage Gap",
+          "type": "boolean"
+        },
+        "failures": {
           "items": {
-            "$ref": "#/$defs/EvidenceSpan"
+            "$ref": "#/$defs/WorkflowFailure"
           },
-          "title": "Before",
+          "title": "Failures",
           "type": "array"
         },
-        "change_candidate_id": {
-          "title": "Change Candidate Id",
-          "type": "string"
+        "input": {
+          "additionalProperties": true,
+          "title": "Input",
+          "type": "object"
         },
-        "classification": {
-          "enum": [
-            "pricing",
-            "positioning",
-            "product",
-            "security",
-            "policy",
-            "other"
-          ],
-          "title": "Classification",
+        "input_id": {
+          "title": "Input Id",
           "type": "string"
-        },
-        "confidence": {
-          "maximum": 1.0,
-          "minimum": 0.0,
-          "title": "Confidence",
-          "type": "number"
         },
         "status": {
-          "const": "candidate",
-          "default": "candidate",
+          "enum": [
+            "candidate_found",
+            "acquired_no_candidate",
+            "retryable_failure",
+            "blocked"
+          ],
           "title": "Status",
           "type": "string"
         },
         "warnings": {
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/WorkflowWarning"
           },
           "title": "Warnings",
           "type": "array"
         }
       },
       "required": [
-        "change_candidate_id",
-        "classification",
-        "confidence"
+        "input_id",
+        "input",
+        "status"
       ],
-      "title": "ChangeCandidate",
+      "title": "CoverageResult",
       "type": "object"
     },
     "EvidenceSpan": {
@@ -122,72 +124,6 @@
         "exact_text_sha256"
       ],
       "title": "EvidenceSpan",
-      "type": "object"
-    },
-    "Observation": {
-      "additionalProperties": true,
-      "properties": {
-        "confidence": {
-          "maximum": 1.0,
-          "minimum": 0.0,
-          "title": "Confidence",
-          "type": "number"
-        },
-        "evidence": {
-          "items": {
-            "$ref": "#/$defs/EvidenceSpan"
-          },
-          "title": "Evidence",
-          "type": "array"
-        },
-        "evidence_strength": {
-          "enum": [
-            "strong",
-            "moderate",
-            "weak",
-            "unknown"
-          ],
-          "title": "Evidence Strength",
-          "type": "string"
-        },
-        "observation_id": {
-          "title": "Observation Id",
-          "type": "string"
-        },
-        "source_authority": {
-          "$ref": "#/$defs/SourceAuthority"
-        },
-        "status": {
-          "const": "observation",
-          "default": "observation",
-          "title": "Status",
-          "type": "string"
-        },
-        "text": {
-          "title": "Text",
-          "type": "string"
-        },
-        "type": {
-          "title": "Type",
-          "type": "string"
-        },
-        "warnings": {
-          "items": {
-            "type": "string"
-          },
-          "title": "Warnings",
-          "type": "array"
-        }
-      },
-      "required": [
-        "observation_id",
-        "type",
-        "text",
-        "evidence_strength",
-        "confidence",
-        "source_authority"
-      ],
-      "title": "Observation",
       "type": "object"
     },
     "RelationshipCandidate": {
@@ -292,142 +228,90 @@
       "title": "RelationshipEntity",
       "type": "object"
     },
-    "SourceAuthority": {
+    "WorkflowFailure": {
       "additionalProperties": true,
       "properties": {
-        "rationale": {
-          "title": "Rationale",
+        "attempts": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Attempts"
+        },
+        "code": {
+          "default": "workflow_error",
+          "title": "Code",
           "type": "string"
         },
-        "role": {
-          "enum": [
-            "official_product",
-            "official_corporate",
-            "legal",
-            "documentation",
-            "social",
-            "marketplace",
-            "government_registry",
-            "regulatory_filing",
-            "press_release",
-            "local_reporting",
-            "third_party"
+        "http_status": {
+          "anyOf": [
+            {
+              "maximum": 599,
+              "minimum": 100,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
           ],
-          "title": "Role",
+          "default": null,
+          "title": "Http Status"
+        },
+        "message": {
+          "title": "Message",
           "type": "string"
         },
-        "tier": {
-          "enum": [
-            "tier_1_authoritative",
-            "tier_2_owned",
-            "tier_3_distribution",
-            "tier_4_external"
+        "metadata": {
+          "additionalProperties": true,
+          "title": "Metadata",
+          "type": "object"
+        },
+        "retry_after_seconds": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
           ],
-          "title": "Tier",
+          "default": null,
+          "title": "Retry After Seconds"
+        },
+        "retryable": {
+          "default": false,
+          "title": "Retryable",
+          "type": "boolean"
+        },
+        "source_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Url"
+        },
+        "stage": {
+          "default": "workflow",
+          "title": "Stage",
           "type": "string"
         }
       },
       "required": [
-        "role",
-        "tier",
-        "rationale"
+        "message"
       ],
-      "title": "SourceAuthority",
-      "type": "object"
-    },
-    "SourceSnapshot": {
-      "additionalProperties": true,
-      "properties": {
-        "authority": {
-          "$ref": "#/$defs/SourceAuthority"
-        },
-        "content_hash": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Content Hash"
-        },
-        "document_id": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Document Id"
-        },
-        "document_version": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Document Version"
-        },
-        "entity_id": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Entity Id"
-        },
-        "fetched_at": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Fetched At"
-        },
-        "official_domains": {
-          "items": {
-            "type": "string"
-          },
-          "title": "Official Domains",
-          "type": "array"
-        },
-        "source_id": {
-          "title": "Source Id",
-          "type": "string"
-        },
-        "source_snapshot_id": {
-          "title": "Source Snapshot Id",
-          "type": "string"
-        },
-        "url": {
-          "title": "Url",
-          "type": "string"
-        }
-      },
-      "required": [
-        "source_snapshot_id",
-        "source_id",
-        "url",
-        "authority"
-      ],
-      "title": "SourceSnapshot",
+      "title": "WorkflowFailure",
       "type": "object"
     },
     "WorkflowWarning": {
@@ -455,64 +339,34 @@
       "type": "object"
     }
   },
-  "$id": "https://docpull.dev/schemas/intelligence-bundle.v1.schema.json",
+  "$id": "https://docpull.dev/schemas/relationship-pack.v1.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": true,
   "properties": {
-    "artifacts": {
-      "additionalProperties": {
-        "type": "string"
-      },
-      "title": "Artifacts",
-      "type": "object"
-    },
-    "bundle_hash": {
-      "title": "Bundle Hash",
-      "type": "string"
-    },
-    "bundle_id": {
-      "title": "Bundle Id",
-      "type": "string"
-    },
-    "change_candidates": {
+    "candidates": {
       "items": {
-        "$ref": "#/$defs/ChangeCandidate"
+        "$ref": "#/$defs/RelationshipCandidate"
       },
-      "title": "Change Candidates",
+      "title": "Candidates",
       "type": "array"
     },
     "contract_version": {
-      "const": "intelligence.bundle.v1",
-      "default": "intelligence.bundle.v1",
+      "const": "relationship.pack.v1",
+      "default": "relationship.pack.v1",
       "title": "Contract Version",
       "type": "string"
     },
-    "document_versions": {
+    "coverage": {
       "items": {
-        "additionalProperties": true,
-        "type": "object"
+        "$ref": "#/$defs/CoverageResult"
       },
-      "title": "Document Versions",
-      "type": "array"
-    },
-    "observations": {
-      "items": {
-        "$ref": "#/$defs/Observation"
-      },
-      "title": "Observations",
+      "title": "Coverage",
       "type": "array"
     },
     "pack_identity": {
       "additionalProperties": true,
       "title": "Pack Identity",
       "type": "object"
-    },
-    "relationship_candidates": {
-      "items": {
-        "$ref": "#/$defs/RelationshipCandidate"
-      },
-      "title": "Relationship Candidates",
-      "type": "array"
     },
     "run_identity": {
       "additionalProperties": true,
@@ -523,13 +377,6 @@
       "default": 1,
       "title": "Schema Version",
       "type": "integer"
-    },
-    "source_snapshots": {
-      "items": {
-        "$ref": "#/$defs/SourceSnapshot"
-      },
-      "title": "Source Snapshots",
-      "type": "array"
     },
     "summary": {
       "additionalProperties": true,
@@ -542,20 +389,13 @@
       },
       "title": "Warnings",
       "type": "array"
-    },
-    "workspace": {
-      "additionalProperties": true,
-      "title": "Workspace",
-      "type": "object"
     }
   },
   "required": [
-    "bundle_id",
-    "bundle_hash",
     "pack_identity",
     "run_identity",
-    "workspace"
+    "coverage"
   ],
-  "title": "IntelligenceBundle",
+  "title": "RelationshipPack",
   "type": "object"
 }

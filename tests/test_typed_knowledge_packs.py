@@ -322,6 +322,41 @@ def test_dataset_pack_roundtrips_through_v3_prepare_and_exports(tmp_path: Path) 
     _assert_pack_roundtrip(pack_dir, pack_file="dataset.pack.json", expected_source_types={"dataset"})
 
 
+def test_dataset_pack_supports_remote_https_json_with_snapshot_provenance(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = "https://data.example.test/resource.json?$limit=2&category=bagel&category=cafe"
+
+    def fake_read(url: str, **_kwargs: Any) -> RemoteText:
+        assert url == source
+        return RemoteText(
+            text=json.dumps([{"name": "A", "count": 1}, {"name": "B", "count": 2}]),
+            url="https://data.example.test/resource.json?$limit=2&category=bagel&category=cafe",
+            content_type="application/json; charset=utf-8",
+            status_code=200,
+        )
+
+    monkeypatch.setattr("docpull.context_packs.dataset.read_https_text", fake_read)
+    output = tmp_path / "remote-dataset"
+
+    result = build_dataset_pack([source], output_dir=output)
+    schema = json.loads((output / "dataset.schema.json").read_text(encoding="utf-8"))
+    workflow = json.loads((output / "workflow.result.json").read_text(encoding="utf-8"))
+
+    provenance = schema["datasets"][0]["provenance"]
+    assert provenance["original_url"] == source
+    assert provenance["query_parameters"] == [
+        {"name": "$limit", "value": "2"},
+        {"name": "category", "value": "bagel"},
+        {"name": "category", "value": "cafe"},
+    ]
+    assert len(provenance["snapshot_hash"]) == 64
+    assert result["summary"]["record_count"] == 1
+    assert workflow["contract_version"] == "workflow.result.v1"
+    assert workflow["workflow"] == "dataset-pack"
+
+
 def test_transcript_pack_roundtrips_through_v3_prepare_and_exports(tmp_path: Path) -> None:
     source = _transcript_source(tmp_path)
     pack_dir = tmp_path / "transcript-pack"

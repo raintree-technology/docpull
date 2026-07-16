@@ -111,6 +111,7 @@ SourceType = Literal[
     "styleguide",
     "visual",
     "policy",
+    "relationship",
 ]
 OutputFormat = Literal["markdown", "ndjson", "sqlite", "context-pack"]
 SemanticMode = Literal["auto", "off", "on"]
@@ -133,6 +134,7 @@ TYPED_PROJECT_SOURCE_TYPES: tuple[str, ...] = (
     "styleguide",
     "visual",
     "policy",
+    "relationship",
 )
 SOURCE_TYPES: tuple[str, ...] = (*CRAWL_SOURCE_TYPES, *TYPED_PROJECT_SOURCE_TYPES)
 CONTEXT_TARGETS: tuple[str, ...] = ("cursor", "claude", "codex", "openai", "llamaindex", "langchain")
@@ -1946,6 +1948,14 @@ def _sync_typed_project_source(
             output_dir=output_dir,
             max_pages=min(max_items, 16),
         )
+    elif source.type == "relationship":
+        from .context_packs.relationship import build_relationship_pack
+
+        build_relationship_pack(
+            [{"name": source.name, "url": source_spec}],
+            output_dir=output_dir,
+            max_pages_per_source=min(max_items, 8),
+        )
     else:
         raise ProjectError(f"Unsupported typed project source type: {source.type}")
 
@@ -2911,10 +2921,10 @@ def _typed_project_source_spec_allowed(source_type: str, value: str) -> bool:
     if source_type == "standards":
         return is_https or lowered.startswith(("rfc:", "ietf:", "w3c:", "whatwg:"))
     if source_type == "dataset":
-        return not parsed.scheme
+        return not parsed.scheme or (is_https and Path(parsed.path).suffix.lower() in {".json", ".csv"})
     if source_type == "wiki":
         return _is_wiki_page_url(parsed) or lowered.startswith(("wiki:", "wikipedia:"))
-    if source_type in {"brand", "product", "styleguide", "visual", "policy"}:
+    if source_type in {"brand", "product", "styleguide", "visual", "policy", "relationship"}:
         return is_https or bool(re.fullmatch(r"[A-Za-z0-9.-]+\.[A-Za-z]{2,}", text))
     return False
 

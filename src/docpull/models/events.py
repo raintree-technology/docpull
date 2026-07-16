@@ -110,6 +110,11 @@ class FetchEvent:
     output_path: Path | None = None
     content_type: str | None = None
     retry_attempt: int | None = None
+    attempts: int | None = None
+    retry_after_seconds: float | None = None
+    retryable: bool | None = None
+    failure_code: str | None = None
+    failure_stage: str | None = None
     duplicate_of: str | None = None  # URL of original for dedup events
     skip_reason: SkipReason | None = None  # Reason for skipping a URL
 

@@ -4,14 +4,23 @@ from __future__ import annotations
 
 import asyncio
 import csv
+import hashlib
+import io
 import json
 import sqlite3
 from collections import Counter
 from pathlib import Path
 from typing import Any
+from urllib.parse import parse_qsl, urlparse
 
 from .common import ContextPackError, write_json
-from .typed import PrepareLevel, TypedPackItem, simple_summary_markdown, write_typed_pack
+from .typed import (
+    PrepareLevel,
+    TypedPackItem,
+    read_https_text,
+    simple_summary_markdown,
+    write_typed_pack,
+)
 from .typed_models import DatasetSchemaArtifact
 
 DATASET_WORKFLOW = "dataset-pack"
@@ -27,21 +36,30 @@ def build_dataset_pack(
     chunk_tokens: int = 4000,
     prepare_level: PrepareLevel = "raw",
 ) -> dict[str, Any]:
-    """Summarize local CSV/TSV/JSON/NDJSON/SQLite/Parquet datasets as a v3 pack."""
+    """Summarize local datasets and bounded remote HTTPS JSON/CSV snapshots."""
     if not sources:
-        raise ContextPackError("dataset-pack requires at least one local file.")
+        raise ContextPackError("dataset-pack requires at least one local file or HTTPS JSON/CSV URL.")
     output_dir = output_dir.resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
     items: list[TypedPackItem] = []
     schemas: list[dict[str, Any]] = []
     for source in sources[:max_items]:
+        source_text = str(source)
+        if _is_remote_source(source_text):
+            summaries = [_remote_summary(source_text)]
+            for summary in summaries:
+                schemas.append(summary)
+                items.append(_item_for_summary(None, summary, source_url=source_text))
+            if len(items) >= max_items:
+                break
+            continue
         path = Path(source).expanduser().resolve()
         if not path.exists() or not path.is_file():
             raise ContextPackError(f"Dataset source file does not exist: {path}")
         summaries = _summaries_for_path(path, max_items=max_items - len(items))
         for summary in summaries:
             schemas.append(summary)
-            items.append(_item_for_summary(path, summary))
+            items.append(_item_for_summary(path, summary, source_url=path.as_uri()))
             if len(items) >= max_items:
                 break
         if len(items) >= max_items:
@@ -69,7 +87,7 @@ def build_dataset_pack(
         index_payload={"datasets": schemas},
         summary_markdown=simple_summary_markdown(
             title="Dataset Pack",
-            source=", ".join(str(Path(source)) for source in sources),
+            source=", ".join(str(source) for source in sources),
             items=items,
         ),
         result_summary={"dataset_count": len(schemas)},
@@ -102,6 +120,86 @@ def _summaries_for_path(path: Path, *, max_items: int) -> list[dict[str, Any]]:
     if suffix == ".parquet":
         return [_parquet_summary(path)]
     raise ContextPackError(f"Unsupported dataset file type: {path.suffix or path.name}")
+
+
+def _is_remote_source(value: str) -> bool:
+    parsed = urlparse(value)
+    return parsed.scheme == "https" and bool(parsed.netloc)
+
+
+def _remote_summary(url: str) -> dict[str, Any]:
+    parsed = urlparse(url)
+    suffix = Path(parsed.path).suffix.lower()
+    accept = "application/json,text/csv;q=0.9" if suffix == ".json" else "text/csv,application/json;q=0.9"
+    try:
+        response = read_https_text(url, accept=accept, max_bytes=10_000_000)
+    except ValueError as err:
+        raise ContextPackError(str(err)) from err
+    content_type = response.content_type.split(";", 1)[0].strip().lower()
+    snapshot_hash = hashlib.sha256(response.text.encode("utf-8")).hexdigest()
+    provenance = {
+        "original_url": url,
+        "resolved_url": response.url,
+        "query_parameters": [
+            {"name": name, "value": value} for name, value in parse_qsl(parsed.query, keep_blank_values=True)
+        ],
+        "snapshot_hash": snapshot_hash,
+        "hash_algorithm": "sha256",
+        "content_type": response.content_type,
+        "http_status": response.status_code,
+    }
+    name = Path(parsed.path).name or parsed.netloc
+    if suffix == ".json" or "json" in content_type:
+        data = json.loads(response.text)
+        if isinstance(data, list):
+            json_rows = [row for row in data[:MAX_SAMPLE_ROWS] if isinstance(row, dict)]
+            summary = _tabular_summary(
+                path=None,
+                kind="json",
+                name=name,
+                rows=json_rows,
+                fieldnames=sorted({key for row in json_rows for key in row}),
+                row_count=len(data),
+                source=url,
+            )
+        elif isinstance(data, dict):
+            summary = {
+                "kind": "json",
+                "name": name,
+                "path": url,
+                "row_count": 1,
+                "columns": [
+                    {"name": key, "types": [type(value).__name__], "null_count": int(value is None)}
+                    for key, value in sorted(data.items())
+                ],
+                "sample": data,
+            }
+        else:
+            raise ContextPackError(f"Remote JSON dataset must be an object or array: {url}")
+    elif suffix == ".csv" or content_type in {"text/csv", "application/csv"}:
+        reader = csv.DictReader(io.StringIO(response.text))
+        csv_rows: list[dict[str, Any]] = []
+        row_count = 0
+        for row in reader:
+            row_count += 1
+            if len(csv_rows) < MAX_SAMPLE_ROWS:
+                csv_rows.append(dict(row))
+        summary = _tabular_summary(
+            path=None,
+            kind="csv",
+            name=name,
+            rows=csv_rows,
+            fieldnames=list(reader.fieldnames or []),
+            row_count=row_count,
+            source=url,
+        )
+    else:
+        raise ContextPackError(
+            f"Remote dataset must be HTTPS JSON or CSV; received {response.content_type or 'unknown'}: {url}"
+        )
+    summary["provenance"] = provenance
+    summary["snapshot_hash"] = snapshot_hash
+    return summary
 
 
 def _delimited_summary(path: Path, *, delimiter: str) -> dict[str, Any]:
@@ -224,12 +322,13 @@ def _parquet_summary(path: Path) -> dict[str, Any]:
 
 def _tabular_summary(
     *,
-    path: Path,
+    path: Path | None,
     kind: str,
     name: str,
     rows: list[dict[str, Any]],
     fieldnames: list[str],
     row_count: int | None,
+    source: str | None = None,
 ) -> dict[str, Any]:
     columns = []
     for field in fieldnames:
@@ -246,7 +345,7 @@ def _tabular_summary(
     return {
         "kind": kind,
         "name": name,
-        "path": str(path),
+        "path": source or str(path),
         "row_count": row_count if row_count is not None else None,
         "sample_row_count": len(rows),
         "column_count": len(fieldnames),
@@ -255,21 +354,38 @@ def _tabular_summary(
     }
 
 
-def _item_for_summary(path: Path, summary: dict[str, Any]) -> TypedPackItem:
+def _item_for_summary(
+    path: Path | None,
+    summary: dict[str, Any],
+    *,
+    source_url: str,
+) -> TypedPackItem:
     markdown = _summary_markdown(summary)
-    title = f"{Path(summary['path']).name}: {summary['name']}"
+    parsed = urlparse(source_url)
+    source_name = Path(parsed.path).name if parsed.scheme else Path(summary["path"]).name
+    title = f"{source_name or parsed.netloc}: {summary['name']}"
+    provenance_raw = summary.get("provenance")
+    provenance: dict[str, Any] = provenance_raw if isinstance(provenance_raw, dict) else {}
     return TypedPackItem(
         title=title,
-        url=path.as_uri(),
+        url=source_url,
         markdown=markdown,
         source_type="dataset",
         item_kind=str(summary["kind"]),
         metadata={
-            "dataset_path": str(path),
+            "dataset_path": str(path) if path else None,
+            "dataset_url": source_url if path is None else None,
             "dataset_name": summary["name"],
             "dataset_kind": summary["kind"],
+            "snapshot_hash": summary.get("snapshot_hash"),
+            "provenance": provenance,
         },
-        route={"source_kind": "file", "source_url": path.as_uri()},
+        route={
+            "source_kind": "https" if path is None else "file",
+            "source_url": source_url,
+            "original_url": provenance.get("original_url"),
+            "resolved_url": provenance.get("resolved_url"),
+        },
         public={"row_count": summary.get("row_count"), "column_count": summary.get("column_count")},
     )
 

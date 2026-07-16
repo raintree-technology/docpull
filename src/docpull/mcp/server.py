@@ -532,6 +532,7 @@ _INTELLIGENCE_BUNDLE_OUTPUT_SCHEMA = {
         "source_snapshots": {"type": "array", "items": {"type": "object"}},
         "document_versions": {"type": "array", "items": {"type": "object"}},
         "observations": {"type": "array", "items": {"type": "object"}},
+        "relationship_candidates": {"type": "array", "items": {"type": "object"}},
         "change_candidates": {"type": "array", "items": {"type": "object"}},
     },
     "required": [
@@ -864,6 +865,7 @@ async def _dispatch_tool(
             "image_pack",
             "screenshot_pack",
             "policy_pack",
+            "relationship_pack",
         }:
             from ..policy import PolicyConfig
             from ..workflows import create_workflow_request, run_workflow
@@ -875,14 +877,35 @@ async def _dispatch_tool(
                 "image_pack": ("image-pack", "url_or_pack", "packs/images"),
                 "screenshot_pack": ("screenshot-pack", "url", "packs/screenshot"),
                 "policy_pack": ("policy-pack", "domain_or_url", "packs/policies"),
+                "relationship_pack": ("relationship-pack", "source", "packs/relationships"),
             }
             if name == "workflow_run":
                 workflow_name = _require_str(arguments, "workflow")
-                value = _require_str(arguments, "value")
+                raw_input = arguments.get("input")
+                if raw_input is not None:
+                    if not isinstance(raw_input, dict) or not raw_input:
+                        raise ValueError("'input' must be a non-empty object")
+                    input_payload: dict[str, Any] | None = raw_input
+                    value: str | None = None
+                else:
+                    value = _require_str(arguments, "value")
+                    input_payload = None
                 default_output = f"packs/{workflow_name.replace('-pack', '').replace('_', '-')}"
             else:
                 workflow_name, input_key, default_output = workflow_aliases[name]
-                value = _require_str(arguments, input_key)
+                raw_sources = arguments.get("sources") if name == "relationship_pack" else None
+                if raw_sources is not None:
+                    if (
+                        not isinstance(raw_sources, list)
+                        or not raw_sources
+                        or not all(isinstance(item, (str, dict)) for item in raw_sources)
+                    ):
+                        raise ValueError("'sources' must be a non-empty array of strings or objects")
+                    input_payload = {"sources": raw_sources}
+                    value = None
+                else:
+                    value = _require_str(arguments, input_key)
+                    input_payload = None
             output_dir = _path_arg(arguments, "output_dir", default_output)
             policy_path_raw = arguments.get("policy")
             if policy_path_raw is not None and not isinstance(policy_path_raw, str):
@@ -891,6 +914,9 @@ async def _dispatch_tool(
             reserved = {
                 "workflow",
                 "value",
+                "input",
+                "sources",
+                "source",
                 "domain_or_url",
                 "url_or_domain",
                 "url_or_pack",
@@ -909,6 +935,7 @@ async def _dispatch_tool(
                 workflow_name,
                 value,
                 output_dir=output_dir,
+                input_payload=input_payload,
                 options=options,
                 policy=workflow_policy,
             )
@@ -1593,7 +1620,8 @@ async def _run_stdio() -> int:
                 description=(
                     "Run a registered evidence-pack workflow through workflow.request.v1 and return "
                     "workflow.result.v1. Supported workflows are brand, product, styleguide, visual/image, "
-                    "screenshot, and policy. Browser use remains explicitly gated."
+                    "screenshot, policy, relationship, dataset, fetch, and crawl. Browser use remains "
+                    "explicitly gated."
                 ),
                 annotations=ToolAnnotations(
                     title="Run an evidence-pack workflow",
@@ -1615,14 +1643,27 @@ async def _run_stdio() -> int:
                                 "image-pack",
                                 "screenshot-pack",
                                 "policy-pack",
+                                "relationship-pack",
+                                "dataset-pack",
+                                "fetch",
+                                "crawl",
                             ],
                         },
                         "value": {"type": "string"},
+                        "input": {
+                            "type": "object",
+                            "minProperties": 1,
+                            "description": (
+                                "Full WorkflowRequest input payload. Use sources for multi-source "
+                                "dataset and relationship workflows."
+                            ),
+                        },
                         "output_dir": {"type": "string"},
                         "policy": {"type": "string"},
                         "options": {"type": "object"},
                     },
-                    "required": ["workflow", "value", "output_dir"],
+                    "required": ["workflow", "output_dir"],
+                    "oneOf": [{"required": ["value"]}, {"required": ["input"]}],
                 },
                 outputSchema=_WORKFLOW_RESULT_OUTPUT_SCHEMA,
             ),
@@ -1779,6 +1820,40 @@ async def _run_stdio() -> int:
                         "policy": {"type": "string"},
                     },
                     "required": ["domain_or_url", "output_dir"],
+                },
+                outputSchema=_WORKFLOW_RESULT_OUTPUT_SCHEMA,
+            ),
+            Tool(
+                name="relationship_pack",
+                description=(
+                    "Extract cited owned-by, operated-by, acquired-by, franchised-by, and invested-in "
+                    "observations. Outputs review candidates and never infers independence from missing "
+                    "evidence."
+                ),
+                annotations=ToolAnnotations(
+                    title="Build a relationship evidence pack",
+                    readOnlyHint=False,
+                    destructiveHint=False,
+                    idempotentHint=False,
+                    openWorldHint=True,
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "source": {"type": "string"},
+                        "sources": {
+                            "type": "array",
+                            "minItems": 1,
+                            "items": {
+                                "oneOf": [{"type": "string"}, {"type": "object"}],
+                            },
+                        },
+                        "output_dir": {"type": "string"},
+                        "max_pages_per_source": {"type": "integer", "minimum": 1, "default": 4},
+                        "policy": {"type": "string"},
+                    },
+                    "required": ["output_dir"],
+                    "oneOf": [{"required": ["source"]}, {"required": ["sources"]}],
                 },
                 outputSchema=_WORKFLOW_RESULT_OUTPUT_SCHEMA,
             ),

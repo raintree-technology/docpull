@@ -39,7 +39,10 @@ deprecated compatibility envelope.
    presenting it for review.
 7. Keep `change_candidates` in a review queue; do not infer approval from source
    authority or confidence.
-8. Surface warnings and retain replay configuration for audit/reproduction.
+8. Keep `relationship_candidates` unresolved. Verify their evidence spans and
+   require human approval before creating ownership or operator claims.
+9. Treat `coverage_gap` as unknown coverage, never as proof of independence.
+10. Surface warnings and retain replay configuration for audit/reproduction.
 
 ## Ownership split
 

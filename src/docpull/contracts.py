@@ -9,10 +9,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from pathlib import Path
 from typing import Any, Final, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .models.document import DocumentRecord
 from .models.run import RunIdentity
@@ -23,6 +24,7 @@ WORKFLOW_RESULT_CONTRACT: Final[Literal["workflow.result.v1"]] = "workflow.resul
 ARTIFACT_MANIFEST_CONTRACT: Final[Literal["artifact.manifest.v1"]] = "artifact.manifest.v1"
 INTELLIGENCE_BUNDLE_CONTRACT: Final[Literal["intelligence.bundle.v1"]] = "intelligence.bundle.v1"
 CHANGE_EVENT_CONTRACT: Final[Literal["change.event.v1"]] = "change.event.v1"
+RELATIONSHIP_PACK_CONTRACT: Final[Literal["relationship.pack.v1"]] = "relationship.pack.v1"
 
 
 class ContractModel(BaseModel):
@@ -67,8 +69,12 @@ class WorkflowWarning(ContractModel):
 class WorkflowFailure(ContractModel):
     code: str = "workflow_error"
     message: str
+    stage: str = "workflow"
     retryable: bool = False
     source_url: str | None = None
+    http_status: int | None = Field(default=None, ge=100, le=599)
+    attempts: int | None = Field(default=None, ge=1)
+    retry_after_seconds: float | None = Field(default=None, ge=0)
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -149,10 +155,15 @@ class EvidenceSpan(ContractModel):
 class SourceAuthority(ContractModel):
     role: Literal[
         "official_product",
+        "official_corporate",
         "legal",
         "documentation",
         "social",
         "marketplace",
+        "government_registry",
+        "regulatory_filing",
+        "press_release",
+        "local_reporting",
         "third_party",
     ]
     tier: Literal["tier_1_authoritative", "tier_2_owned", "tier_3_distribution", "tier_4_external"]
@@ -179,7 +190,71 @@ class SourceSnapshot(ContractModel):
     document_version: str | None = None
     content_hash: str | None = None
     fetched_at: str | None = None
+    entity_id: str | None = None
+    official_domains: list[str] = Field(default_factory=list)
     authority: SourceAuthority
+
+
+class RelationshipEntity(ContractModel):
+    name: str
+    location_scope: str | None = None
+
+
+class RelationshipCandidate(ContractModel):
+    candidate_id: str | None = None
+    type: Literal["relationship_candidate"] = "relationship_candidate"
+    subject: RelationshipEntity
+    predicate: Literal[
+        "owned_by",
+        "operated_by",
+        "acquired_by",
+        "franchised_by",
+        "invested_in",
+    ]
+    object: RelationshipEntity
+    status: Literal["observation"] = "observation"
+    confidence: float = Field(ge=0.0, le=1.0)
+    evidence: list[EvidenceSpan] = Field(min_length=1)
+    warnings: list[str] = Field(default_factory=list)
+
+
+class CoverageResult(ContractModel):
+    input_id: str
+    input: dict[str, Any]
+    status: Literal[
+        "candidate_found",
+        "acquired_no_candidate",
+        "retryable_failure",
+        "blocked",
+    ]
+    acquired_document_count: int = Field(default=0, ge=0)
+    coverage_gap: bool = False
+    candidates: list[RelationshipCandidate] = Field(default_factory=list)
+    failures: list[WorkflowFailure] = Field(default_factory=list)
+    warnings: list[WorkflowWarning] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _validate_status_payload(self) -> CoverageResult:
+        if self.status == "candidate_found" and not self.candidates:
+            raise ValueError("candidate_found coverage requires at least one candidate")
+        if self.status != "candidate_found" and self.candidates:
+            raise ValueError("only candidate_found coverage may contain candidates")
+        if self.status != "candidate_found" and not self.coverage_gap:
+            raise ValueError("coverage without a candidate must be marked as a coverage_gap")
+        if self.status == "retryable_failure" and not any(failure.retryable for failure in self.failures):
+            raise ValueError("retryable_failure coverage requires a retryable failure")
+        return self
+
+
+class RelationshipPack(ContractModel):
+    contract_version: Literal["relationship.pack.v1"] = RELATIONSHIP_PACK_CONTRACT
+    schema_version: int = 1
+    pack_identity: dict[str, Any]
+    run_identity: dict[str, Any]
+    coverage: list[CoverageResult]
+    candidates: list[RelationshipCandidate] = Field(default_factory=list)
+    summary: dict[str, Any] = Field(default_factory=dict)
+    warnings: list[WorkflowWarning] = Field(default_factory=list)
 
 
 class ChangeCandidate(ContractModel):
@@ -203,6 +278,7 @@ class IntelligenceBundle(ContractModel):
     source_snapshots: list[SourceSnapshot] = Field(default_factory=list)
     document_versions: list[dict[str, Any]] = Field(default_factory=list)
     observations: list[Observation] = Field(default_factory=list)
+    relationship_candidates: list[RelationshipCandidate] = Field(default_factory=list)
     change_candidates: list[ChangeCandidate] = Field(default_factory=list)
     warnings: list[WorkflowWarning] = Field(default_factory=list)
     summary: dict[str, Any] = Field(default_factory=dict)
@@ -280,6 +356,7 @@ CONTRACT_MODELS: dict[str, type[BaseModel]] = {
     "artifact-manifest.v1.schema.json": ArtifactManifest,
     "intelligence-bundle.v1.schema.json": IntelligenceBundle,
     "change-event.v1.schema.json": ChangeEvent,
+    "relationship-pack.v1.schema.json": RelationshipPack,
     "document.v3.schema.json": DocumentRecord,
     "run-identity.v1.schema.json": RunIdentity,
     "pack.v3.schema.json": PackContractV3,
@@ -426,6 +503,75 @@ def new_progress_event(
     return WorkflowProgressEvent.model_validate(payload).model_dump(mode="json", exclude_none=True)
 
 
+def workflow_failure_from_mapping(
+    item: dict[str, Any],
+    *,
+    default_stage: str = "workflow",
+    default_attempts: int | None = None,
+) -> WorkflowFailure:
+    """Normalize acquisition errors into the public typed failure contract."""
+
+    message = str(item.get("error") or item.get("message") or "Acquisition failure")
+    status_value = item.get("http_status", item.get("status_code", item.get("status")))
+    http_status: int | None = None
+    if isinstance(status_value, int) and not isinstance(status_value, bool):
+        http_status = status_value
+    elif isinstance(status_value, str) and status_value.isdigit():
+        http_status = int(status_value)
+    if http_status is None:
+        match = re.search(r"\bHTTP\s+(\d{3})\b", message, flags=re.IGNORECASE)
+        if match:
+            http_status = int(match.group(1))
+
+    attempts_value = item.get("attempts", default_attempts)
+    attempts = attempts_value if isinstance(attempts_value, int) and attempts_value > 0 else None
+    retry_after_value = item.get("retry_after_seconds", item.get("retry_after"))
+    retry_after: float | None = None
+    if isinstance(retry_after_value, (int, float)) and not isinstance(retry_after_value, bool):
+        retry_after = max(0.0, float(retry_after_value))
+    elif isinstance(retry_after_value, str):
+        try:
+            retry_after = max(0.0, float(retry_after_value))
+        except ValueError:
+            retry_after = None
+
+    retryable_statuses = {408, 425, 429, 500, 502, 503, 504}
+    retryable = bool(item.get("retryable")) or http_status in retryable_statuses
+    code = str(item.get("code") or (f"http_{http_status}" if http_status else "workflow_error"))
+    stage = str(item.get("stage") or default_stage)
+    public_keys = {
+        "attempts",
+        "code",
+        "error",
+        "http_status",
+        "message",
+        "retry_after",
+        "retry_after_seconds",
+        "retryable",
+        "source_url",
+        "stage",
+        "status",
+        "status_code",
+        "url",
+    }
+    metadata = {
+        str(key): value for key, value in item.items() if key not in public_keys and value is not None
+    }
+    return WorkflowFailure(
+        code=code,
+        message=message,
+        stage=stage,
+        retryable=retryable,
+        source_url=str(item.get("source_url") or item.get("url"))
+        if item.get("source_url") or item.get("url")
+        else None,
+        http_status=http_status,
+        attempts=attempts,
+        retry_after_seconds=retry_after,
+        metadata=metadata,
+    )
+
+
 def _artifact_role(name: str) -> str:
     if "citation" in name or "source" in name:
         return "evidence"
@@ -469,6 +615,7 @@ __all__ = [
     "CHANGE_EVENT_CONTRACT",
     "CONTRACT_MODELS",
     "INTELLIGENCE_BUNDLE_CONTRACT",
+    "RELATIONSHIP_PACK_CONTRACT",
     "WORKFLOW_REQUEST_CONTRACT",
     "WORKFLOW_RESULT_CONTRACT",
     "ArtifactEntry",
@@ -477,11 +624,15 @@ __all__ = [
     "BudgetUsage",
     "ChangeCandidate",
     "ChangeEvent",
+    "CoverageResult",
     "CitationMapContractV1",
     "EvidenceSpan",
     "HashDigest",
     "IntelligenceBundle",
     "Observation",
+    "RelationshipCandidate",
+    "RelationshipEntity",
+    "RelationshipPack",
     "PackContractV3",
     "ProvenanceContractV1",
     "ReplayConfiguration",
@@ -502,4 +653,5 @@ __all__ = [
     "new_progress_event",
     "stable_id",
     "write_contract_schemas",
+    "workflow_failure_from_mapping",
 ]

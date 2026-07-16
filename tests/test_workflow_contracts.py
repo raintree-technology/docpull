@@ -224,7 +224,9 @@ def test_all_schemas_are_draft_2020_12_and_accept_model_examples(tmp_path: Path)
 
 def test_declarative_project_accepts_knowledge_workflow_source_types(tmp_path: Path) -> None:
     init_project(name="tracker", root=tmp_path)
-    for index, source_type in enumerate(("brand", "product", "styleguide", "visual", "policy")):
+    for index, source_type in enumerate(
+        ("brand", "product", "styleguide", "visual", "policy", "relationship")
+    ):
         add_source(
             f"https://{source_type}-{index}.example.test",
             name=source_type,
@@ -238,6 +240,7 @@ def test_declarative_project_accepts_knowledge_workflow_source_types(tmp_path: P
         "styleguide",
         "visual",
         "policy",
+        "relationship",
     ]
 
 

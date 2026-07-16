@@ -185,8 +185,15 @@ class FetchStep:
             )
 
             ctx.status_code = response.status_code
+            ctx.http_attempts = 1
             ctx.content_type = response.content_type
             ctx.bytes_downloaded = len(response.content)
+            retry_after = _header_get(response.headers, "retry-after")
+            if retry_after:
+                try:
+                    ctx.retry_after_seconds = max(0.0, float(retry_after))
+                except ValueError:
+                    ctx.retry_after_seconds = None
 
             # 304 Not Modified: cached copy is still valid. Skip with a
             # distinct reason so the CLI summary can count "unchanged" hits
@@ -271,6 +278,19 @@ class FetchStep:
         except Exception as e:
             logger.error(f"Fetch error for {url}: {e}")
 
+            status_value = getattr(e, "status", None)
+            if isinstance(status_value, int) and 100 <= status_value <= 599:
+                ctx.status_code = status_value
+            ctx.http_attempts = int(getattr(self._client, "_max_retries", 0)) + 1
+            headers = getattr(e, "headers", None)
+            retry_after = headers.get("Retry-After") if headers is not None else None
+            if isinstance(retry_after, str):
+                try:
+                    ctx.retry_after_seconds = max(0.0, float(retry_after))
+                except ValueError:
+                    ctx.retry_after_seconds = None
+            retryable = ctx.status_code in {408, 425, 429, 500, 502, 503, 504}
+
             if emit:
                 emit(
                     FetchEvent(
@@ -278,6 +298,12 @@ class FetchStep:
                         url=url,
                         error=str(e),
                         message=f"Fetch failed: {e}",
+                        status_code=ctx.status_code,
+                        attempts=ctx.http_attempts,
+                        retry_after_seconds=ctx.retry_after_seconds,
+                        retryable=retryable,
+                        failure_code=f"http_{ctx.status_code}" if ctx.status_code else "fetch_error",
+                        failure_stage="fetch",
                     )
                 )
 
