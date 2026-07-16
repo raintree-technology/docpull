@@ -215,16 +215,14 @@ def test_security_and_publish_bandit_scan_scripts() -> None:
     assert "python -m bandit -q -c pyproject.toml -r src scripts" in publish
 
 
-def test_security_workflow_uses_locked_dependencies_and_checks_web() -> None:
+def test_security_workflow_uses_locked_dependencies_without_a_web_app_job() -> None:
     security = (WORKFLOW_DIR / "security.yml").read_text()
     release_requirements = (REPO_ROOT / "requirements-release.txt").read_text()
 
     assert "uv sync --locked --extra dev" in security
     assert "setuptools==83.0.0" in release_requirements
-    assert "working-directory: web" in security
-    assert "Audit web dependencies" in security
-    assert "Lint web app" in security
-    assert "Build web app" in security
+    assert "working-directory: web" not in security
+    assert "web-security:" not in security
 
 
 def test_workflows_use_module_entrypoints_for_python_tooling() -> None:

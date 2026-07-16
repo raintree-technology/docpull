@@ -20,21 +20,19 @@ Ready:
 - GitHub README has package links, MCP install instructions, and clear install
   CTAs.
 
-Fixed in this launch-prep pass, deploy before submission:
+Canonical owned surfaces:
 
-- `/pricing`
-- `/privacy`
-- `/terms`
-- `/llms.txt`
+- GitHub repository and release pages.
+- PyPI package page.
+- Official MCP Registry metadata.
+- No standalone DocPull website is operated or required.
 
 Still recommended before Product Hunt:
 
 - Record a 45-60 second terminal demo from `pip install docpull` to `docpull
   sync`, `docpull diff`, and `docpull export context-pack --target cursor`.
-- Refresh launch screenshots from the deployed v6 site after the policy pages
-  are live.
-- Decide whether Product Hunt should launch from the website or GitHub URL. Use
-  the website unless the launch story is explicitly "open-source repo first."
+- Use terminal, GitHub, and package-install screenshots for launch materials.
+- Use the GitHub repository URL for Product Hunt and other directory listings.
 
 ## Positioning
 
@@ -81,12 +79,10 @@ Third-party API stance:
 
 Do this first because every directory links back here.
 
-1. Deploy the web changes for `/pricing`, `/privacy`, `/terms`, and
-   `/llms.txt`.
-2. Confirm the deployed routes return 200.
-3. Publish or tag the v6 GitHub release if not already done.
-4. Confirm PyPI shows `6.0.0`.
-5. Pin the v6 X thread after posting.
+1. Confirm the GitHub repository and latest release are public.
+2. Confirm PyPI shows the current supported version.
+3. Confirm the official MCP Registry metadata is published.
+4. Pin the v6 X thread after posting.
 
 ### Batch 1: Developer and MCP surfaces
 

@@ -44,9 +44,9 @@ def test_release_a_plus_plan_mode_is_side_effect_free() -> None:
     assert completed.returncode == 0
     payload = json.loads(completed.stdout)
     assert "Core fetch/output" in payload["areas"]
-    assert "Web/docs copy" in payload["areas"]
+    assert "Docs/public contract" in payload["areas"]
     assert "claim_audit" in payload["commands"]
-    assert {"web_typecheck", "web_lint", "web_build", "web_bun_audit"}.issubset(payload["commands"])
+    assert not {"web_typecheck", "web_lint", "web_build", "web_bun_audit"}.intersection(payload["commands"])
     assert "--full-mcp" in payload["smoke_command"]
 
 
@@ -56,20 +56,12 @@ def test_release_a_plus_defaults_to_the_invoking_python() -> None:
     assert module.create_parser().parse_args(["--plan-only"]).python == sys.executable
 
 
-def test_release_a_plus_activates_web_gates_only_when_web_package_exists(tmp_path: Path) -> None:
+def test_release_a_plus_has_no_standalone_web_gates() -> None:
     module = _load_scorecard_module()
 
-    without_web = module._active_area_gates(tmp_path)
-    assert "Web/docs copy" not in without_web
-    assert "web_bun_audit" not in without_web["Security/static quality"]
-
-    web = tmp_path / "web"
-    web.mkdir()
-    (web / "package.json").write_text("{}\n", encoding="utf-8")
-
-    with_web = module._active_area_gates(tmp_path)
-    assert with_web["Web/docs copy"] == ("claim_audit", "web_typecheck", "web_lint", "web_build")
-    assert "web_bun_audit" in with_web["Security/static quality"]
+    assert module.AREA_GATES["Docs/public contract"] == ("claim_audit",)
+    assert "web_bun_audit" not in module.AREA_GATES["Security/static quality"]
+    assert all(not name.startswith("web_") for name in module._planned_command_names(ROOT))
 
 
 def test_release_a_plus_writes_reports_from_existing_smoke(tmp_path: Path) -> None:

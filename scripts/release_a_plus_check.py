@@ -30,7 +30,7 @@ AREAS = (
     "Auth",
     "Monitor",
     "Security/static quality",
-    "Web/docs copy",
+    "Docs/public contract",
     "Release hygiene",
 )
 
@@ -56,11 +56,10 @@ AREA_GATES: dict[str, tuple[str, ...]] = {
         "pip_audit",
         "gitleaks",
         "mcp_bun_audit",
-        "web_bun_audit",
         "package_build",
         "twine_check",
     ),
-    "Web/docs copy": ("claim_audit", "web_typecheck", "web_lint", "web_build"),
+    "Docs/public contract": ("claim_audit",),
     "Release hygiene": ("git_status_clean", "release_metadata"),
 }
 
@@ -140,7 +139,7 @@ def run_scorecard(args: argparse.Namespace) -> dict[str, Any]:
             gates.append(GateResult(name=name, status="skip", note="--skip-commands was supplied"))
 
     gate_by_name = {gate.name: gate for gate in gates}
-    areas = _grade_areas(gate_by_name, smoke_payload, area_gates=_active_area_gates(repo))
+    areas = _grade_areas(gate_by_name, smoke_payload, area_gates=AREA_GATES)
     all_a_plus = all(area["grade"] == "A+" for area in areas)
     payload = {
         "schema_version": SCORECARD_SCHEMA_VERSION,
@@ -237,16 +236,6 @@ def _run_command_gates(
             "required",
         ),
     ]
-    if (repo / "web" / "package.json").exists():
-        commands.extend(
-            [
-                ("web_bun_install", ["bun", "install", "--frozen-lockfile"], repo / "web", 300, "supporting"),
-                ("web_bun_audit", ["bun", "audit"], repo / "web", 180, "required"),
-                ("web_typecheck", ["bun", "run", "typecheck"], repo / "web", 240, "required"),
-                ("web_lint", ["bun", "run", "lint"], repo / "web", 240, "required"),
-                ("web_build", ["bun", "run", "build"], repo / "web", 300, "required"),
-            ]
-        )
     if (repo / "mcp" / "package.json").exists():
         commands.extend(
             [
@@ -508,17 +497,6 @@ def _grade_areas(
     return areas
 
 
-def _active_area_gates(repo: Path) -> dict[str, tuple[str, ...]]:
-    """Return gates for product surfaces that exist in this checkout."""
-    active = dict(AREA_GATES)
-    if not (repo / "web" / "package.json").is_file():
-        active.pop("Web/docs copy")
-        active["Security/static quality"] = tuple(
-            name for name in active["Security/static quality"] if name != "web_bun_audit"
-        )
-    return active
-
-
 def _missing_smoke_markers(area: str, smoke_payload: dict[str, Any] | None) -> list[str]:
     markers = A_PLUS_SMOKE_MARKERS.get(area, ())
     if not markers:
@@ -595,8 +573,6 @@ def _planned_command_names(repo: Path) -> list[str]:
         "twine_check",
         "gitleaks",
     ]
-    if (repo / "web" / "package.json").exists():
-        names.extend(["web_bun_install", "web_bun_audit", "web_typecheck", "web_lint", "web_build"])
     if (repo / "mcp" / "package.json").exists():
         names.extend(["mcp_bun_install", "mcp_bun_audit", "mcp_bun_test", "mcp_typecheck"])
     return names
@@ -623,7 +599,7 @@ def main(argv: list[str] | None = None) -> int:
     args = create_parser().parse_args(argv)
     if args.plan_only:
         repo = Path(args.repo).resolve()
-        areas = list(_active_area_gates(repo))
+        areas = list(AREA_GATES)
         commands = _planned_command_names(repo)
         smoke_command = (
             "scripts/real_feature_smoke.py --json --full-mcp --strict-ci --auth-matrix --monitor-soak-minutes"

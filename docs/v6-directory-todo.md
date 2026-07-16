@@ -7,11 +7,13 @@
 - MCP.Directory: watch email/listing status because the form cleared after submit but did not show a reliable success banner.
 - HN: add the posted Show HN item URL to `docs/v6-directory-tracker.csv`.
 
-## Site Readiness
+## Owned-Surface Readiness
 
-- Deploy the restored web routes for `/privacy`, `/terms`, `/pricing`, and `/llms.txt`; they were implemented locally on 2026-07-06 but still need live 200 checks.
+- Keep GitHub, PyPI, and official MCP Registry metadata current. DocPull does
+  not operate a standalone website.
 - Add launch screenshots and a 45-60 second demo video before Product Hunt, DevHunt, Fazier, Microlaunch, or Uneed.
-- Product Hunt: schedule only after the launch assets are ready and the founder account is warmed up; do not ask for upvotes, ask for feedback.
+- Product Hunt: link to GitHub, schedule only after the launch assets are ready
+  and the founder account is warmed up; do not ask for upvotes, ask for feedback.
 
 ## Package / Registry Work
 
@@ -24,7 +26,8 @@
 
 - AgentLocker: create/verify an account, then submit through `/agent/submit`.
 - OpenTools: sign in and look for an authenticated registry submission path; no public endpoint was found.
-- DevHunt, Fazier, Microlaunch, Uneed: retry after policy/pricing pages and launch assets are deployed.
+- DevHunt, Fazier, Microlaunch, Uneed: use the GitHub URL and retry after launch
+  assets are ready.
 
 ## Content / Community
 

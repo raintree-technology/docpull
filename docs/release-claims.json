@@ -110,7 +110,7 @@
       ]
     },
     {
-      "area": "Web/docs copy",
+      "area": "Docs/public contract",
       "claim": "Release-facing documentation is checked against the public surface registry and claim-audit manifest.",
       "references": [
         {"type": "code", "path": "src/docpull/surface.py"},

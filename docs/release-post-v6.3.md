@@ -1,4 +1,4 @@
-# DocPull 6.3: faster local evidence workflows and a complete product surface
+# DocPull 6.3: faster local evidence workflows and a complete workflow surface
 
 DocPull 6.3 preserves the 6.2 evidence/workflow contracts while reducing the
 cost of using them. Public Python exports now load lazily, identical concurrent
@@ -19,11 +19,11 @@ Every input receives exactly one coverage result. Missing evidence is a
 `coverage_gap`, never a negative ownership or independence claim, and all
 candidates remain observations until a downstream human approves them.
 
-The repository now includes a production-ready DocPull site with pricing,
-privacy, terms, machine-readable `llms.txt`, metadata, robots, sitemap, icons,
-and reusable launch assets. The complete Python, MCP, and web surface is covered
-by locked dependencies, automatic CI/security triggers, lint, type checks,
-audits, tests, and reproducible release builds.
+The standalone product website that initially shipped with 6.3 was subsequently
+decommissioned. GitHub, PyPI, and the MCP Registry are the canonical public
+surfaces; the Python and MCP packages remain covered by locked dependencies,
+automatic CI/security triggers, lint, type checks, audits, tests, and
+reproducible release builds.
 
 No migration is required for existing packs or consumers. CLI, Python SDK,
 MCP, JSON Schema, `intelligence.bundle.v1`, change-event, and
