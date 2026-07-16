@@ -50,6 +50,12 @@ def test_release_a_plus_plan_mode_is_side_effect_free() -> None:
     assert "--full-mcp" in payload["smoke_command"]
 
 
+def test_release_a_plus_defaults_to_the_invoking_python() -> None:
+    module = _load_scorecard_module()
+
+    assert module.create_parser().parse_args(["--plan-only"]).python == sys.executable
+
+
 def test_release_a_plus_activates_web_gates_only_when_web_package_exists(tmp_path: Path) -> None:
     module = _load_scorecard_module()
 

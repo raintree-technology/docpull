@@ -143,7 +143,8 @@ jobs:
 
       - name: Run A+ release scorecard
         run: |
-          uv run --locked python scripts/release_a_plus_check.py \
+          uv run --locked --all-extras --with-requirements requirements-release.txt \
+            python scripts/release_a_plus_check.py \
             --strict \
             --output-dir "$RUNNER_TEMP/release-readiness" \
             --smoke-report "$RUNNER_TEMP/release-readiness/real-feature-smoke/real_feature_smoke.report.json"
