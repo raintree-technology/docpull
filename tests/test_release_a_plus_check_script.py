@@ -44,9 +44,9 @@ def test_release_a_plus_plan_mode_is_side_effect_free() -> None:
     assert completed.returncode == 0
     payload = json.loads(completed.stdout)
     assert "Core fetch/output" in payload["areas"]
-    assert "Web/docs copy" not in payload["areas"]
+    assert "Web/docs copy" in payload["areas"]
     assert "claim_audit" in payload["commands"]
-    assert not any(command.startswith("web_") for command in payload["commands"])
+    assert {"web_typecheck", "web_lint", "web_build", "web_bun_audit"}.issubset(payload["commands"])
     assert "--full-mcp" in payload["smoke_command"]
 
 

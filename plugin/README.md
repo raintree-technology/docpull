@@ -39,7 +39,7 @@ MCP server is available:
 ```bash
 pip install 'docpull[mcp]'          # or: pipx install 'docpull[mcp]'
                                     #     uv tool install 'docpull[mcp]'
-docpull --version                   # should print 6.2.0 or newer
+docpull --version                   # should print 6.3.0 or newer
 docpull mcp --help                  # confirm the MCP subcommand is wired
 ```
 

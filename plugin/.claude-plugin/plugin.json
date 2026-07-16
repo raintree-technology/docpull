@@ -1,6 +1,6 @@
 {
   "name": "docpull",
-  "version": "6.2.0",
+  "version": "6.3.0",
   "description": "Pull public web sources into Claude Code. Indexes static and server-rendered sites as local Markdown with conditional-GET caching, then exposes them as MCP tools. Local, browser-free, no API keys.",
   "author": {
     "name": "Raintree Technology",

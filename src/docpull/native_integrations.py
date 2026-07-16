@@ -1,8 +1,8 @@
-"""Metadata-only context adapters for Clearance native integrations.
+"""Metadata-only context adapters for native provider integrations.
 
 These helpers intentionally do not enforce release/runtime gates. They turn
 provider-linked operational context into DocPull document records that can be
-packed, cited, diffed, and handed to Clearance/PolicyStrata as evidence refs.
+packed, cited, diffed, and handed to downstream consumers as evidence refs.
 """
 
 from __future__ import annotations
@@ -63,7 +63,7 @@ def _source_to_document(source: NativeIntegrationContextSource) -> DocumentRecor
             f"- Provider: `{source.provider}`",
             f"- Reference: `{source.ref}`",
             "",
-            source.summary or "Metadata-only provider context captured for Clearance evidence.",
+            source.summary or "Metadata-only provider context captured as DocPull evidence.",
         ]
         if line is not None
     )

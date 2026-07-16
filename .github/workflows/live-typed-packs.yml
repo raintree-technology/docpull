@@ -2,6 +2,8 @@ name: Live Typed Pack Smoke
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "17 11 * * *"
 
 permissions:
   contents: read
@@ -33,7 +35,7 @@ jobs:
         run: python -m pip install "uv==$UV_VERSION"
 
       - name: Sync dependencies
-        run: uv sync --locked --dev
+        run: uv sync --locked --extra dev
 
       - name: Run free live typed-pack smokes
         env:

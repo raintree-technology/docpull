@@ -7,7 +7,6 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 
-
 ROOT = Path(__file__).resolve().parent
 OUT = ROOT / "assets"
 WIDTH = 1080
@@ -283,7 +282,12 @@ def card_4() -> None:
 def card_5() -> None:
     image, draw = base(5, "Evidence integrity")
     y = draw_wrapped(draw, (68, 220), "The benchmark was hardened too.", F_TITLE, TEXT, 920, 79)
-    draw.text((68, y + 10), "6.1.0 makes inflated or stale claims harder to publish.", font=F_BODY, fill=MUTED)
+    draw.text(
+        (68, y + 10),
+        "6.1.0 makes inflated or stale claims harder to publish.",
+        font=F_BODY,
+        fill=MUTED,
+    )
 
     items = [
         ("SCORER V4", "Token boundaries; fused words fail."),
@@ -306,7 +310,15 @@ def card_5() -> None:
 
 def card_6() -> None:
     image, draw = base(6, "Read the evidence")
-    y = draw_wrapped(draw, (68, 220), "Results, limitations and release artifacts are public.", F_TITLE, TEXT, 920, 79)
+    y = draw_wrapped(
+        draw,
+        (68, 220),
+        "Results, limitations and release artifacts are public.",
+        F_TITLE,
+        TEXT,
+        920,
+        79,
+    )
 
     entries = [
         ("BENCHMARK", "bench/results/manual/…/COMPARISON.md"),
@@ -328,14 +340,17 @@ def card_6() -> None:
 
 
 def contact_sheet() -> None:
-    cards = [Image.open(OUT / f"0{index}-{name}.png").convert("RGB") for index, name in [
-        (1, "cover"),
-        (2, "core-results"),
-        (3, "boundaries"),
-        (4, "pdf-isolation"),
-        (5, "integrity"),
-        (6, "evidence"),
-    ]]
+    cards = [
+        Image.open(OUT / f"0{index}-{name}.png").convert("RGB")
+        for index, name in [
+            (1, "cover"),
+            (2, "core-results"),
+            (3, "boundaries"),
+            (4, "pdf-isolation"),
+            (5, "integrity"),
+            (6, "evidence"),
+        ]
+    ]
     thumb_w = 360
     thumb_h = 450
     sheet = Image.new("RGB", (thumb_w * 3, thumb_h * 2), BG)

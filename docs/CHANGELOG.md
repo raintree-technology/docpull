@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.3.0] - 2026-07-16
+
+### Added
+- Add the DocPull product site with home, pricing, privacy, terms, `llms.txt`,
+  robots, sitemap, manifest, branded icons, and reusable launch assets.
+- Add metadata-only native integration context adapters that produce cited,
+  rights-labeled document records without storing provider secrets or raw
+  customer payloads.
+- Add a committed `uv.lock`, pinned Mise runtimes, Next.js ESLint gates, and
+  dependency review for reproducible local and CI environments.
+
+### Changed
+- Load the root SDK and internal package exports lazily while preserving every
+  documented import and CLI, Python SDK, and MCP surface.
+- Coalesce byte-equivalent concurrent HTTP GETs without retaining completed
+  responses, and isolate requests with different timeouts or headers.
+- Journal frontier transitions between compact snapshots so interrupted runs
+  remain resumable without rewriting the full frontier after every URL.
+- Reuse pack reads, citation analysis, entity extraction, and graph indexes
+  across intelligence workflows; use constant-time document/source lookups and
+  bounded top-result selection for local search.
+- Centralize schema versions and export-format registries in lightweight
+  modules to reduce import cost and duplicated contract definitions.
+
+### Fixed
+- Restore automatic CI, CodeQL, security, benchmark, live-smoke, and metrics
+  triggers after the runtime-tooling migration, and make the Python matrix
+  select the advertised patch versions explicitly.
+- Extend release-readiness checks to lint, type-check, audit, and build the web
+  workspace, and repair stale repository links in issue templates.
+
+### Compatibility
+- Keep all 6.2 pack, workflow, CLI, SDK, MCP, schema, and tracker contracts
+  readable and importable; 6.3 changes are additive or internal optimizations.
+
 ## [6.2.0] - 2026-07-16
 
 ### Added

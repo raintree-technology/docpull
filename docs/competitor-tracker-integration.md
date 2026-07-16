@@ -1,6 +1,6 @@
 # Competitor-tracker integration contract
 
-Pin DocPull `6.2.0` and validate `intelligence.bundle.v1.json` against
+Pin DocPull `6.3.0` and validate `intelligence.bundle.v1.json` against
 `intelligence-bundle.v1.schema.json` at import time.
 
 ## Producer flow

@@ -2,6 +2,10 @@ name: CI
 
 on:
   workflow_dispatch:
+  pull_request:
+  push:
+    branches:
+      - main
 
 permissions:
   contents: read
@@ -47,6 +51,8 @@ jobs:
   test:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    env:
+      MISE_PYTHON_VERSION: ${{ matrix.python-version }}
     strategy:
       fail-fast: false
       matrix:
@@ -66,7 +72,7 @@ jobs:
         run: python -m pip install "uv==$UV_VERSION"
 
       - name: Sync dependencies
-        run: uv sync --locked --all-extras --dev
+        run: uv sync --locked --all-extras
 
       - name: Run tests
         if: matrix.python-version != '3.11.15'
@@ -101,10 +107,13 @@ jobs:
         run: python -m pip install "uv==$UV_VERSION"
 
       - name: Sync dependencies
-        run: uv sync --locked --all-extras --dev
+        run: uv sync --locked --all-extras
 
       - name: Check generated release metadata
         run: uv run --locked python scripts/sync_release_metadata.py --check
+
+      - name: Check generated contract schemas
+        run: uv run --locked python scripts/generate_contract_schemas.py --check
 
       - name: Run ruff
         run: uv run --locked python -m ruff check .
@@ -133,7 +142,7 @@ jobs:
         run: python -m pip install "uv==$UV_VERSION"
 
       - name: Sync dependencies
-        run: uv sync --locked --all-extras --dev
+        run: uv sync --locked --all-extras
 
       - name: Run mypy
         run: uv run --locked python -m mypy src

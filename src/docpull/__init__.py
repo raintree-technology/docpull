@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Any
 
 from .surface import PUBLIC_SDK_EXPORTS
 
-__version__ = "6.2.0"
+__version__ = "6.3.0"
 
 _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
     **{
@@ -211,7 +211,15 @@ if TYPE_CHECKING:
     from .core.fetcher import Fetcher, fetch_blocking, fetch_one
     from .document_parse import DocumentParseError, ParsedDocument, parse_documents, parse_one_document
     from .exports import ExportResult, export_pack
-    from .graph import GraphError, build_graph, graph_neighbors, graph_status, load_graph, query_graph, refresh_graph
+    from .graph import (
+        GraphError,
+        build_graph,
+        graph_neighbors,
+        graph_status,
+        load_graph,
+        query_graph,
+        refresh_graph,
+    )
     from .local_workflows import audit_pack, refresh_pack
     from .models.config import (
         BudgetConfig,

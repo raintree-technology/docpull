@@ -11,10 +11,13 @@ from __future__ import annotations
 import argparse
 import json
 import shutil
-import subprocess
+import subprocess  # nosec B404
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+
+# Bandit B404 is suppressed because this script uses fixed executables and
+# direct argument vectors without a shell.
 
 DEFAULT_WORKDIR = Path(".tmp/github-list-prs")
 
@@ -250,7 +253,8 @@ def run(
     capture: bool = False,
 ) -> subprocess.CompletedProcess[str]:
     print("  $ " + " ".join(cmd))
-    result = subprocess.run(
+    # Arguments are passed directly and shell execution is never enabled.
+    result = subprocess.run(  # nosec B603
         cmd,
         cwd=cwd,
         check=False,

@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: Documentation
-    url: https://github.com/raintree-ai/docpull#readme
+    url: https://github.com/raintree-technology/docpull#readme
     about: Check the README for usage instructions and examples
   - name: Discussions
-    url: https://github.com/raintree-ai/docpull/discussions
+    url: https://github.com/raintree-technology/docpull/discussions
     about: Ask questions and share ideas

@@ -12,8 +12,8 @@ env:
 #   - GitHub traffic (clones, views, referrers, paths) — last 14 days.
 #
 # Plugin install proxy: `/plugin marketplace add raintree-technology/docpull`
-# is a git clone under the hood. Manual clone-count refreshes are enough for
-# trend tracking while the external metrics APIs are unreliable.
+# is a git clone under the hood. Weekly clone counts are enough for trend
+# tracking without daily Actions spend.
 #
 # Why a workflow instead of an external dashboard:
 #   - Single source of truth committed in-repo (no external service to babysit).
@@ -28,6 +28,9 @@ env:
 # `METRICS_TOKEN`. The workflow falls back to GITHUB_TOKEN if absent.
 
 on:
+  schedule:
+    # 09:12 UTC weekly Monday (off-hour to dodge top-of-hour Actions spikes).
+    - cron: "12 9 * * 1"
   workflow_dispatch:
 
 permissions:

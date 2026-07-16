@@ -117,7 +117,7 @@ jobs:
         run: python -m pip install "uv==$UV_VERSION"
 
       - name: Sync release gate dependencies
-        run: uv sync --locked --all-extras --dev
+        run: uv sync --locked --all-extras
 
       - name: Install local render runtime
         run: |

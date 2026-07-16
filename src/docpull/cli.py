@@ -28,7 +28,7 @@ from .surface import PRUNED_CLI_COMMANDS, format_cli_subcommands
 if TYPE_CHECKING:
     from .models.config import DocpullConfig
     from .models.events import SkipReason
-    from .rendering import CloudSandboxBackend, Renderer
+    from .rendering import Renderer
 
 RenderBackend = Literal["agent-browser", "vercel-sandbox", "e2b-sandbox"]
 
@@ -1258,7 +1258,7 @@ def run_render_cli(argv: list[str]) -> int:
         args.cloud_max_estimated_cost if backend in {"vercel-sandbox", "e2b-sandbox"} else None,
     )
     cloud_estimated_cost = (
-        estimate_cloud_render_cost_usd(cast("CloudSandboxBackend", backend), config)
+        estimate_cloud_render_cost_usd(backend, config)
         if backend in {"vercel-sandbox", "e2b-sandbox"}
         else 0.0
     )

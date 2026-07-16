@@ -6,6 +6,9 @@ name: Benchmark
 # or if the injected duplicate fraction isn't detected.
 
 on:
+  schedule:
+    # 04:17 UTC weekly Wednesday — enough signal without daily Actions spend.
+    - cron: "17 4 * * 3"
   workflow_dispatch:
 
 permissions:
@@ -39,7 +42,7 @@ jobs:
         run: python -m pip install "uv==$UV_VERSION"
 
       - name: Sync dependencies
-        run: uv sync --locked --dev
+        run: uv sync --locked --extra dev
 
       - name: Run 10k-page benchmark
         env:
@@ -85,7 +88,7 @@ jobs:
         run: python -m pip install "uv==$UV_VERSION"
 
       - name: Sync dependencies
-        run: uv sync --locked --dev
+        run: uv sync --locked --extra dev
 
       - name: Run public contract smoke tests
         run: |
