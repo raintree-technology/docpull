@@ -1,8 +1,7 @@
-"""Private CLI adapters for legacy context-pack experiments.
+"""Compatibility import path for the original context-pack CLI adapters.
 
-These functions are intentionally not dispatched from ``docpull``. They remain
-only for internal compatibility tests and private workflows that still exercise
-the old experimental pack builders.
+The commands are public again through :mod:`docpull.context_packs.workflow_cli`;
+this module remains importable so pre-6.2 integrations do not break.
 """
 
 from __future__ import annotations

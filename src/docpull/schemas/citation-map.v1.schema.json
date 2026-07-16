@@ -1,0 +1,30 @@
+{
+  "$id": "https://docpull.dev/schemas/citation-map.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "schema_version": {
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "source_count": {
+      "title": "Source Count",
+      "type": "integer"
+    },
+    "sources": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Sources",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "source_count",
+    "sources"
+  ],
+  "title": "CitationMapContractV1",
+  "type": "object"
+}

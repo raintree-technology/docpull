@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "docpull"
-version = "6.1.0"
+version = "6.2.0"
 dynamic = []
 description = "Declare, sync, diff, and lock context dependencies for AI agents"
 readme = {file = "README.md", content-type = "text/markdown"}
@@ -202,7 +202,7 @@ where = ["src"]
 include = ["docpull*"]
 
 [tool.setuptools.package-data]
-docpull = ["py.typed", "fixtures/*.json"]
+docpull = ["py.typed", "fixtures/*.json", "schemas/*.schema.json"]
 
 [tool.ruff]
 line-length = 110

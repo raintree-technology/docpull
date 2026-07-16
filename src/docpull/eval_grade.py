@@ -104,10 +104,11 @@ def prepare_eval_grade_pack(
     _write_json(paths["rights_manifest"], rights)
     _write_json(paths["provenance_graph"], provenance)
     _write_json(paths["citation_index"], citation_index)
-    if markdown:
-        card_path = pack_dir / "PACK_CARD.md"
-        card_path.write_text(card, encoding="utf-8")
-        output_artifacts["pack_card"] = _artifact_ref(pack_dir, card_path)
+    # PACK_CARD.md is mandatory at eval grade even when optional prepare
+    # summaries are requested as JSON-only.
+    card_path = pack_dir / "PACK_CARD.md"
+    card_path.write_text(card, encoding="utf-8")
+    output_artifacts["pack_card"] = _artifact_ref(pack_dir, card_path)
     for key, path in paths.items():
         output_artifacts[key] = _artifact_ref(pack_dir, path)
 

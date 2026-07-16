@@ -15,12 +15,30 @@ from urllib.parse import parse_qsl, urlencode, urljoin, urlparse, urlunparse
 from bs4 import BeautifulSoup
 
 from ..accounting import RunAccounting, default_route_steps, write_run_accounting
+from ..contracts import (
+    ArtifactManifest,
+    BudgetUsage,
+    HashDigest,
+    ReplayConfiguration,
+    WorkflowFailure,
+    WorkflowProgressEvent,
+    WorkflowResult,
+    WorkflowWarning,
+    artifact_entries,
+    build_workflow_request,
+    canonical_sha256,
+    file_sha256,
+    new_progress_event,
+    stable_id,
+)
 from ..core.fetcher import Fetcher
+from ..evidence import classify_source_authority, document_identity, evidence_span_payload
 from ..http.client import AsyncHttpClient
 from ..http.rate_limiter import PerHostRateLimiter
 from ..models.config import DocpullConfig, ProfileName
 from ..models.document import DocumentRecord
 from ..models.run import RunIdentity
+from ..output_contract import OUTPUT_CONTRACT_SCHEMA_VERSION, write_raw_contract_sidecars
 from ..pack_tools import build_citation_map
 from ..policy import PolicyConfig, policy_domain_matches
 from ..security.download_policy import SafeDownloadPolicy, UnsafeDownloadError, content_type_base
@@ -107,9 +125,14 @@ class EvidenceRef:
 
     citation_id: str
     url: str
+    record_citation_id: str | None = None
     title: str | None = None
     field: str | None = None
     excerpt: str | None = None
+    evidence_span: dict[str, Any] | None = None
+    source_authority: dict[str, Any] | None = None
+    evidence_strength: str = "strong"
+    confidence: float = 1.0
 
     def to_dict(self) -> dict[str, Any]:
         payload: dict[str, Any] = {
@@ -118,10 +141,18 @@ class EvidenceRef:
         }
         if self.title:
             payload["title"] = self.title
+        if self.record_citation_id:
+            payload["record_citation_id"] = self.record_citation_id
         if self.field:
             payload["field"] = self.field
         if self.excerpt:
             payload["excerpt"] = self.excerpt[:500]
+        if self.evidence_span:
+            payload["evidence_span"] = self.evidence_span
+        if self.source_authority:
+            payload["source_authority"] = self.source_authority
+        payload["evidence_strength"] = self.evidence_strength
+        payload["confidence"] = self.confidence
         return payload
 
 
@@ -181,12 +212,40 @@ class ContextPackRun:
     errors: list[dict[str, Any]] = field(default_factory=list)
     http_request_count: int = 0
     cache_hit_count: int = 0
+    progress_events: list[dict[str, Any]] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        self.progress("run", "started", message=f"Started {self.workflow}", timestamp=self.started_at)
 
     def warn(self, code: str, message: str, **metadata: Any) -> None:
         payload: dict[str, Any] = {"code": code, "message": message}
         if metadata:
             payload["metadata"] = jsonable(metadata)
         self.warnings.append(payload)
+        self.progress("workflow", "warning", message=message, metadata={"code": code, **metadata})
+
+    def progress(
+        self,
+        phase: str,
+        status: Literal["started", "progress", "completed", "warning", "failed"],
+        *,
+        message: str | None = None,
+        current: int | None = None,
+        total: int | None = None,
+        metadata: dict[str, Any] | None = None,
+        timestamp: str | None = None,
+    ) -> None:
+        self.progress_events.append(
+            new_progress_event(
+                phase=phase,
+                status=status,
+                timestamp=timestamp,
+                message=message,
+                current=current,
+                total=total,
+                metadata=metadata,
+            )
+        )
 
 
 class ContextAssetDownloadPolicy(SafeDownloadPolicy):
@@ -381,11 +440,12 @@ async def fetch_pages(
     if not selected:
         return []
 
+    run.progress("acquisition", "started", total=len(selected), message="Acquiring source pages")
     config = DocpullConfig(url=selected[0], profile=ProfileName.CUSTOM)
     config.network.log_retry_warnings = False
     snapshots: list[PageSnapshot] = []
     async with Fetcher(config) as fetcher:
-        for url in selected:
+        for index, url in enumerate(selected, start=1):
             ctx = await fetcher.fetch_one(url, save=False)
             run.http_request_count += 1
             if ctx.error:
@@ -408,6 +468,20 @@ async def fetch_pages(
                     source_type=ctx.source_type,
                 )
             )
+            run.progress(
+                "acquisition",
+                "progress",
+                current=index,
+                total=len(selected),
+                message=f"Processed {public_url(url)}",
+            )
+    run.progress(
+        "acquisition",
+        "completed",
+        current=len(selected),
+        total=len(selected),
+        message=f"Acquired {len(snapshots)} source pages",
+    )
     return snapshots
 
 
@@ -437,11 +511,21 @@ def text_excerpt(text: str, needle: str | None = None, *, limit: int = 280) -> s
 
 
 def citation_map_for_pages(pages: list[PageSnapshot]) -> dict[str, Any]:
+    official_domain = domain_from_input(pages[0].url) if pages else None
     sources = [
         {
             "citation_id": f"S{index}",
             "url": page.url,
             "title": page.title or page.url,
+            "document_id": document_identity(
+                page.url,
+                hashlib.sha256(page.markdown.encode("utf-8")).hexdigest(),
+            ),
+            "document_version": hashlib.sha256(page.markdown.encode("utf-8")).hexdigest(),
+            "source_authority": classify_source_authority(
+                page.url,
+                official_domain=official_domain,
+            ).model_dump(mode="json"),
         }
         for index, page in enumerate(pages, start=1)
     ]
@@ -461,12 +545,26 @@ def evidence_for_page(
     excerpt: str | None = None,
 ) -> EvidenceRef:
     index = pages.index(page) + 1 if page in pages else 1
+    selected_excerpt = excerpt or text_excerpt(page.markdown)
+    official_domain = domain_from_input(pages[0].url) if pages else domain_from_input(page.url)
     return EvidenceRef(
         citation_id=f"S{index}",
+        record_citation_id=f"S{index}.1",
         url=page.url,
         title=page.title,
         field=field,
-        excerpt=excerpt or text_excerpt(page.markdown),
+        excerpt=selected_excerpt,
+        evidence_span=evidence_span_payload(
+            url=page.url,
+            content=page.markdown,
+            exact_text=selected_excerpt,
+            citation_id=f"S{index}",
+            record_citation_id=f"S{index}.1",
+        ),
+        source_authority=classify_source_authority(
+            page.url,
+            official_domain=official_domain,
+        ).model_dump(mode="json"),
     )
 
 
@@ -790,6 +888,9 @@ def write_basic_pack_files(
         "source_policy": "source_policy.json",
         "agent_context": "AGENT_CONTEXT.md",
         "pack_metadata": pack_filename,
+        "workflow_request": "workflow.request.json",
+        "workflow_result": "workflow.result.json",
+        "artifact_manifest": "artifact.manifest.json",
     }
     if extra_artifacts:
         artifacts.update(extra_artifacts)
@@ -800,6 +901,7 @@ def write_basic_pack_files(
                 "documents_ndjson": artifact_ref(output_dir, records_path),
                 "corpus_manifest": artifact_ref(output_dir, manifest_path),
                 "sources": artifact_ref(output_dir, sources_path),
+                "acquisition_routes": "acquisition.routes.json",
             }
         )
     artifacts["accounting"] = "run.accounting.json"
@@ -830,19 +932,177 @@ def write_basic_pack_files(
     write_json(result_path, result_payload)
     write_json(pack_path, pack_payload)
 
-    write_run_accounting(
-        output_dir,
-        RunAccounting(
-            budget_limit_usd=run.policy.budget.maximum_paid_cost_usd,
-            estimated_paid_cost_usd=0.0,
-            http_request_count=run.http_request_count,
-            cache_hit_count=run.cache_hit_count,
-            route_steps=default_route_steps(),
-            command=run.workflow,
-            metadata={"input": public_url(run.input_value)},
-        ),
+    accounting = RunAccounting(
+        budget_limit_usd=run.policy.budget.maximum_paid_cost_usd,
+        estimated_paid_cost_usd=0.0,
+        http_request_count=run.http_request_count,
+        cache_hit_count=run.cache_hit_count,
+        route_steps=default_route_steps(),
+        command=run.workflow,
+        metadata={"input": public_url(run.input_value)},
+    )
+    accounting_payload = accounting.to_dict()
+    write_run_accounting(output_dir, accounting)
+    run.progress("artifacts", "completed", message="Wrote workflow artifacts")
+    run.progress("run", "completed", message=f"Completed {run.workflow}")
+    _write_workflow_contract_files(
+        run=run,
+        result_payload=result_payload,
+        source_policy=source_policy,
+        artifacts=artifacts,
+        accounting_payload=accounting_payload,
     )
     return result_payload
+
+
+def _write_workflow_contract_files(
+    *,
+    run: ContextPackRun,
+    result_payload: dict[str, Any],
+    source_policy: dict[str, Any],
+    artifacts: dict[str, str],
+    accounting_payload: dict[str, Any],
+) -> None:
+    output_dir = run.output_dir.resolve()
+    replay_raw = result_payload.get("replay_config")
+    replay = replay_raw if isinstance(replay_raw, dict) else {}
+    input_raw = result_payload.get("input")
+    input_payload = input_raw if isinstance(input_raw, dict) else {"value": run.input_value}
+    browser_enabled = bool(replay.get("render")) or run.workflow == "screenshot-pack"
+    request = build_workflow_request(
+        workflow=run.workflow,
+        input_payload=input_payload,
+        output_dir=output_dir,
+        options=replay,
+        source_policy=source_policy,
+        budget={"maximum_paid_cost_usd": run.policy.budget.maximum_paid_cost_usd},
+        browser_enabled=browser_enabled,
+        paid_routes_enabled=False,
+    )
+    from ..workflows import current_workflow_request
+
+    request = current_workflow_request() or request
+    request_path = output_dir / artifacts["workflow_request"]
+    write_json(request_path, request.model_dump(mode="json", exclude_none=True))
+
+    entries = artifact_entries(
+        output_dir,
+        artifacts,
+        excluded={"workflow_result", "artifact_manifest"},
+    )
+    aggregate = canonical_sha256([entry.model_dump(mode="json") for entry in entries])
+    pack_id = stable_id("pack", {"workflow": run.workflow, "aggregate_sha256": aggregate})
+    run_id = stable_id(
+        "run",
+        {"request_id": request.request_id, "started_at": run.started_at, "pack_id": pack_id},
+    )
+    manifest = ArtifactManifest(
+        pack_id=pack_id,
+        run_id=run_id,
+        entries=entries,
+        aggregate_sha256=aggregate,
+    )
+    manifest_path = output_dir / artifacts["artifact_manifest"]
+    write_json(manifest_path, manifest.model_dump(mode="json", exclude_none=True))
+
+    warning_models = [
+        WorkflowWarning.model_validate(
+            {
+                "code": str(item.get("code") or "warning"),
+                "message": str(item.get("message") or "Workflow warning"),
+                "metadata": item.get("metadata") if isinstance(item.get("metadata"), dict) else {},
+            }
+        )
+        for item in run.warnings
+    ]
+    failure_models = [
+        WorkflowFailure(
+            message=str(item.get("error") or item.get("message") or "Acquisition failure"),
+            source_url=str(item.get("url")) if item.get("url") else None,
+            metadata={
+                str(key): value for key, value in item.items() if key not in {"error", "message", "url"}
+            },
+        )
+        for item in run.errors
+    ]
+    status: Literal["completed", "completed_with_warnings", "failed", "cancelled"]
+    if failure_models and not result_payload.get("summary"):
+        status = "failed"
+    elif failure_models or warning_models:
+        status = "completed_with_warnings"
+    else:
+        status = "completed"
+    data = {
+        key: value
+        for key, value in result_payload.items()
+        if key
+        not in {
+            "schema_version",
+            "generated_at",
+            "workflow",
+            "provider",
+            "status",
+            "input",
+            "output_dir",
+            "summary",
+            "warnings",
+            "errors",
+            "replay_config",
+            "artifacts",
+        }
+    }
+    raw_summary = result_payload.get("summary")
+    summary: dict[str, Any] = raw_summary if isinstance(raw_summary, dict) else {}
+    result = WorkflowResult(
+        request_id=request.request_id,
+        workflow=run.workflow,
+        status=status,
+        started_at=run.started_at,
+        finished_at=utc_now_iso(),
+        pack_identity={
+            "pack_id": pack_id,
+            "aggregate_sha256": aggregate,
+            "workflow": run.workflow,
+        },
+        run_identity={
+            "run_id": run_id,
+            "request_id": request.request_id,
+            "scheduler": None,
+        },
+        summary=summary,
+        data=data,
+        progress_events=[WorkflowProgressEvent.model_validate(item) for item in run.progress_events],
+        warnings=warning_models,
+        failures=failure_models,
+        budget_usage=BudgetUsage(
+            limit_usd=accounting_payload.get("budget_limit_usd"),
+            estimated_usd=float(accounting_payload.get("estimated_paid_cost_usd") or 0.0),
+            actual_usd=accounting_payload.get("actual_paid_cost_usd"),
+            paid_request_count=int(accounting_payload.get("paid_request_count") or 0),
+            http_request_count=int(accounting_payload.get("http_request_count") or 0),
+            cache_hit_count=int(accounting_payload.get("cache_hit_count") or 0),
+            local_browser_seconds=float(accounting_payload.get("local_browser_seconds") or 0.0),
+            blocked_actions=list(accounting_payload.get("blocked_actions") or []),
+        ),
+        hashes={
+            "request": HashDigest(digest=file_sha256(request_path)),
+            "artifact_manifest": HashDigest(digest=file_sha256(manifest_path)),
+            "legacy_result": HashDigest(digest=canonical_sha256(result_payload)),
+            "pack": HashDigest(digest=aggregate),
+        },
+        replay_configuration=ReplayConfiguration(
+            browser_enabled=browser_enabled,
+            paid_routes_enabled=False,
+            configuration=replay,
+        ),
+        compatibility_artifacts={
+            name: path
+            for name, path in artifacts.items()
+            if name not in {"workflow_request", "workflow_result", "artifact_manifest"}
+        },
+    )
+    result_path = output_dir / artifacts["workflow_result"]
+    write_json(result_path, result.model_dump(mode="json", exclude_none=True))
 
 
 def write_documents_pack(
@@ -870,6 +1130,8 @@ def write_documents_pack(
             extraction={**page.extraction, "workflow": workflow},
             source_type=page.source_type or workflow,
             run_identity=run_identity,
+            source_citation_id=f"S{index}",
+            record_citation_id=f"S{index}.1",
         )
         records.append(record)
         source_path = source_dir / f"{index:03d}.md"
@@ -888,32 +1150,35 @@ def write_documents_pack(
         encoding="utf-8",
     )
     manifest_path = output_dir / "corpus.manifest.json"
-    write_json(
-        manifest_path,
-        {
-            "schema_version": CONTEXT_PACK_SCHEMA_VERSION,
-            "generated_at": utc_now_iso(),
-            "output_format": "ndjson",
-            "document_count": len({record.document_id for record in records}),
-            "record_count": len(records),
-            "records": [
-                {
-                    "document_id": record.document_id,
-                    "url": record.url,
-                    "title": record.title,
-                    "content_hash": record.content_hash,
-                    "source_type": record.source_type,
-                    "output_path": sources[index]["path"] if index < len(sources) else None,
-                }
-                for index, record in enumerate(records)
-            ],
-        },
-    )
+    manifest_payload = {
+        "schema_version": OUTPUT_CONTRACT_SCHEMA_VERSION,
+        "generated_at": utc_now_iso(),
+        "output_format": "ndjson",
+        "document_count": len({record.document_id for record in records}),
+        "record_count": len(records),
+        "records": [
+            {
+                "document_id": record.document_id,
+                "url": record.url,
+                "title": record.title,
+                "content_hash": record.content_hash,
+                "source_type": record.source_type,
+                "output_path": sources[index]["path"] if index < len(sources) else None,
+            }
+            for index, record in enumerate(records)
+        ],
+    }
+    write_json(manifest_path, manifest_payload)
     sources_path = output_dir / "sources.md"
     lines = ["# Sources", ""]
     for source in sources:
         lines.append(f"- {source['index']}. [{source['title']}]({source['url']})")
     sources_path.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
+    write_raw_contract_sidecars(
+        output_dir,
+        manifest_payload=manifest_payload,
+        output_format="ndjson",
+    )
     return records_path, manifest_path, sources_path
 
 

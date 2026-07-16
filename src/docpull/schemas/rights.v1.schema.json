@@ -1,0 +1,34 @@
+{
+  "$id": "https://docpull.dev/schemas/rights.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "allowed_use": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "title": "Allowed Use",
+      "type": "object"
+    },
+    "basis": {
+      "title": "Basis",
+      "type": "string"
+    },
+    "obligations": {
+      "items": {},
+      "title": "Obligations",
+      "type": "array"
+    },
+    "status": {
+      "title": "Status",
+      "type": "string"
+    }
+  },
+  "required": [
+    "status",
+    "allowed_use",
+    "basis"
+  ],
+  "title": "RightsContractV1",
+  "type": "object"
+}

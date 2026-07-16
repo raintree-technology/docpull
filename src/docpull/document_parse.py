@@ -814,6 +814,7 @@ def _parse_text(path: Path) -> tuple[str, dict[str, Any]]:
 
 
 def _parse_pypdf(path: Path) -> tuple[str, dict[str, Any]]:
+    _preflight_pdf_container(path)
     try:
         module = importlib.import_module("pypdf")
     except ImportError as err:
@@ -868,6 +869,20 @@ def _validate_pdf_structure(path: Path) -> dict[str, Any]:
             code="image_only",
         )
     return metadata
+
+
+def _preflight_pdf_container(path: Path) -> None:
+    # Reject obviously truncated containers before importing or invoking an
+    # optional parser backend. This keeps malformed input out of third-party
+    # parsers and makes the safety result independent of installed extras.
+    with path.open("rb") as stream:
+        header = stream.read(8)
+        stream.seek(0, os.SEEK_END)
+        size = stream.tell()
+        stream.seek(max(0, size - 1024))
+        trailer = stream.read()
+    if not header.startswith(b"%PDF-") or b"%%EOF" not in trailer:
+        raise DocumentParseError("Malformed or truncated PDF container.", code="malformed")
 
 
 def _pypdf_page_image_count(page: Any) -> int:

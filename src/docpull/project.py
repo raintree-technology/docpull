@@ -87,6 +87,11 @@ SourceType = Literal[
     "dataset",
     "transcript",
     "wiki",
+    "brand",
+    "product",
+    "styleguide",
+    "visual",
+    "policy",
 ]
 OutputFormat = Literal["markdown", "ndjson", "sqlite", "context-pack"]
 SemanticMode = Literal["auto", "off", "on"]
@@ -104,6 +109,11 @@ TYPED_PROJECT_SOURCE_TYPES: tuple[str, ...] = (
     "dataset",
     "transcript",
     "wiki",
+    "brand",
+    "product",
+    "styleguide",
+    "visual",
+    "policy",
 )
 SOURCE_TYPES: tuple[str, ...] = (*CRAWL_SOURCE_TYPES, *TYPED_PROJECT_SOURCE_TYPES)
 CONTEXT_TARGETS: tuple[str, ...] = ("cursor", "claude", "codex", "openai", "llamaindex", "langchain")
@@ -1174,6 +1184,7 @@ def diff_project(
             "unchanged_count": len(base["unchanged_urls"]),
             "likely_api_behavior_change_count": len(likely_api),
             "pricing_change_count": len(pricing),
+            "change_event_count": len(base.get("change_events") or []),
         },
         "likely_api_behavior_changes": likely_api,
         "pricing_changes": pricing,
@@ -1182,10 +1193,14 @@ def diff_project(
     }
     diff_path = new_run_dir / "project.diff.json"
     semantic_diff_path = new_run_dir / "semantic.diff.json"
+    change_events_path = new_run_dir / "change.events.jsonl"
     markdown_path = new_run_dir / "PROJECT_DIFF.md"
     semantic_diff_payload = base.get("semantic_diff")
     if isinstance(semantic_diff_payload, dict):
         _write_json(semantic_diff_path, semantic_diff_payload)
+    from .change_events import write_change_events
+
+    write_change_events(change_events_path, list(payload.get("change_events") or []))
     _write_json(diff_path, payload)
     markdown_path.write_text(_project_diff_markdown(payload), encoding="utf-8")
     _index_diff(project_root, payload)
@@ -1450,6 +1465,7 @@ def review_project_run(*, run_id: str | None = None, root: Path | None = None) -
         "removed_count": _safe_int(diff_summary.get("removed_count")),
         "likely_api_behavior_change_count": _safe_int(diff_summary.get("likely_api_behavior_change_count")),
         "pricing_change_count": _safe_int(diff_summary.get("pricing_change_count")),
+        "change_event_count": _safe_int(diff_summary.get("change_event_count")),
     }
     health = _read_json(run_dir / "source-health.json", default={"sources": []})
     errors = _read_jsonl(run_dir / "errors.jsonl")
@@ -1868,18 +1884,62 @@ def _sync_typed_project_source(
             chunk_tokens=DEFAULT_CHUNK_TOKENS,
             cache_dir=cache_dir,
         )
+    elif source.type == "brand":
+        from .context_packs.brand import build_brand_pack
+
+        build_brand_pack(
+            source_spec,
+            output_dir=output_dir,
+            download_assets=False,
+            max_pages=min(max_items, 6),
+        )
+    elif source.type == "product":
+        from .context_packs.product import build_product_pack
+
+        build_product_pack(
+            source_spec,
+            mode="site",
+            output_dir=output_dir,
+            max_pages=min(max_items, 8),
+        )
+    elif source.type == "styleguide":
+        from .context_packs.styleguide import build_styleguide_pack
+
+        build_styleguide_pack(
+            source_spec,
+            output_dir=output_dir,
+            render=False,
+        )
+    elif source.type == "visual":
+        from .context_packs.visuals import build_image_pack
+
+        build_image_pack(
+            source_spec,
+            output_dir=output_dir,
+            download_assets=False,
+            max_assets=min(max_items, 40),
+        )
+    elif source.type == "policy":
+        from .context_packs.policy_pack import build_policy_pack
+
+        build_policy_pack(
+            source_spec,
+            output_dir=output_dir,
+            max_pages=min(max_items, 16),
+        )
     else:
         raise ProjectError(f"Unsupported typed project source type: {source.type}")
 
     records_path = output_dir / "documents.ndjson"
     records = _read_jsonl(records_path) if records_path.exists() else []
     normalized = [_normalize_project_record(record, source) for record in records]
+    accounting_payload = _read_json(output_dir / "run.accounting.json", default={})
     stats = {
         "pages_fetched": len(normalized),
         "pages_failed": 0,
         "pages_skipped": 0,
         "robots_blocked": 0,
-        "http_request_count": 0,
+        "http_request_count": _safe_int(accounting_payload.get("http_request_count")),
     }
     return {
         "records": normalized,
@@ -2835,6 +2895,8 @@ def _typed_project_source_spec_allowed(source_type: str, value: str) -> bool:
         return not parsed.scheme
     if source_type == "wiki":
         return _is_wiki_page_url(parsed) or lowered.startswith(("wiki:", "wikipedia:"))
+    if source_type in {"brand", "product", "styleguide", "visual", "policy"}:
+        return is_https or bool(re.fullmatch(r"[A-Za-z0-9.-]+\.[A-Za-z]{2,}", text))
     return False
 
 
