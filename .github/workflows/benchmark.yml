@@ -18,6 +18,10 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
+env:
+  MISE_LOCKED: "1"
+  UV_VERSION: "0.11.6"
+
 jobs:
   benchmark:
     if: github.event_name != 'schedule' || github.event.schedule == '17 4 * * 3'
@@ -29,21 +33,22 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Set up Python
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+      - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db
         with:
-          python-version: "3.11"
+          version: 2026.7.1
+          install: true
+          cache: true
+      - name: Install uv
+        run: python -m pip install "uv==$UV_VERSION"
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+      - name: Sync dependencies
+        run: uv sync --locked --extra dev
 
       - name: Run 10k-page benchmark
         env:
           DOCPULL_BENCHMARK_10K: "1"
         run: |
-          PYTHONPATH=src python -m pytest -v -s tests/benchmarks/test_10k_pages.py \
+          uv run --locked python -m pytest -v -s tests/benchmarks/test_10k_pages.py \
             | tee benchmark.log
 
       - name: Surface report in summary
@@ -74,19 +79,20 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Set up Python
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+      - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db
         with:
-          python-version: "3.11"
+          version: 2026.7.1
+          install: true
+          cache: true
+      - name: Install uv
+        run: python -m pip install "uv==$UV_VERSION"
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+      - name: Sync dependencies
+        run: uv sync --locked --extra dev
 
       - name: Run public contract smoke tests
         run: |
-          PYTHONPATH=src python -m pytest -q \
+          uv run --locked python -m pytest -q \
             tests/test_surface_contract.py \
             tests/test_public_feature_smoke.py \
             tests/test_output_contract.py \

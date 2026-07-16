@@ -1,7 +1,7 @@
 {
   "id": "docpull",
   "name": "docpull",
-  "version": "6.2.0",
+  "version": "6.3.0",
   "description": "Pull public web sources into Codex as local, searchable Markdown through docpull's MCP server.",
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",
@@ -41,7 +41,9 @@
       "Manage user-defined source aliases"
     ],
     "websiteURL": "https://github.com/raintree-technology/docpull",
-    "brandColor": "#2563EB",
+    "brandColor": "#0F6B5D",
+    "composerIcon": "./assets/logo.svg",
+    "logo": "./assets/logo.svg",
     "defaultPrompt": "Use docpull when I ask about a specific library, framework, SDK, API, website, or public source URL. Prefer cached sources first, fetch only the requested source, and cite source paths when answering."
   }
 }

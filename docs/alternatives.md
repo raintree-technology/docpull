@@ -18,7 +18,7 @@ tool.
 | Crawl static/server-rendered websites at modest to large scale | DocPull | Async HTTP, framework-aware extraction, manifests, cache support |
 | Parse one messy article page in Python | trafilatura | Excellent text extraction library; DocPull can also use it as an optional extractor |
 | Build a custom crawling pipeline with queues, middleware, and spiders | Scrapy | Mature scraping framework for custom pipelines and broad crawler control |
-| Automate a real browser or interact with JavaScript-heavy pages | Playwright, Puppeteer, Selenium | Required when useful content only exists after client-side rendering or interaction |
+| Automate a real browser or interact with JavaScript-heavy pages | agent-browser, Puppeteer, Selenium | Required when useful content only exists after client-side rendering or interaction |
 | Build browser-backed crawlers in the JavaScript ecosystem | Crawlee | Strong fit for JavaScript/TypeScript crawling stacks |
 | Use a hosted web-to-LLM extraction service | Firecrawl, Jina Reader, hosted extraction APIs | Useful when you want an API service to manage crawling/extraction infrastructure |
 | Search the live web before building a pack | Dedicated search/extract providers, then DocPull source ingestion | Search providers find candidate sources; DocPull's public release contract starts when selected sources are fetched, parsed, packed, and validated locally |
@@ -55,7 +55,7 @@ tool.
 | DocPull | Yes | Yes | Yes | Yes | Yes | No |
 | trafilatura | Yes | Yes | Yes | No | Partial | No |
 | Scrapy | Yes | Yes by default | Yes | No | No | No |
-| Playwright/Puppeteer/Selenium | Yes | No | Mixed | No | No | No |
+| agent-browser/Puppeteer/Selenium | Yes | No | Mixed | Yes | No | No |
 | Crawlee | Yes | Mixed | No | No | No | No |
 | Firecrawl/Jina Reader/hosted extraction APIs | No | Hidden/varies | API-first | Partial | Partial | Yes |
 

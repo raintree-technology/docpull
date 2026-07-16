@@ -15,7 +15,11 @@ from rich.console import Console
 from rich.markup import escape
 
 from .pack_reader import LocalPack, PackReadError, load_pack
-from .pack_tools import PackToolError, extract_pack_entities
+from .pack_tools import (
+    PackToolError,
+    _analysis_from_local_pack,
+    extract_pack_entities,
+)
 from .time_utils import utc_now_iso
 
 GRAPH_SCHEMA_VERSION = 1
@@ -136,16 +140,23 @@ def build_graph(
     *,
     entity_limit: int = DEFAULT_ENTITY_LIMIT,
     markdown: bool = True,
+    _analysis: Any | None = None,
+    _pack: LocalPack | None = None,
 ) -> dict[str, Any]:
     """Build local graph sidecars for a DocPull pack."""
     if entity_limit < 1:
         raise GraphError("entity_limit must be at least 1")
 
-    pack = load_pack(pack_dir)
+    pack = _pack or load_pack(pack_dir)
     if not pack.documents:
         raise GraphError("Cannot build a graph for an empty pack.")
 
-    entities_payload = extract_pack_entities(pack.pack_dir, limit=entity_limit)
+    analysis = _analysis or _analysis_from_local_pack(pack, None)
+    entities_payload = extract_pack_entities(
+        pack.pack_dir,
+        limit=entity_limit,
+        _analysis=analysis,
+    )
     fingerprint = _pack_fingerprint(pack)
     nodes, edges = _build_nodes_and_edges(pack, entities_payload)
     node_path = pack.pack_dir / "graph.nodes.ndjson"
@@ -431,6 +442,8 @@ def _build_nodes_and_edges(
     edges: list[dict[str, Any]] = []
     source_node_by_url: dict[str, str] = {}
     chunk_entity_ids: dict[str, list[str]] = {}
+    chunk_excerpts: dict[str, str] = {}
+    citation_by_url = pack.citation_by_url
 
     for source in pack.sources:
         node_id = _stable_id("source", source.url)
@@ -454,9 +467,12 @@ def _build_nodes_and_edges(
 
     document_ids: set[str] = set()
     for record in pack.documents:
-        citation_id = pack.citation_by_url.get(record.url)
+        citation_id = citation_by_url.get(record.url)
         source_id = source_node_by_url.get(record.url)
         document_id = record.document_id
+        chunk_id = record.chunk_id or _stable_id("chunk", record.document_id, record.content_hash)
+        record_excerpt = _excerpt(record.content)
+        chunk_excerpts[chunk_id] = record_excerpt
         if document_id not in document_ids:
             document_ids.add(document_id)
             nodes.append(
@@ -482,10 +498,10 @@ def _build_nodes_and_edges(
                         "contains_document",
                         record=record,
                         citation_id=citation_id,
+                        excerpt=record_excerpt,
                     )
                 )
 
-        chunk_id = record.chunk_id or _stable_id("chunk", record.document_id, record.content_hash)
         nodes.append(
             {
                 "schema_version": GRAPH_SCHEMA_VERSION,
@@ -500,7 +516,7 @@ def _build_nodes_and_edges(
                 "chunk_index": record.chunk_index,
                 "chunk_heading": record.chunk_heading,
                 "token_count": record.token_count,
-                "excerpt": _excerpt(record.content),
+                "excerpt": record_excerpt,
             }
         )
         edges.append(
@@ -511,18 +527,25 @@ def _build_nodes_and_edges(
                 "contains_chunk",
                 record=record,
                 citation_id=citation_id,
+                excerpt=record_excerpt,
             )
         )
 
     entity_nodes = _entity_nodes(entities_payload)
+    entity_nodes_by_id = {str(node["id"]): node for node in entity_nodes}
+    entity_candidates_by_id = {
+        entity_id: _entity_candidates(node) for entity_id, node in entity_nodes_by_id.items()
+    }
     nodes.extend(entity_nodes)
     for record in pack.documents:
         chunk_id = record.chunk_id or _stable_id("chunk", record.document_id, record.content_hash)
-        citation_id = pack.citation_by_url.get(record.url)
+        citation_id = citation_by_url.get(record.url)
+        content_casefold = record.content.casefold()
         for entity_node in entity_nodes:
-            if not _entity_in_content(entity_node, record.content):
-                continue
             entity_id = str(entity_node["id"])
+            candidates = entity_candidates_by_id[entity_id]
+            if not _entity_in_haystack(candidates, content_casefold):
+                continue
             chunk_entity_ids.setdefault(chunk_id, []).append(entity_id)
             edges.append(
                 _edge(
@@ -532,7 +555,12 @@ def _build_nodes_and_edges(
                     "mentions_entity",
                     record=record,
                     citation_id=citation_id,
-                    excerpt=_entity_excerpt(entity_node, record.content),
+                    excerpt=_entity_excerpt(
+                        entity_node,
+                        record.content,
+                        haystack=content_casefold,
+                        candidates=candidates,
+                    ),
                 )
             )
 
@@ -541,7 +569,7 @@ def _build_nodes_and_edges(
         entity_ids = sorted(set(chunk_entity_ids.get(chunk_id, [])))
         if len(entity_ids) < 2:
             continue
-        citation_id = pack.citation_by_url.get(record.url)
+        citation_id = citation_by_url.get(record.url)
         for left, right in itertools.combinations(entity_ids, 2):
             edges.append(
                 _edge(
@@ -551,12 +579,14 @@ def _build_nodes_and_edges(
                     "co_occurs_in_chunk",
                     record=record,
                     citation_id=citation_id,
+                    excerpt=chunk_excerpts[chunk_id],
                 )
             )
         edges.extend(
             _entity_relation_edges(
                 record,
-                entity_nodes=entity_nodes,
+                entity_nodes_by_id=entity_nodes_by_id,
+                entity_candidates_by_id=entity_candidates_by_id,
                 entity_ids=entity_ids,
                 citation_id=citation_id,
             )
@@ -624,24 +654,30 @@ def _edge(
         "chunk_id": record.chunk_id or _stable_id("chunk", record.document_id, record.content_hash),
         "content_hash": record.content_hash,
         "title": record.title or record.url,
-        "excerpt": excerpt or _excerpt(record.content),
+        "excerpt": excerpt if excerpt is not None else _excerpt(record.content),
     }
 
 
 def _entity_relation_edges(
     record: Any,
     *,
-    entity_nodes: list[dict[str, Any]],
+    entity_nodes_by_id: dict[str, dict[str, Any]],
+    entity_candidates_by_id: dict[str, tuple[str, ...]],
     entity_ids: list[str],
     citation_id: str | None,
 ) -> list[dict[str, Any]]:
-    entity_nodes_by_id = {str(node["id"]): node for node in entity_nodes if node.get("id") in entity_ids}
+    candidates_by_id = {
+        entity_id: entity_candidates_by_id[entity_id]
+        for entity_id in entity_ids
+        if entity_id in entity_nodes_by_id
+    }
     edges: list[dict[str, Any]] = []
     for sentence in _sentences(record.content):
+        sentence_casefold = sentence.casefold()
         sentence_entity_ids = sorted(
             entity_id
-            for entity_id, entity_node in entity_nodes_by_id.items()
-            if _entity_in_content(entity_node, sentence)
+            for entity_id, candidates in candidates_by_id.items()
+            if _entity_in_haystack(candidates, sentence_casefold)
         )
         if len(sentence_entity_ids) < 2:
             continue
@@ -832,26 +868,40 @@ def _public_node(node: dict[str, Any]) -> dict[str, Any]:
 
 
 def _entity_in_content(entity: dict[str, Any], content: str) -> bool:
-    haystack = content.casefold()
-    candidates = {
-        str(entity.get("value") or "").strip(),
-        str(entity.get("normalized") or "").strip(),
-        str(entity.get("label") or "").strip(),
-    }
-    return any(candidate and candidate.casefold() in haystack for candidate in candidates)
+    return _entity_in_haystack(_entity_candidates(entity), content.casefold())
 
 
-def _entity_excerpt(entity: dict[str, Any], content: str) -> str:
-    haystack = content.casefold()
-    candidates = [
-        str(entity.get("value") or "").strip(),
-        str(entity.get("normalized") or "").strip(),
-        str(entity.get("label") or "").strip(),
-    ]
+def _entity_candidates(entity: dict[str, Any]) -> tuple[str, ...]:
+    return tuple(
+        sorted(
+            {
+                candidate.casefold()
+                for candidate in (
+                    str(entity.get("value") or "").strip(),
+                    str(entity.get("normalized") or "").strip(),
+                    str(entity.get("label") or "").strip(),
+                )
+                if candidate
+            }
+        )
+    )
+
+
+def _entity_in_haystack(candidates: tuple[str, ...], haystack: str) -> bool:
+    return any(candidate in haystack for candidate in candidates)
+
+
+def _entity_excerpt(
+    entity: dict[str, Any],
+    content: str,
+    *,
+    haystack: str | None = None,
+    candidates: tuple[str, ...] | None = None,
+) -> str:
+    haystack = haystack if haystack is not None else content.casefold()
+    candidates = candidates if candidates is not None else _entity_candidates(entity)
     for candidate in candidates:
-        if not candidate:
-            continue
-        index = haystack.find(candidate.casefold())
+        index = haystack.find(candidate)
         if index >= 0:
             return _nearest_sentence(content, index, index + len(candidate))
     return _excerpt(content)

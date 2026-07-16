@@ -5,6 +5,65 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.3.0] - 2026-07-16
+
+### Added
+- Add `relationship-pack` across CLI, SDK, MCP, workflow registry, and project
+  sources. It emits cited `owned_by`, `operated_by`, `acquired_by`,
+  `franchised_by`, and `invested_in` observations plus one coverage result per
+  input; missing evidence remains a coverage gap and never becomes an
+  independence claim.
+- Put core `fetch`, `crawl`, and `dataset-pack` on
+  `WorkflowRequest`/`WorkflowResult`; empty and partial crawls now retain a
+  structured current-run manifest, progress, budget usage, hashes, replay
+  configuration, warnings, and typed failures.
+- Support bounded remote HTTPS JSON/CSV dataset snapshots with original and
+  resolved URL provenance, query parameters, content type, and deterministic
+  SHA-256 hashes.
+- Add the DocPull product site with home, pricing, privacy, terms, `llms.txt`,
+  robots, sitemap, manifest, branded icons, and reusable launch assets.
+- Add metadata-only native integration context adapters that produce cited,
+  rights-labeled document records without storing provider secrets or raw
+  customer payloads.
+- Add a committed `uv.lock`, pinned Mise runtimes, Next.js ESLint gates, and
+  dependency review for reproducible local and CI environments.
+
+### Changed
+- Make CLI success strictly current-run scoped by default. Add explicit
+  `--exit-policy usable-output` for consumers that intentionally accept older
+  records in a shared directory.
+- Classify authority per entity/source in multi-company bundles and add
+  `official_corporate`, `government_registry`, `regulatory_filing`,
+  `press_release`, and `local_reporting` roles.
+- Extract relationship observations into intelligence bundles while keeping
+  every candidate unresolved until downstream human review.
+- Load the root SDK and internal package exports lazily while preserving every
+  documented import and CLI, Python SDK, and MCP surface.
+- Coalesce byte-equivalent concurrent HTTP GETs without retaining completed
+  responses, and isolate requests with different timeouts or headers.
+- Journal frontier transitions between compact snapshots so interrupted runs
+  remain resumable without rewriting the full frontier after every URL.
+- Reuse pack reads, citation analysis, entity extraction, and graph indexes
+  across intelligence workflows; use constant-time document/source lookups and
+  bounded top-result selection for local search.
+- Centralize schema versions and export-format registries in lightweight
+  modules to reduce import cost and duplicated contract definitions.
+
+### Fixed
+- Populate retryable acquisition failures with stable codes such as
+  `http_429`, fetch stage, HTTP status, attempt count, and Retry-After seconds.
+- Prevent stale records in a reused output directory from turning a zero-record
+  current run into exit status 0.
+- Restore automatic CI, CodeQL, security, benchmark, live-smoke, and metrics
+  triggers after the runtime-tooling migration, and make the Python matrix
+  select the advertised patch versions explicitly.
+- Extend release-readiness checks to lint, type-check, audit, and build the web
+  workspace, and repair stale repository links in issue templates.
+
+### Compatibility
+- Keep all 6.2 pack, workflow, CLI, SDK, MCP, schema, and tracker contracts
+  readable and importable; 6.3 changes are additive or internal optimizations.
+
 ## [6.2.0] - 2026-07-16
 
 ### Added
@@ -127,7 +186,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `CIThresholds` through the root Python SDK contract.
 - Remove provider and observability extras from the public package extras;
   internal experiments that need those SDKs should install them directly.
-- Remove the unreleased Playwright renderer runtime and keep `agent-browser` as
+- Remove the unreleased browser renderer runtime and keep `agent-browser` as
   the sole local browser-rendering contract for local, Vercel, and E2B paths.
 - Make the `sec-filing` profile use the extractor ensemble so base installs
   fall back to the built-in extractor when optional Trafilatura is unavailable.

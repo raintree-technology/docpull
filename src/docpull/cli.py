@@ -7,8 +7,9 @@ import asyncio
 import json
 import sys
 import tempfile
+from importlib import import_module
 from pathlib import Path
-from typing import Literal, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 if "--doctor" in sys.argv:
     from .doctor import run_doctor
@@ -21,53 +22,62 @@ if "--doctor" in sys.argv:
             output_dir = Path(sys.argv[flag_idx + 1])
     sys.exit(run_doctor(output_dir=output_dir))
 
-try:
-    import aiohttp  # noqa: F401
-    import bs4  # noqa: F401
-    import defusedxml  # noqa: F401
-    import html2text  # noqa: F401
-    import rich  # noqa: F401
-except ImportError as e:
-    print(f"\nERROR: Missing required dependency: {e.name}", file=sys.stderr)
-    print("\nDocpull requires all core dependencies to be installed.", file=sys.stderr)
-    print("\nRecommended fixes:", file=sys.stderr)
-    print("  1. For pipx users: pipx reinstall docpull --force", file=sys.stderr)
-    print("  2. For pip users: pip install --upgrade --force-reinstall docpull", file=sys.stderr)
-    print("  3. For development: pip install -e .[dev]", file=sys.stderr)
-    print("\nTo diagnose issues, run: docpull --doctor", file=sys.stderr)
-    sys.exit(1)
-
-from rich.console import Console
-from rich.markup import escape
-from rich.progress import Progress, SpinnerColumn, TextColumn
-
 from . import __version__
-from .accounting import (
-    BudgetError,
-    RunAccounting,
-    blocked_action,
-    default_route_steps,
-    effective_budget_limit,
-    enforce_paid_budget,
-    maybe_write_run_accounting,
-    parse_budget_value,
-)
-from .core.fetcher import Fetcher
-from .models.config import DEFAULT_CLOUD_ARTIFACT_PATH, DocpullConfig, ProfileName, RenderConfig
-from .models.events import EventType, SkipReason
-from .rendering import (
-    AgentBrowserRenderer,
-    Renderer,
-    RenderError,
-    VercelSandboxRenderer,
-    check_render_backend_availability,
-    estimate_cloud_render_cost_usd,
-    render_url_to_directory,
-)
-from .skill_export import default_skill_root, expand_skill_agents
 from .surface import PRUNED_CLI_COMMANDS, format_cli_subcommands
 
+if TYPE_CHECKING:
+    from .models.config import DocpullConfig
+    from .models.events import SkipReason
+    from .rendering import Renderer
+
 RenderBackend = Literal["agent-browser", "vercel-sandbox", "e2b-sandbox"]
+
+_CLI_LAZY_EXPORTS = {
+    "Fetcher": (".core.fetcher", "Fetcher"),
+    "check_render_backend_availability": (
+        ".rendering",
+        "check_render_backend_availability",
+    ),
+    "render_url_to_directory": (".rendering", "render_url_to_directory"),
+}
+
+
+def __getattr__(name: str) -> object:
+    """Preserve CLI test/integration seams without eager heavy imports."""
+    target = _CLI_LAZY_EXPORTS.get(name)
+    if target is None:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    module_name, attribute_name = target
+    value = getattr(import_module(module_name, __package__), attribute_name)
+    globals()[name] = value
+    return value
+
+
+def _parse_budget_value(value: str) -> float:
+    """Load budget parsing only when argparse sees a budget value."""
+    from .accounting import parse_budget_value
+
+    return parse_budget_value(value)
+
+
+def _core_dependencies_available() -> bool:
+    """Keep the friendly fetch dependency error off unrelated CLI paths."""
+    try:
+        import aiohttp  # noqa: F401
+        import bs4  # noqa: F401
+        import defusedxml  # noqa: F401
+        import html2text  # noqa: F401
+        import rich  # noqa: F401
+    except ImportError as err:
+        print(f"\nERROR: Missing required dependency: {err.name}", file=sys.stderr)
+        print("\nDocpull requires all core dependencies to be installed.", file=sys.stderr)
+        print("\nRecommended fixes:", file=sys.stderr)
+        print("  1. For pipx users: pipx reinstall docpull --force", file=sys.stderr)
+        print("  2. For pip users: pip install --upgrade --force-reinstall docpull", file=sys.stderr)
+        print("  3. For development: pip install -e .[dev]", file=sys.stderr)
+        print("\nTo diagnose issues, run: docpull --doctor", file=sys.stderr)
+        return False
+    return True
 
 
 def _write_fetch_accounting(
@@ -79,6 +89,9 @@ def _write_fetch_accounting(
     paid_capable: bool,
     skip_counts: dict[SkipReason, int] | None = None,
 ) -> None:
+    from .accounting import RunAccounting, maybe_write_run_accounting
+    from .models.events import SkipReason
+
     cache_hits = 0
     if skip_counts:
         cache_hits = int(skip_counts.get(SkipReason.CACHE_UNCHANGED, 0))
@@ -127,14 +140,22 @@ def _output_dir_has_records(output_dir: Path) -> bool:
     return False
 
 
-def _fetch_exit_code(stats: object, output_dir: Path, *, allow_empty: bool = False) -> int:
+def _fetch_exit_code(
+    stats: object,
+    output_dir: Path,
+    *,
+    allow_empty: bool = False,
+    exit_policy: str = "strict",
+) -> int:
     if int(getattr(stats, "pages_failed", 0)) > 0:
         return 1
     if allow_empty:
         return 0
-    if int(getattr(stats, "pages_fetched", 0)) == 0 and not _output_dir_has_records(output_dir):
-        return 1
-    return 0
+    if int(getattr(stats, "pages_fetched", 0)) > 0:
+        return 0
+    if exit_policy == "usable-output" and _output_dir_has_records(output_dir):
+        return 0
+    return 1
 
 
 def _add_render_options(parser: argparse.ArgumentParser) -> None:
@@ -251,7 +272,7 @@ Examples:
     )
     parser.add_argument(
         "--budget",
-        type=parse_budget_value,
+        type=_parse_budget_value,
         default=None,
         metavar="USD",
         help="Maximum paid-capable provider/cloud spend for this run. Use 0 for zero paid calls.",
@@ -591,12 +612,43 @@ Examples:
         action="store_true",
         help="Suppress output",
     )
+    output_group.add_argument(
+        "--exit-policy",
+        choices=["strict", "usable-output"],
+        default="strict",
+        help=(
+            "Exit based on this run only (strict, default), or accept usable records "
+            "already present in the output directory (usable-output)"
+        ),
+    )
 
     return parser
 
 
 def run_fetcher(args: argparse.Namespace) -> int:
     """Run the fetcher with given arguments."""
+    if not _core_dependencies_available():
+        return 1
+
+    from rich.console import Console
+    from rich.markup import escape
+    from rich.progress import Progress, SpinnerColumn, TextColumn
+
+    from .accounting import (
+        BudgetError,
+        RunAccounting,
+        blocked_action,
+        default_route_steps,
+        enforce_paid_budget,
+        maybe_write_run_accounting,
+    )
+    from .models.config import DocpullConfig, ProfileName
+    from .models.events import EventType, FetchStats, SkipReason
+    from .rendering import estimate_cloud_render_cost_usd
+    from .skill_export import default_skill_root, expand_skill_agents
+    from .time_utils import utc_now_iso
+
+    fetcher_class: Any = globals().get("Fetcher") or __getattr__("Fetcher")
     console = Console()
 
     if not args.url:
@@ -866,6 +918,27 @@ def run_fetcher(args: argparse.Namespace) -> int:
         console.print("[red]Budget error:[/red] " + escape(str(err)))
         return 1
 
+    acquisition_started_at = utc_now_iso()
+    run_events: list = []
+
+    def write_structured_result(
+        stats: object,
+        *,
+        contexts: list | None = None,
+        extra_failures: list | None = None,
+    ) -> None:
+        from .acquisition_workflows import write_cli_acquisition_contracts
+
+        write_cli_acquisition_contracts(
+            config=config,
+            workflow="fetch" if args.single else "crawl",
+            started_at=acquisition_started_at,
+            stats=stats,
+            events=run_events,
+            contexts=contexts,
+            extra_failures=extra_failures,
+        )
+
     async def run() -> int:
         if not args.quiet:
             console.print(f"[bold blue]docpull[/bold blue] v{__version__}")
@@ -874,7 +947,7 @@ def run_fetcher(args: argparse.Namespace) -> int:
             console.print()
 
         try:
-            async with Fetcher(config) as fetcher:
+            async with fetcher_class(config) as fetcher:
                 # Handle --preview-urls mode
                 if args.preview_urls:
                     urls = await fetcher.discover()
@@ -890,6 +963,7 @@ def run_fetcher(args: argparse.Namespace) -> int:
                         return 1
                     ctx = await fetcher.fetch_one(config.url)
                     if ctx.error:
+                        write_structured_result(fetcher.stats, contexts=[ctx])
                         console.print(f"[red]Failed:[/red] {ctx.error}")
                         return 1
                     if ctx.should_skip:
@@ -902,6 +976,7 @@ def run_fetcher(args: argparse.Namespace) -> int:
                             SkipReason.NO_CONTENT_EXTRACTED,
                             SkipReason.NO_CONTENT_TO_SAVE,
                         }
+                        write_structured_result(fetcher.stats, contexts=[ctx])
                         return 1 if ctx.skip_code in failure_skips else 0
                     if not args.quiet:
                         n_chunks = len(ctx.chunks) if ctx.chunks else 0
@@ -916,6 +991,7 @@ def run_fetcher(args: argparse.Namespace) -> int:
                         render_estimated_cost=render_estimated_cost,
                         paid_capable=render_is_cloud,
                     )
+                    write_structured_result(fetcher.stats, contexts=[ctx])
                     return 0
 
                 # Track skip reasons for summary
@@ -925,6 +1001,7 @@ def run_fetcher(args: argparse.Namespace) -> int:
 
                 if args.quiet:
                     async for event in fetcher.run():
+                        run_events.append(event)
                         if event.type == EventType.FETCH_SKIPPED and event.skip_reason:
                             skip_counts[event.skip_reason] += 1
                 else:
@@ -937,6 +1014,7 @@ def run_fetcher(args: argparse.Namespace) -> int:
                         task = progress.add_task("Starting...", total=None)
 
                         async for event in fetcher.run():
+                            run_events.append(event)
                             if event.type == EventType.STARTED:
                                 progress.update(task, description=f"[cyan]{event.message}")
                             elif event.type == EventType.RESUMED:
@@ -985,6 +1063,7 @@ def run_fetcher(args: argparse.Namespace) -> int:
                     paid_capable=render_is_cloud,
                     skip_counts=skip_counts,
                 )
+                write_structured_result(stats)
                 if not args.quiet:
                     console.print()
                     console.print("[bold]Results:[/bold]")
@@ -1001,12 +1080,26 @@ def run_fetcher(args: argparse.Namespace) -> int:
                         for reason, count in sorted(skip_counts.items(), key=lambda x: -x[1]):
                             console.print(f"  {reason.value}: {count}")
 
-                exit_code = _fetch_exit_code(stats, config.output.directory, allow_empty=args.dry_run)
+                exit_code = _fetch_exit_code(
+                    stats,
+                    config.output.directory,
+                    allow_empty=args.dry_run,
+                    exit_policy=args.exit_policy,
+                )
                 if exit_code and not args.quiet and stats.pages_fetched == 0 and stats.pages_failed == 0:
                     console.print("[yellow]No readable pages were fetched; output pack is empty.[/yellow]")
                 return exit_code
 
         except Exception as e:
+            from .contracts import workflow_failure_from_mapping
+
+            failure = workflow_failure_from_mapping(
+                {"error": str(e), "stage": "workflow", "code": "workflow_error"}
+            )
+            write_structured_result(
+                FetchStats(pages_failed=1),
+                extra_failures=[failure],
+            )
             console.print("[red]Error:[/red] " + escape(str(e)))
             if args.verbose:
                 import traceback
@@ -1023,6 +1116,32 @@ def run_render_cli(argv: list[str]) -> int:
         return _run_render_init_cli(argv[1:])
     if argv and argv[0] == "doctor":
         return _run_render_doctor_cli()
+
+    from rich.console import Console
+    from rich.markup import escape
+
+    from .accounting import (
+        BudgetError,
+        RunAccounting,
+        blocked_action,
+        default_route_steps,
+        effective_budget_limit,
+        enforce_paid_budget,
+        maybe_write_run_accounting,
+    )
+    from .models.config import DEFAULT_CLOUD_ARTIFACT_PATH, RenderConfig
+    from .rendering import (
+        RenderError,
+        estimate_cloud_render_cost_usd,
+    )
+
+    check_render_backend: Any = globals().get("check_render_backend_availability") or __getattr__(
+        "check_render_backend_availability"
+    )
+    render_to_directory: Any = globals().get("render_url_to_directory") or __getattr__(
+        "render_url_to_directory"
+    )
+
     output_dir_explicit = any(
         arg in {"--output-dir", "-o"}
         or arg.startswith("--output-dir=")
@@ -1128,7 +1247,7 @@ def run_render_cli(argv: list[str]) -> int:
     )
     parser.add_argument(
         "--budget",
-        type=parse_budget_value,
+        type=_parse_budget_value,
         default=None,
         metavar="USD",
         help="Maximum paid-capable provider/cloud spend for this render. Use 0 for zero paid calls.",
@@ -1166,7 +1285,7 @@ def run_render_cli(argv: list[str]) -> int:
             agent_browser_binary=args.agent_browser_bin,
             vercel_sandbox_binary=args.vercel_sandbox_bin,
         )
-        available, message = check_render_backend_availability(backend, binary=binary)
+        available, message = check_render_backend(backend, binary=binary)
         style = "green" if available else "yellow"
         console.print(f"[{style}]{escape(message)}[/{style}]")
         return 0 if available else 1
@@ -1259,7 +1378,7 @@ def run_render_cli(argv: list[str]) -> int:
                 vercel_sandbox_binary=args.vercel_sandbox_bin,
                 agent_browser_binary=args.agent_browser_bin,
             )
-            artifact = await render_url_to_directory(
+            artifact = await render_to_directory(
                 args.url,
                 output_dir,
                 config=config,
@@ -1300,6 +1419,13 @@ def run_render_cli(argv: list[str]) -> int:
 
 
 def _run_render_doctor_cli() -> int:
+    from rich.console import Console
+    from rich.markup import escape
+
+    check_render_backend: Any = globals().get("check_render_backend_availability") or __getattr__(
+        "check_render_backend_availability"
+    )
+
     console = Console()
     checks = [
         ("local", "agent-browser"),
@@ -1308,7 +1434,7 @@ def _run_render_doctor_cli() -> int:
     ]
     exit_code = 0
     for runtime, backend in checks:
-        available, message = check_render_backend_availability(backend)
+        available, message = check_render_backend(backend)
         style = "green" if available else "yellow"
         console.print(f"[{style}]{runtime}:[/{style}] {escape(message)}")
         if runtime == "local" and not available:
@@ -1321,6 +1447,8 @@ def _run_render_doctor_cli() -> int:
 
 
 def _run_render_init_cli(argv: list[str]) -> int:
+    from rich.console import Console
+
     parser = argparse.ArgumentParser(
         prog="docpull render init",
         description="Print a sandbox template recipe for agent-browser rendering",
@@ -1404,6 +1532,8 @@ def _renderer_for_render_cli_backend(
     vercel_sandbox_binary: str | None,
     agent_browser_binary: str | None,
 ) -> Renderer | None:
+    from .rendering import AgentBrowserRenderer, VercelSandboxRenderer
+
     if backend == "agent-browser":
         return AgentBrowserRenderer(binary=agent_browser_binary) if agent_browser_binary else None
     if backend == "vercel-sandbox":
@@ -1536,12 +1666,14 @@ def main(argv: list[str] | None = None) -> int:
         "image-pack",
         "screenshot-pack",
         "policy-pack",
+        "relationship-pack",
     }:
         from .context_packs.workflow_cli import (
             run_brand_pack_cli,
             run_image_pack_cli,
             run_policy_pack_cli,
             run_product_pack_cli,
+            run_relationship_pack_cli,
             run_screenshot_pack_cli,
             run_styleguide_pack_cli,
         )
@@ -1553,6 +1685,7 @@ def main(argv: list[str] | None = None) -> int:
             "image-pack": run_image_pack_cli,
             "screenshot-pack": run_screenshot_pack_cli,
             "policy-pack": run_policy_pack_cli,
+            "relationship-pack": run_relationship_pack_cli,
         }
         return workflow_runners[raw_argv[0]](raw_argv[1:])
     if raw_argv and raw_argv[0] == "openapi-pack":

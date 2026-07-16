@@ -3,6 +3,7 @@
 - Status: Accepted
 - Date: 2026-07-16
 - Release: 6.2.0
+- Last amended: 6.3.0
 
 ## Decision
 
@@ -35,6 +36,9 @@ flowchart LR
   part of acquisition rather than downstream interpretation.
 - Machine-derived statements cross the boundary as `observation` or
   `candidate`, never as an approved claim.
+- Relationship extraction is limited to cited `owned_by`, `operated_by`,
+  `acquired_by`, `franchised_by`, and `invested_in` review candidates. Missing
+  evidence is a `coverage_gap`, never an `independent` claim.
 - Authority tiers describe source relationship only. They are not review or
   product-specific approval decisions.
 - Policy changes report structural and textual evidence. They do not express a
@@ -42,6 +46,9 @@ flowchart LR
 - Result contracts contain progress, warnings, failures, budget use, hashes,
   artifacts, and replay settings so another repository does not need to infer
   run state from logs.
+- Fetches and crawls are run-scoped. Strict success depends only on records
+  produced by the current run; reuse of older usable output is an explicit
+  compatibility policy.
 
 ## Consequences
 

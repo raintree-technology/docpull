@@ -1,5 +1,8 @@
 name: CodeQL
 
+env:
+  MISE_LOCKED: "1"
+
 on:
   workflow_dispatch:
   pull_request:
@@ -22,6 +25,7 @@ jobs:
   analyze:
     name: analyze (${{ matrix.language }})
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -36,6 +40,11 @@ jobs:
         with:
           persist-credentials: false
 
+      - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db
+        with:
+          version: 2026.7.1
+          install: true
+          cache: true
       - name: Initialize CodeQL
         uses: github/codeql-action/init@b22c66273205240d86582638b860f9b25772b4d3
         with:

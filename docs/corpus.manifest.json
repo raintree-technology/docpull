@@ -1,0 +1,29 @@
+{
+  "schema_version": 3,
+  "output_contract_version": 3,
+  "generated_at": "2026-07-15T04:29:31.283115+00:00",
+  "output_format": "markdown",
+  "run": {
+    "schema_version": 1,
+    "profile": "rag",
+    "start_url": "pack --help",
+    "max_pages": null,
+    "max_depth": 5,
+    "include_paths": [],
+    "exclude_paths": [],
+    "output_format": "markdown",
+    "naming_strategy": "full",
+    "rich_metadata": true,
+    "extractor": "default",
+    "enable_special_cases": true,
+    "strict_js_required": false,
+    "max_tokens_per_file": null,
+    "emit_chunks": false,
+    "tokenizer": "cl100k_base",
+    "auth_type": "none"
+  },
+  "document_count": 0,
+  "record_count": 0,
+  "chunk_count": 0,
+  "records": []
+}

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">DocPull mark</title>
+  <desc id="desc">A geometric capital D frame with a small green square inset in its lower-left counter.</desc>
+  <path
+    fill="#101213"
+    fill-rule="evenodd"
+    d="M4 4h40l16 16v24L44 60H4V4Zm16 16v24h18l6-6V26l-6-6H20Z"
+  />
+  <path fill="#0F6B5D" d="M22 32h10v10H22z" />
+</svg>

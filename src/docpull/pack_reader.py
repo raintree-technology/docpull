@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import hashlib
+import heapq
 import json
 import re
 import sqlite3
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -86,6 +87,41 @@ class LocalPack:
     sources: tuple[PackSource, ...]
     document_source: str
     sqlite_path: Path | None = None
+    _source_index: dict[str, PackSource] = field(init=False, repr=False, compare=False)
+    _document_index: dict[str, DocumentRecord] = field(init=False, repr=False, compare=False)
+    _first_document_by_url: dict[str, DocumentRecord] = field(init=False, repr=False, compare=False)
+    _record_citation_index: dict[tuple[str, str], str] = field(
+        init=False,
+        repr=False,
+        compare=False,
+    )
+
+    def __post_init__(self) -> None:
+        """Build immutable-pack lookup indexes once instead of once per record."""
+        source_index = {source.url: source for source in self.sources}
+        document_index: dict[str, DocumentRecord] = {}
+        first_document_by_url: dict[str, DocumentRecord] = {}
+        for record in self.documents:
+            document_index.setdefault(record.document_id, record)
+            if record.chunk_id:
+                document_index.setdefault(record.chunk_id, record)
+            first_document_by_url.setdefault(record.url, record)
+
+        record_citation_index: dict[tuple[str, str], str] = {}
+        for source in self.sources:
+            for item in source.record_citations:
+                record_key = item.get("record_key")
+                if not isinstance(record_key, str):
+                    continue
+                record_citation_index.setdefault(
+                    (source.url, record_key),
+                    str(item.get("record_citation_id") or ""),
+                )
+
+        object.__setattr__(self, "_source_index", source_index)
+        object.__setattr__(self, "_document_index", document_index)
+        object.__setattr__(self, "_first_document_by_url", first_document_by_url)
+        object.__setattr__(self, "_record_citation_index", record_citation_index)
 
     @property
     def citation_by_url(self) -> dict[str, str]:
@@ -95,15 +131,20 @@ class LocalPack:
     def source_by_url(self) -> dict[str, PackSource]:
         return {source.url: source for source in self.sources}
 
+    def source_for_url(self, url: str) -> PackSource | None:
+        """Return a source in constant time without exposing the internal index."""
+        return self._source_index.get(url)
+
+    def first_document_for_url(self, url: str) -> DocumentRecord | None:
+        """Return the first record for a source URL in constant time."""
+        return self._first_document_by_url.get(url)
+
     def record_citation_id(self, record: DocumentRecord) -> str | None:
-        source = self.source_by_url.get(record.url)
+        source = self.source_for_url(record.url)
         if source is None:
             return None
         key = record.chunk_id or record.document_id
-        for item in source.record_citations:
-            if item.get("record_key") == key:
-                return str(item.get("record_citation_id") or "")
-        return source.citation_id
+        return self._record_citation_index.get((record.url, key), source.citation_id)
 
     def health_payload(self) -> dict[str, Any]:
         return {
@@ -134,7 +175,7 @@ class LocalPack:
         }
 
     def document_payload(self, record: DocumentRecord, *, include_content: bool) -> dict[str, Any]:
-        source = self.source_by_url.get(record.url)
+        source = self.source_for_url(record.url)
         payload: dict[str, Any] = {
             "schema_version": record.schema_version,
             "document_id": record.document_id,
@@ -163,10 +204,7 @@ class LocalPack:
         return {key: value for key, value in payload.items() if value is not None}
 
     def find_document(self, document_id: str) -> DocumentRecord | None:
-        for record in self.documents:
-            if record.document_id == document_id or record.chunk_id == document_id:
-                return record
-        return None
+        return self._document_index.get(document_id)
 
     def citations_payload(self) -> dict[str, Any]:
         return {
@@ -224,6 +262,31 @@ def load_pack(pack_dir: Path | str) -> LocalPack:
         sources=tuple(sources),
         document_source=document_source,
         sqlite_path=sqlite_path,
+    )
+
+
+def _local_pack_from_records(
+    pack_dir: Path,
+    records: list[dict[str, Any]],
+    *,
+    metadata: dict[str, Any],
+    metadata_path: Path | None,
+) -> LocalPack:
+    """Build a LocalPack from an already-read NDJSON corpus."""
+    manifest = _read_json(pack_dir / "corpus.manifest.json", required=False)
+    if not isinstance(manifest, dict):
+        manifest = {}
+    documents = _coerce_records(records)
+    sources = _build_sources(pack_dir, manifest, metadata, documents)
+    return LocalPack(
+        pack_dir=pack_dir,
+        manifest=manifest,
+        metadata=metadata,
+        metadata_path=metadata_path,
+        documents=tuple(documents),
+        sources=tuple(sources),
+        document_source="documents.ndjson",
+        sqlite_path=None,
     )
 
 
@@ -599,12 +662,10 @@ def _search_with_sqlite(
         hits = search_sqlite_documents(pack.sqlite_path, query, limit=limit)
     except Exception:
         return None, "scan"
-    documents_by_key = _documents_by_record_key(pack.documents)
-    documents_by_url = _documents_by_url(pack.documents)
     results: list[dict[str, Any]] = []
     for rank, hit in enumerate(hits, start=1):
-        record = documents_by_key.get(hit.record_key or "") or documents_by_url.get(hit.url)
-        source = pack.source_by_url.get(hit.url)
+        record = pack.find_document(hit.record_key or "") or pack.first_document_for_url(hit.url)
+        source = pack.source_for_url(hit.url)
         results.append(
             {
                 "rank": rank,
@@ -639,7 +700,7 @@ def _search_by_scan(pack: LocalPack, query: str, limit: int) -> list[dict[str, A
         )
         if score <= 0:
             continue
-        source = pack.source_by_url.get(record.url)
+        source = pack.source_for_url(record.url)
         scored.append(
             {
                 "score": score,
@@ -652,17 +713,22 @@ def _search_by_scan(pack: LocalPack, query: str, limit: int) -> list[dict[str, A
                 "title": title,
                 "content_hash": record.content_hash,
                 "matched_terms": matched_terms,
-                "excerpt": _excerpt(content or title, terms, phrase),
+                "_content": content or title,
             }
         )
-    scored.sort(
+    top_results = heapq.nsmallest(
+        limit,
+        scored,
         key=lambda item: (
             -int(item.get("score", 0)),
             str(item.get("citation_id") or ""),
             str(item.get("document_id") or ""),
-        )
+        ),
     )
-    return [{"rank": rank, **item} for rank, item in enumerate(scored[:limit], start=1)]
+    for result in top_results:
+        content = str(result.pop("_content"))
+        result["excerpt"] = _excerpt(content, terms, phrase)
+    return [{"rank": rank, **item} for rank, item in enumerate(top_results, start=1)]
 
 
 def _scan_score(

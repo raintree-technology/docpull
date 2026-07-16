@@ -104,40 +104,74 @@ def test_ci_matrix_covers_advertised_python_minors() -> None:
     advertised = set(PYTHON_CLASSIFIER_RE.findall(pyproject))
     matrix_match = CI_MATRIX_RE.search(ci)
     assert matrix_match is not None
-    tested = set(re.findall(r'"(3\.\d+)"', matrix_match.group("versions")))
+    tested_versions = re.findall(r'"(3\.\d+(?:\.\d+)?)"', matrix_match.group("versions"))
+    tested = {".".join(version.split(".")[:2]) for version in tested_versions}
 
     assert tested == advertised
+    assert "MISE_PYTHON_VERSION: ${{ matrix.python-version }}" in ci
+
+
+def test_production_workflows_keep_automatic_triggers() -> None:
+    ci = (WORKFLOW_DIR / "ci.yml").read_text()
+    codeql = (WORKFLOW_DIR / "codeql.yml").read_text()
+    security = (WORKFLOW_DIR / "security.yml").read_text()
+    benchmark = (WORKFLOW_DIR / "benchmark.yml").read_text()
+    live_typed = (WORKFLOW_DIR / "live-typed-packs.yml").read_text()
+    live_web = (WORKFLOW_DIR / "live-web-smoke.yml").read_text()
+    metrics = (WORKFLOW_DIR / "metrics.yml").read_text()
+
+    for workflow in (ci, codeql, security):
+        assert "pull_request:" in workflow
+        assert "push:" in workflow
+        assert "- main" in workflow
+    assert 'cron: "38 6 * * 1"' in codeql
+    assert 'cron: "17 4 * * 3"' in benchmark
+    assert 'cron: "17 11 * * *"' in live_typed
+    assert 'cron: "43 10 * * *"' in live_web
+    assert 'cron: "12 9 * * 1"' in metrics
+
+
+def test_uv_lock_is_committed_and_used() -> None:
+    assert (REPO_ROOT / "uv.lock").is_file()
+    assert "uv.lock" not in (REPO_ROOT / ".gitignore").read_text().splitlines()
 
 
 def test_ci_builds_checks_and_smoke_installs_distribution() -> None:
     ci = (WORKFLOW_DIR / "ci.yml").read_text()
 
     assert "\n  package:\n" in ci
-    assert "python scripts/sync_release_metadata.py --check" in ci
-    assert "python -m pip install -r requirements-release.txt" in ci
-    assert "python scripts/build_release.py --verify-reproducible" in ci
+    assert "uv run --locked python scripts/sync_release_metadata.py --check" in ci
+    assert (
+        "uv run --locked --with-requirements requirements-release.txt "
+        "python scripts/build_release.py --verify-reproducible"
+    ) in ci
+    assert "python -m build --no-isolation" not in ci
     assert "python -m twine check dist/*" in ci
-    assert "python -m venv .pkg-smoke" in ci
-    assert ".pkg-smoke/bin/python -m pip install dist/*.whl" in ci
+    assert "uv venv .pkg-smoke" in ci
+    assert "uv pip install --python .pkg-smoke/bin/python dist/*.whl" in ci
     assert ".pkg-smoke/bin/docpull --version" in ci
 
 
-def test_publish_workflow_builds_artifact_before_unlocked_release_gates() -> None:
+def test_publish_workflow_builds_artifact_before_locked_release_gates() -> None:
     publish = (WORKFLOW_DIR / "publish.yml").read_text()
     build_section, gate_and_publish = publish.split("\n  release-gates:\n", 1)
     gate_section, publish_section = gate_and_publish.split("\n  publish:\n", 1)
 
-    assert "python scripts/build_release.py --verify-reproducible" in build_section
+    assert (
+        "uv run --locked --with-requirements requirements-release.txt "
+        "python scripts/build_release.py --verify-reproducible"
+    ) in build_section
+    assert "python -m build --no-isolation" not in build_section
     assert "actions/upload-artifact" in build_section
     assert "if-no-files-found: error" in build_section
     assert "retention-days: 7" in build_section
     assert 'pip install --no-build-isolation -e ".[all,dev]"' not in build_section
 
-    assert 'pip install --no-build-isolation -e ".[all,dev]"' in gate_section
-    assert "python scripts/sync_release_metadata.py --check" in publish
+    assert "uv sync --locked --all-extras" in gate_section
+    assert "uv run --locked python scripts/sync_release_metadata.py --check" in publish
     assert "actions/download-artifact" in gate_section
-    assert "python -m venv .release-smoke" in publish
-    assert ".release-smoke/bin/python -m pip install dist/*.whl" in publish
+    assert "uv venv .release-smoke" in publish
+    assert "uv pip install --python .release-smoke/bin/python dist/*.whl" in publish
     assert ".release-smoke/bin/docpull --version" in publish
     assert "needs: [build, release-gates]" in publish_section
 
@@ -177,13 +211,16 @@ def test_security_and_publish_bandit_scan_scripts() -> None:
     assert "python -m bandit -q -c pyproject.toml -r src scripts" in publish
 
 
-def test_security_workflow_uses_patched_release_backend() -> None:
+def test_security_workflow_uses_locked_dependencies_and_checks_web() -> None:
     security = (WORKFLOW_DIR / "security.yml").read_text()
     release_requirements = (REPO_ROOT / "requirements-release.txt").read_text()
 
-    assert "setuptools==83.0.0" in security
+    assert "uv sync --locked --extra dev" in security
     assert "setuptools==83.0.0" in release_requirements
-    assert "working-directory: web" not in security
+    assert "working-directory: web" in security
+    assert "Audit web dependencies" in security
+    assert "Lint web app" in security
+    assert "Build web app" in security
 
 
 def test_workflows_use_module_entrypoints_for_python_tooling() -> None:

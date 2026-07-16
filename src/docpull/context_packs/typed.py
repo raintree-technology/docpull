@@ -13,17 +13,20 @@ from dataclasses import dataclass, field
 from datetime import timedelta
 from pathlib import Path
 from typing import Any, Literal
+from urllib.parse import urlparse
 
+from ..accounting import RunAccounting, default_route_steps, write_run_accounting
 from ..conversion.chunking import TokenCounter, chunk_markdown
 from ..http.client import AsyncHttpClient
 from ..http.rate_limiter import PerHostRateLimiter
 from ..models.document import DocumentRecord
 from ..output_contract import default_rights_state, validate_pack_contract
 from ..pipeline.manifest import CorpusManifest
+from ..policy import PolicyConfig
 from ..security.robots import RobotsChecker
 from ..security.url_validator import UrlValidator
 from ..time_utils import parse_persisted_datetime, utc_now, utc_now_iso
-from .common import artifact_ref, write_json
+from .common import ContextPackRun, _write_workflow_contract_files, artifact_ref, write_json
 
 PrepareLevel = Literal["raw", "agent", "eval"]
 OfficialSourceContract = Literal["arxiv_api", "crossref_api", "ncbi_eutils", "mediawiki_rest"]
@@ -303,6 +306,20 @@ def write_typed_pack(
 
     output_dir = output_dir.resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
+    allowed_domains = sorted(
+        {
+            str(urlparse(item.url).hostname or "").lower().removeprefix("www.")
+            for item in items
+            if urlparse(item.url).scheme == "https" and urlparse(item.url).hostname
+        }
+    )
+    policy = PolicyConfig(allowed_domains=allowed_domains)
+    run = ContextPackRun(
+        workflow=workflow,
+        output_dir=output_dir,
+        policy=policy,
+        input_value=items[0].url,
+    )
     sources_dir = output_dir / "sources"
     sources_dir.mkdir(parents=True, exist_ok=True)
 
@@ -408,6 +425,11 @@ def write_typed_pack(
         "index": artifact_ref(output_dir, index_path),
         "items": artifact_ref(output_dir, items_path),
         "markdown": artifact_ref(output_dir, summary_path),
+        "source_policy": "source_policy.json",
+        "accounting": "run.accounting.json",
+        "workflow_request": "workflow.request.json",
+        "workflow_result": "workflow.result.json",
+        "artifact_manifest": "artifact.manifest.json",
     }
     if extra_artifacts:
         artifacts.update({key: artifact_ref(output_dir, value) for key, value in extra_artifacts.items()})
@@ -417,6 +439,7 @@ def write_typed_pack(
         "generated_at": utc_now_iso(),
         "workflow": workflow,
         "status": "completed",
+        "input": {"sources": [item.url for item in items]},
         "output_dir": str(output_dir),
         "objective": objective or f"Review {workflow} context records",
         "summary": {
@@ -426,6 +449,12 @@ def write_typed_pack(
             **result_summary,
         },
         "artifacts": artifacts,
+        "warnings": [],
+        "errors": [],
+        "replay_config": {
+            "chunk_tokens": chunk_tokens,
+            "prepare_level": prepare_level,
+        },
         "validation": validate_pack_contract(output_dir, level="raw"),
     }
     pack_path = output_dir / pack_filename
@@ -442,6 +471,30 @@ def write_typed_pack(
     elif result["validation"]["status"] != "pass":
         result["status"] = "completed_with_validation_errors"
     write_json(pack_path, result)
+    source_policy = policy.to_source_policy_payload(
+        source=workflow,
+        url=items[0].url,
+        metadata={"workflow": workflow, "source_count": len(items)},
+    )
+    write_json(output_dir / artifacts["source_policy"], source_policy)
+    accounting = RunAccounting(
+        budget_limit_usd=policy.budget.maximum_paid_cost_usd,
+        estimated_paid_cost_usd=0.0,
+        http_request_count=sum(urlparse(item.url).scheme == "https" for item in items),
+        route_steps=default_route_steps(),
+        command=workflow,
+    )
+    accounting_payload = accounting.to_dict()
+    write_run_accounting(output_dir, accounting)
+    run.progress("artifacts", "completed", message="Wrote workflow artifacts")
+    run.progress("run", "completed", message=f"Completed {workflow}")
+    _write_workflow_contract_files(
+        run=run,
+        result_payload=result,
+        source_policy=source_policy,
+        artifacts=artifacts,
+        accounting_payload=accounting_payload,
+    )
     return result
 
 

@@ -102,6 +102,7 @@ class MetadataStep:
 
         try:
             soup = BeautifulSoup(ctx.html, "html.parser")
+            ctx.parsed_html = soup
 
             ctx.title = self._extract_title(soup)
             description = self._extract_description(soup)
@@ -113,8 +114,7 @@ class MetadataStep:
                 ctx.metadata["description"] = description
 
             if self._extract_rich and self._rich_extractor:
-                html_str = ctx.html.decode("utf-8", errors="replace")
-                rich_meta = self._rich_extractor.extract(html_str, ctx.url)
+                rich_meta = self._rich_extractor.extract(ctx.html, ctx.url)
                 ctx.metadata.update(self._rich_extractor.merge_with_fallback(rich_meta, ctx.title))
                 if not ctx.title and ctx.metadata.get("title"):
                     ctx.title = ctx.metadata["title"]

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title id="title">DocPull monochrome white mark</title>
+  <path
+    fill="#fff"
+    fill-rule="evenodd"
+    d="M4 4h40l16 16v24L44 60H4V4Zm16 16v24h18l6-6V26l-6-6H20Z"
+  />
+  <path fill="#fff" d="M22 32h10v10H22z" />
+</svg>

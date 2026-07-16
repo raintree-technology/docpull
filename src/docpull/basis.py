@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 from typing import Any, Literal
 
-from .pack_reader import PackReadError, load_pack
+from .pack_reader import LocalPack, PackReadError, load_pack
 from .time_utils import utc_now_iso
 
 BasisConfidence = Literal["high", "medium", "low"]
@@ -249,22 +249,26 @@ def build_pack_basis(
     claim: str,
     limit: int = 5,
     producer: str = "docpull.pack.basis",
+    _pack: LocalPack | None = None,
 ) -> list[dict[str, Any]]:
     """Build basis records for a claim from local pack search results."""
 
-    try:
-        pack = load_pack(pack_dir)
-    except PackReadError as err:
-        return [
-            basis_record(
-                claim_path=claim_path,
-                claim=claim,
-                confidence="low",
-                evidence_state="insufficient",
-                warnings=[str(err)],
-                producer=producer,
-            )
-        ]
+    if _pack is None:
+        try:
+            pack = load_pack(pack_dir)
+        except PackReadError as err:
+            return [
+                basis_record(
+                    claim_path=claim_path,
+                    claim=claim,
+                    confidence="low",
+                    evidence_state="insufficient",
+                    warnings=[str(err)],
+                    producer=producer,
+                )
+            ]
+    else:
+        pack = _pack
     if not pack.documents:
         return [
             basis_record(

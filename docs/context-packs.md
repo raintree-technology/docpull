@@ -68,7 +68,7 @@ exported, or checked in Context CI.
 | `repo-pack` | public GitHub URL or `owner/repo[@ref]` | repo metadata, selected docs/manifests, releases |
 | `package-pack` | `npm:<name>` or `pypi:<name>` | registry metadata, README/description, versions, dependencies |
 | `standards-pack` | `rfc:<n>`, `ietf:<draft>`, `w3c:<shortname>`, `whatwg:<url>` | standard metadata, section-level records, references |
-| `dataset-pack` | local CSV, TSV, JSON, NDJSON, SQLite, optional Parquet | schema, exact streamable row counts, and bounded data dictionary records |
+| `dataset-pack` | local CSV, TSV, JSON, NDJSON, SQLite, optional Parquet; HTTPS JSON/CSV | schema, exact streamable row counts, bounded data dictionary records, and remote snapshot provenance |
 | `transcript-pack` | local VTT, SRT, text, JSON, or direct transcript URL | timestamped transcript segment records |
 | `wiki-pack` | `wiki:<title>`, `wikipedia:<title>`, or Wikimedia/MediaWiki page URLs | page metadata, license/revision metadata, lead and section-level records from the MediaWiki REST API |
 
@@ -78,7 +78,7 @@ matching `async_build_*_pack` helpers when already inside an event loop.
 
 ## Evidence Workflow Protocol
 
-Brand, product, styleguide, visual/image, screenshot, and policy lanes implement
+Brand, product, styleguide, visual/image, screenshot, policy, relationship, and dataset lanes implement
 the common workflow protocol. Their existing result JSON and Markdown remain,
 and every run additionally writes:
 

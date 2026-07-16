@@ -28,6 +28,9 @@ from docpull.surface import (
 )
 
 ROOT = Path(__file__).resolve().parents[1]
+LEGACY_BROWSER_RUNNER = "playwright"
+LEGACY_BROWSER_RENDERER = "Playwright"
+LEGACY_BROWSER_AVAILABILITY_CHECK = "check_" + LEGACY_BROWSER_RUNNER + "_availability"
 
 PRIMARY_DOC_PATHS = [
     "README.md",
@@ -43,22 +46,19 @@ PRIMARY_DOC_PATHS = [
 PRIMARY_WEB_PATHS = [
     "web/app/page.tsx",
     "web/app/layout.tsx",
-    "web/components/CodeExamples.tsx",
-    "web/components/Comparison.tsx",
-    "web/components/Features.tsx",
-    "web/components/Install.tsx",
-    "web/components/StructuredData.tsx",
-    "web/components/faq-content.tsx",
-    "web/components/docs/DocsArticle.tsx",
-    "web/components/docs/docs-data.ts",
+    "web/app/pricing/page.tsx",
+    "web/app/privacy/page.tsx",
+    "web/app/terms/page.tsx",
+    "web/app/llms.txt/route.ts",
+    "web/components/SiteChrome.tsx",
 ]
 
 
 def test_documented_sdk_exports_remain_public() -> None:
     assert tuple(docpull.__all__) == PUBLIC_SDK_EXPORTS
     assert set(docpull.__all__).isdisjoint(PRUNED_SDK_EXPORTS)
-    assert "PlaywrightRenderer" not in docpull.__all__
-    assert "check_playwright_availability" not in docpull.__all__
+    assert f"{LEGACY_BROWSER_RENDERER}Renderer" not in docpull.__all__
+    assert LEGACY_BROWSER_AVAILABILITY_CHECK not in docpull.__all__
 
 
 def test_context_pack_package_exports_match_public_lanes() -> None:
@@ -82,7 +82,7 @@ def test_pruned_package_extras_remain_private() -> None:
     for extra in PRUNED_PACKAGE_EXTRAS:
         assert f"{extra} = [" not in pyproject
 
-    assert "playwright" not in pyproject
+    assert LEGACY_BROWSER_RUNNER not in pyproject
     assert "parallel-web" not in pyproject
     assert "raindrop-ai" not in pyproject
 
@@ -109,8 +109,8 @@ def test_documented_cli_workflows_remain_dispatched() -> None:
         assert f'raw_argv[0] == "{workflow}"' not in cli_source
         assert workflow not in help_commands
 
-    assert "playwright" not in cli_source
-    assert "Playwright" not in cli_source
+    assert LEGACY_BROWSER_RUNNER not in cli_source
+    assert LEGACY_BROWSER_RENDERER not in cli_source
 
     args = create_parser().parse_args(["https://example.com"])
     assert args.url == "https://example.com"
@@ -163,10 +163,10 @@ def test_primary_docs_do_not_publish_pruned_surface() -> None:
 
     for relative_path in PRIMARY_DOC_PATHS:
         text = (ROOT / relative_path).read_text(encoding="utf-8")
-        assert "docpull[playwright]" not in text
+        assert f"docpull[{LEGACY_BROWSER_RUNNER}]" not in text
         assert "docpull[all]" not in text
-        assert "--runtime playwright" not in text
-        assert "--render-runtime playwright" not in text
+        assert f"--runtime {LEGACY_BROWSER_RUNNER}" not in text
+        assert f"--render-runtime {LEGACY_BROWSER_RUNNER}" not in text
         assert not pruned_command_re.search(text), relative_path
 
     readme = (ROOT / "README.md").read_text(encoding="utf-8")

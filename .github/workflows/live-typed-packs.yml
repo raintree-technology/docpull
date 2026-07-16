@@ -12,6 +12,10 @@ concurrency:
   group: live-typed-packs
   cancel-in-progress: false
 
+env:
+  MISE_LOCKED: "1"
+  UV_VERSION: "0.11.6"
+
 jobs:
   live-typed-packs:
     runs-on: ubuntu-24.04
@@ -22,17 +26,16 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Set up Python
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+      - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db
         with:
-          python-version: "3.11"
-          cache: pip
-          cache-dependency-path: pyproject.toml
+          version: 2026.7.1
+          install: true
+          cache: true
+      - name: Install uv
+        run: python -m pip install "uv==$UV_VERSION"
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+      - name: Sync dependencies
+        run: uv sync --locked --extra dev
 
       - name: Run free live typed-pack smokes
         env:
@@ -40,7 +43,7 @@ jobs:
         run: |
           set +e
           mkdir -p live-reports
-          python -m pytest tests/test_typed_knowledge_packs.py::test_live_typed_pack_smokes -q \
+          uv run --locked python -m pytest tests/test_typed_knowledge_packs.py::test_live_typed_pack_smokes -q \
             | tee live-reports/live-typed-packs.log
           status=${PIPESTATUS[0]}
           python - "$status" <<'PY'

@@ -44,19 +44,30 @@ class FunctionPackWorkflow:
 
 def create_workflow_request(
     workflow: str,
-    value: str,
+    value: str | None = None,
     *,
     output_dir: Path,
+    input_payload: dict[str, Any] | None = None,
     options: dict[str, Any] | None = None,
     policy: PolicyConfig | None = None,
 ) -> WorkflowRequest:
+    if input_payload is not None and value is not None:
+        raise WorkflowExecutionError("Pass either value or input_payload, not both")
+    if input_payload is None:
+        if not isinstance(value, str) or not value.strip():
+            raise WorkflowExecutionError("A non-empty value or input_payload is required")
+        effective_input = {"value": value.strip()}
+    elif not input_payload:
+        raise WorkflowExecutionError("input_payload must not be empty")
+    else:
+        effective_input = dict(input_payload)
     effective_policy = policy or PolicyConfig()
     merged_options = dict(options or {})
     if policy is not None:
         merged_options["policy"] = policy.model_dump(mode="json")
     return build_workflow_request(
         workflow=_normalize_workflow(workflow),
-        input_payload={"value": value},
+        input_payload=effective_input,
         output_dir=output_dir,
         options=merged_options,
         source_policy=effective_policy.to_source_policy_payload(source=workflow),
@@ -186,6 +197,54 @@ def _run_policy(request: WorkflowRequest) -> dict[str, Any]:
     )
 
 
+def _run_dataset(request: WorkflowRequest) -> dict[str, Any]:
+    from .context_packs.dataset import build_dataset_pack
+
+    options = request.options
+    prepare_level = str(options.get("prepare_level") or "raw")
+    if prepare_level not in {"raw", "agent", "eval"}:
+        raise WorkflowExecutionError("WorkflowRequest.options.prepare_level must be raw, agent, or eval")
+    sources: list[str | Path] = []
+    sources.extend(_request_values(request))
+    return build_dataset_pack(
+        sources,
+        output_dir=_request_output_dir(request),
+        max_items=_positive_int(options, "max_items", 50),
+        chunk_tokens=_positive_int(options, "chunk_tokens", 4000),
+        prepare_level=prepare_level,  # type: ignore[arg-type]
+    )
+
+
+def _run_relationship(request: WorkflowRequest) -> dict[str, Any]:
+    from .context_packs.relationship import build_relationship_pack
+
+    raw_sources = request.input.get("sources")
+    if raw_sources is None:
+        sources: list[str | dict[str, Any]] = [_request_value(request)]
+    elif isinstance(raw_sources, list) and all(isinstance(item, (str, dict)) for item in raw_sources):
+        sources = list(raw_sources)
+    else:
+        raise WorkflowExecutionError("WorkflowRequest.input.sources must be a list of strings or objects")
+    return build_relationship_pack(
+        sources,
+        output_dir=_request_output_dir(request),
+        policy=_request_policy(request),
+        max_pages_per_source=_positive_int(request.options, "max_pages_per_source", 4),
+    )
+
+
+def _run_fetch(request: WorkflowRequest) -> dict[str, Any]:
+    from .acquisition_workflows import execute_acquisition_workflow
+
+    return execute_acquisition_workflow(request, crawl=False)
+
+
+def _run_crawl(request: WorkflowRequest) -> dict[str, Any]:
+    from .acquisition_workflows import execute_acquisition_workflow
+
+    return execute_acquisition_workflow(request, crawl=True)
+
+
 WORKFLOW_REGISTRY: dict[str, PackWorkflow] = {
     "brand-pack": FunctionPackWorkflow("brand-pack", _run_brand),
     "product-pack": FunctionPackWorkflow("product-pack", _run_product),
@@ -194,6 +253,10 @@ WORKFLOW_REGISTRY: dict[str, PackWorkflow] = {
     "image-pack": FunctionPackWorkflow("image-pack", _run_visual),
     "screenshot-pack": FunctionPackWorkflow("screenshot-pack", _run_screenshot),
     "policy-pack": FunctionPackWorkflow("policy-pack", _run_policy),
+    "dataset-pack": FunctionPackWorkflow("dataset-pack", _run_dataset),
+    "relationship-pack": FunctionPackWorkflow("relationship-pack", _run_relationship),
+    "fetch": FunctionPackWorkflow("fetch", _run_fetch),
+    "crawl": FunctionPackWorkflow("crawl", _run_crawl),
 }
 
 
@@ -207,6 +270,8 @@ def _normalize_workflow(value: str) -> str:
         "image": "image-pack",
         "screenshot": "screenshot-pack",
         "policy": "policy-pack",
+        "dataset": "dataset-pack",
+        "relationship": "relationship-pack",
     }
     return aliases.get(normalized, normalized)
 
@@ -217,6 +282,13 @@ def _request_value(request: WorkflowRequest) -> str:
         if isinstance(value, str) and value.strip():
             return value.strip()
     raise WorkflowExecutionError("WorkflowRequest.input must include a non-empty value or URL")
+
+
+def _request_values(request: WorkflowRequest) -> list[str]:
+    values = request.input.get("sources")
+    if isinstance(values, list) and all(isinstance(item, str) and item.strip() for item in values):
+        return [item.strip() for item in values]
+    return [_request_value(request)]
 
 
 def _request_output_dir(request: WorkflowRequest) -> Path:

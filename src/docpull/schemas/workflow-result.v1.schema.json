@@ -119,10 +119,37 @@
     "WorkflowFailure": {
       "additionalProperties": true,
       "properties": {
+        "attempts": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Attempts"
+        },
         "code": {
           "default": "workflow_error",
           "title": "Code",
           "type": "string"
+        },
+        "http_status": {
+          "anyOf": [
+            {
+              "maximum": 599,
+              "minimum": 100,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Http Status"
         },
         "message": {
           "title": "Message",
@@ -132,6 +159,19 @@
           "additionalProperties": true,
           "title": "Metadata",
           "type": "object"
+        },
+        "retry_after_seconds": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Retry After Seconds"
         },
         "retryable": {
           "default": false,
@@ -149,6 +189,11 @@
           ],
           "default": null,
           "title": "Source Url"
+        },
+        "stage": {
+          "default": "workflow",
+          "title": "Stage",
+          "type": "string"
         }
       },
       "required": [

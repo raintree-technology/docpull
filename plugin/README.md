@@ -1,3 +1,11 @@
+<p align="center">
+  <img
+    src="https://raw.githubusercontent.com/raintree-technology/docpull/main/docs/launch-assets/logo-square-light-400.png"
+    alt="DocPull"
+    width="112"
+  />
+</p>
+
 # docpull plugin
 
 Pull static and server-rendered public web sources into Codex or Claude Code. Local, fast, no API keys.
@@ -9,9 +17,9 @@ for the boundary between the plugin's MCP tools and the broader CLI/SDK.
 ## What you get
 
 <!-- docpull:mcp-tools:start -->
-- **MCP server** (34 tools):
+- **MCP server** (35 tools):
   - Read: `fetch_url`, `list_sources`, `list_indexed`, `grep_docs`, `read_doc`, `pack_score`, `pack_diff`, `pack_citations`, `pack_entities`, `pack_search`, `pack_brief`, `graph_status`, `graph_query`, `graph_neighbors`, `validate_policy`, `serve_pack_status`
-  - Write: `render_url`, `ensure_docs`, `workflow_run`, `brand_pack`, `product_pack`, `styleguide_pack`, `image_pack`, `screenshot_pack`, `policy_pack`, `intelligence_bundle`, `refresh_pack`, `audit_pack`, `pack_prepare`, `graph_build`, `graph_refresh`, `export_pack`, `add_source`, `remove_source`
+  - Write: `render_url`, `ensure_docs`, `workflow_run`, `brand_pack`, `product_pack`, `styleguide_pack`, `image_pack`, `screenshot_pack`, `policy_pack`, `relationship_pack`, `intelligence_bundle`, `refresh_pack`, `audit_pack`, `pack_prepare`, `graph_build`, `graph_refresh`, `export_pack`, `add_source`, `remove_source`
   - All read tools advertise `readOnlyHint` so hosts that auto-approve safe tools won't prompt for them.
 <!-- docpull:mcp-tools:end -->
 - **Claude Code slash commands**:
@@ -31,7 +39,7 @@ MCP server is available:
 ```bash
 pip install 'docpull[mcp]'          # or: pipx install 'docpull[mcp]'
                                     #     uv tool install 'docpull[mcp]'
-docpull --version                   # should print 6.2.0 or newer
+docpull --version                   # should print 6.3.0 or newer
 docpull mcp --help                  # confirm the MCP subcommand is wired
 ```
 

@@ -20,7 +20,6 @@ from ..contracts import (
     BudgetUsage,
     HashDigest,
     ReplayConfiguration,
-    WorkflowFailure,
     WorkflowProgressEvent,
     WorkflowResult,
     WorkflowWarning,
@@ -30,6 +29,7 @@ from ..contracts import (
     file_sha256,
     new_progress_event,
     stable_id,
+    workflow_failure_from_mapping,
 )
 from ..core.fetcher import Fetcher
 from ..evidence import classify_source_authority, document_identity, evidence_span_payload
@@ -37,6 +37,7 @@ from ..http.client import AsyncHttpClient
 from ..http.rate_limiter import PerHostRateLimiter
 from ..models.config import DocpullConfig, ProfileName
 from ..models.document import DocumentRecord
+from ..models.events import SkipReason
 from ..models.run import RunIdentity
 from ..output_contract import OUTPUT_CONTRACT_SCHEMA_VERSION, write_raw_contract_sidecars
 from ..pack_tools import build_citation_map
@@ -449,12 +450,48 @@ async def fetch_pages(
             ctx = await fetcher.fetch_one(url, save=False)
             run.http_request_count += 1
             if ctx.error:
-                run.errors.append({"url": url, "error": ctx.error})
+                run.errors.append(
+                    {
+                        "url": url,
+                        "error": ctx.error,
+                        "stage": "fetch",
+                        "http_status": ctx.status_code,
+                        "attempts": ctx.http_attempts or (config.network.max_retries + 1),
+                        "retry_after_seconds": ctx.retry_after_seconds,
+                    }
+                )
                 continue
             if ctx.should_skip:
-                run.warnings.append(
-                    {"code": "page_skipped", "message": str(ctx.skip_reason or "skipped"), "url": url}
-                )
+                if ctx.skip_code in {
+                    SkipReason.HTTP_ERROR,
+                    SkipReason.ROBOTS_DISALLOWED,
+                    SkipReason.URL_VALIDATION_FAILED,
+                }:
+                    run.errors.append(
+                        {
+                            "url": url,
+                            "error": str(ctx.skip_reason or "Page acquisition blocked"),
+                            "code": (
+                                f"http_{ctx.status_code}"
+                                if ctx.status_code
+                                else str(ctx.skip_code.value if ctx.skip_code else "page_blocked")
+                            ),
+                            "stage": "fetch",
+                            "http_status": ctx.status_code,
+                            "attempts": ctx.http_attempts or (config.network.max_retries + 1),
+                            "retry_after_seconds": ctx.retry_after_seconds,
+                            "blocked": ctx.skip_code
+                            in {SkipReason.ROBOTS_DISALLOWED, SkipReason.URL_VALIDATION_FAILED},
+                        }
+                    )
+                else:
+                    run.warnings.append(
+                        {
+                            "code": "page_skipped",
+                            "message": str(ctx.skip_reason or "skipped"),
+                            "url": url,
+                        }
+                    )
                 continue
             html = (ctx.html or b"").decode("utf-8", errors="replace")
             snapshots.append(
@@ -1015,16 +1052,7 @@ def _write_workflow_contract_files(
         )
         for item in run.warnings
     ]
-    failure_models = [
-        WorkflowFailure(
-            message=str(item.get("error") or item.get("message") or "Acquisition failure"),
-            source_url=str(item.get("url")) if item.get("url") else None,
-            metadata={
-                str(key): value for key, value in item.items() if key not in {"error", "message", "url"}
-            },
-        )
-        for item in run.errors
-    ]
+    failure_models = [workflow_failure_from_mapping(item, default_stage="fetch") for item in run.errors]
     status: Literal["completed", "completed_with_warnings", "failed", "cancelled"]
     if failure_models and not result_payload.get("summary"):
         status = "failed"

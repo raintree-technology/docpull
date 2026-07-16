@@ -24,9 +24,8 @@ from typing import Any, Literal
 import regex
 import yaml
 
-from ..core.fetcher import Fetcher
 from ..models.config import ContentFilterConfig, CrawlConfig, DocpullConfig, OutputConfig, ProfileName
-from ..models.run import MCP_META_SCHEMA_VERSION
+from ..models.schema import MCP_META_SCHEMA_VERSION
 from ..security.url_validator import UrlValidator
 from ..time_utils import utc_now_iso
 from .sources import (
@@ -49,6 +48,24 @@ GREP_LINE_TIMEOUT_SECONDS = 0.05
 MAX_READ_DOC_BYTES = 1_000_000
 
 _FETCH_URL_VALIDATOR = UrlValidator(allowed_schemes={"https"})
+
+
+def __getattr__(name: str) -> Any:
+    """Preserve the historical patchable Fetcher attribute without eager imports."""
+    if name == "Fetcher":
+        from ..core.fetcher import Fetcher
+
+        return Fetcher
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def _fetcher_class() -> Any:
+    override = globals().get("Fetcher")
+    if override is not None:
+        return override
+    from ..core.fetcher import Fetcher
+
+    return Fetcher
 
 
 @dataclass
@@ -269,7 +286,7 @@ async def ensure_docs(
     fetched = 0
     crashed = False
     try:
-        async with Fetcher(config) as fetcher:
+        async with _fetcher_class()(config) as fetcher:
             async for event in fetcher.run():
                 if event.type.value == "fetch_completed":
                     fetched += 1
@@ -345,7 +362,7 @@ async def fetch_url(
             remote_document_memory_mib=remote_document_memory_mib,
         ),
     )
-    async with Fetcher(config) as fetcher:
+    async with _fetcher_class()(config) as fetcher:
         ctx = await fetcher.fetch_one(url, save=False)
 
     if ctx.error:

@@ -190,6 +190,108 @@
       "title": "Observation",
       "type": "object"
     },
+    "RelationshipCandidate": {
+      "additionalProperties": true,
+      "properties": {
+        "candidate_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Candidate Id"
+        },
+        "confidence": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/EvidenceSpan"
+          },
+          "minItems": 1,
+          "title": "Evidence",
+          "type": "array"
+        },
+        "object": {
+          "$ref": "#/$defs/RelationshipEntity"
+        },
+        "predicate": {
+          "enum": [
+            "owned_by",
+            "operated_by",
+            "acquired_by",
+            "franchised_by",
+            "invested_in"
+          ],
+          "title": "Predicate",
+          "type": "string"
+        },
+        "status": {
+          "const": "observation",
+          "default": "observation",
+          "title": "Status",
+          "type": "string"
+        },
+        "subject": {
+          "$ref": "#/$defs/RelationshipEntity"
+        },
+        "type": {
+          "const": "relationship_candidate",
+          "default": "relationship_candidate",
+          "title": "Type",
+          "type": "string"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Warnings",
+          "type": "array"
+        }
+      },
+      "required": [
+        "subject",
+        "predicate",
+        "object",
+        "confidence",
+        "evidence"
+      ],
+      "title": "RelationshipCandidate",
+      "type": "object"
+    },
+    "RelationshipEntity": {
+      "additionalProperties": true,
+      "properties": {
+        "location_scope": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Location Scope"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "RelationshipEntity",
+      "type": "object"
+    },
     "SourceAuthority": {
       "additionalProperties": true,
       "properties": {
@@ -200,10 +302,15 @@
         "role": {
           "enum": [
             "official_product",
+            "official_corporate",
             "legal",
             "documentation",
             "social",
             "marketplace",
+            "government_registry",
+            "regulatory_filing",
+            "press_release",
+            "local_reporting",
             "third_party"
           ],
           "title": "Role",
@@ -270,6 +377,18 @@
           "default": null,
           "title": "Document Version"
         },
+        "entity_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Entity Id"
+        },
         "fetched_at": {
           "anyOf": [
             {
@@ -281,6 +400,13 @@
           ],
           "default": null,
           "title": "Fetched At"
+        },
+        "official_domains": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Official Domains",
+          "type": "array"
         },
         "source_id": {
           "title": "Source Id",
@@ -380,6 +506,13 @@
       "additionalProperties": true,
       "title": "Pack Identity",
       "type": "object"
+    },
+    "relationship_candidates": {
+      "items": {
+        "$ref": "#/$defs/RelationshipCandidate"
+      },
+      "title": "Relationship Candidates",
+      "type": "array"
     },
     "run_identity": {
       "additionalProperties": true,

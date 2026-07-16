@@ -53,6 +53,8 @@ class PageContext:
 
     # Additional data from fetch
     status_code: int | None = None
+    http_attempts: int | None = None
+    retry_after_seconds: float | None = None
     content_type: str | None = None
     bytes_downloaded: int = 0
     persisted_path: Path | None = None
@@ -64,6 +66,10 @@ class PageContext:
     # Framework detection and LLM-oriented output
     source_type: str | None = None
     chunks: list[object] = field(default_factory=list)
+
+    # Internal parse cache shared by adjacent HTML pipeline steps. Kept out
+    # of repr/serialization and released by ConvertStep after use.
+    parsed_html: object | None = field(default=None, repr=False)
 
     def mark_skipped(self, reason: str, code: SkipReason | None = None) -> None:
         self.should_skip = True

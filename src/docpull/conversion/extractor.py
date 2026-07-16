@@ -231,9 +231,13 @@ class MainContentExtractor:
 
     def _remove_unwanted(self, element: Tag) -> None:
         """Remove navigation, ads, and other unwanted elements."""
-        for selector in self._remove_selectors:
-            for el in element.select(selector):
-                el.decompose()
+        # One selector traversal is substantially cheaper than walking the
+        # same document once for every chrome selector. Descendants are
+        # removed first so a selected child is never decomposed after its
+        # selected parent has already discarded it.
+        selector = ",".join(self._remove_selectors)
+        for el in reversed(element.select(selector)):
+            el.decompose()
 
     def _remove_placeholder_nodes(self, element: Tag) -> None:
         """Remove loading-only skeleton nodes left by streamed app shells."""
@@ -294,7 +298,15 @@ class MainContentExtractor:
         Returns:
             Cleaned HTML content as string
         """
-        soup = self._parse_html(html)
+        return self.extract_parsed(self._parse_html(html), url)
+
+    def extract_parsed(self, soup: BeautifulSoup, url: str) -> str:
+        """Extract content from an already parsed HTML document.
+
+        Metadata extraction immediately precedes conversion in the standard
+        pipeline. Accepting its parse avoids building the same full DOM twice
+        while the standalone :meth:`extract` API keeps its existing behavior.
+        """
 
         main_content = self._find_main_content(soup)
         if main_content is None:

@@ -1,5 +1,8 @@
 name: Update metrics
 
+env:
+  MISE_LOCKED: "1"
+
 # Refreshes METRICS.md and the README downloads chart from PyPI + GitHub APIs.
 #
 # Signals:
@@ -48,29 +51,41 @@ jobs:
       github.event_name == 'schedule' ||
       github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
           persist-credentials: false
           ref: ${{ github.event.repository.default_branch }}
 
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+      - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db
         with:
-          python-version: "3.11"
-
+          version: 2026.7.1
+          install: true
+          cache: true
       - name: Refresh metrics artifacts
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           METRICS_TOKEN: ${{ secrets.METRICS_TOKEN }}
         run: |
-          if [ -n "${METRICS_TOKEN:-}" ] && GH_TOKEN="$METRICS_TOKEN" gh api "repos/${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
-            export GH_TOKEN="$METRICS_TOKEN"
-          else
-            if [ -n "${METRICS_TOKEN:-}" ]; then
+          metrics_token="${METRICS_TOKEN:-}"
+          use_metrics_token=false
+          if [ -n "$metrics_token" ]; then
+            printf -v GH_TOKEN '%s' "$metrics_token"
+            export GH_TOKEN
+            if gh api "repos/${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+              use_metrics_token=true
+            fi
+          fi
+
+          if [ "$use_metrics_token" != true ]; then
+            if [ -n "$metrics_token" ]; then
               echo "::warning::METRICS_TOKEN is present but failed GitHub API validation; falling back to GITHUB_TOKEN."
             fi
-            export GH_TOKEN="$GITHUB_TOKEN"
+            printf -v GH_TOKEN '%s' "$GITHUB_TOKEN"
+            export GH_TOKEN
           fi
+          unset metrics_token use_metrics_token
           python .github/scripts/update_metrics.py
 
       - name: Check generated metrics freshness

@@ -7,17 +7,17 @@ import asyncio
 import re
 from collections import Counter
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from rich.console import Console
 from rich.markup import escape
 
-from .core.fetcher import Fetcher
 from .models.config import DocpullConfig, ProfileName
 from .models.document import DocumentRecord
 from .models.run import RunIdentity
 from .pack_tools import (
     PackToolError,
+    _analyze_pack,
     _artifact_ref,
     _brief_markdown,
     _clean_passage,
@@ -42,10 +42,31 @@ from .pack_tools import (
 from .source_scoring import score_source_entries
 from .time_utils import utc_now_iso
 
+if TYPE_CHECKING:
+    from .pack_tools import _PackAnalysis
+
 REFRESH_SCHEMA_VERSION = 1
 AUDIT_SCHEMA_VERSION = 1
 ANSWER_SCHEMA_VERSION = 1
 LOCAL_PACK_SCHEMA_VERSION = 1
+
+
+def __getattr__(name: str) -> Any:
+    """Preserve the historical patchable Fetcher attribute without eager imports."""
+    if name == "Fetcher":
+        from .core.fetcher import Fetcher
+
+        return Fetcher
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def _fetcher_class() -> Any:
+    override = globals().get("Fetcher")
+    if override is not None:
+        return override
+    from .core.fetcher import Fetcher
+
+    return Fetcher
 
 
 class LocalWorkflowError(RuntimeError):
@@ -252,7 +273,7 @@ async def _fetch_urls_to_pack(
     skips: list[dict[str, Any]] = []
     run_identity = RunIdentity.from_config(DocpullConfig(url=urls[0], profile=ProfileName.CUSTOM))
 
-    async with Fetcher(DocpullConfig(url=urls[0], profile=ProfileName.CUSTOM)) as fetcher:
+    async with _fetcher_class()(DocpullConfig(url=urls[0], profile=ProfileName.CUSTOM)) as fetcher:
         for index, url in enumerate(urls, start=1):
             ctx = await fetcher.fetch_one(url, save=False)
             if ctx.error:
@@ -354,12 +375,22 @@ def audit_pack(
     fail_under: float | None = None,
     markdown_path: Path | None = None,
     json_path: Path | None = None,
+    _analysis: _PackAnalysis | None = None,
 ) -> dict[str, Any]:
     """Write an actionable local pack quality audit."""
-    pack_dir = pack_dir.resolve()
-    records = _read_pack_records(pack_dir)
-    score_payload = score_pack(pack_dir, required_domains=required_domains)
-    citation_payload = build_citation_map(pack_dir, required_domains=required_domains)
+    analysis = _analysis or _analyze_pack(pack_dir, required_domains)
+    pack_dir = analysis.pack_dir
+    records = analysis.records
+    score_payload = score_pack(
+        pack_dir,
+        required_domains=required_domains,
+        _analysis=analysis,
+    )
+    citation_payload = build_citation_map(
+        pack_dir,
+        required_domains=required_domains,
+        _analysis=analysis,
+    )
     dimensions = _audit_dimensions(records, score_payload, citation_payload)
     stale_sidecar_issues = _stale_sidecar_issues(pack_dir, records, score_payload)
     weighted_score = max(
@@ -468,14 +499,22 @@ def answer_pack(
         raise LocalWorkflowError("question must be non-empty.")
     if limit < 1:
         raise LocalWorkflowError("limit must be at least 1.")
-    pack_dir = pack_dir.resolve()
-    search_payload = search_pack(pack_dir, question, required_domains=required_domains, limit=limit)
+    analysis = _analyze_pack(pack_dir, required_domains)
+    pack_dir = analysis.pack_dir
+    search_payload = search_pack(
+        pack_dir,
+        question,
+        required_domains=required_domains,
+        limit=limit,
+        _analysis=analysis,
+    )
     brief_payload = build_research_brief(
         pack_dir,
         objective=question,
         required_domains=required_domains,
         max_excerpts=max(limit, 1),
         entity_limit=10,
+        _analysis=analysis,
     )
     result_count = _safe_int(search_payload.get("result_count"))
     if result_count == 0:

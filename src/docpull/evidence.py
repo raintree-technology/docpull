@@ -39,16 +39,75 @@ _MARKETPLACE_DOMAINS = {
     "marketplace.visualstudio.com",
     "chromewebstore.google.com",
 }
+_REGULATORY_HOSTS = {"sec.gov", "www.sec.gov"}
+_PRESS_PATH_TERMS = ("/press/", "/press-releases/", "/newsroom/", "/news-releases/")
+_CORPORATE_PATH_TERMS = ("/about", "/company", "/corporate", "/investor")
 
 
-def classify_source_authority(url: str, *, official_domain: str | None = None) -> SourceAuthority:
+def classify_source_authority(
+    url: str,
+    *,
+    official_domain: str | None = None,
+    official_domains: list[str] | tuple[str, ...] | set[str] | None = None,
+    declared_role: str | None = None,
+) -> SourceAuthority:
     """Classify source role and authority without making review decisions."""
 
     parsed = urlparse(url)
     host = (parsed.hostname or "").lower().removeprefix("www.")
     path = (parsed.path or "/").lower()
-    official = (official_domain or "").lower().removeprefix("www.").rstrip(".")
-    same_official = bool(official) and (host == official or host.endswith(f".{official}"))
+    declared = (declared_role or "").strip().lower()
+    supported_declared_roles = {
+        "official_product",
+        "official_corporate",
+        "legal",
+        "documentation",
+        "social",
+        "marketplace",
+        "government_registry",
+        "regulatory_filing",
+        "press_release",
+        "local_reporting",
+        "third_party",
+    }
+    if declared in supported_declared_roles:
+        tier = {
+            "official_product": "tier_1_authoritative",
+            "official_corporate": "tier_1_authoritative",
+            "legal": "tier_1_authoritative",
+            "documentation": "tier_1_authoritative",
+            "government_registry": "tier_1_authoritative",
+            "regulatory_filing": "tier_1_authoritative",
+            "social": "tier_2_owned",
+            "press_release": "tier_2_owned",
+            "marketplace": "tier_3_distribution",
+            "local_reporting": "tier_4_external",
+            "third_party": "tier_4_external",
+        }[declared]
+        return SourceAuthority(
+            role=declared,  # type: ignore[arg-type]
+            tier=tier,  # type: ignore[arg-type]
+            rationale="Source role was explicitly declared by the entity/source contract.",
+        )
+
+    domains = list(official_domains or [])
+    if official_domain:
+        domains.append(official_domain)
+    normalized_domains = {domain.lower().removeprefix("www.").rstrip(".") for domain in domains if domain}
+    same_official = any(host == official or host.endswith(f".{official}") for official in normalized_domains)
+
+    if host in _REGULATORY_HOSTS and ("/edgar/" in path or "/archives/" in path):
+        return SourceAuthority(
+            role="regulatory_filing",
+            tier="tier_1_authoritative",
+            rationale="Government-hosted regulatory filing source.",
+        )
+    if host.endswith(".gov") or host == "gov":
+        return SourceAuthority(
+            role="government_registry",
+            tier="tier_1_authoritative",
+            rationale="Official government registry or agency source.",
+        )
 
     if same_official and any(term in path for term in _LEGAL_TERMS):
         return SourceAuthority(
@@ -61,6 +120,12 @@ def classify_source_authority(url: str, *, official_domain: str | None = None) -
             role="documentation",
             tier="tier_1_authoritative",
             rationale="Official-domain product documentation source.",
+        )
+    if any(term in path for term in _PRESS_PATH_TERMS):
+        return SourceAuthority(
+            role="press_release",
+            tier="tier_2_owned" if same_official else "tier_4_external",
+            rationale="Press-release or newsroom source; the underlying relationship remains reviewable.",
         )
     if any(host == domain or host.endswith(f".{domain}") for domain in _SOCIAL_DOMAINS):
         return SourceAuthority(
@@ -75,6 +140,14 @@ def classify_source_authority(url: str, *, official_domain: str | None = None) -
             rationale="Platform marketplace listing rather than the canonical product site.",
         )
     if same_official:
+        if host.startswith(("corporate.", "investors.")) or any(
+            term in path for term in _CORPORATE_PATH_TERMS
+        ):
+            return SourceAuthority(
+                role="official_corporate",
+                tier="tier_1_authoritative",
+                rationale="Official-domain corporate or investor-relations source.",
+            )
         return SourceAuthority(
             role="official_product",
             tier="tier_1_authoritative",
