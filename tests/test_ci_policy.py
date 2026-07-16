@@ -168,6 +168,10 @@ def test_publish_workflow_builds_artifact_before_locked_release_gates() -> None:
     assert 'pip install --no-build-isolation -e ".[all,dev]"' not in build_section
 
     assert "uv sync --locked --all-extras" in gate_section
+    assert (
+        "uv run --locked --all-extras --with-requirements requirements-release.txt "
+        "python scripts/release_a_plus_check.py"
+    ) in gate_section.replace("\\\n            ", "")
     assert "uv run --locked python scripts/sync_release_metadata.py --check" in publish
     assert "actions/download-artifact" in gate_section
     assert "uv venv .release-smoke" in publish

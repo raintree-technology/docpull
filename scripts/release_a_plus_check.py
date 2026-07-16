@@ -604,10 +604,9 @@ def _planned_command_names(repo: Path) -> list[str]:
 
 def create_parser() -> argparse.ArgumentParser:
     repo_default = Path(__file__).resolve().parents[1]
-    venv_python = repo_default / ".venv" / "bin" / "python"
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo", type=Path, default=repo_default)
-    parser.add_argument("--python", default=str(venv_python if venv_python.exists() else sys.executable))
+    parser.add_argument("--python", default=sys.executable)
     parser.add_argument("--output-dir", type=Path)
     parser.add_argument("--strict", action="store_true")
     parser.add_argument("--quick", action="store_true", help="Pass --quick to the real-feature smoke")
