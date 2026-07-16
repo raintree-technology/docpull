@@ -99,7 +99,7 @@ jobs:
         run: bun test
 
       - name: Typecheck MCP
-        run: mise run typecheck
+        run: bun run typecheck
 
   web-security:
     runs-on: ubuntu-24.04
@@ -125,7 +125,7 @@ jobs:
         run: bun audit
 
       - name: Typecheck web app
-        run: mise run typecheck
+        run: bun run typecheck
 
       - name: Lint web app
         run: bun run lint
