@@ -44,7 +44,7 @@ class RichMetadataExtractor:
         """
         self.base_url = base_url
 
-    def extract(self, html: str, url: str) -> RichMetadata:
+    def extract(self, html: str | bytes, url: str) -> RichMetadata:
         """Extract rich structured metadata from HTML.
 
         Args:

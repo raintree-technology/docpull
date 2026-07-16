@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import argparse
+import heapq
 import json
 import re
 from collections import Counter
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -78,6 +80,89 @@ _ENTITY_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
 
 class PackToolError(RuntimeError):
     """User-facing pack tooling error."""
+
+
+@dataclass
+class _PackAnalysis:
+    """One reusable read/index pass for a pack intelligence workflow."""
+
+    pack_dir: Path
+    metadata: dict[str, Any]
+    metadata_path: Path | None
+    records: list[dict[str, Any]]
+    expected_domains: list[str]
+    _source_scores: list[dict[str, Any]] | None = field(default=None, init=False, repr=False)
+    _citation_data: tuple[list[dict[str, Any]], dict[str, str], list[str]] | None = field(
+        default=None,
+        init=False,
+        repr=False,
+    )
+    _record_citations: dict[str, str] | None = field(default=None, init=False, repr=False)
+    _entities_by_limit: dict[int, list[dict[str, Any]]] = field(
+        default_factory=dict,
+        init=False,
+        repr=False,
+    )
+
+    def source_scores(self) -> list[dict[str, Any]]:
+        if self._source_scores is None:
+            entries = _pack_source_entries(self.metadata, self.records)
+            self._source_scores = score_source_entries(entries, expected_domains=self.expected_domains)
+        return self._source_scores
+
+    def citation_data(self) -> tuple[list[dict[str, Any]], dict[str, str], list[str]]:
+        if self._citation_data is None:
+            self._citation_data = _citation_sources(
+                self.pack_dir,
+                self.metadata,
+                self.records,
+                self.expected_domains,
+            )
+        return self._citation_data
+
+    def record_citations(self) -> dict[str, str]:
+        if self._record_citations is None:
+            sources, _citation_by_url, _expected = self.citation_data()
+            self._record_citations = _record_citation_lookup(sources)
+        return self._record_citations
+
+    def entities(self, *, limit: int) -> list[dict[str, Any]]:
+        cached = self._entities_by_limit.get(limit)
+        if cached is None:
+            _sources, citation_by_url, _expected = self.citation_data()
+            cached = _extract_entities(
+                self.records,
+                citation_by_url,
+                self.record_citations(),
+                limit=limit,
+            )
+            self._entities_by_limit[limit] = cached
+        return cached
+
+
+def _analyze_pack(pack_dir: Path, required_domains: list[str] | None) -> _PackAnalysis:
+    root = pack_dir.resolve()
+    metadata, metadata_path = _read_pack_metadata_entry(root)
+    records = _read_pack_records(root)
+    return _PackAnalysis(
+        pack_dir=root,
+        metadata=metadata,
+        metadata_path=metadata_path,
+        records=records,
+        expected_domains=required_domains or _expected_domains(metadata),
+    )
+
+
+def _analysis_from_local_pack(pack: Any, required_domains: list[str] | None) -> _PackAnalysis:
+    """Reuse an already loaded LocalPack without another corpus read."""
+    metadata = pack.metadata if isinstance(pack.metadata, dict) else {}
+    return _PackAnalysis(
+        pack_dir=pack.pack_dir,
+        metadata=metadata,
+        metadata_path=pack.metadata_path,
+        records=[record.model_dump(mode="json", exclude_none=True) for record in pack.documents],
+        expected_domains=required_domains or _expected_domains(metadata),
+    )
 
 
 def create_pack_parser() -> argparse.ArgumentParser:
@@ -563,12 +648,19 @@ def run_pack_cli(argv: list[str] | None = None) -> int:
     return 1
 
 
-def score_pack(pack_dir: Path, *, required_domains: list[str] | None = None) -> dict[str, Any]:
-    pack_dir = pack_dir.resolve()
+def score_pack(
+    pack_dir: Path,
+    *,
+    required_domains: list[str] | None = None,
+    _analysis: _PackAnalysis | None = None,
+) -> dict[str, Any]:
+    analysis = _analysis or _analyze_pack(pack_dir, required_domains)
+    pack_dir = analysis.pack_dir
     manifest = _read_json(pack_dir / "corpus.manifest.json", required=False) or {}
-    parallel_pack, metadata_path = _read_pack_metadata_entry(pack_dir)
+    parallel_pack = analysis.metadata
+    metadata_path = analysis.metadata_path
     metadata_label = metadata_path.name if metadata_path else "pack metadata"
-    records = _read_pack_records(pack_dir)
+    records = analysis.records
 
     issues: list[dict[str, Any]] = []
     warnings: list[dict[str, Any]] = []
@@ -676,7 +768,7 @@ def score_pack(pack_dir: Path, *, required_domains: list[str] | None = None) -> 
             score -= 5
             warnings.append(_issue("missing_task_basis", "Task output has no basis metadata."))
 
-    expected = required_domains or _expected_domains(parallel_pack)
+    expected = analysis.expected_domains
     off_domain = _off_domain_urls(unique_urls, expected)
     if expected and off_domain:
         score -= min(25, len(off_domain) * 8)
@@ -710,18 +802,19 @@ def score_pack(pack_dir: Path, *, required_domains: list[str] | None = None) -> 
     }
 
 
-def score_pack_sources(pack_dir: Path, *, required_domains: list[str] | None = None) -> dict[str, Any]:
-    pack_dir = pack_dir.resolve()
-    parallel_pack = _read_pack_metadata(pack_dir)
-    records = _read_pack_records(pack_dir)
-    expected = required_domains or _expected_domains(parallel_pack)
-    sources = _pack_source_entries(parallel_pack, records)
-    scored = score_source_entries(sources, expected_domains=expected)
+def score_pack_sources(
+    pack_dir: Path,
+    *,
+    required_domains: list[str] | None = None,
+    _analysis: _PackAnalysis | None = None,
+) -> dict[str, Any]:
+    analysis = _analysis or _analyze_pack(pack_dir, required_domains)
+    scored = analysis.source_scores()
     return {
         "schema_version": SOURCE_SCORE_SCHEMA_VERSION,
         "generated_at": utc_now_iso(),
-        "pack_dir": str(pack_dir),
-        "expected_domains": expected,
+        "pack_dir": str(analysis.pack_dir),
+        "expected_domains": analysis.expected_domains,
         "source_count": len(scored),
         "sources": scored,
     }
@@ -731,18 +824,17 @@ def build_citation_map(
     pack_dir: Path,
     *,
     required_domains: list[str] | None = None,
+    _analysis: _PackAnalysis | None = None,
 ) -> dict[str, Any]:
-    pack_dir = pack_dir.resolve()
-    pack = _read_pack_metadata(pack_dir)
-    records = _read_pack_records(pack_dir)
-    sources, _citation_by_url, expected = _citation_sources(pack_dir, pack, records, required_domains)
+    analysis = _analysis or _analyze_pack(pack_dir, required_domains)
+    sources, _citation_by_url, expected = analysis.citation_data()
     return {
         "schema_version": CITATION_SCHEMA_VERSION,
         "generated_at": utc_now_iso(),
-        "pack_dir": str(pack_dir),
+        "pack_dir": str(analysis.pack_dir),
         "expected_domains": expected,
         "source_count": len(sources),
-        "record_count": len(records),
+        "record_count": len(analysis.records),
         "sources": sources,
     }
 
@@ -752,26 +844,20 @@ def extract_pack_entities(
     *,
     required_domains: list[str] | None = None,
     limit: int = DEFAULT_ENTITY_LIMIT,
+    _analysis: _PackAnalysis | None = None,
 ) -> dict[str, Any]:
     if limit < 1:
         raise PackToolError("--limit must be at least 1.")
-    pack_dir = pack_dir.resolve()
-    pack = _read_pack_metadata(pack_dir)
-    records = _read_pack_records(pack_dir)
-    sources, citation_by_url, expected = _citation_sources(pack_dir, pack, records, required_domains)
-    entities = _extract_entities(
-        records,
-        citation_by_url,
-        _record_citation_lookup(sources),
-        limit=limit,
-    )
+    analysis = _analysis or _analyze_pack(pack_dir, required_domains)
+    sources, _citation_by_url, expected = analysis.citation_data()
+    entities = analysis.entities(limit=limit)
     return {
         "schema_version": ENTITY_SCHEMA_VERSION,
         "generated_at": utc_now_iso(),
-        "pack_dir": str(pack_dir),
+        "pack_dir": str(analysis.pack_dir),
         "expected_domains": expected,
         "source_count": len(sources),
-        "record_count": len(records),
+        "record_count": len(analysis.records),
         "entity_count": len(entities),
         "entities": entities,
     }
@@ -784,37 +870,34 @@ def build_research_brief(
     required_domains: list[str] | None = None,
     max_excerpts: int = DEFAULT_BRIEF_EXCERPTS,
     entity_limit: int = DEFAULT_BRIEF_ENTITY_LIMIT,
+    _analysis: _PackAnalysis | None = None,
 ) -> dict[str, Any]:
     if max_excerpts < 1:
         raise PackToolError("--max-excerpts must be at least 1.")
     if entity_limit < 0:
         raise PackToolError("--entity-limit cannot be negative.")
-    pack_dir = pack_dir.resolve()
-    pack = _read_pack_metadata(pack_dir)
-    records = _read_pack_records(pack_dir)
-    sources, citation_by_url, expected = _citation_sources(pack_dir, pack, records, required_domains)
-    brief_objective = objective or str(pack.get("objective") or "Review local DocPull context pack")
-    record_citation_by_key = _record_citation_lookup(sources)
-    entities = (
-        _extract_entities(records, citation_by_url, record_citation_by_key, limit=max(1, entity_limit))
-        if entity_limit
-        else []
+    analysis = _analysis or _analyze_pack(pack_dir, required_domains)
+    sources, citation_by_url, expected = analysis.citation_data()
+    brief_objective = objective or str(
+        analysis.metadata.get("objective") or "Review local DocPull context pack"
     )
+    record_citation_by_key = analysis.record_citations()
+    entities = analysis.entities(limit=max(1, entity_limit)) if entity_limit else []
     return {
         "schema_version": BRIEF_SCHEMA_VERSION,
         "generated_at": utc_now_iso(),
-        "pack_dir": str(pack_dir),
+        "pack_dir": str(analysis.pack_dir),
         "objective": brief_objective,
         "expected_domains": expected,
         "summary": {
             "source_count": len(sources),
-            "record_count": len(records),
+            "record_count": len(analysis.records),
             "entity_count": len(entities),
-            "total_tokens": sum(_safe_int(record.get("token_count")) for record in records),
+            "total_tokens": sum(_safe_int(record.get("token_count")) for record in analysis.records),
         },
         "load_plan": sources[: min(len(sources), 12)],
         "key_excerpts": _select_key_excerpts(
-            records,
+            analysis.records,
             citation_by_url,
             record_citation_by_key,
             objective=brief_objective,
@@ -853,8 +936,9 @@ def build_intelligence_bundle(
     if search_limit < 1:
         raise PackToolError("--search-limit must be at least 1.")
 
-    pack_dir = pack_dir.resolve()
-    pack = _read_pack_metadata(pack_dir)
+    analysis = _analyze_pack(pack_dir, required_domains)
+    pack_dir = analysis.pack_dir
+    pack = analysis.metadata
     brain_objective = objective or str(pack.get("objective") or "Review local DocPull context pack")
     workspace_label = (market or str(pack.get("market") or "")).strip() or "Company Brain workspace"
     queries = _prepare_search_queries(
@@ -868,12 +952,14 @@ def build_intelligence_bundle(
         pack_dir,
         required_domains=required_domains,
         artifacts=artifacts,
+        analysis=analysis,
     )
     citations_payload = _write_prepare_citation_artifacts(
         pack_dir,
         required_domains=required_domains,
         markdown=True,
         artifacts=artifacts,
+        analysis=analysis,
     )
     entities_payload = _write_prepare_entity_artifacts(
         pack_dir,
@@ -882,6 +968,7 @@ def build_intelligence_bundle(
         entity_limit=entity_limit,
         markdown=True,
         artifacts=artifacts,
+        analysis=analysis,
     )
     search_payloads = _write_prepare_search_artifacts(
         pack_dir,
@@ -890,6 +977,7 @@ def build_intelligence_bundle(
         search_limit=search_limit,
         markdown=True,
         artifacts=artifacts,
+        analysis=analysis,
     )
     brief_payload = _write_prepare_brief_artifacts(
         pack_dir,
@@ -899,6 +987,7 @@ def build_intelligence_bundle(
         entity_limit=entity_limit,
         markdown=True,
         artifacts=artifacts,
+        analysis=analysis,
     )
 
     records = _read_pack_records(pack_dir)
@@ -1079,8 +1168,21 @@ def prepare_pack(
     if graph_entity_limit < 1:
         raise PackToolError("--graph-entity-limit must be at least 1.")
 
-    pack_dir = pack_dir.resolve()
-    pack = _read_pack_metadata(pack_dir)
+    analysis = _analyze_pack(pack_dir, required_domains)
+    pack_dir = analysis.pack_dir
+    pack = analysis.metadata
+    from .pack_reader import _local_pack_from_records, load_pack
+
+    local_pack = (
+        _local_pack_from_records(
+            pack_dir,
+            analysis.records,
+            metadata=analysis.metadata,
+            metadata_path=analysis.metadata_path,
+        )
+        if (pack_dir / "documents.ndjson").exists()
+        else load_pack(pack_dir)
+    )
     prepare_objective = objective or str(pack.get("objective") or "Review local DocPull context pack")
     queries = _prepare_search_queries(
         search_queries,
@@ -1093,12 +1195,14 @@ def prepare_pack(
         pack_dir,
         required_domains=required_domains,
         artifacts=artifacts,
+        analysis=analysis,
     )
     citations_payload = _write_prepare_citation_artifacts(
         pack_dir,
         required_domains=required_domains,
         markdown=markdown,
         artifacts=artifacts,
+        analysis=analysis,
     )
     entities_payload = _write_prepare_entity_artifacts(
         pack_dir,
@@ -1107,6 +1211,7 @@ def prepare_pack(
         entity_limit=entity_limit,
         markdown=markdown,
         artifacts=artifacts,
+        analysis=analysis,
     )
     search_payloads = _write_prepare_search_artifacts(
         pack_dir,
@@ -1115,6 +1220,7 @@ def prepare_pack(
         search_limit=search_limit,
         markdown=markdown,
         artifacts=artifacts,
+        analysis=analysis,
     )
     brief_payload = _write_prepare_brief_artifacts(
         pack_dir,
@@ -1124,12 +1230,14 @@ def prepare_pack(
         entity_limit=entity_limit,
         markdown=markdown,
         artifacts=artifacts,
+        analysis=analysis,
     )
     basis_payload = _write_prepare_basis_artifacts(
         pack_dir,
         objective=prepare_objective,
         max_excerpts=max_excerpts,
         artifacts=artifacts,
+        local_pack=local_pack,
     )
     graph_payload = (
         _write_prepare_graph_artifacts(
@@ -1137,6 +1245,8 @@ def prepare_pack(
             entity_limit=graph_entity_limit,
             markdown=markdown,
             artifacts=artifacts,
+            analysis=analysis,
+            local_pack=local_pack,
         )
         if graph
         else None
@@ -1146,6 +1256,7 @@ def prepare_pack(
         required_domains=required_domains,
         citations_payload=citations_payload,
         artifacts=artifacts,
+        analysis=analysis,
     )
     eval_grade_payload = None
     if eval_grade:
@@ -1206,13 +1317,22 @@ def _write_prepare_score_artifacts(
     *,
     required_domains: list[str] | None,
     artifacts: dict[str, str],
+    analysis: _PackAnalysis,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
-    score_payload = score_pack(pack_dir, required_domains=required_domains)
+    score_payload = score_pack(
+        pack_dir,
+        required_domains=required_domains,
+        _analysis=analysis,
+    )
     score_path = pack_dir / "pack.score.json"
     _write_json(score_path, score_payload)
     artifacts["score"] = _artifact_ref(pack_dir, score_path)
 
-    source_scores_payload = score_pack_sources(pack_dir, required_domains=required_domains)
+    source_scores_payload = score_pack_sources(
+        pack_dir,
+        required_domains=required_domains,
+        _analysis=analysis,
+    )
     source_scores_path = pack_dir / "source.scores.json"
     _write_json(source_scores_path, source_scores_payload)
     artifacts["source_scores"] = _artifact_ref(pack_dir, source_scores_path)
@@ -1225,8 +1345,13 @@ def _write_prepare_citation_artifacts(
     required_domains: list[str] | None,
     markdown: bool,
     artifacts: dict[str, str],
+    analysis: _PackAnalysis,
 ) -> dict[str, Any]:
-    citations_payload = build_citation_map(pack_dir, required_domains=required_domains)
+    citations_payload = build_citation_map(
+        pack_dir,
+        required_domains=required_domains,
+        _analysis=analysis,
+    )
     citations_path = pack_dir / "citations.json"
     _write_json(citations_path, citations_payload)
     artifacts["citations"] = _artifact_ref(pack_dir, citations_path)
@@ -1245,12 +1370,14 @@ def _write_prepare_entity_artifacts(
     entity_limit: int,
     markdown: bool,
     artifacts: dict[str, str],
+    analysis: _PackAnalysis,
 ) -> dict[str, Any]:
     if entity_limit:
         entities_payload = extract_pack_entities(
             pack_dir,
             required_domains=required_domains,
             limit=entity_limit,
+            _analysis=analysis,
         )
     else:
         entities_payload = _empty_entities_payload(pack_dir, citations_payload)
@@ -1272,6 +1399,7 @@ def _write_prepare_search_artifacts(
     search_limit: int,
     markdown: bool,
     artifacts: dict[str, str],
+    analysis: _PackAnalysis,
 ) -> list[dict[str, Any]]:
     search_payloads = [
         search_pack(
@@ -1279,6 +1407,7 @@ def _write_prepare_search_artifacts(
             query,
             required_domains=required_domains,
             limit=search_limit,
+            _analysis=analysis,
         )
         for query in queries
     ]
@@ -1316,6 +1445,7 @@ def _write_prepare_brief_artifacts(
     entity_limit: int,
     markdown: bool,
     artifacts: dict[str, str],
+    analysis: _PackAnalysis,
 ) -> dict[str, Any]:
     brief_payload = build_research_brief(
         pack_dir,
@@ -1323,6 +1453,7 @@ def _write_prepare_brief_artifacts(
         required_domains=required_domains,
         max_excerpts=max_excerpts,
         entity_limit=entity_limit,
+        _analysis=analysis,
     )
     brief_json_path = pack_dir / "research.brief.json"
     _write_json(brief_json_path, brief_payload)
@@ -1340,6 +1471,7 @@ def _write_prepare_basis_artifacts(
     objective: str,
     max_excerpts: int,
     artifacts: dict[str, str],
+    local_pack: Any,
 ) -> dict[str, Any]:
     from .basis import build_pack_basis, write_basis
 
@@ -1350,6 +1482,7 @@ def _write_prepare_basis_artifacts(
         claim=objective,
         limit=max(1, max_excerpts),
         producer="docpull.pack.prepare",
+        _pack=local_pack,
     )
     payload = write_basis(basis_path, records)
     artifacts["basis"] = _artifact_ref(pack_dir, basis_path)
@@ -1364,14 +1497,19 @@ def _write_prepare_agent_contract_artifacts(
     required_domains: list[str] | None,
     citations_payload: dict[str, Any],
     artifacts: dict[str, str],
+    analysis: _PackAnalysis,
 ) -> None:
     from .eval_grade import build_citation_index
     from .local_workflows import audit_pack
 
-    for key, path in ensure_agent_contract_sidecars(pack_dir).items():
+    for key, path in ensure_agent_contract_sidecars(pack_dir, records=analysis.records).items():
         artifacts[key] = _artifact_ref(pack_dir, path)
 
-    audit_payload = audit_pack(pack_dir, required_domains=required_domains)
+    audit_payload = audit_pack(
+        pack_dir,
+        required_domains=required_domains,
+        _analysis=analysis,
+    )
     audit_artifacts = audit_payload.get("artifacts")
     if isinstance(audit_artifacts, dict):
         for key, value in audit_artifacts.items():
@@ -1381,7 +1519,11 @@ def _write_prepare_agent_contract_artifacts(
     citation_index_path = pack_dir / "citation.index.json"
     _write_json(
         citation_index_path,
-        build_citation_index(pack_dir, citations_payload=citations_payload),
+        build_citation_index(
+            pack_dir,
+            records=analysis.records,
+            citations_payload=citations_payload,
+        ),
     )
     artifacts["citation_index"] = _artifact_ref(pack_dir, citation_index_path)
 
@@ -1392,10 +1534,18 @@ def _write_prepare_graph_artifacts(
     entity_limit: int,
     markdown: bool,
     artifacts: dict[str, str],
+    analysis: _PackAnalysis,
+    local_pack: Any,
 ) -> dict[str, Any]:
     from .graph import build_graph
 
-    graph_payload = build_graph(pack_dir, entity_limit=entity_limit, markdown=markdown)
+    graph_payload = build_graph(
+        pack_dir,
+        entity_limit=entity_limit,
+        markdown=markdown,
+        _analysis=analysis,
+        _pack=local_pack,
+    )
     graph_artifacts = graph_payload.get("artifacts")
     if isinstance(graph_artifacts, dict):
         for key, value in graph_artifacts.items():
@@ -1695,19 +1845,18 @@ def search_pack(
     *,
     required_domains: list[str] | None = None,
     limit: int = DEFAULT_SEARCH_LIMIT,
+    _analysis: _PackAnalysis | None = None,
 ) -> dict[str, Any]:
     if not query.strip():
         raise PackToolError("query must be non-empty.")
     if limit < 1:
         raise PackToolError("--limit must be at least 1.")
-    pack_dir = pack_dir.resolve()
-    pack = _read_pack_metadata(pack_dir)
-    records = _read_pack_records(pack_dir)
-    sources, citation_by_url, expected = _citation_sources(pack_dir, pack, records, required_domains)
+    analysis = _analysis or _analyze_pack(pack_dir, required_domains)
+    sources, citation_by_url, expected = analysis.citation_data()
     results = _search_records(
-        records,
+        analysis.records,
         citation_by_url,
-        _record_citation_lookup(sources),
+        analysis.record_citations(),
         query=query,
         limit=limit,
     )
@@ -1715,11 +1864,11 @@ def search_pack(
     return {
         "schema_version": SEARCH_SCHEMA_VERSION,
         "generated_at": utc_now_iso(),
-        "pack_dir": str(pack_dir),
+        "pack_dir": str(analysis.pack_dir),
         "query": query,
         "expected_domains": expected,
         "source_count": len(sources),
-        "record_count": len(records),
+        "record_count": len(analysis.records),
         "result_count": len(results),
         "results": results,
         "citations": [source for source in sources if source["citation_id"] in citation_ids],
@@ -2045,13 +2194,15 @@ def _extract_entities(
                         "count": 0,
                         "source_count": 0,
                         "citations": [],
+                        "_citation_ids": set(),
                     },
                 )
                 item["count"] = _safe_int(item.get("count")) + 1
                 citations = item["citations"]
                 if isinstance(citations, list) and citation_id:
-                    existing_ids = {str(citation.get("citation_id")) for citation in citations}
+                    existing_ids = item["_citation_ids"]
                     if citation_id not in existing_ids:
+                        existing_ids.add(citation_id)
                         citations.append(
                             {
                                 "citation_id": citation_id,
@@ -2063,6 +2214,8 @@ def _extract_entities(
                         )
                         item["source_count"] = len(citations)
 
+    for item in entities.values():
+        item.pop("_citation_ids", None)
     sorted_entities = sorted(
         entities.values(),
         key=lambda item: (
@@ -2159,24 +2312,29 @@ def _search_records(
                 "content_hash": record.get("content_hash"),
                 "token_count": _safe_int(record.get("token_count")),
                 "matched_terms": matched_terms,
-                "excerpt": _best_search_excerpt(content or title, terms, phrase),
+                "_content": content or title,
             }
         )
 
-    scored.sort(
+    top_results = heapq.nsmallest(
+        limit,
+        scored,
         key=lambda item: (
             -_safe_int(item.get("score")),
             str(item.get("citation_id") or ""),
             str(item.get("chunk_id") or ""),
             str(item.get("url") or ""),
-        )
+        ),
     )
+    for result in top_results:
+        content = str(result.pop("_content"))
+        result["excerpt"] = _best_search_excerpt(content, terms, phrase)
     return [
         {
             "rank": rank,
             **result,
         }
-        for rank, result in enumerate(scored[:limit], start=1)
+        for rank, result in enumerate(top_results, start=1)
     ]
 
 

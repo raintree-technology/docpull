@@ -2,10 +2,6 @@ name: CI
 
 on:
   workflow_dispatch:
-  pull_request:
-  push:
-    branches:
-      - main
 
 permissions:
   contents: read
@@ -14,61 +10,74 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  MISE_LOCKED: "1"
+  UV_VERSION: "0.11.6"
+
 jobs:
   metrics-fresh:
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
           persist-credentials: false
+
+      - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db
+        with:
+          version: 2026.7.1
+          install: true
+          cache: true
+      - name: Install uv
+        run: python -m pip install "uv==$UV_VERSION"
 
       - name: Check metrics freshness
         env:
           METRICS_MAX_AGE_HOURS: "168"
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            python .github/scripts/check_metrics_fresh.py || {
+            uv run --locked python .github/scripts/check_metrics_fresh.py || {
               echo "::warning::Metrics are stale; run the scheduled Update metrics workflow after merge."
             }
           else
-            python .github/scripts/check_metrics_fresh.py
+            uv run --locked python .github/scripts/check_metrics_fresh.py
           fi
 
   test:
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+        python-version: ["3.10.20", "3.11.15", "3.12.13", "3.13.14", "3.14.6"]
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
           persist-credentials: false
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+      - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db
         with:
-          python-version: ${{ matrix.python-version }}
-          cache: pip
-          cache-dependency-path: pyproject.toml
+          version: 2026.7.1
+          install: true
+          cache: true
+      - name: Install uv
+        run: python -m pip install "uv==$UV_VERSION"
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[all,dev]"
+      - name: Sync dependencies
+        run: uv sync --locked --all-extras --dev
 
       - name: Run tests
-        if: matrix.python-version != '3.11'
-        run: python -m pytest -q
+        if: matrix.python-version != '3.11.15'
+        run: uv run --locked --all-extras python -m pytest -q
 
       - name: Run tests with coverage
-        if: matrix.python-version == '3.11'
-        run: python -m pytest --cov=docpull --cov-report=xml --cov-report=term -q
+        if: matrix.python-version == '3.11.15'
+        run: uv run --locked --all-extras python -m pytest --cov=docpull --cov-report=xml --cov-report=term -q
 
       - name: Upload coverage XML
-        if: matrix.python-version == '3.11'
+        if: matrix.python-version == '3.11.15'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: coverage-xml
@@ -76,89 +85,85 @@ jobs:
 
   lint:
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
           persist-credentials: false
 
-      - name: Set up Python
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+      - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db
         with:
-          python-version: "3.11"
-          cache: pip
-          cache-dependency-path: pyproject.toml
+          version: 2026.7.1
+          install: true
+          cache: true
+      - name: Install uv
+        run: python -m pip install "uv==$UV_VERSION"
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[all,dev]"
+      - name: Sync dependencies
+        run: uv sync --locked --all-extras --dev
 
       - name: Check generated release metadata
-        run: python scripts/sync_release_metadata.py --check
+        run: uv run --locked python scripts/sync_release_metadata.py --check
 
       - name: Run ruff
-        run: python -m ruff check .
+        run: uv run --locked python -m ruff check .
 
       - name: Check formatting
-        run: python -m ruff format --check .
+        run: uv run --locked python -m ruff format --check .
 
       - name: Run pre-commit
-        run: python -m pre_commit run --all-files --show-diff-on-failure
+        run: uv run --locked python -m pre_commit run --all-files --show-diff-on-failure
 
   typecheck:
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
           persist-credentials: false
 
-      - name: Set up Python
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+      - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db
         with:
-          python-version: "3.11"
-          cache: pip
-          cache-dependency-path: pyproject.toml
+          version: 2026.7.1
+          install: true
+          cache: true
+      - name: Install uv
+        run: python -m pip install "uv==$UV_VERSION"
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[all,dev]"
+      - name: Sync dependencies
+        run: uv sync --locked --all-extras --dev
 
       - name: Run mypy
-        run: python -m mypy src
+        run: uv run --locked python -m mypy src
 
   package:
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
           persist-credentials: false
 
-      - name: Set up Python
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+      - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db
         with:
-          python-version: "3.11"
-          cache: pip
-          cache-dependency-path: |
-            pyproject.toml
-            requirements-release.txt
-
-      - name: Install pinned release tooling
-        run: python -m pip install -r requirements-release.txt
+          version: 2026.7.1
+          install: true
+          cache: true
+      - name: Install uv
+        run: python -m pip install "uv==$UV_VERSION"
 
       - name: Build wheel and sdist
-        run: python scripts/build_release.py --verify-reproducible
+        run: uv run --locked --with-requirements requirements-release.txt python scripts/build_release.py --verify-reproducible
 
       - name: Verify wheel and sdist metadata
-        run: python -m twine check dist/*
+        run: uv run --locked --with-requirements requirements-release.txt python -m twine check dist/*
 
       - name: Smoke install built wheel
         run: |
-          python -m venv .pkg-smoke
-          .pkg-smoke/bin/python -m pip install --upgrade pip
-          .pkg-smoke/bin/python -m pip install dist/*.whl
+          uv venv .pkg-smoke
+          uv pip install --python .pkg-smoke/bin/python dist/*.whl
           .pkg-smoke/bin/docpull --version
           .pkg-smoke/bin/python -c "import docpull; print(docpull.__version__)"

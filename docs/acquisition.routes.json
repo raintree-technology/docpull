@@ -1,0 +1,18 @@
+{
+  "schema_version": 3,
+  "generated_at": "2026-07-15T04:21:53.366286+00:00",
+  "output_contract_version": 3,
+  "routes": [
+    {
+      "route": "local-fetch",
+      "output_format": "markdown",
+      "fetched_count": 0,
+      "record_count": 0,
+      "domain_count": 0,
+      "skip_counts": {
+        "robots_disallowed": 0
+      }
+    }
+  ],
+  "domains": {}
+}

@@ -14,35 +14,17 @@ from typing import Any, Protocol
 from rich.console import Console
 from rich.markup import escape
 
+from . import export_formats as _export_formats
 from .models.document import DocumentRecord
 from .pack_reader import LocalPack, PackReadError, load_pack, sanitize_metadata
 from .skill_export import export_agent_skill
 
 EXPORT_SCHEMA_VERSION = 1
-
-JSONL_FORMATS = {
-    "openai-vector-jsonl",
-    "langchain-jsonl",
-    "llamaindex-jsonl",
-    "dspy-jsonl",
-}
-AGENT_FORMATS = {
-    "codex-skill",
-    "claude-skill",
-    "cursor-rules",
-}
-TABLE_FORMATS = {
-    "sheets-csv",
-    "sheets-tsv",
-    "warehouse-ndjson",
-    "parquet",
-}
-DOWNSTREAM_JSON_FORMATS = {
-    "n8n-json",
-    "vercel-ai-json",
-    "crewai-json",
-}
-EXPORT_FORMATS = tuple(sorted(JSONL_FORMATS | AGENT_FORMATS | TABLE_FORMATS | DOWNSTREAM_JSON_FORMATS))
+JSONL_FORMATS = _export_formats.JSONL_FORMATS
+AGENT_FORMATS = _export_formats.AGENT_FORMATS
+TABLE_FORMATS = _export_formats.TABLE_FORMATS
+DOWNSTREAM_JSON_FORMATS = _export_formats.DOWNSTREAM_JSON_FORMATS
+EXPORT_FORMATS = _export_formats.EXPORT_FORMATS
 
 
 class ExportError(RuntimeError):
@@ -370,7 +352,7 @@ def run_export_cli(argv: list[str] | None = None) -> int:
 
 
 def _record_metadata(pack: LocalPack, record: DocumentRecord) -> dict[str, Any]:
-    source = pack.source_by_url.get(record.url)
+    source = pack.source_for_url(record.url)
     metadata: dict[str, Any] = {
         "schema_version": EXPORT_SCHEMA_VERSION,
         "source_url": record.url,

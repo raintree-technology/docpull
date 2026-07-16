@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import docpull.pack_tools as pack_tools_module
 from docpull.cli import main
 from docpull.eval_grade import run_evalgen_cli, run_freshdocs_cli
 from docpull.pack_tools import (
@@ -587,6 +588,28 @@ def test_pack_prepare_cli_can_skip_search_entities_and_markdown(tmp_path: Path) 
     assert json.loads((pack / "entities.json").read_text(encoding="utf-8"))["entity_count"] == 0
     assert (pack / "research.brief.json").exists()
     assert not (pack / "SEARCH.md").exists()
+
+
+def test_pack_prepare_reads_corpus_once_for_shared_analysis(tmp_path: Path, monkeypatch) -> None:
+    pack = tmp_path / "pack"
+    _write_pack(
+        pack,
+        [_record("https://docs.parallel.ai/api-reference/search/search", "aaa")],
+        include_domains=["docs.parallel.ai"],
+    )
+    original = pack_tools_module._read_pack_records
+    calls = 0
+
+    def counted_read(pack_dir: Path):
+        nonlocal calls
+        calls += 1
+        return original(pack_dir)
+
+    monkeypatch.setattr(pack_tools_module, "_read_pack_records", counted_read)
+
+    prepare_pack(pack, graph=False, markdown=False)
+
+    assert calls == 1
 
 
 def test_pack_prepare_no_markdown_still_builds_graph_data(tmp_path: Path) -> None:

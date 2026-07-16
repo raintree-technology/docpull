@@ -3,18 +3,24 @@
   "private": true,
   "packageManager": "bun@1.3.11",
   "scripts": {
+    "dev": "bun run --cwd mcp dev",
     "build": "uv run --locked --with-requirements requirements-release.txt python scripts/build_release.py --verify-reproducible --clean",
-    "test": "uv run --locked python -m pytest -q && bun run --cwd mcp test",
+    "test": "uv run --locked --all-extras python -m pytest -q && bun run --cwd mcp test",
+    "test:unit": "uv run --locked --all-extras python -m pytest -q",
+    "test:e2e": "uv run --locked python scripts/real_feature_smoke.py --json",
     "lint": "uv run --locked python scripts/sync_release_metadata.py --check && uv run --locked python scripts/generate_contract_schemas.py --check && uv run --locked python -m ruff check . && uv run --locked python -m ruff format --check .",
-    "typecheck": "uv run --locked python -m mypy src && bun run --cwd mcp typecheck",
+    "lint:fix": "uv run --locked python -m ruff check . --fix && uv run --locked python -m ruff format .",
+    "format": "uv run --locked python -m ruff format .",
+    "typecheck": "uv run --locked python -m mypy src && bun run --cwd mcp typecheck && bun run --cwd web typecheck",
     "validate": "bun run lint && bun run typecheck && bun run test",
-    "validate:full": "bun run validate && bun run build"
+    "validate:full": "bun run validate && bun run build && bun run --cwd web build"
   },
   "overrides": {
     "postcss": "^8.5.10"
   },
   "workspaces": [
-    "mcp"
+    "mcp",
+    "web"
   ],
   "engines": {
     "node": "24.x"

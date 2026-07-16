@@ -5,12 +5,21 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 from .config import DocpullConfig
-
-RUN_IDENTITY_SCHEMA_VERSION = 1
-DOCUMENT_RECORD_SCHEMA_VERSION = 3
-FRONTIER_SCHEMA_VERSION = 1
-MCP_META_SCHEMA_VERSION = 1
-PROGRESS_EVENT_SCHEMA_VERSION = 1
+from .schema import (
+    DOCUMENT_RECORD_SCHEMA_VERSION as DOCUMENT_RECORD_SCHEMA_VERSION,
+)
+from .schema import (
+    FRONTIER_SCHEMA_VERSION as FRONTIER_SCHEMA_VERSION,
+)
+from .schema import (
+    MCP_META_SCHEMA_VERSION as MCP_META_SCHEMA_VERSION,
+)
+from .schema import (
+    PROGRESS_EVENT_SCHEMA_VERSION as PROGRESS_EVENT_SCHEMA_VERSION,
+)
+from .schema import (
+    RUN_IDENTITY_SCHEMA_VERSION,
+)
 
 
 class RunIdentity(BaseModel):

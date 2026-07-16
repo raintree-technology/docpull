@@ -1,0 +1,163 @@
+[
+  {
+    "id": "awesome-mcp-servers",
+    "ready": true,
+    "upstream": "punkpeye/awesome-mcp-servers",
+    "base_branch": "main",
+    "branch": "add-docpull-punkpeye",
+    "commit_message": "Add docpull to Developer Tools",
+    "title": "Add docpull to Developer Tools",
+    "body": "Adds DocPull, a local-first Python CLI and MCP server for fetching, caching, searching, validating, and exporting cited public docs and web sources as agent-ready context packs. The entry is placed under Developer Tools because the primary MCP use case is agent context dependency management for developer workflows. DocPull is published on PyPI and has 17k+ downloads.",
+    "changes": [
+      {
+        "file": "README.md",
+        "mode": "append_markdown_section",
+        "section": "### 💻 <a name=\"developer-tools\"></a>Developer Tools",
+        "entry": "- [raintree-technology/docpull](https://github.com/raintree-technology/docpull) 🐍 🏠 🍎 🪟 🐧 - Local-first MCP server and Python CLI for fetching, caching, searching, validating, and exporting cited public docs and web sources as agent-ready context packs. `pip install 'docpull[mcp]'`"
+      }
+    ]
+  },
+  {
+    "id": "awesome-mcp-devtools",
+    "ready": true,
+    "upstream": "punkpeye/awesome-mcp-devtools",
+    "base_branch": "main",
+    "branch": "add-docpull",
+    "commit_message": "Add docpull to MCP development tools",
+    "title": "Add docpull to MCP development tools",
+    "body": "Adds DocPull to the MCP development tools section. DocPull provides a Python CLI/SDK/MCP workflow for syncing, diffing, validating, and exporting public docs and web sources as cited context packs for agents. It is published on PyPI and has 17k+ downloads.",
+    "changes": [
+      {
+        "file": "README.md",
+        "mode": "append_markdown_section",
+        "section": "### Development Tools",
+        "entry": "- [docpull](https://github.com/raintree-technology/docpull) 🐍 - Local-first CLI/SDK/MCP server for syncing, diffing, validating, and exporting public docs and web sources as cited agent context packs."
+      }
+    ]
+  },
+  {
+    "id": "awesome-web-scraping",
+    "ready": true,
+    "upstream": "lorien/awesome-web-scraping",
+    "base_branch": "master",
+    "branch": "add-docpull-web-extraction",
+    "commit_message": "Add docpull to web scraping tools",
+    "title": "Add docpull to web scraping tools",
+    "body": "Adds DocPull as a Python and command-line tool for public static/server-rendered web extraction. The wording focuses on standalone public web extraction, matching this repository's contribution rules. DocPull is published on PyPI and has 17k+ downloads.",
+    "changes": [
+      {
+        "file": "python.md",
+        "mode": "append_markdown_section",
+        "section": "### Web Scraping : Tools",
+        "entry": "* [docpull](https://github.com/raintree-technology/docpull) - Public static/server-rendered web extraction toolkit that writes clean Markdown, NDJSON, SQLite, and local archives."
+      },
+      {
+        "file": "cli.md",
+        "mode": "append_markdown_section",
+        "section": "## Web Scraping",
+        "entry": "* [docpull](https://github.com/raintree-technology/docpull) - Public static/server-rendered web extraction CLI that writes clean Markdown, NDJSON, SQLite, and local archives."
+      }
+    ]
+  },
+  {
+    "id": "best-of-python-dev",
+    "ready": true,
+    "upstream": "ml-tooling/best-of-python-dev",
+    "base_branch": "main",
+    "branch": "add-docpull",
+    "commit_message": "Add docpull to documentation tools",
+    "title": "Add docpull to documentation tools",
+    "body": "Adds DocPull to the documentation category. DocPull is a Python CLI/SDK for declaring, syncing, diffing, and exporting docs and web-source context dependencies for agent and developer workflows. It is published on PyPI and has 17k+ downloads.",
+    "changes": [
+      {
+        "file": "projects.yaml",
+        "mode": "append_yaml_project",
+        "entry": "  - name: docpull\n    github_id: raintree-technology/docpull\n    pypi_id: docpull\n    category: documentation"
+      }
+    ]
+  },
+  {
+    "id": "best-of-web-python",
+    "ready": true,
+    "upstream": "ml-tooling/best-of-web-python",
+    "base_branch": "main",
+    "branch": "add-docpull",
+    "commit_message": "Add docpull to web scraping tools",
+    "title": "Add docpull to web scraping tools",
+    "body": "Adds DocPull to the web scraping and crawling category. DocPull is a Python package for extracting public static/server-rendered web sources into clean Markdown, NDJSON, SQLite, and reproducible local packs. It is published on PyPI and has 17k+ downloads.",
+    "changes": [
+      {
+        "file": "projects.yaml",
+        "mode": "append_yaml_project",
+        "entry": "  - name: docpull\n    github_id: raintree-technology/docpull\n    pypi_id: docpull\n    category: web-scraping"
+      }
+    ]
+  },
+  {
+    "id": "awesome-mcp-servers-appcypher",
+    "ready": true,
+    "upstream": "appcypher/awesome-mcp-servers",
+    "fork_name": "awesome-mcp-servers-appcypher",
+    "base_branch": "main",
+    "branch": "add-docpull-appcypher",
+    "commit_message": "Add docpull to Search & Web",
+    "title": "Add docpull to Search & Web",
+    "body": "Adds DocPull to the Search & Web section. DocPull is a local-first Python CLI and MCP server for fetching, caching, searching, validating, and exporting cited public docs and web sources as agent-ready context packs. It is published on PyPI and has 17k+ downloads.",
+    "changes": [
+      {
+        "file": "README.md",
+        "mode": "append_markdown_section",
+        "section": "## 🔍 <a name=\"search-web\"></a>Search & Web",
+        "entry": "- 🐍 [DocPull](https://github.com/raintree-technology/docpull) - Local-first MCP server and Python CLI for fetching, caching, searching, validating, and exporting cited public docs and web sources as agent-ready context packs."
+      }
+    ]
+  },
+  {
+    "id": "awesome-ai-web-scraping",
+    "ready": true,
+    "upstream": "h4ckf0r0day/awesome-ai-web-scraping",
+    "base_branch": "main",
+    "branch": "add-docpull",
+    "commit_message": "Add DocPull to MCP scraping servers",
+    "title": "Add DocPull to MCP scraping servers",
+    "body": "Adds DocPull to the MCP Servers for Scraping section. The project is a Python CLI/SDK/MCP server for turning public static and server-rendered web sources into Markdown, NDJSON, SQLite, and cited context packs for LLM/RAG/agent workflows. It is open source, published on PyPI, and has 17k+ downloads.",
+    "changes": [
+      {
+        "file": "README.md",
+        "mode": "append_markdown_section",
+        "section": "## MCP Servers for Scraping",
+        "entry": "- [DocPull](https://github.com/raintree-technology/docpull) - Local-first Python CLI/SDK/MCP server for turning public static and server-rendered web sources into Markdown, NDJSON, SQLite, and cited context packs. ![GitHub Repo stars](https://img.shields.io/github/stars/raintree-technology/docpull?style=social)"
+      }
+    ]
+  },
+  {
+    "id": "awesome-mcp-servers-tensorblock",
+    "ready": true,
+    "upstream": "TensorBlock/awesome-mcp-servers",
+    "fork_name": "awesome-mcp-servers-tensorblock",
+    "base_branch": "main",
+    "branch": "add-docpull-tensorblock",
+    "commit_message": "Add DocPull to Browser Automation & Web Scraping",
+    "title": "Add DocPull to Browser Automation & Web Scraping",
+    "body": "Adds DocPull to the Browser Automation & Web Scraping category. DocPull is a Python CLI/SDK/MCP server that lets agents fetch, cache, search, validate, and export public static and server-rendered web sources as cited Markdown, NDJSON, SQLite, and local context packs. It is open source, published on PyPI, and has 17k+ downloads.",
+    "changes": [
+      {
+        "file": "docs/browser-automation--web-scraping.md",
+        "mode": "append_markdown_section",
+        "section": "## 🌐 Browser Automation & Web Scraping",
+        "entry": "- [raintree-technology/docpull](https://github.com/raintree-technology/docpull): Python CLI/SDK/MCP server for fetching, caching, searching, validating, and exporting public static and server-rendered web sources as cited Markdown, NDJSON, SQLite, and local context packs. Install: `pip install 'docpull[mcp]'`."
+      }
+    ]
+  },
+  {
+    "id": "awesome-copilot",
+    "ready": false,
+    "upstream": "github/awesome-copilot",
+    "base_branch": "main",
+    "branch": "add-docpull",
+    "commit_message": "Add docpull",
+    "title": "Add docpull",
+    "body": "Deferred until DocPull has a concrete Copilot skill, plugin, or MCP tool entry ready for this repository's format.",
+    "changes": []
+  }
+]

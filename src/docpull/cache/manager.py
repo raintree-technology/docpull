@@ -234,6 +234,7 @@ class CacheManager:
         """
         self._save_manifest()
         self._save_state()
+        self.frontier.flush()
 
     def __enter__(self) -> CacheManager:
         """Context manager entry."""
@@ -415,7 +416,11 @@ class CacheManager:
         }
         if config_fingerprint is not None:
             data["config_fingerprint"] = config_fingerprint
-            self.frontier.initialize(start_url=start_url, run_fingerprint=config_fingerprint)
+            if not self.frontier.compatible(
+                start_url=start_url,
+                run_fingerprint=config_fingerprint,
+            ):
+                self.frontier.initialize(start_url=start_url, run_fingerprint=config_fingerprint)
         self.frontier.add_many(urls, source="discovery")
         self.frontier.save()
         try:

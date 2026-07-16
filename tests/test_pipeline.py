@@ -216,6 +216,26 @@ class TestConvertStep:
 
         assert result.error is not None
 
+    @pytest.mark.asyncio
+    async def test_inline_xbrl_cleanup_invalidates_metadata_parse_cache(self):
+        html = (
+            b"<html><body><ix:hidden>private taxonomy data</ix:hidden>"
+            b"<main><h1>Visible filing</h1></main></body></html>"
+        )
+        ctx = PageContext(
+            url="https://example.com/filing",
+            output_path=Path("/tmp/out.md"),
+            html=html,
+        )
+        await MetadataStep().execute(ctx)
+
+        result = await ConvertStep(add_frontmatter=False, clean_inline_xbrl=True).execute(ctx)
+
+        assert result.markdown is not None
+        assert "Visible filing" in result.markdown
+        assert "private taxonomy data" not in result.markdown
+        assert result.parsed_html is None
+
 
 class TestMetadataStep:
     """Tests for MetadataStep."""

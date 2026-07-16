@@ -9,6 +9,22 @@ submissions.
 - `logo-square-dark-1024.png` - light mark on dark square background.
 - `logo-transparent-dark-1024.png` - dark mark on transparent background.
 - `logo-transparent-light-1024.png` - light mark on transparent background.
+- `logo-square-light-400.png` - 400x400 directory and marketplace icon.
+
+## Logo SVGs
+
+- `logo-mark.svg` - primary two-color mark on a transparent background.
+- `logo-mark-reversed.svg` - warm-white and green mark for dark backgrounds.
+- `logo-mark-monochrome-black.svg` - solid black mark.
+- `logo-mark-monochrome-white.svg` - solid white mark.
+- `logo-lockup-dark.svg` - mark and wordmark for light backgrounds.
+- `logo-lockup-light.svg` - reversed mark and wordmark for dark backgrounds.
+- `logo-app-icon.svg` - rounded-square app and social icon.
+- `logo-favicon.svg` - simplified small-size icon.
+
+The mark uses near-black `#101213`, verification green `#0F6B5D`, and warm
+white `#F5F4EF`. Preserve the geometric D silhouette, chamfered outer and inner
+right shoulders, and inset module; do not close the counter at small sizes.
 
 ## Screenshots
 

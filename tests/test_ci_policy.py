@@ -104,7 +104,8 @@ def test_ci_matrix_covers_advertised_python_minors() -> None:
     advertised = set(PYTHON_CLASSIFIER_RE.findall(pyproject))
     matrix_match = CI_MATRIX_RE.search(ci)
     assert matrix_match is not None
-    tested = set(re.findall(r'"(3\.\d+)"', matrix_match.group("versions")))
+    tested_versions = re.findall(r'"(3\.\d+(?:\.\d+)?)"', matrix_match.group("versions"))
+    tested = {".".join(version.split(".")[:2]) for version in tested_versions}
 
     assert tested == advertised
 
@@ -113,31 +114,38 @@ def test_ci_builds_checks_and_smoke_installs_distribution() -> None:
     ci = (WORKFLOW_DIR / "ci.yml").read_text()
 
     assert "\n  package:\n" in ci
-    assert "python scripts/sync_release_metadata.py --check" in ci
-    assert "python -m pip install -r requirements-release.txt" in ci
-    assert "python scripts/build_release.py --verify-reproducible" in ci
+    assert "uv run --locked python scripts/sync_release_metadata.py --check" in ci
+    assert (
+        "uv run --locked --with-requirements requirements-release.txt "
+        "python scripts/build_release.py --verify-reproducible"
+    ) in ci
+    assert "python -m build --no-isolation" not in ci
     assert "python -m twine check dist/*" in ci
-    assert "python -m venv .pkg-smoke" in ci
-    assert ".pkg-smoke/bin/python -m pip install dist/*.whl" in ci
+    assert "uv venv .pkg-smoke" in ci
+    assert "uv pip install --python .pkg-smoke/bin/python dist/*.whl" in ci
     assert ".pkg-smoke/bin/docpull --version" in ci
 
 
-def test_publish_workflow_builds_artifact_before_unlocked_release_gates() -> None:
+def test_publish_workflow_builds_artifact_before_locked_release_gates() -> None:
     publish = (WORKFLOW_DIR / "publish.yml").read_text()
     build_section, gate_and_publish = publish.split("\n  release-gates:\n", 1)
     gate_section, publish_section = gate_and_publish.split("\n  publish:\n", 1)
 
-    assert "python scripts/build_release.py --verify-reproducible" in build_section
+    assert (
+        "uv run --locked --with-requirements requirements-release.txt "
+        "python scripts/build_release.py --verify-reproducible"
+    ) in build_section
+    assert "python -m build --no-isolation" not in build_section
     assert "actions/upload-artifact" in build_section
     assert "if-no-files-found: error" in build_section
     assert "retention-days: 7" in build_section
     assert 'pip install --no-build-isolation -e ".[all,dev]"' not in build_section
 
-    assert 'pip install --no-build-isolation -e ".[all,dev]"' in gate_section
-    assert "python scripts/sync_release_metadata.py --check" in publish
+    assert "uv sync --locked --all-extras --dev" in gate_section
+    assert "uv run --locked python scripts/sync_release_metadata.py --check" in publish
     assert "actions/download-artifact" in gate_section
-    assert "python -m venv .release-smoke" in publish
-    assert ".release-smoke/bin/python -m pip install dist/*.whl" in publish
+    assert "uv venv .release-smoke" in publish
+    assert "uv pip install --python .release-smoke/bin/python dist/*.whl" in publish
     assert ".release-smoke/bin/docpull --version" in publish
     assert "needs: [build, release-gates]" in publish_section
 

@@ -54,25 +54,8 @@ from ..accounting import (
     maybe_write_run_accounting,
     paid_action_blocked,
 )
-from ..exports import EXPORT_FORMATS
-from ..exports import export_pack as export_local_pack
-from ..graph import build_graph, graph_neighbors, graph_status, query_graph, refresh_graph
-from ..local_workflows import audit_pack, refresh_pack
-from ..pack_reader import load_pack
-from ..pack_tools import (
-    build_citation_map,
-    build_intelligence_bundle,
-    build_research_brief,
-    diff_packs,
-    extract_pack_entities,
-    prepare_pack,
-    score_pack,
-    search_pack,
-)
-from ..policy import PolicyConfig
-from ..rendering import render_url_to_directory
+from ..export_formats import EXPORT_FORMATS
 from ..surface import PRUNED_MCP_TOOLS
-from ..workflows import create_workflow_request, run_workflow
 from .tools import (
     ToolResult,
     add_source,
@@ -791,6 +774,8 @@ async def _dispatch_tool(
                 else:
                     accounting.paid_request_count = 1
             if not render_blocked:
+                from ..rendering import render_url_to_directory
+
                 artifact = await render_url_to_directory(
                     url,
                     output_dir,
@@ -880,6 +865,9 @@ async def _dispatch_tool(
             "screenshot_pack",
             "policy_pack",
         }:
+            from ..policy import PolicyConfig
+            from ..workflows import create_workflow_request, run_workflow
+
             workflow_aliases = {
                 "brand_pack": ("brand-pack", "domain_or_url", "packs/brand"),
                 "product_pack": ("product-pack", "url_or_domain", "packs/products"),
@@ -931,6 +919,8 @@ async def _dispatch_tool(
             )
 
         elif name == "intelligence_bundle":
+            from ..pack_tools import build_intelligence_bundle
+
             objective = arguments.get("objective")
             market = arguments.get("market")
             if objective is not None and not isinstance(objective, str):
@@ -959,6 +949,8 @@ async def _dispatch_tool(
             )
 
         elif name == "pack_score":
+            from ..pack_tools import score_pack
+
             payload = await asyncio.to_thread(
                 score_pack,
                 _path_arg(arguments, "pack_dir"),
@@ -970,6 +962,8 @@ async def _dispatch_tool(
             )
 
         elif name == "pack_diff":
+            from ..pack_tools import diff_packs
+
             diff_payload: dict[str, Any] = await asyncio.to_thread(
                 diff_packs,
                 _path_arg(arguments, "old_pack_dir"),
@@ -984,6 +978,8 @@ async def _dispatch_tool(
             )
 
         elif name == "refresh_pack":
+            from ..local_workflows import refresh_pack
+
             output_dir_arg = arguments.get("output_dir")
             if output_dir_arg is not None and not isinstance(output_dir_arg, str):
                 raise ValueError("'output_dir' must be a path string")
@@ -1006,6 +1002,8 @@ async def _dispatch_tool(
             )
 
         elif name == "audit_pack":
+            from ..local_workflows import audit_pack
+
             fail_under = arguments.get("fail_under")
             if fail_under is not None and not isinstance(fail_under, int | float):
                 raise ValueError("'fail_under' must be a number")
@@ -1021,6 +1019,8 @@ async def _dispatch_tool(
             )
 
         elif name == "pack_citations":
+            from ..pack_tools import build_citation_map
+
             payload = await asyncio.to_thread(
                 build_citation_map,
                 _path_arg(arguments, "pack_dir"),
@@ -1032,6 +1032,8 @@ async def _dispatch_tool(
             )
 
         elif name == "pack_entities":
+            from ..pack_tools import extract_pack_entities
+
             payload = await asyncio.to_thread(
                 extract_pack_entities,
                 _path_arg(arguments, "pack_dir"),
@@ -1044,6 +1046,8 @@ async def _dispatch_tool(
             )
 
         elif name == "pack_search":
+            from ..pack_tools import search_pack
+
             payload = await asyncio.to_thread(
                 search_pack,
                 _path_arg(arguments, "pack_dir"),
@@ -1057,6 +1061,8 @@ async def _dispatch_tool(
             )
 
         elif name == "pack_brief":
+            from ..pack_tools import build_research_brief
+
             brief_objective = arguments.get("objective")
             if brief_objective is not None and not isinstance(brief_objective, str):
                 raise ValueError("'objective' must be a string")
@@ -1079,6 +1085,8 @@ async def _dispatch_tool(
             )
 
         elif name == "pack_prepare":
+            from ..pack_tools import prepare_pack
+
             prepare_objective = arguments.get("objective")
             if prepare_objective is not None and not isinstance(prepare_objective, str):
                 raise ValueError("'objective' must be a string")
@@ -1119,6 +1127,8 @@ async def _dispatch_tool(
             )
 
         elif name == "graph_build":
+            from ..graph import build_graph
+
             graph_payload: dict[str, Any] = await asyncio.to_thread(
                 build_graph,
                 _path_arg(arguments, "pack_dir"),
@@ -1138,6 +1148,8 @@ async def _dispatch_tool(
             )
 
         elif name == "graph_status":
+            from ..graph import graph_status
+
             status_payload: dict[str, Any] = await asyncio.to_thread(
                 graph_status,
                 _path_arg(arguments, "pack_dir"),
@@ -1148,6 +1160,8 @@ async def _dispatch_tool(
             )
 
         elif name == "graph_query":
+            from ..graph import query_graph
+
             query_payload: dict[str, Any] = await asyncio.to_thread(
                 query_graph,
                 _path_arg(arguments, "pack_dir"),
@@ -1160,6 +1174,8 @@ async def _dispatch_tool(
             )
 
         elif name == "graph_neighbors":
+            from ..graph import graph_neighbors
+
             neighbors_payload: dict[str, Any] = await asyncio.to_thread(
                 graph_neighbors,
                 _path_arg(arguments, "pack_dir"),
@@ -1172,6 +1188,8 @@ async def _dispatch_tool(
             )
 
         elif name == "graph_refresh":
+            from ..graph import refresh_graph
+
             graph_refresh_payload: dict[str, Any] = await asyncio.to_thread(
                 refresh_graph,
                 _path_arg(arguments, "pack_dir"),
@@ -1193,6 +1211,8 @@ async def _dispatch_tool(
             )
 
         elif name == "validate_policy":
+            from ..policy import PolicyConfig
+
             policy_path = _path_arg(arguments, "policy_path")
             policy = PolicyConfig.from_file(policy_path)
             validation_source_policy: dict[str, Any] = policy.to_source_policy_payload(
@@ -1209,6 +1229,8 @@ async def _dispatch_tool(
             )
 
         elif name == "export_pack":
+            from ..exports import export_pack as export_local_pack
+
             format_arg = _require_str(arguments, "format")
             skill_name = arguments.get("skill_name")
             if skill_name is not None and not isinstance(skill_name, str):
@@ -1235,6 +1257,8 @@ async def _dispatch_tool(
             )
 
         elif name == "serve_pack_status":
+            from ..pack_reader import load_pack
+
             served_pack = await asyncio.to_thread(load_pack, _path_arg(arguments, "pack_dir"))
             result = ToolResult(
                 f"Pack server status: {len(served_pack.documents)} documents",

@@ -7,6 +7,8 @@ import re
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
+from bs4 import BeautifulSoup
+
 from ...conversion.article_cleanup import clean_article_markdown
 from ...conversion.extractor import MainContentExtractor
 from ...conversion.filings import clean_inline_xbrl_html
@@ -85,6 +87,39 @@ def _extract_headings(markdown: str, max_level: int = 2, limit: int = 12) -> lis
             if len(out) >= limit:
                 break
     return out
+
+
+def _heading_summary(markdown: str) -> tuple[list[str], int]:
+    """Collect the frontmatter outline and bounded total in one pass."""
+    outline: list[str] = []
+    heading_count = 0
+    in_fence = False
+    fence_marker = ""
+    for raw_line in markdown.splitlines():
+        line = raw_line.strip()
+        if line.startswith("```") or line.startswith("~~~"):
+            marker = line[:3]
+            if not in_fence:
+                in_fence = True
+                fence_marker = marker
+            elif line.startswith(fence_marker):
+                in_fence = False
+                fence_marker = ""
+            continue
+        if in_fence:
+            continue
+        match = _HEADING_LINE_RE.match(raw_line)
+        if not match:
+            continue
+        level = len(match.group(1))
+        text = match.group(2).strip()
+        if not text:
+            continue
+        if level <= 6 and heading_count < 1000:
+            heading_count += 1
+        if level <= 2 and len(outline) < 12:
+            outline.append(text)
+    return outline, heading_count
 
 
 def _whitelist_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
@@ -191,6 +226,9 @@ class ConvertStep:
                 ctx.extraction_info["method"] = "remote_document"
             elif self._clean_inline_xbrl:
                 ctx.html, cleanup_stats = clean_inline_xbrl_html(ctx.html)
+                # Metadata parsed the pre-cleanup document; force conversion
+                # to parse the rewritten bytes so XBRL removal still applies.
+                ctx.parsed_html = None
                 ctx.extraction_info["inline_xbrl_cleanup"] = cleanup_stats
             if remote_markdown is None:
                 ctx.source_type = detect_source_type(ctx.html, ctx.url)
@@ -210,7 +248,13 @@ class ConvertStep:
                 else:
                     if self._extractor is None or self._converter is None:
                         raise RuntimeError("Generic HTML converter is not initialized.")
-                    extracted_html = self._extractor.extract(ctx.html, ctx.url)
+                    if (
+                        isinstance(ctx.parsed_html, BeautifulSoup)
+                        and type(self._extractor) is MainContentExtractor
+                    ):
+                        extracted_html = self._extractor.extract_parsed(ctx.parsed_html, ctx.url)
+                    else:
+                        extracted_html = self._extractor.extract(ctx.html, ctx.url)
                     ctx.extraction_info["method"] = "generic"
                     ctx.extraction_info["extracted_html_bytes"] = len(extracted_html.encode("utf-8"))
                     if not extracted_html.strip():
@@ -226,6 +270,7 @@ class ConvertStep:
                 return self._handle_empty_content(ctx, emit)
 
             markdown = clean_article_markdown(markdown, url=ctx.url, metadata=ctx.metadata)
+            headings, heading_count = _heading_summary(markdown)
 
             if self._add_frontmatter and self._frontmatter_builder:
                 if ctx.source_type in {"raw_text", "llms_txt"}:
@@ -244,7 +289,6 @@ class ConvertStep:
                 extra.update(_whitelist_metadata(ctx.metadata))
                 # Heading outline lets RAG indexers and skill loaders pick
                 # the right chunk without re-parsing the body.
-                headings = _extract_headings(markdown)
                 if headings:
                     extra["headings"] = headings
                 # ISO 8601 UTC timestamp so re-runs can be diffed by date.
@@ -259,7 +303,7 @@ class ConvertStep:
 
             ctx.markdown = markdown
             ctx.extraction_info["markdown_bytes"] = len(markdown.encode("utf-8"))
-            ctx.extraction_info["heading_count"] = len(_extract_headings(markdown, max_level=6, limit=1000))
+            ctx.extraction_info["heading_count"] = heading_count
             ctx.extraction_info["confidence"] = self._confidence(ctx)
 
             if emit:
@@ -279,6 +323,10 @@ class ConvertStep:
             if emit:
                 emit(FetchEvent(type=EventType.FETCH_FAILED, url=ctx.url, error=ctx.error))
             return ctx
+        finally:
+            # Do not retain a full duplicate DOM after conversion. This also
+            # bounds peak memory when several fetch workers finish together.
+            ctx.parsed_html = None
 
     async def _try_remote_document(self, ctx: PageContext) -> str | None:
         media_type = (ctx.content_type or "").split(";", 1)[0].strip().casefold()

@@ -65,6 +65,10 @@ class PageContext:
     source_type: str | None = None
     chunks: list[object] = field(default_factory=list)
 
+    # Internal parse cache shared by adjacent HTML pipeline steps. Kept out
+    # of repr/serialization and released by ConvertStep after use.
+    parsed_html: object | None = field(default=None, repr=False)
+
     def mark_skipped(self, reason: str, code: SkipReason | None = None) -> None:
         self.should_skip = True
         self.skip_reason = reason

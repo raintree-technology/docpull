@@ -41,7 +41,9 @@
       "Manage user-defined source aliases"
     ],
     "websiteURL": "https://github.com/raintree-technology/docpull",
-    "brandColor": "#2563EB",
+    "brandColor": "#0F6B5D",
+    "composerIcon": "./assets/logo.svg",
+    "logo": "./assets/logo.svg",
     "defaultPrompt": "Use docpull when I ask about a specific library, framework, SDK, API, website, or public source URL. Prefer cached sources first, fetch only the requested source, and cite source paths when answering."
   }
 }

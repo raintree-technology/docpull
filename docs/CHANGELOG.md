@@ -127,7 +127,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `CIThresholds` through the root Python SDK contract.
 - Remove provider and observability extras from the public package extras;
   internal experiments that need those SDKs should install them directly.
-- Remove the unreleased Playwright renderer runtime and keep `agent-browser` as
+- Remove the unreleased browser renderer runtime and keep `agent-browser` as
   the sole local browser-rendering contract for local, Vercel, and E2B paths.
 - Make the `sec-filing` profile use the extractor ensemble so base installs
   fall back to the built-in extractor when optional Trafilatura is unavailable.

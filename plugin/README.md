@@ -1,3 +1,11 @@
+<p align="center">
+  <img
+    src="https://raw.githubusercontent.com/raintree-technology/docpull/main/docs/launch-assets/logo-square-light-400.png"
+    alt="DocPull"
+    width="112"
+  />
+</p>
+
 # docpull plugin
 
 Pull static and server-rendered public web sources into Codex or Claude Code. Local, fast, no API keys.

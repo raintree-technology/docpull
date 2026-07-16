@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
 
-from .run import PROGRESS_EVENT_SCHEMA_VERSION
+from .schema import PROGRESS_EVENT_SCHEMA_VERSION
 
 
 class SkipReason(str, Enum):

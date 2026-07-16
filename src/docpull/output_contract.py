@@ -117,10 +117,15 @@ def write_raw_contract_sidecars(
     return artifacts
 
 
-def ensure_agent_contract_sidecars(pack_dir: Path, *, workflow: str = "pack-prepare") -> dict[str, Path]:
+def ensure_agent_contract_sidecars(
+    pack_dir: Path,
+    *,
+    workflow: str = "pack-prepare",
+    records: list[dict[str, Any]] | None = None,
+) -> dict[str, Path]:
     """Write minimal agent-level sidecars when a local pack lacks them."""
     pack_dir = pack_dir.resolve()
-    records = _read_records(pack_dir)
+    records = records if records is not None else _read_records(pack_dir)
     artifacts: dict[str, Path] = {}
 
     context_lock = pack_dir / "context.lock.json"

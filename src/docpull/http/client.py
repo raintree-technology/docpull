@@ -8,6 +8,7 @@ import logging
 import re
 import secrets
 import socket
+from dataclasses import dataclass
 from types import TracebackType
 from typing import cast
 from urllib.parse import parse_qsl, urlencode, urljoin, urlparse
@@ -32,6 +33,13 @@ logger = logging.getLogger(__name__)
 
 _NATIVE_PROXY_SCHEMES = frozenset({"http", "https"})
 _SOCKS_PROXY_SCHEMES = frozenset({"socks4", "socks4a", "socks5", "socks5h"})
+_RequestKey = tuple[str, float, tuple[tuple[str, str], ...]]
+
+
+@dataclass
+class _InflightGet:
+    task: asyncio.Task[HttpResponse]
+    waiters: int = 0
 
 
 class _ValidatedResolver(AbstractResolver):
@@ -199,6 +207,7 @@ class AsyncHttpClient:
             self._validate_header_value(name, value)
 
         self._session: aiohttp.ClientSession | None = None
+        self._inflight_gets: dict[_RequestKey, _InflightGet] = {}
 
     @property
     def user_agent(self) -> str:
@@ -495,7 +504,63 @@ class AsyncHttpClient:
         if self._session is None:
             raise RuntimeError("Client not initialized. Use 'async with' context manager.")
 
+        # Streaming discovery and the fetch worker pool can reach the same URL
+        # concurrently. Share only byte-for-byte equivalent requests while they
+        # are in flight; completed responses are never retained as an implicit
+        # cache. Including the effective timeout and caller headers keeps cache
+        # validators and other request-specific semantics isolated.
         timeout_val = timeout or self._default_timeout
+        # Snapshot mutable caller input before the task can be scheduled. Keep
+        # header spelling in the key because a caller header whose casing only
+        # differs from an auth header produces a different merged request dict.
+        headers_snapshot = dict(headers) if headers else None
+        header_key = tuple(sorted((name, value) for name, value in (headers_snapshot or {}).items()))
+        request_key = (url, timeout_val, header_key)
+        inflight = self._inflight_gets.get(request_key)
+        if inflight is None:
+            task = asyncio.create_task(self._get_uncached(url, timeout=timeout_val, headers=headers_snapshot))
+            inflight = _InflightGet(task=task)
+            self._inflight_gets[request_key] = inflight
+
+            def remove_completed(completed: asyncio.Task[HttpResponse]) -> None:
+                if self._inflight_gets.get(request_key) is inflight:
+                    self._inflight_gets.pop(request_key, None)
+
+            task.add_done_callback(remove_completed)
+
+        inflight.waiters += 1
+        try:
+            # One caller being cancelled must not cancel a request still used
+            # by another discovery/fetch consumer.
+            response = await asyncio.shield(inflight.task)
+        finally:
+            inflight.waiters -= 1
+            if inflight.waiters == 0:
+                if not inflight.task.done():
+                    inflight.task.cancel()
+                if self._inflight_gets.get(request_key) is inflight:
+                    self._inflight_gets.pop(request_key, None)
+        # HttpResponse is frozen, but its header mapping is mutable. Give every
+        # caller an independent mapping just as separate network requests did.
+        return HttpResponse(
+            status_code=response.status_code,
+            content=response.content,
+            content_type=response.content_type,
+            headers=dict(response.headers),
+            url=response.url,
+        )
+
+    async def _get_uncached(
+        self,
+        url: str,
+        *,
+        timeout: float,
+        headers: dict[str, str] | None,
+    ) -> HttpResponse:
+        """Perform one physical GET, including retries and redirects."""
+        if self._session is None:
+            raise RuntimeError("Client not initialized. Use 'async with' context manager.")
+
         # Merge auth headers with request-specific headers
         request_headers = dict(self._auth_headers)
         if headers:
@@ -518,7 +583,7 @@ class AsyncHttpClient:
                         self._rate_limiter.limit(current_url),
                         self._session.get(
                             current_url,
-                            timeout=aiohttp.ClientTimeout(total=timeout_val),
+                            timeout=aiohttp.ClientTimeout(total=timeout),
                             headers=current_headers,
                             proxy=self._request_proxy,
                             allow_redirects=False,

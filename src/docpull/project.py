@@ -34,7 +34,6 @@ from rich.markup import escape
 from .accounting import RunAccounting
 from .context_aliases import context_alias_for_url, get_context_alias, list_context_aliases
 from .conversion.chunking import TokenCounter, chunk_markdown
-from .core.fetcher import Fetcher
 from .exports import export_pack
 from .models.config import (
     AuthConfig,
@@ -69,6 +68,26 @@ ANTHROPIC_API_KEY_ENV = "ANTHROPIC_API_KEY"
 ANTHROPIC_MESSAGES_URL = "https://api.anthropic.com/v1/messages"
 ANTHROPIC_API_VERSION = "2023-06-01"
 SEMANTIC_REQUEST_TIMEOUT_S = 60.0
+
+
+def __getattr__(name: str) -> Any:
+    """Preserve the historical patchable Fetcher attribute without eager imports."""
+    if name == "Fetcher":
+        from .core.fetcher import Fetcher
+
+        return Fetcher
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def _fetcher_class() -> Any:
+    override = globals().get("Fetcher")
+    if override is not None:
+        return override
+    from .core.fetcher import Fetcher
+
+    return Fetcher
+
+
 _RUN_ID_RE = re.compile(r"^[0-9A-Za-z_.-]+$")
 
 SourceType = Literal[
@@ -1721,7 +1740,7 @@ async def _sync_source(
     errors: list[dict[str, Any]] = []
     skips: list[dict[str, Any]] = []
     robots_blocked = 0
-    async with Fetcher(fetch_config) as fetcher:
+    async with _fetcher_class()(fetch_config) as fetcher:
         if source.discovered_urls:
             urls = _unique_urls([source.url, *source.discovered_urls])
             if config.crawl.max_pages is not None:
@@ -1995,7 +2014,7 @@ async def _discover_source_urls(
 ) -> list[str]:
     output_dir = project_paths(project_root).cache / "discovery" / source.name
     discover_config = _fetch_config(project_root, config, source, output_dir)
-    async with Fetcher(discover_config) as fetcher:
+    async with _fetcher_class()(discover_config) as fetcher:
         try:
             urls = await fetcher.discover()
         except Exception as err:  # noqa: BLE001

@@ -9,7 +9,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
-from ..models.run import FRONTIER_SCHEMA_VERSION
+from ..models.schema import FRONTIER_SCHEMA_VERSION
 from ..time_utils import utc_now_iso
 
 logger = logging.getLogger(__name__)
@@ -82,21 +82,26 @@ class FrontierStore:
 
     def __init__(self, path: Path):
         self.path = Path(path)
+        self.journal_path = self.path.with_suffix(self.path.suffix + ".journal")
         self.entries: dict[str, FrontierEntry] = {}
         self.start_url: str | None = None
         self.run_fingerprint: dict[str, object] | None = None
         self.created_at: str | None = None
         self.updated_at: str | None = None
+        self._journal_needs_separator = False
         self._load()
 
     def _load(self) -> None:
-        if not self.path.exists():
-            return
-        try:
-            data = json.loads(self.path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError) as err:
-            logger.warning("Could not load frontier store %s: %s", self.path, err)
-            return
+        if self.path.exists():
+            try:
+                data = json.loads(self.path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError) as err:
+                logger.warning("Could not load frontier store %s: %s", self.path, err)
+            else:
+                self._load_snapshot(data)
+        self._replay_journal()
+
+    def _load_snapshot(self, data: object) -> None:
         if not isinstance(data, dict) or data.get("schema_version") != FRONTIER_SCHEMA_VERSION:
             return
         entries = data.get("entries")
@@ -113,6 +118,54 @@ class FrontierStore:
             entry = FrontierEntry.from_json(item)
             if entry:
                 self.entries[entry.url] = entry
+
+    def _replay_journal(self) -> None:
+        """Apply complete transition records after the last snapshot."""
+        if not self.journal_path.exists():
+            return
+        try:
+            with self.journal_path.open(encoding="utf-8") as journal:
+                for line_number, line in enumerate(journal, start=1):
+                    if not line.strip():
+                        continue
+                    try:
+                        update = json.loads(line)
+                    except json.JSONDecodeError:
+                        if not line.endswith("\n"):
+                            self._journal_needs_separator = True
+                        logger.warning(
+                            "Ignoring incomplete frontier journal record %s:%d",
+                            self.journal_path,
+                            line_number,
+                        )
+                        continue
+                    if not isinstance(update, dict):
+                        continue
+                    if update.get("schema_version") != FRONTIER_SCHEMA_VERSION:
+                        continue
+                    raw_entry = update.get("entry")
+                    if not isinstance(raw_entry, dict):
+                        continue
+                    entry = FrontierEntry.from_json(raw_entry)
+                    if entry is not None:
+                        self.entries[entry.url] = entry
+                        self.updated_at = entry.updated_at
+        except OSError as err:
+            logger.warning("Could not load frontier journal %s: %s", self.journal_path, err)
+
+    def _append_entry(self, entry: FrontierEntry) -> None:
+        """Durably append one URL transition without rewriting the frontier."""
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "schema_version": FRONTIER_SCHEMA_VERSION,
+            "entry": entry.to_json(),
+        }
+        with self.journal_path.open("a", encoding="utf-8") as journal:
+            if self._journal_needs_separator and self.journal_path.stat().st_size:
+                journal.write("\n")
+            self._journal_needs_separator = False
+            journal.write(json.dumps(payload, ensure_ascii=False, separators=(",", ":")))
+            journal.write("\n")
 
     def save(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -132,9 +185,16 @@ class FrontierStore:
         try:
             tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
             tmp.replace(self.path)
+            self.journal_path.unlink(missing_ok=True)
+            self._journal_needs_separator = False
         except Exception:
             tmp.unlink(missing_ok=True)
             raise
+
+    def flush(self) -> None:
+        """Compact pending journal transitions into the stable snapshot."""
+        if self.journal_path.exists():
+            self.save()
 
     def initialize(self, *, start_url: str, run_fingerprint: dict[str, object]) -> None:
         if self.start_url != start_url or self.run_fingerprint != run_fingerprint:
@@ -164,7 +224,7 @@ class FrontierStore:
         entry.state = FrontierState.PROCESSING
         entry.attempts += 1
         entry.updated_at = utc_now_iso()
-        self.save()
+        self._append_entry(entry)
 
     def mark_succeeded(self, url: str) -> None:
         self._mark_terminal(url, FrontierState.SUCCEEDED)
@@ -183,7 +243,7 @@ class FrontierStore:
         entry.state = state
         entry.last_error = error
         entry.updated_at = utc_now_iso()
-        self.save()
+        self._append_entry(entry)
 
     def pending_urls(self) -> list[str]:
         terminal = {FrontierState.SUCCEEDED, FrontierState.SKIPPED}
@@ -192,8 +252,10 @@ class FrontierStore:
     def clear(self) -> None:
         if self.path.exists():
             self.path.unlink()
+        self.journal_path.unlink(missing_ok=True)
         self.entries.clear()
         self.start_url = None
         self.run_fingerprint = None
         self.created_at = None
         self.updated_at = None
+        self._journal_needs_separator = False

@@ -50,7 +50,7 @@ browser.
 
 - Use Scrapy when you need a programmable spider framework with custom item
   pipelines.
-- Use Playwright, Puppeteer, Selenium, or Crawlee when browser automation,
+- Use agent-browser, Puppeteer, Selenium, or Crawlee when browser automation,
   sessions, queues, and interaction are the core job.
 - Use a hosted extraction service when you want managed rendering, proxies, and
   external infrastructure.

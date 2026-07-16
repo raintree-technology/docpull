@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 96" role="img" aria-labelledby="title desc">
+  <title id="title">DocPull reversed logo</title>
+  <desc id="desc">The DocPull mark and wordmark for use on dark backgrounds.</desc>
+  <g transform="translate(12 16)">
+    <path
+      fill="#F5F4EF"
+      fill-rule="evenodd"
+      d="M4 4h40l16 16v24L44 60H4V4Zm16 16v24h18l6-6V26l-6-6H20Z"
+    />
+    <path fill="#0F6B5D" d="M22 32h10v10H22z" />
+  </g>
+  <text
+    x="92"
+    y="64"
+    fill="#F5F4EF"
+    font-family="Arial"
+    font-size="50"
+    font-weight="700"
+    letter-spacing="-2"
+  >DocPull</text>
+</svg>
