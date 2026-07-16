@@ -43,16 +43,6 @@ PRIMARY_DOC_PATHS = [
     "docs/surface-contract.md",
 ]
 
-PRIMARY_WEB_PATHS = [
-    "web/app/page.tsx",
-    "web/app/layout.tsx",
-    "web/app/pricing/page.tsx",
-    "web/app/privacy/page.tsx",
-    "web/app/terms/page.tsx",
-    "web/app/llms.txt/route.ts",
-    "web/components/SiteChrome.tsx",
-]
-
 
 def test_documented_sdk_exports_remain_public() -> None:
     assert tuple(docpull.__all__) == PUBLIC_SDK_EXPORTS
@@ -176,28 +166,6 @@ def test_primary_docs_do_not_publish_pruned_surface() -> None:
 
     context_dependencies = (ROOT / "docs/context-dependencies.md").read_text(encoding="utf-8")
     assert "Context Pack Contract v2" not in context_dependencies
-
-
-def test_primary_website_does_not_publish_pruned_provider_story() -> None:
-    if not (ROOT / "web").exists():
-        pytest.skip("DocPull no longer ships a standalone website.")
-
-    banned_patterns = [
-        r"\bParallel\b",
-        r"\bTavily\b",
-        r"\bExa\b",
-        "docpull[parallel]",
-        "docpull parallel",
-        "docpull providers",
-        "Provider workflows",
-        "parallel-wordmark",
-        "ParallelPacks",
-    ]
-
-    for relative_path in PRIMARY_WEB_PATHS:
-        text = (ROOT / relative_path).read_text(encoding="utf-8")
-        for pattern in banned_patterns:
-            assert not re.search(pattern, text), f"{pattern!r} leaked into {relative_path}"
 
 
 def test_surface_contract_states_non_1_to_1_policy() -> None:
