@@ -296,6 +296,7 @@ PUBLIC_MCP_TOOLS = frozenset(
         "grep_docs",
         "read_doc",
         "workflow_run",
+        "website_pack",
         "brand_pack",
         "product_pack",
         "styleguide_pack",
