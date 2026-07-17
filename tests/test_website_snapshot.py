@@ -83,6 +83,29 @@ def _run_snapshot(
     )
 
 
+def test_page_content_excludes_volatile_capture_time() -> None:
+    def captured_page(captured_at: str) -> PageSnapshot:
+        return PageSnapshot(
+            url="https://example.com/",
+            title="Example",
+            html="<h1>Example</h1><p>Stable body.</p>",
+            markdown=(
+                f'---\ntitle: "Example"\ncrawled_at: "{captured_at}"\n---\n\n# Example\n\nStable body.\n'
+            ),
+            metadata={},
+            extraction={},
+        )
+
+    first = captured_page("2026-07-17T05:00:00Z")
+    second = captured_page("2026-07-17T06:00:00Z")
+
+    first_content = website_module._page_content(first)
+    second_content = website_module._page_content(second)
+
+    assert first_content == second_content
+    assert "crawled_at" not in first_content
+
+
 def test_website_snapshot_is_recursive_portable_and_tamper_evident(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 from pathlib import Path
 from typing import Any
@@ -627,7 +628,12 @@ def _authority_role(page_role: str) -> str:
 
 
 def _page_content(page: PageSnapshot) -> str:
-    content = page.markdown.strip()
+    content = re.sub(
+        r'^crawled_at:\s*"[^"\r\n]*"\r?\n',
+        "",
+        page.markdown,
+        flags=re.MULTILINE,
+    ).strip()
     if not content:
         content = soup_for(page).get_text("\n").strip()
     return content + ("\n" if content else "")
