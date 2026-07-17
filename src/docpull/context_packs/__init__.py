@@ -25,6 +25,8 @@ _LAZY_EXPORTS = {
     **{name: (".transcript", name) for name in ("async_build_transcript_pack", "build_transcript_pack")},
     **{name: (".wiki", name) for name in ("async_build_wiki_pack", "build_wiki_pack")},
     "capture_screenshot_pack": (".visuals", "capture_screenshot_pack"),
+    "build_website_pack": (".website", "build_website_pack"),
+    "validate_website_snapshot_pack": (".website", "validate_website_snapshot_pack"),
 }
 
 __all__ = list(PUBLIC_CONTEXT_PACK_EXPORTS)
@@ -59,6 +61,7 @@ if TYPE_CHECKING:
     from .styleguide import build_styleguide_pack
     from .transcript import async_build_transcript_pack, build_transcript_pack
     from .visuals import build_image_pack, capture_screenshot_pack
+    from .website import build_website_pack, validate_website_snapshot_pack
     from .wiki import async_build_wiki_pack, build_wiki_pack
 
 

@@ -24,6 +24,7 @@ from .common import (
     extract_links,
     fetch_pages_blocking,
     homepage_url_for_domain,
+    pages_from_local_pack,
     public_url,
     quote_markdown,
     same_policy_domain,
@@ -73,7 +74,8 @@ def build_policy_pack(
 ) -> dict[str, Any]:
     """Discover policy pages and emit neutral, clause-level evidence records."""
 
-    domain = domain_from_input(domain_or_url)
+    local_pages = pages_from_local_pack(domain_or_url)
+    domain = domain_from_input(local_pages[0].url) if local_pages else domain_from_input(domain_or_url)
     if not domain:
         raise ContextPackError("Could not resolve a domain from policy-pack input.")
     effective_policy = ensure_policy_for_domain(policy, domain)
@@ -84,14 +86,21 @@ def build_policy_pack(
         input_value=domain_or_url,
     )
     start_url = public_url(domain_or_url if "://" in domain_or_url else homepage_url_for_domain(domain))
-    discovery_pages = fetch_pages_blocking([start_url], run=run, max_pages=1)
+    discovery_pages = (
+        local_pages[:max_pages]
+        if local_pages is not None
+        else fetch_pages_blocking([start_url], run=run, max_pages=1)
+    )
     if not discovery_pages:
-        raise ContextPackError(f"Could not fetch policy discovery target: {start_url}")
+        raise ContextPackError(f"Could not load policy discovery target: {start_url}")
 
-    urls = _policy_urls(discovery_pages[0], domain=domain, max_pages=max_pages)
-    if _policy_target_hint(discovery_pages[0]) and start_url not in urls:
-        urls.insert(0, start_url)
-    pages = fetch_pages_blocking(urls, run=run, max_pages=max_pages) if urls else []
+    if local_pages is not None:
+        pages = local_pages[:max_pages]
+    else:
+        urls = _policy_urls(discovery_pages[0], domain=domain, max_pages=max_pages)
+        if _policy_target_hint(discovery_pages[0]) and start_url not in urls:
+            urls.insert(0, start_url)
+        pages = fetch_pages_blocking(urls, run=run, max_pages=max_pages) if urls else []
     if not pages:
         run.warn(
             "policy_documents_not_found",

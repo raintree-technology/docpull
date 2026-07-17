@@ -60,6 +60,11 @@ write the agent/eval sidecars after parsing.
 
 ## Typed Knowledge Lanes
 
+`website-pack` is the canonical bounded website lane. In addition to the v3
+corpus, it writes `website.snapshot.v1.json`, explicit baseline states, OKF and
+optional visual representations, and recursive artifact hashes. See
+[Website snapshots](website-snapshot.md).
+
 Known-source lanes use the same v3 raw contract: `openapi-pack`,
 `feed-pack`, `paper-pack`, `repo-pack`, `package-pack`, `standards-pack`,
 `dataset-pack`, `transcript-pack`, and `wiki-pack` all write

@@ -1,0 +1,15 @@
+{
+  "contract_version": "website.snapshot.v1",
+  "description": "Golden page-role coverage expected from the bounded website workflow.",
+  "expected_roles": [
+    "home",
+    "product",
+    "pricing",
+    "documentation",
+    "trust",
+    "legal",
+    "changelog",
+    "support",
+    "other"
+  ]
+}

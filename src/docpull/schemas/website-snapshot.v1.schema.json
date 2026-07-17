@@ -1,0 +1,567 @@
+{
+  "$defs": {
+    "ArtifactReference": {
+      "additionalProperties": true,
+      "properties": {
+        "bytes": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Bytes"
+        },
+        "media_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Media Type"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "title": "ArtifactReference",
+      "type": "object"
+    },
+    "SourceAuthority": {
+      "additionalProperties": true,
+      "properties": {
+        "rationale": {
+          "title": "Rationale",
+          "type": "string"
+        },
+        "role": {
+          "enum": [
+            "official_product",
+            "official_corporate",
+            "legal",
+            "documentation",
+            "social",
+            "marketplace",
+            "government_registry",
+            "regulatory_filing",
+            "press_release",
+            "local_reporting",
+            "third_party"
+          ],
+          "title": "Role",
+          "type": "string"
+        },
+        "tier": {
+          "enum": [
+            "tier_1_authoritative",
+            "tier_2_owned",
+            "tier_3_distribution",
+            "tier_4_external"
+          ],
+          "title": "Tier",
+          "type": "string"
+        }
+      },
+      "required": [
+        "role",
+        "tier",
+        "rationale"
+      ],
+      "title": "SourceAuthority",
+      "type": "object"
+    },
+    "WebsiteSnapshotBaseline": {
+      "additionalProperties": true,
+      "properties": {
+        "snapshot_hash": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Snapshot Hash",
+          "type": "string"
+        },
+        "snapshot_id": {
+          "title": "Snapshot Id",
+          "type": "string"
+        },
+        "verified": {
+          "const": true,
+          "default": true,
+          "title": "Verified",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "snapshot_id",
+        "snapshot_hash"
+      ],
+      "title": "WebsiteSnapshotBaseline",
+      "type": "object"
+    },
+    "WebsiteSnapshotDocument": {
+      "additionalProperties": true,
+      "properties": {
+        "authority": {
+          "$ref": "#/$defs/SourceAuthority"
+        },
+        "brand_assets": {
+          "items": {
+            "$ref": "#/$defs/ArtifactReference"
+          },
+          "title": "Brand Assets",
+          "type": "array"
+        },
+        "canonical_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Canonical Url"
+        },
+        "content_hash": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "document_id": {
+          "title": "Document Id",
+          "type": "string"
+        },
+        "document_version": {
+          "title": "Document Version",
+          "type": "string"
+        },
+        "entity_reference": {
+          "title": "Entity Reference",
+          "type": "string"
+        },
+        "failure": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WorkflowFailure"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "fetched_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fetched At"
+        },
+        "okf": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArtifactReference"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "page_role": {
+          "enum": [
+            "home",
+            "product",
+            "pricing",
+            "documentation",
+            "trust",
+            "legal",
+            "changelog",
+            "support",
+            "other"
+          ],
+          "title": "Page Role",
+          "type": "string"
+        },
+        "raw": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArtifactReference"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "screenshot": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArtifactReference"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "state": {
+          "enum": [
+            "added",
+            "changed",
+            "unchanged",
+            "removed",
+            "failed",
+            "blocked"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "url": {
+          "title": "Url",
+          "type": "string"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Warnings",
+          "type": "array"
+        }
+      },
+      "required": [
+        "document_id",
+        "document_version",
+        "content_hash",
+        "url",
+        "entity_reference",
+        "authority",
+        "page_role",
+        "state"
+      ],
+      "title": "WebsiteSnapshotDocument",
+      "type": "object"
+    },
+    "WebsiteSnapshotManifests": {
+      "additionalProperties": true,
+      "properties": {
+        "artifact": {
+          "default": "artifact.manifest.json",
+          "title": "Artifact",
+          "type": "string"
+        },
+        "corpus": {
+          "$ref": "#/$defs/ArtifactReference"
+        },
+        "coverage": {
+          "$ref": "#/$defs/ArtifactReference"
+        },
+        "current_run": {
+          "$ref": "#/$defs/ArtifactReference"
+        },
+        "documents": {
+          "$ref": "#/$defs/ArtifactReference"
+        },
+        "provenance": {
+          "$ref": "#/$defs/ArtifactReference"
+        }
+      },
+      "required": [
+        "corpus",
+        "current_run",
+        "coverage",
+        "provenance",
+        "documents"
+      ],
+      "title": "WebsiteSnapshotManifests",
+      "type": "object"
+    },
+    "WebsiteSnapshotOptions": {
+      "additionalProperties": true,
+      "properties": {
+        "key_page_visuals": {
+          "default": true,
+          "title": "Key Page Visuals",
+          "type": "boolean"
+        },
+        "max_depth": {
+          "default": 3,
+          "minimum": 0,
+          "title": "Max Depth",
+          "type": "integer"
+        },
+        "max_pages": {
+          "default": 50,
+          "minimum": 1,
+          "title": "Max Pages",
+          "type": "integer"
+        },
+        "pdf_enabled": {
+          "default": false,
+          "title": "Pdf Enabled",
+          "type": "boolean"
+        },
+        "raw_html": {
+          "default": true,
+          "title": "Raw Html",
+          "type": "boolean"
+        },
+        "render_fallback": {
+          "default": true,
+          "title": "Render Fallback",
+          "type": "boolean"
+        }
+      },
+      "title": "WebsiteSnapshotOptions",
+      "type": "object"
+    },
+    "WorkflowFailure": {
+      "additionalProperties": true,
+      "properties": {
+        "attempts": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Attempts"
+        },
+        "code": {
+          "default": "workflow_error",
+          "title": "Code",
+          "type": "string"
+        },
+        "http_status": {
+          "anyOf": [
+            {
+              "maximum": 599,
+              "minimum": 100,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Http Status"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "metadata": {
+          "additionalProperties": true,
+          "title": "Metadata",
+          "type": "object"
+        },
+        "retry_after_seconds": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Retry After Seconds"
+        },
+        "retryable": {
+          "default": false,
+          "title": "Retryable",
+          "type": "boolean"
+        },
+        "source_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Url"
+        },
+        "stage": {
+          "default": "workflow",
+          "title": "Stage",
+          "type": "string"
+        }
+      },
+      "required": [
+        "message"
+      ],
+      "title": "WorkflowFailure",
+      "type": "object"
+    },
+    "WorkflowWarning": {
+      "additionalProperties": true,
+      "properties": {
+        "code": {
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "metadata": {
+          "additionalProperties": true,
+          "title": "Metadata",
+          "type": "object"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "title": "WorkflowWarning",
+      "type": "object"
+    }
+  },
+  "$id": "https://docpull.dev/schemas/website-snapshot.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "baseline": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/WebsiteSnapshotBaseline"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "captured_at": {
+      "title": "Captured At",
+      "type": "string"
+    },
+    "contract_version": {
+      "const": "website.snapshot.v1",
+      "default": "website.snapshot.v1",
+      "title": "Contract Version",
+      "type": "string"
+    },
+    "coverage": {
+      "additionalProperties": true,
+      "title": "Coverage",
+      "type": "object"
+    },
+    "documents": {
+      "items": {
+        "$ref": "#/$defs/WebsiteSnapshotDocument"
+      },
+      "title": "Documents",
+      "type": "array"
+    },
+    "entity_reference": {
+      "title": "Entity Reference",
+      "type": "string"
+    },
+    "manifests": {
+      "$ref": "#/$defs/WebsiteSnapshotManifests"
+    },
+    "options": {
+      "$ref": "#/$defs/WebsiteSnapshotOptions"
+    },
+    "pack_identity": {
+      "additionalProperties": true,
+      "title": "Pack Identity",
+      "type": "object"
+    },
+    "run_identity": {
+      "additionalProperties": true,
+      "title": "Run Identity",
+      "type": "object"
+    },
+    "schema_sha256": {
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Schema Sha256",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "snapshot_hash": {
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Snapshot Hash",
+      "type": "string"
+    },
+    "snapshot_id": {
+      "title": "Snapshot Id",
+      "type": "string"
+    },
+    "visual_count": {
+      "default": 0,
+      "maximum": 8,
+      "minimum": 0,
+      "title": "Visual Count",
+      "type": "integer"
+    },
+    "warnings": {
+      "items": {
+        "$ref": "#/$defs/WorkflowWarning"
+      },
+      "title": "Warnings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "snapshot_id",
+    "snapshot_hash",
+    "schema_sha256",
+    "pack_identity",
+    "run_identity",
+    "entity_reference",
+    "captured_at",
+    "manifests"
+  ],
+  "title": "WebsiteSnapshot",
+  "type": "object"
+}

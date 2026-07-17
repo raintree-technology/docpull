@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Any
 
 from .surface import PUBLIC_SDK_EXPORTS
 
-__version__ = "6.3.0"
+__version__ = "6.4.0"
 
 _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
     **{
@@ -41,9 +41,11 @@ _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
             "build_repo_pack",
             "build_standards_pack",
             "build_styleguide_pack",
+            "build_website_pack",
             "build_transcript_pack",
             "build_wiki_pack",
             "capture_screenshot_pack",
+            "validate_website_snapshot_pack",
         )
     },
     **{
@@ -59,6 +61,8 @@ _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
             "SourceAuthority",
             "WorkflowRequest",
             "WorkflowResult",
+            "WebsiteSnapshot",
+            "WebsiteSnapshotDocument",
             "bundled_schema_path",
             "write_contract_schemas",
         )
@@ -198,8 +202,10 @@ if TYPE_CHECKING:
         build_standards_pack,
         build_styleguide_pack,
         build_transcript_pack,
+        build_website_pack,
         build_wiki_pack,
         capture_screenshot_pack,
+        validate_website_snapshot_pack,
     )
     from .contracts import (
         ArtifactManifest,
@@ -210,6 +216,8 @@ if TYPE_CHECKING:
         RelationshipCandidate,
         RelationshipPack,
         SourceAuthority,
+        WebsiteSnapshot,
+        WebsiteSnapshotDocument,
         WorkflowRequest,
         WorkflowResult,
         bundled_schema_path,
