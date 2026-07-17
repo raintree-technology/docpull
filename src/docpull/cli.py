@@ -1661,6 +1661,7 @@ def main(argv: list[str] | None = None) -> int:
         return run_monitor_cli(raw_argv[1:])
     if raw_argv and raw_argv[0] in {
         "brand-pack",
+        "website-pack",
         "product-pack",
         "styleguide-pack",
         "image-pack",
@@ -1676,9 +1677,11 @@ def main(argv: list[str] | None = None) -> int:
             run_relationship_pack_cli,
             run_screenshot_pack_cli,
             run_styleguide_pack_cli,
+            run_website_pack_cli,
         )
 
         workflow_runners = {
+            "website-pack": run_website_pack_cli,
             "brand-pack": run_brand_pack_cli,
             "product-pack": run_product_pack_cli,
             "styleguide-pack": run_styleguide_pack_cli,

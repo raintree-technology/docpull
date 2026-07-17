@@ -73,7 +73,11 @@ def create_workflow_request(
         source_policy=effective_policy.to_source_policy_payload(source=workflow),
         budget={"maximum_paid_cost_usd": effective_policy.budget.maximum_paid_cost_usd},
         browser_enabled=_normalize_workflow(workflow) == "screenshot-pack"
-        or bool(merged_options.get("render")),
+        or bool(merged_options.get("render"))
+        or (
+            _normalize_workflow(workflow) == "website-pack"
+            and bool(merged_options.get("key_page_visuals", True))
+        ),
         paid_routes_enabled=False,
     )
 
@@ -139,6 +143,28 @@ def _run_product(request: WorkflowRequest) -> dict[str, Any]:
         output_dir=_request_output_dir(request),
         policy=_request_policy(request),
         max_pages=_positive_int(options, "max_pages", 8),
+    )
+
+
+def _run_website(request: WorkflowRequest) -> dict[str, Any]:
+    from .context_packs.website import build_website_pack
+
+    options = request.options
+    baseline = _optional_str(options, "baseline_pack")
+    return build_website_pack(
+        _request_value(request),
+        output_dir=_request_output_dir(request),
+        request=request,
+        max_pages=_positive_int(options, "max_pages", 50),
+        max_depth=_nonnegative_int(options, "max_depth", 3),
+        raw_html=bool(options.get("raw_html", True)),
+        key_page_visuals=bool(options.get("key_page_visuals", True)),
+        render_fallback=bool(options.get("render_fallback", True)),
+        pdf_enabled=bool(options.get("pdf_enabled", False)),
+        baseline_pack=Path(baseline) if baseline else None,
+        baseline_snapshot_id=_optional_str(options, "baseline_snapshot_id"),
+        baseline_snapshot_hash=_optional_str(options, "baseline_snapshot_hash"),
+        entity_reference=_optional_str(options, "entity_reference"),
     )
 
 
@@ -246,6 +272,7 @@ def _run_crawl(request: WorkflowRequest) -> dict[str, Any]:
 
 
 WORKFLOW_REGISTRY: dict[str, PackWorkflow] = {
+    "website-pack": FunctionPackWorkflow("website-pack", _run_website),
     "brand-pack": FunctionPackWorkflow("brand-pack", _run_brand),
     "product-pack": FunctionPackWorkflow("product-pack", _run_product),
     "styleguide-pack": FunctionPackWorkflow("styleguide-pack", _run_styleguide),
@@ -264,6 +291,7 @@ def _normalize_workflow(value: str) -> str:
     normalized = value.strip().lower().replace("_", "-")
     aliases = {
         "brand": "brand-pack",
+        "website": "website-pack",
         "product": "product-pack",
         "styleguide": "styleguide-pack",
         "visual": "visual-pack",
@@ -311,6 +339,13 @@ def _positive_int(options: dict[str, Any], key: str, default: int) -> int:
     value = options.get(key, default)
     if isinstance(value, bool) or not isinstance(value, int) or value < 1:
         raise WorkflowExecutionError(f"WorkflowRequest.options.{key} must be a positive integer")
+    return value
+
+
+def _nonnegative_int(options: dict[str, Any], key: str, default: int) -> int:
+    value = options.get(key, default)
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise WorkflowExecutionError(f"WorkflowRequest.options.{key} must be a non-negative integer")
     return value
 
 

@@ -25,6 +25,7 @@ ARTIFACT_MANIFEST_CONTRACT: Final[Literal["artifact.manifest.v1"]] = "artifact.m
 INTELLIGENCE_BUNDLE_CONTRACT: Final[Literal["intelligence.bundle.v1"]] = "intelligence.bundle.v1"
 CHANGE_EVENT_CONTRACT: Final[Literal["change.event.v1"]] = "change.event.v1"
 RELATIONSHIP_PACK_CONTRACT: Final[Literal["relationship.pack.v1"]] = "relationship.pack.v1"
+WEBSITE_SNAPSHOT_CONTRACT: Final[Literal["website.snapshot.v1"]] = "website.snapshot.v1"
 
 
 class ContractModel(BaseModel):
@@ -118,6 +119,13 @@ class ArtifactManifest(ContractModel):
     aggregate_sha256: str
 
 
+class ArtifactReference(ContractModel):
+    path: str
+    sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    bytes: int | None = Field(default=None, ge=0)
+    media_type: str | None = None
+
+
 class WorkflowResult(ContractModel):
     contract_version: Literal["workflow.result.v1"] = WORKFLOW_RESULT_CONTRACT
     schema_version: int = 1
@@ -138,6 +146,96 @@ class WorkflowResult(ContractModel):
     replay_configuration: ReplayConfiguration = Field(default_factory=ReplayConfiguration)
     artifact_manifest: str = "artifact.manifest.json"
     compatibility_artifacts: dict[str, str] = Field(default_factory=dict)
+
+
+class WebsiteSnapshotDocument(ContractModel):
+    document_id: str
+    document_version: str
+    content_hash: str = Field(pattern=r"^[a-f0-9]{64}$")
+    url: str
+    canonical_url: str | None = None
+    title: str | None = None
+    entity_reference: str
+    authority: SourceAuthority
+    page_role: Literal[
+        "home",
+        "product",
+        "pricing",
+        "documentation",
+        "trust",
+        "legal",
+        "changelog",
+        "support",
+        "other",
+    ]
+    state: Literal["added", "changed", "unchanged", "removed", "failed", "blocked"]
+    fetched_at: str | None = None
+    okf: ArtifactReference | None = None
+    raw: ArtifactReference | None = None
+    screenshot: ArtifactReference | None = None
+    brand_assets: list[ArtifactReference] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    failure: WorkflowFailure | None = None
+
+    @model_validator(mode="after")
+    def _validate_representations(self) -> WebsiteSnapshotDocument:
+        if self.state in {"added", "changed", "unchanged"} and self.okf is None:
+            raise ValueError(f"{self.state} documents require an OKF representation")
+        if self.state in {"failed", "blocked"} and self.failure is None:
+            raise ValueError(f"{self.state} documents require a typed failure")
+        return self
+
+
+class WebsiteSnapshotBaseline(ContractModel):
+    snapshot_id: str
+    snapshot_hash: str = Field(pattern=r"^[a-f0-9]{64}$")
+    verified: Literal[True] = True
+
+
+class WebsiteSnapshotOptions(ContractModel):
+    max_pages: int = Field(default=50, ge=1)
+    max_depth: int = Field(default=3, ge=0)
+    raw_html: bool = True
+    key_page_visuals: bool = True
+    render_fallback: bool = True
+    pdf_enabled: bool = False
+
+
+class WebsiteSnapshotManifests(ContractModel):
+    corpus: ArtifactReference
+    current_run: ArtifactReference
+    coverage: ArtifactReference
+    provenance: ArtifactReference
+    artifact: str = "artifact.manifest.json"
+    documents: ArtifactReference
+
+
+class WebsiteSnapshot(ContractModel):
+    contract_version: Literal["website.snapshot.v1"] = WEBSITE_SNAPSHOT_CONTRACT
+    schema_version: Literal[1] = 1
+    snapshot_id: str
+    snapshot_hash: str = Field(pattern=r"^[a-f0-9]{64}$")
+    schema_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    pack_identity: dict[str, Any]
+    run_identity: dict[str, Any]
+    entity_reference: str
+    captured_at: str
+    baseline: WebsiteSnapshotBaseline | None = None
+    options: WebsiteSnapshotOptions = Field(default_factory=WebsiteSnapshotOptions)
+    documents: list[WebsiteSnapshotDocument] = Field(default_factory=list)
+    coverage: dict[str, Any] = Field(default_factory=dict)
+    manifests: WebsiteSnapshotManifests
+    visual_count: int = Field(default=0, ge=0, le=8)
+    warnings: list[WorkflowWarning] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _validate_snapshot(self) -> WebsiteSnapshot:
+        identities = [(item.document_id, item.document_version) for item in self.documents]
+        if len(identities) != len(set(identities)):
+            raise ValueError("snapshot document identities must be unique")
+        if sum(item.screenshot is not None for item in self.documents) != self.visual_count:
+            raise ValueError("visual_count must equal screenshot count")
+        return self
 
 
 class EvidenceSpan(ContractModel):
@@ -357,6 +455,7 @@ CONTRACT_MODELS: dict[str, type[BaseModel]] = {
     "intelligence-bundle.v1.schema.json": IntelligenceBundle,
     "change-event.v1.schema.json": ChangeEvent,
     "relationship-pack.v1.schema.json": RelationshipPack,
+    "website-snapshot.v1.schema.json": WebsiteSnapshot,
     "document.v3.schema.json": DocumentRecord,
     "run-identity.v1.schema.json": RunIdentity,
     "pack.v3.schema.json": PackContractV3,
@@ -375,6 +474,39 @@ def canonical_json(value: Any) -> str:
 
 def canonical_sha256(value: Any) -> str:
     return hashlib.sha256(canonical_json(value).encode("utf-8")).hexdigest()
+
+
+def website_snapshot_core(snapshot: WebsiteSnapshot | dict[str, Any]) -> dict[str, Any]:
+    """Return the frozen cross-runtime payload covered by ``snapshot_hash``."""
+
+    value = (
+        snapshot.model_dump(mode="json", exclude_none=True)
+        if isinstance(snapshot, WebsiteSnapshot)
+        else dict(snapshot)
+    )
+    value.setdefault("baseline", None)
+    keys = (
+        "contract_version",
+        "schema_version",
+        "schema_sha256",
+        "pack_identity",
+        "run_identity",
+        "entity_reference",
+        "captured_at",
+        "baseline",
+        "options",
+        "documents",
+        "coverage",
+        "manifests",
+        "visual_count",
+        "warnings",
+    )
+    return {key: value[key] for key in keys}
+
+
+def verify_website_snapshot_hash(snapshot: WebsiteSnapshot | dict[str, Any]) -> bool:
+    value = snapshot if isinstance(snapshot, dict) else snapshot.model_dump(mode="json")
+    return canonical_sha256(website_snapshot_core(snapshot)) == str(value["snapshot_hash"]).lower()
 
 
 def stable_id(prefix: str, value: Any, *, length: int = 24) -> str:
@@ -618,6 +750,8 @@ __all__ = [
     "RELATIONSHIP_PACK_CONTRACT",
     "WORKFLOW_REQUEST_CONTRACT",
     "WORKFLOW_RESULT_CONTRACT",
+    "WEBSITE_SNAPSHOT_CONTRACT",
+    "ArtifactReference",
     "ArtifactEntry",
     "ArtifactManifest",
     "BasisContractV2",
@@ -644,6 +778,11 @@ __all__ = [
     "WorkflowRequest",
     "WorkflowResult",
     "WorkflowWarning",
+    "WebsiteSnapshot",
+    "WebsiteSnapshotBaseline",
+    "WebsiteSnapshotDocument",
+    "WebsiteSnapshotManifests",
+    "WebsiteSnapshotOptions",
     "artifact_entries",
     "build_workflow_request",
     "bundled_schema_path",
@@ -652,6 +791,8 @@ __all__ = [
     "file_sha256",
     "new_progress_event",
     "stable_id",
+    "verify_website_snapshot_hash",
+    "website_snapshot_core",
     "write_contract_schemas",
     "workflow_failure_from_mapping",
 ]

@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.4.0] - 2026-07-16
+
+### Added
+- Add `website-pack` across CLI, Python workflow API, and MCP. The workflow
+  emits the pinned `website.snapshot.v1` schema, stable URL-based document
+  identities, content-hash versions, page roles, source authority, OKF/raw
+  representations, bounded optional visuals, portable-v3 manifests, and
+  recursively verifiable artifact hashes.
+- Add verified-baseline diff states for added, changed, unchanged, removed,
+  failed, and blocked pages, plus golden/tamper fixtures.
+
+### Changed
+- Let brand, product, policy, styleguide, image, and relationship workflows
+  consume existing packs without network fallback. Product extraction now
+  keeps trial metadata separate from ordinary price fields and excludes
+  testimonial copy from feature evidence.
+
 ### Removed
 - Remove the standalone DocPull website, its Next.js workspace, and web-only
   CI/release gates. GitHub, PyPI, and the MCP Registry remain the canonical

@@ -29,6 +29,7 @@ from .common import (
     homepage_url_for_domain,
     is_free_or_disposable_email_domain,
     likely_internal_pages,
+    pages_from_local_pack,
     public_url,
     quote_markdown,
     resolve_url,
@@ -92,7 +93,14 @@ def build_brand_pack(
     max_pages: int = MAX_BRAND_PAGES,
 ) -> dict[str, Any]:
     """Build a local brand profile from public website evidence."""
-    domain = _resolve_brand_domain(domain_or_url, email=email, allow_free_email=allow_free_email)
+    local_pages = pages_from_local_pack(domain_or_url)
+    domain = (
+        domain_from_input(local_pages[0].url)
+        if local_pages
+        else _resolve_brand_domain(domain_or_url, email=email, allow_free_email=allow_free_email)
+    )
+    if not domain:
+        raise ContextPackError("Could not resolve a domain from local brand-pack evidence.")
     policy = ensure_policy_for_domain(policy, domain)
     output_dir = output_dir.resolve()
     run = ContextPackRun(
@@ -101,14 +109,20 @@ def build_brand_pack(
         policy=policy,
         input_value=email or domain_or_url,
     )
-    home_url = homepage_url_for_domain(domain)
-    home_pages = fetch_pages_blocking([home_url], run=run, max_pages=1)
-    if not home_pages:
-        raise ContextPackError(f"Could not fetch homepage for {domain}.")
-    candidate_urls = likely_internal_pages(home_pages[0], domain, max_pages=max_pages)
-    pages = fetch_pages_blocking(candidate_urls, run=run, max_pages=max_pages)
-    if not pages:
-        pages = home_pages
+    if local_pages is not None:
+        pages = local_pages[:max_pages]
+        if not pages:
+            raise ContextPackError("Local brand-pack input contains no readable documents.")
+        download_assets = False
+    else:
+        home_url = homepage_url_for_domain(domain)
+        home_pages = fetch_pages_blocking([home_url], run=run, max_pages=1)
+        if not home_pages:
+            raise ContextPackError(f"Could not fetch homepage for {domain}.")
+        candidate_urls = likely_internal_pages(home_pages[0], domain, max_pages=max_pages)
+        pages = fetch_pages_blocking(candidate_urls, run=run, max_pages=max_pages)
+        if not pages:
+            pages = home_pages
 
     profile = _extract_brand_profile(pages, domain=domain, name_hint=name, ticker=ticker)
     assets = _extract_brand_assets(

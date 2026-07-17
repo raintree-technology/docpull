@@ -27,6 +27,13 @@ generic contracts.
 
 ## Cross-repository contracts
 
+### `website.snapshot.v1`
+
+The canonical website-intelligence acquisition artifact. It binds stable
+document/version identities, entity and authority metadata, page roles,
+baseline states, OKF/raw/visual representations, portable-v3 manifests, and a
+canonical snapshot hash. See [Website snapshots](website-snapshot.md).
+
 ### `workflow.request.v1`
 
 A scheduler-neutral invocation containing a stable request ID, workflow name,

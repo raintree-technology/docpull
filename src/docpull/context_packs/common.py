@@ -40,6 +40,7 @@ from ..models.document import DocumentRecord
 from ..models.events import SkipReason
 from ..models.run import RunIdentity
 from ..output_contract import OUTPUT_CONTRACT_SCHEMA_VERSION, write_raw_contract_sidecars
+from ..pack_reader import PackReadError, load_pack, resolve_pack_path
 from ..pack_tools import build_citation_map
 from ..policy import PolicyConfig, policy_domain_matches
 from ..security.download_policy import SafeDownloadPolicy, UnsafeDownloadError, content_type_base
@@ -118,6 +119,8 @@ class PageSnapshot:
     metadata: dict[str, Any]
     extraction: dict[str, Any]
     source_type: str | None = None
+    etag: str | None = None
+    last_modified: str | None = None
 
 
 @dataclass(frozen=True)
@@ -214,6 +217,9 @@ class ContextPackRun:
     http_request_count: int = 0
     cache_hit_count: int = 0
     progress_events: list[dict[str, Any]] = field(default_factory=list)
+    fetch_output_dir: Path | None = None
+    cache_dir: Path | None = None
+    unchanged_urls: set[str] = field(default_factory=set)
 
     def __post_init__(self) -> None:
         self.progress("run", "started", message=f"Started {self.workflow}", timestamp=self.started_at)
@@ -444,10 +450,17 @@ async def fetch_pages(
     run.progress("acquisition", "started", total=len(selected), message="Acquiring source pages")
     config = DocpullConfig(url=selected[0], profile=ProfileName.CUSTOM)
     config.network.log_retry_warnings = False
+    if run.fetch_output_dir is not None:
+        config.output.directory = run.fetch_output_dir
+    if run.cache_dir is not None:
+        config.cache.enabled = True
+        config.cache.directory = run.cache_dir
+        config.cache.ttl_days = None
+        config.cache.skip_unchanged = True
     snapshots: list[PageSnapshot] = []
     async with Fetcher(config) as fetcher:
         for index, url in enumerate(selected, start=1):
-            ctx = await fetcher.fetch_one(url, save=False)
+            ctx = await fetcher.fetch_one(url, save=run.fetch_output_dir is not None)
             run.http_request_count += 1
             if ctx.error:
                 run.errors.append(
@@ -462,6 +475,10 @@ async def fetch_pages(
                 )
                 continue
             if ctx.should_skip:
+                if ctx.skip_code == SkipReason.CACHE_UNCHANGED:
+                    run.cache_hit_count += 1
+                    run.unchanged_urls.add(public_url(url))
+                    continue
                 if ctx.skip_code in {
                     SkipReason.HTTP_ERROR,
                     SkipReason.ROBOTS_DISALLOWED,
@@ -503,6 +520,8 @@ async def fetch_pages(
                     metadata=dict(ctx.metadata or {}),
                     extraction=dict(ctx.extraction_info or {}),
                     source_type=ctx.source_type,
+                    etag=getattr(ctx, "etag", None),
+                    last_modified=getattr(ctx, "last_modified", None),
                 )
             )
             run.progress(
@@ -529,6 +548,60 @@ def fetch_pages_blocking(
     max_pages: int = DEFAULT_CONTEXT_MAX_PAGES,
 ) -> list[PageSnapshot]:
     return asyncio.run(fetch_pages(urls, run=run, max_pages=max_pages))
+
+
+def pages_from_local_pack(value: str | Path) -> list[PageSnapshot] | None:
+    """Load an existing DocPull pack without permitting any network fallback."""
+
+    path = Path(value).expanduser()
+    if not path.exists():
+        return None
+    try:
+        pack = load_pack(path)
+    except PackReadError as err:
+        raise ContextPackError(f"Could not read local DocPull pack {path}: {err}") from err
+    raw_by_identity: dict[tuple[str, str], str] = {}
+    website_metadata_by_identity: dict[tuple[str, str], dict[str, Any]] = {}
+    records_path = path.resolve() / "documents.ndjson"
+    if records_path.is_file():
+        for line in records_path.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if not isinstance(row, dict):
+                continue
+            identity = (str(row.get("document_id") or ""), str(row.get("content_hash") or ""))
+            website_metadata_by_identity[identity] = {
+                key: row[key]
+                for key in ("page_role", "entity_reference", "authority", "representations")
+                if row.get(key) is not None
+            }
+            representations = row.get("representations")
+            raw = representations.get("raw") if isinstance(representations, dict) else None
+            raw_path = resolve_pack_path(path.resolve(), raw.get("path") if isinstance(raw, dict) else None)
+            if raw_path and raw_path.is_file():
+                raw_by_identity[identity] = raw_path.read_text(encoding="utf-8")
+    pages: list[PageSnapshot] = []
+    for record in pack.documents:
+        identity = (record.document_id, record.content_hash)
+        pages.append(
+            PageSnapshot(
+                url=public_url(record.url),
+                title=record.title,
+                html=raw_by_identity.get(identity, ""),
+                markdown=record.content,
+                metadata={
+                    **dict(record.metadata),
+                    **website_metadata_by_identity.get(identity, {}),
+                },
+                extraction={**record.extraction, "local_pack": str(path.resolve())},
+                source_type=record.source_type or "local-pack",
+            )
+        )
+    return pages
 
 
 def soup_for(page: PageSnapshot) -> BeautifulSoup:

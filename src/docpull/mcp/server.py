@@ -859,6 +859,7 @@ async def _dispatch_tool(
 
         elif name in {
             "workflow_run",
+            "website_pack",
             "brand_pack",
             "product_pack",
             "styleguide_pack",
@@ -871,6 +872,7 @@ async def _dispatch_tool(
             from ..workflows import create_workflow_request, run_workflow
 
             workflow_aliases = {
+                "website_pack": ("website-pack", "url_or_domain", "packs/websites"),
                 "brand_pack": ("brand-pack", "domain_or_url", "packs/brand"),
                 "product_pack": ("product-pack", "url_or_domain", "packs/products"),
                 "styleguide_pack": ("styleguide-pack", "domain_or_url", "packs/styleguide"),
@@ -1619,7 +1621,8 @@ async def _run_stdio() -> int:
                 name="workflow_run",
                 description=(
                     "Run a registered evidence-pack workflow through workflow.request.v1 and return "
-                    "workflow.result.v1. Supported workflows are brand, product, styleguide, visual/image, "
+                    "workflow.result.v1. Supported workflows are website, brand, product, "
+                    "styleguide, visual/image, "
                     "screenshot, policy, relationship, dataset, fetch, and crawl. Browser use remains "
                     "explicitly gated."
                 ),
@@ -1636,6 +1639,7 @@ async def _run_stdio() -> int:
                         "workflow": {
                             "type": "string",
                             "enum": [
+                                "website-pack",
                                 "brand-pack",
                                 "product-pack",
                                 "styleguide-pack",
@@ -1664,6 +1668,36 @@ async def _run_stdio() -> int:
                     },
                     "required": ["workflow", "output_dir"],
                     "oneOf": [{"required": ["value"]}, {"required": ["input"]}],
+                },
+                outputSchema=_WORKFLOW_RESULT_OUTPUT_SCHEMA,
+            ),
+            Tool(
+                name="website_pack",
+                description=(
+                    "Build a recursively verifiable portable-v3 website snapshot with optional "
+                    "verified-baseline comparison."
+                ),
+                annotations=ToolAnnotations(
+                    title="Build a website snapshot",
+                    readOnlyHint=False,
+                    destructiveHint=False,
+                    idempotentHint=False,
+                    openWorldHint=True,
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "url_or_domain": {"type": "string"},
+                        "output_dir": {"type": "string"},
+                        "max_pages": {"type": "integer", "minimum": 1, "default": 50},
+                        "max_depth": {"type": "integer", "minimum": 0, "default": 3},
+                        "raw_html": {"type": "boolean", "default": True},
+                        "key_page_visuals": {"type": "boolean", "default": True},
+                        "render_fallback": {"type": "boolean", "default": True},
+                        "baseline_pack": {"type": "string"},
+                        "policy": {"type": "string"},
+                    },
+                    "required": ["url_or_domain", "output_dir"],
                 },
                 outputSchema=_WORKFLOW_RESULT_OUTPUT_SCHEMA,
             ),

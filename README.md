@@ -183,6 +183,7 @@ docpull standards-pack rfc:9110 -o packs/standard
 docpull dataset-pack ./metrics.csv -o packs/dataset
 docpull dataset-pack 'https://data.example.org/rows.json?$limit=100' -o packs/dataset
 docpull relationship-pack example.com --subject "Example Brand" -o packs/relationships
+docpull website-pack example.com -o packs/website
 docpull transcript-pack ./meeting.vtt -o packs/transcript
 docpull wiki-pack wiki:Web_scraping -o packs/wiki
 docpull brand-pack example.com -o packs/brand
@@ -195,6 +196,9 @@ docpull pack validate packs/docs --level eval
 docpull export packs/docs --format openai-vector-jsonl -o exports/openai.jsonl
 docpull export packs/docs --format cursor-rules -o .cursor/rules --skill-name docs
 ```
+
+The canonical baseline-aware website acquisition contract is documented in
+[Website snapshots](docs/website-snapshot.md).
 
 Use `docpull ci --prepare` to validate a project or standalone pack in CI.
 
@@ -648,7 +652,7 @@ part of the package release contract.
   `docpull parse`, `docpull openapi-pack`, `docpull feed-pack`,
   `docpull paper-pack`, `docpull repo-pack`, `docpull package-pack`,
   `docpull standards-pack`, `docpull dataset-pack`, `docpull transcript-pack`,
-  `docpull wiki-pack`, `docpull brand-pack`, `docpull product-pack`,
+  `docpull wiki-pack`, `docpull website-pack`, `docpull brand-pack`, `docpull product-pack`,
   `docpull styleguide-pack`, `docpull image-pack`, `docpull policy-pack`,
   `docpull pack validate`,
   `docpull pack audit`, `docpull export`,

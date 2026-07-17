@@ -23,6 +23,7 @@ from .common import (
     evidence_for_page,
     fetch_pages_blocking,
     homepage_url_for_domain,
+    pages_from_local_pack,
     public_url,
     quote_markdown,
     same_policy_domain,
@@ -42,6 +43,10 @@ PRICE_RE = re.compile(
     re.IGNORECASE,
 )
 TRIAL_RE = re.compile(r"(?P<days>\d{1,3})[-\s]day\s+(?:free\s+)?trial|free\s+trial", re.IGNORECASE)
+TRIAL_WEEK_RE = re.compile(
+    r"(?:try\s+\S+\s+free\s+for\s+(?:7\s+days?|one\s+week)|(?:your\s+)?first\s+week\s+is\s+on\s+us)",
+    re.IGNORECASE,
+)
 PRODUCT_LINK_KEYWORDS = ("pricing", "product", "products", "plans", "shop", "store")
 PRICING_CONTEXT_TERMS = (
     "pricing",
@@ -57,6 +62,13 @@ PRICING_CONTEXT_TERMS = (
     "buy",
     "checkout",
 )
+TESTIMONIAL_TERMS = (
+    "testimonial",
+    "customer quote",
+    "what our customers say",
+    "case study",
+    "review",
+)
 
 
 def build_product_pack(
@@ -70,7 +82,8 @@ def build_product_pack(
     """Build cited product/pricing records from a page or bounded site discovery."""
     if mode not in {"page", "site"}:
         raise ContextPackError("product-pack mode must be 'page' or 'site'.")
-    domain = domain_from_input(url_or_domain)
+    local_pages = pages_from_local_pack(url_or_domain)
+    domain = domain_from_input(local_pages[0].url) if local_pages else domain_from_input(url_or_domain)
     if not domain:
         raise ContextPackError("Could not resolve a domain from input.")
     policy = ensure_policy_for_domain(policy, domain)
@@ -80,15 +93,24 @@ def build_product_pack(
         policy=policy,
         input_value=url_or_domain,
     )
-    start_url = public_url(url_or_domain if "://" in url_or_domain else homepage_url_for_domain(domain))
-    urls = [start_url]
-    if mode == "site":
-        home = fetch_pages_blocking([start_url], run=run, max_pages=1)
-        if home:
-            urls = _site_product_urls(home[0], domain, max_pages=max_pages)
-    pages = fetch_pages_blocking(urls, run=run, max_pages=max_pages if mode == "site" else 1)
-    if not pages:
-        raise ContextPackError(f"Could not fetch product target: {start_url}")
+    if local_pages is not None:
+        if mode == "page":
+            pages = local_pages[:1]
+        else:
+            product_pages = [page for page in local_pages if _is_product_context_page(page)]
+            pages = (product_pages or local_pages[:1])[:max_pages]
+        if not pages:
+            raise ContextPackError("Local product-pack input contains no readable documents.")
+    else:
+        start_url = public_url(url_or_domain if "://" in url_or_domain else homepage_url_for_domain(domain))
+        urls = [start_url]
+        if mode == "site":
+            home = fetch_pages_blocking([start_url], run=run, max_pages=1)
+            if home:
+                urls = _site_product_urls(home[0], domain, max_pages=max_pages)
+        pages = fetch_pages_blocking(urls, run=run, max_pages=max_pages if mode == "site" else 1)
+        if not pages:
+            raise ContextPackError(f"Could not fetch product target: {start_url}")
 
     products: list[dict[str, Any]] = []
     pricing_rows: list[dict[str, Any]] = []
@@ -188,7 +210,7 @@ def _extract_products_from_page(page: PageSnapshot, pages: list[PageSnapshot]) -
             "is_product_page": True,
             "evidence_status": "heuristic_pricing_evidence",
             "offers": pricing_rows,
-            "features": _feature_bullets(page),
+            "features": _feature_bullets(page, pages),
             "images": _image_candidates(page),
             "citations": [
                 evidence_for_page(
@@ -220,7 +242,7 @@ def _jsonld_products(page: PageSnapshot, pages: list[PageSnapshot]) -> list[dict
             "is_product_page": True,
             "evidence_status": "jsonld_product",
             "offers": offers,
-            "features": _feature_bullets(page),
+            "features": _feature_bullets(page, pages),
             "images": _image_candidates(page, item.get("image")),
             "citations": [
                 evidence_for_page(
@@ -241,16 +263,27 @@ def _offers_from_jsonld(raw: Any, page: PageSnapshot, pages: list[PageSnapshot])
     for item in items:
         if not isinstance(item, dict):
             continue
+        serialized = json.dumps(item, ensure_ascii=False)
         price = _parse_price_value(item.get("price"))
+        trial = _trial_from_text(serialized)
+        if trial and trial.get("duration_days") is None:
+            page_trial = _trial_from_text(page.markdown)
+            if page_trial:
+                trial = page_trial
+        currency = _string_or_none(item.get("priceCurrency"))
+        if price == 0 and trial and not _explicit_free_plan(serialized):
+            price = None
+            currency = None
+        evidence_excerpt = _structured_offer_excerpt(page, item, trial=trial)
         offers.append(
             {
                 "name": _string_or_none(item.get("name")),
                 "price": price,
-                "currency": _string_or_none(item.get("priceCurrency")),
-                "billing_frequency": _billing_from_text(json.dumps(item, ensure_ascii=False)),
-                "billing_interval": _billing_interval(json.dumps(item, ensure_ascii=False)),
-                "trial": _trial_from_text(json.dumps(item, ensure_ascii=False)),
-                "feature_gates": _feature_gates(json.dumps(item, ensure_ascii=False)),
+                "currency": currency,
+                "billing_frequency": _billing_from_text(serialized),
+                "billing_interval": _billing_interval(serialized),
+                "trial": trial,
+                "feature_gates": _feature_gates(serialized),
                 "price_source": {"medium": "structured_data", "context": "jsonld_offer"},
                 "availability": _string_or_none(item.get("availability")),
                 "url": public_url(str(item.get("url") or page.url)),
@@ -258,7 +291,7 @@ def _offers_from_jsonld(raw: Any, page: PageSnapshot, pages: list[PageSnapshot])
                     page,
                     pages,
                     field="offer",
-                    excerpt=json.dumps(item)[:240],
+                    excerpt=evidence_excerpt,
                 ).to_dict(),
             }
         )
@@ -287,30 +320,37 @@ def _pricing_rows(page: PageSnapshot, pages: list[PageSnapshot]) -> list[dict[st
         ]
     seen: set[tuple[str, float | None, str | None]] = set()
     for block, context in text_blocks:
-        for match in PRICE_RE.finditer(block):
+        evidence_block = block if block in page.markdown else _matching_pricing_line(page.markdown, block)
+        if not evidence_block:
+            continue
+        for match in PRICE_RE.finditer(evidence_block):
             price = _parse_price_value(match.group("amount"))
             currency = _currency_code(match.group("currency"))
-            key = (block, price, currency)
+            trial = _trial_from_text(evidence_block)
+            if price == 0 and trial and not _explicit_free_plan(evidence_block):
+                price = None
+                currency = None
+            key = (evidence_block, price, currency)
             if key in seen:
                 continue
             seen.add(key)
             rows.append(
                 {
-                    "plan_name": _plan_name_from_text(block),
+                    "plan_name": _plan_name_from_text(evidence_block),
                     "price": price,
                     "currency": currency,
-                    "billing_frequency": _billing_from_text(block) or match.group("period"),
-                    "billing_interval": _billing_interval(block, fallback=match.group("period")),
-                    "trial": _trial_from_text(block),
-                    "feature_gates": _feature_gates(block),
-                    "raw_text": block[:500],
+                    "billing_frequency": _billing_from_text(evidence_block) or match.group("period"),
+                    "billing_interval": _billing_interval(evidence_block, fallback=match.group("period")),
+                    "trial": trial,
+                    "feature_gates": _feature_gates(evidence_block),
+                    "raw_text": evidence_block[:500],
                     "source_url": page.url,
                     "price_source": {"medium": "page_text", "context": context},
                     "evidence": evidence_for_page(
                         page,
                         pages,
                         field="pricing",
-                        excerpt=block[:500],
+                        excerpt=evidence_block[:500],
                     ).to_dict(),
                 }
             )
@@ -423,9 +463,9 @@ def _currency_code(value: str | None) -> str | None:
 
 def _billing_from_text(text: str) -> str | None:
     lowered = text.lower()
-    if any(value in lowered for value in ("/mo", "monthly", "per month")):
+    if any(value in lowered for value in ("/mo", "monthly", "per month", "a month", "each month")):
         return "monthly"
-    if any(value in lowered for value in ("/yr", "yearly", "annually", "per year")):
+    if any(value in lowered for value in ("/yr", "yearly", "annually", "per year", "a year", "each year")):
         return "yearly"
     if "one time" in lowered or "one-time" in lowered:
         return "one_time"
@@ -436,9 +476,9 @@ def _billing_from_text(text: str) -> str | None:
 
 def _billing_interval(text: str, *, fallback: str | None = None) -> dict[str, Any] | None:
     lowered = text.lower()
-    if any(value in lowered for value in ("/mo", "monthly", "per month")):
+    if any(value in lowered for value in ("/mo", "monthly", "per month", "a month", "each month")):
         return {"unit": "month", "count": 1}
-    if any(value in lowered for value in ("/yr", "yearly", "annually", "per year")):
+    if any(value in lowered for value in ("/yr", "yearly", "annually", "per year", "a year", "each year")):
         return {"unit": "year", "count": 1}
     if any(value in lowered for value in ("per user", "/user")):
         return {"unit": "user", "count": 1}
@@ -451,12 +491,18 @@ def _billing_interval(text: str, *, fallback: str | None = None) -> dict[str, An
 
 def _trial_from_text(text: str) -> dict[str, Any] | None:
     match = TRIAL_RE.search(text)
-    if not match:
+    if match:
+        days = match.groupdict().get("days")
+        return {
+            "available": True,
+            "duration_days": int(days) if days else None,
+            "requires_payment_method": "unknown",
+        }
+    if not TRIAL_WEEK_RE.search(text):
         return None
-    days = match.groupdict().get("days")
     return {
         "available": True,
-        "duration_days": int(days) if days else None,
+        "duration_days": 7,
         "requires_payment_method": "unknown",
     }
 
@@ -480,7 +526,59 @@ def _feature_gates(text: str) -> list[dict[str, str]]:
 
 def _looks_like_pricing_text(text: str) -> bool:
     lowered = text.lower()
+    if "data:image" in lowered or lowered.startswith("[![]("):
+        return False
     return any(term in lowered for term in PRICING_CONTEXT_TERMS)
+
+
+def _is_product_context_page(page: PageSnapshot) -> bool:
+    role = str(page.metadata.get("page_role") or "").lower()
+    if role in {"home", "product", "pricing"}:
+        return True
+    path = (urlparse(page.url).path or "/").lower()
+    if path == "/":
+        return True
+    return any(keyword in path for keyword in (*PRODUCT_LINK_KEYWORDS, "feature", "solution", "platform"))
+
+
+def _structured_offer_excerpt(
+    page: PageSnapshot,
+    item: dict[str, Any],
+    *,
+    trial: dict[str, Any] | None,
+) -> str:
+    lines = [line.strip() for line in page.markdown.splitlines() if line.strip()]
+    if trial:
+        for terms in (("trial",), ("free", "7 days"), ("first week",)):
+            match = next((line for line in lines if all(term in line.lower() for term in terms)), None)
+            if match:
+                return match
+    price = _string_or_none(item.get("price"))
+    if price:
+        match = next((line for line in lines if price in line and _looks_like_pricing_text(line)), None)
+        if match:
+            return match
+    name = _string_or_none(item.get("name"))
+    if name:
+        match = next((line for line in lines if name.lower() in line.lower()), None)
+        if match:
+            return match
+    return page.markdown[: min(240, len(page.markdown))]
+
+
+def _matching_pricing_line(markdown: str, html_block: str) -> str | None:
+    prices = {match.group(0).strip().casefold() for match in PRICE_RE.finditer(html_block)}
+    for line in markdown.splitlines():
+        cleaned = line.strip()
+        lowered = cleaned.casefold()
+        if cleaned and _looks_like_pricing_text(cleaned) and any(price in lowered for price in prices):
+            return cleaned
+    return None
+
+
+def _explicit_free_plan(text: str) -> bool:
+    lowered = text.lower()
+    return any(term in lowered for term in ("free plan", "free tier", "free forever"))
 
 
 def _plan_name_from_text(text: str) -> str | None:
@@ -491,20 +589,50 @@ def _plan_name_from_text(text: str) -> str | None:
     return None
 
 
-def _feature_bullets(page: PageSnapshot) -> list[dict[str, str]]:
+def _feature_bullets(page: PageSnapshot, pages: list[PageSnapshot]) -> list[dict[str, Any]]:
     soup = soup_for(page)
-    features: list[dict[str, str]] = []
+    features: list[dict[str, Any]] = []
     seen: set[str] = set()
     for tag in soup.find_all(["li", "p"]):
         text = " ".join(tag.get_text(" ").split())
         if len(text) < 8 or len(text) > 220 or text in seen:
             continue
+        if text not in page.markdown:
+            continue
+        if _is_testimonial_element(tag, text):
+            continue
         if any(keyword in text.lower() for keyword in ("feature", "include", "support", "unlimited", "api")):
-            features.append({"text": text, "source_url": page.url})
+            features.append(
+                {
+                    "text": text,
+                    "source_url": page.url,
+                    "evidence": evidence_for_page(
+                        page,
+                        pages,
+                        field="feature",
+                        excerpt=text,
+                    ).to_dict(),
+                }
+            )
             seen.add(text)
         if len(features) >= 30:
             break
     return features
+
+
+def _is_testimonial_element(tag: Tag, text: str) -> bool:
+    if tag.find_parent("blockquote") is not None:
+        return True
+    for candidate in [tag, *tag.parents]:
+        if not isinstance(candidate, Tag):
+            continue
+        descriptor = " ".join(
+            [str(candidate.get("id") or ""), *[str(item) for item in candidate.get("class") or []]]
+        ).lower()
+        if any(term.replace(" ", "-") in descriptor or term in descriptor for term in TESTIMONIAL_TERMS):
+            return True
+    lowered = text.lower()
+    return any(term in lowered for term in TESTIMONIAL_TERMS)
 
 
 def _image_candidates(page: PageSnapshot, raw_image: Any = None) -> list[dict[str, str]]:

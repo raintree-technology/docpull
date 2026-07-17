@@ -1,7 +1,7 @@
 {
   "id": "docpull",
   "name": "docpull",
-  "version": "6.3.0",
+  "version": "6.4.0",
   "description": "Pull public web sources into Codex as local, searchable Markdown through docpull's MCP server.",
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",

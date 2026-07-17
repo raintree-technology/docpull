@@ -24,6 +24,7 @@ from .common import (
     fetch_context_asset_bytes,
     fetch_pages_blocking,
     homepage_url_for_domain,
+    pages_from_local_pack,
     public_url,
     quote_markdown,
     resolve_url,
@@ -63,7 +64,8 @@ def build_styleguide_pack(
             "styleguide-pack rendering requires DOCPULL_RENDER_TRUSTED_BROWSER_TARGETS=1. "
             "Run browser-free with render=False, or explicitly trust the target."
         )
-    domain = domain_from_input(domain_or_url)
+    local_pages = pages_from_local_pack(domain_or_url)
+    domain = domain_from_input(local_pages[0].url) if local_pages else domain_from_input(domain_or_url)
     if not domain:
         raise ContextPackError("Could not resolve a domain from input.")
     policy = ensure_policy_for_domain(policy, domain)
@@ -75,16 +77,21 @@ def build_styleguide_pack(
         input_value=domain_or_url,
     )
     start_url = public_url(domain_or_url if "://" in domain_or_url else homepage_url_for_domain(domain))
-    pages = fetch_pages_blocking([start_url], run=run, max_pages=1)
+    pages = (
+        local_pages[:1]
+        if local_pages is not None
+        else fetch_pages_blocking([start_url], run=run, max_pages=1)
+    )
     if not pages:
-        raise ContextPackError(f"Could not fetch styleguide target: {start_url}")
+        raise ContextPackError(f"Could not load styleguide target: {start_url}")
     page = pages[0]
     css_sources = _collect_css_sources(page, domain, max_stylesheets=max_stylesheets)
     css_texts: list[dict[str, str]] = []
-    for source in css_sources:
-        text = _fetch_css_blocking(source["url"], domain=domain, run=run)
-        if text:
-            css_texts.append({"url": source["url"], "text": text, "source": source["source"]})
+    if local_pages is None:
+        for source in css_sources:
+            text = _fetch_css_blocking(source["url"], domain=domain, run=run)
+            if text:
+                css_texts.append({"url": source["url"], "text": text, "source": source["source"]})
     inline_css = _inline_css(page)
     css_texts.extend({"url": page.url, "text": text, "source": "inline"} for text in inline_css)
 

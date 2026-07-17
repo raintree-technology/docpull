@@ -58,6 +58,7 @@ def build_image_pack(
 ) -> dict[str, Any]:
     """Extract a local image manifest from a URL or existing pack."""
     output_dir = output_dir.resolve()
+    local_pack_mode = Path(url_or_pack).expanduser().exists()
     pages, run = _image_pages_from_input(url_or_pack, policy=policy, output_dir=output_dir)
     if not pages:
         raise ContextPackError("No image-pack evidence pages found.")
@@ -67,7 +68,7 @@ def build_image_pack(
     assets: list[AssetRef] = []
     for candidate in candidates[:max_assets]:
         asset = AssetRef(candidate["url"], candidate["kind"], candidate["source_url"])
-        if download_assets and domain:
+        if download_assets and domain and not local_pack_mode:
             asset = fetch_asset_blocking(
                 candidate["url"],
                 output_dir=output_dir / "assets" / "images",
@@ -96,7 +97,10 @@ def build_image_pack(
         "workflow": IMAGE_WORKFLOW,
         "provider": "local",
         "status": status_from_errors(run.errors),
-        "input": {"value": str(url_or_pack), "download_assets": download_assets},
+        "input": {
+            "value": str(url_or_pack),
+            "download_assets": download_assets and not local_pack_mode,
+        },
         "summary": {
             "candidate_count": len(candidates),
             "asset_count": len(image_records),
