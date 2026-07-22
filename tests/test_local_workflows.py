@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -13,6 +14,29 @@ from docpull import local_workflows
 from docpull.cli import main
 from docpull.local_workflows import LocalWorkflowError, answer_pack, audit_pack, refresh_pack
 from tests.pack_fixtures import write_context_pack
+
+AUDIT_NOW = datetime(2026, 3, 10, tzinfo=timezone.utc)
+
+
+def _aged_record(suffix: str) -> dict[str, Any]:
+    return {
+        "document_id": f"doc_{suffix}",
+        "url": f"https://docs.parallel.ai/{suffix}",
+        "title": suffix,
+        "content": f"Parallel Search API {suffix} content.",
+        "content_hash": f"hash_{suffix}",
+        "source_type": "parallel_extract",
+    }
+
+
+def _set_manifest_fetched_at(pack_dir: Path, fetched_by_url: dict[str, str]) -> None:
+    manifest_path = pack_dir / "corpus.manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    for record in manifest["records"]:
+        value = fetched_by_url.get(record["url"])
+        if value is not None:
+            record["fetched_at"] = value
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
 
 
 def test_refresh_pack_dry_run_writes_reports(tmp_path: Path) -> None:
@@ -162,6 +186,95 @@ def test_pack_audit_fail_under_raises_after_writing_reports(tmp_path: Path) -> N
 
     assert (pack_dir / "pack.audit.json").exists()
     assert (pack_dir / "PACK_AUDIT.md").exists()
+
+
+def test_pack_audit_without_max_age_reports_stale_sources_not_evaluated(tmp_path: Path) -> None:
+    pack_dir = tmp_path / "pack"
+    write_context_pack(pack_dir)
+
+    payload = audit_pack(pack_dir)
+
+    assert payload["stale_sources"] == {
+        "evaluated": False,
+        "max_age_days": None,
+        "stale": [],
+        "stale_count": 0,
+        "unknown_age_count": 0,
+        "freshest_fetched_at": None,
+        "oldest_fetched_at": None,
+    }
+    assert payload["summary"]["stale_source_count"] == 0
+
+
+def test_pack_audit_flags_stale_sources_by_age(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    pack_dir = tmp_path / "pack"
+    records = [_aged_record(suffix) for suffix in ("old", "fresh", "invalid", "missing")]
+    write_context_pack(pack_dir, records=records)
+    _set_manifest_fetched_at(
+        pack_dir,
+        {
+            "https://docs.parallel.ai/old": "2026-01-01T00:00:00+00:00",
+            "https://docs.parallel.ai/fresh": "2026-03-09T00:00:00+00:00",
+            "https://docs.parallel.ai/invalid": "not-a-timestamp",
+        },
+    )
+    monkeypatch.setattr(local_workflows, "_audit_now", lambda: AUDIT_NOW)
+
+    baseline = audit_pack(pack_dir)
+    payload = audit_pack(pack_dir, max_age_days=30.0)
+
+    stale_sources = payload["stale_sources"]
+    assert stale_sources["evaluated"] is True
+    assert stale_sources["max_age_days"] == 30.0
+    assert stale_sources["stale_count"] == 1
+    assert stale_sources["unknown_age_count"] == 2
+    assert stale_sources["stale"] == [
+        {
+            "url": "https://docs.parallel.ai/old",
+            "fetched_at": "2026-01-01T00:00:00+00:00",
+            "age_days": 68.0,
+        }
+    ]
+    assert stale_sources["freshest_fetched_at"] == "2026-03-09T00:00:00+00:00"
+    assert stale_sources["oldest_fetched_at"] == "2026-01-01T00:00:00+00:00"
+    assert payload["summary"]["stale_source_count"] == 1
+    assert payload["score"] == baseline["score"] - 5
+    issue_codes = {issue["code"] for issue in payload["issues"]}
+    assert "stale_sources" in issue_codes
+    markdown = (pack_dir / "PACK_AUDIT.md").read_text(encoding="utf-8")
+    assert "Stale Sources" in markdown
+    assert f"docpull refresh {pack_dir} --changed-only" in markdown
+
+
+def test_pack_audit_uses_source_policy_max_age_as_default(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    pack_dir = tmp_path / "pack"
+    write_context_pack(pack_dir, records=[_aged_record("old")])
+    _set_manifest_fetched_at(
+        pack_dir,
+        {"https://docs.parallel.ai/old": "2026-01-01T00:00:00+00:00"},
+    )
+    (pack_dir / "source_policy.json").write_text(
+        json.dumps({"freshness": {"max_age_seconds": 30 * 86400}}),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(local_workflows, "_audit_now", lambda: AUDIT_NOW)
+
+    payload = audit_pack(pack_dir)
+
+    stale_sources = payload["stale_sources"]
+    assert stale_sources["evaluated"] is True
+    assert stale_sources["max_age_days"] == 30.0
+    assert stale_sources["stale_count"] == 1
+
+    explicit = audit_pack(pack_dir, max_age_days=365.0)
+    assert explicit["stale_sources"]["max_age_days"] == 365.0
+    assert explicit["stale_sources"]["stale_count"] == 0
 
 
 def test_answer_pack_uses_local_evidence(tmp_path: Path) -> None:

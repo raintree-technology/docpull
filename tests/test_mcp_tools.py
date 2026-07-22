@@ -17,6 +17,7 @@ from docpull.mcp.sources import (
 )
 from docpull.mcp.tools import (
     add_source,
+    explain_routes,
     fetch_url,
     grep_docs,
     list_indexed,
@@ -807,3 +808,37 @@ def test_read_doc_sliced_structured_payload(tmp_path):
     assert result.data["line_start"] == 2
     assert result.data["line_end"] == 4
     assert result.data["text"] == "L2\nL3\nL4"
+
+
+def test_explain_routes_returns_cost_ordered_ladder():
+    result = explain_routes()
+    assert result.is_error is False
+    assert result.data is not None
+    route_names = [step["name"] for step in result.data["route_steps"]]
+    # Cheapest-first ladder including the zero-dollar archive fallback.
+    assert route_names[0] == "cache"
+    assert "archive_fallback" in route_names
+    for step in result.data["route_steps"]:
+        assert step["cost_class"] in {"local", "paid-capable"}
+    assert result.data["budget_semantics"]["budget_zero_blocks_paid_routes"] is True
+
+
+def test_explain_routes_reports_provider_key_names_not_values(monkeypatch):
+    monkeypatch.setenv("TAVILY_API_KEY", "secret-value-should-never-leak")
+    result = explain_routes()
+    assert "secret-value-should-never-leak" not in result.text
+    tavily = [e for e in result.data["provider_keys"] if e["name"] == "TAVILY_API_KEY"]
+    assert tavily and tavily[0]["configured"] is True
+    assert "secret-value-should-never-leak" not in repr(result.data)
+
+
+def test_explain_routes_lists_discovery_sources_for_url():
+    result = explain_routes("https://docs.example.com/api")
+    assert result.data["url"] == "https://docs.example.com/api"
+    sources = [item["source"] for item in result.data["discovery_sources"]]
+    assert "archive_fallback" in sources
+
+
+def test_explain_routes_rejects_non_https_url():
+    result = explain_routes("http://insecure.example.com")
+    assert result.is_error is True

@@ -6,6 +6,8 @@ Requires the optional ``mcp`` Python package (install with
 Read-only:
 - ``fetch_url(url)`` — one-shot fetch, no discovery. Agent-oriented fast path.
 - ``render_url(url, ...)`` — explicit local browser render to disk.
+- ``explain_routes(url?)`` — cost-ordered route ladder, budget semantics, and
+  provider key availability (names only), so agents can plan spend up front.
 - ``list_sources(category?)`` — show available aliases.
 - ``list_indexed()`` — show what has been fetched.
 - ``grep_docs(pattern, library?, limit?)`` — regex search through cached web-source Markdown.
@@ -60,6 +62,7 @@ from .tools import (
     ToolResult,
     add_source,
     ensure_docs,
+    explain_routes,
     fetch_url,
     grep_docs,
     list_indexed,
@@ -76,7 +79,13 @@ SERVER_INSTRUCTIONS = (
     "ad-hoc HTTPS page. After ensure_docs, use grep_docs to find passages "
     "and read_doc to pull the surrounding lines. grep_docs/read_doc are historical "
     "tool names that work on cached Markdown from any fetched source. Use add_source / "
-    "remove_source to manage the user-defined registry."
+    "remove_source to manage the user-defined registry. "
+    "Call explain_routes before paid-capable work: it returns the cost-ordered route ladder, "
+    "budget semantics (budget=0 blocks paid-capable routes), and provider key availability. "
+    "Every tool advertises its cost contract in _meta['docpull/cost'] and a 'Cost:' line at the "
+    "top of its description; only render_url cloud runtimes are paid-capable. Structured results "
+    "include response_token_estimate (chars/4) for context budgeting. Set DOCPULL_MCP_COMPACT_TEXT=1 "
+    "in the server environment for token-efficient fetch_url/grep_docs/read_doc responses."
 )
 
 
@@ -444,6 +453,38 @@ _VALIDATE_POLICY_OUTPUT_SCHEMA = {
         "explain": {"type": "array", "items": {"type": "string"}},
     },
     "required": ["valid", "policy_path", "source_policy", "explain"],
+}
+
+_EXPLAIN_ROUTES_OUTPUT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "route_steps": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string"},
+                    "status": {"type": "string"},
+                    "cost_class": {"type": "string"},
+                    "unlock": {"type": "string"},
+                },
+            },
+        },
+        "budget_semantics": {"type": "object"},
+        "provider_keys": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string"},
+                    "configured": {"type": "boolean"},
+                },
+            },
+        },
+        "url": {"type": "string"},
+        "discovery_sources": {"type": "array", "items": {"type": "object"}},
+    },
+    "required": ["route_steps", "budget_semantics", "provider_keys"],
 }
 
 _RENDER_URL_OUTPUT_SCHEMA = {
@@ -1256,6 +1297,12 @@ async def _dispatch_tool(
                     "explain": validation_source_policy["explain"],
                 },
             )
+
+        elif name == "explain_routes":
+            explain_url = arguments.get("url")
+            if explain_url is not None and not isinstance(explain_url, str):
+                raise ValueError("'url' must be a string")
+            result = explain_routes(explain_url)
 
         elif name == "export_pack":
             from ..exports import export_pack as export_local_pack
@@ -2264,6 +2311,34 @@ async def _run_stdio() -> int:
                     "required": ["policy_path"],
                 },
                 outputSchema=_VALIDATE_POLICY_OUTPUT_SCHEMA,
+            ),
+            Tool(
+                name="explain_routes",
+                description=(
+                    "Cost: local, $0. Return the cost-ordered acquisition route ladder, budget "
+                    "semantics (budget=0 blocks paid-capable routes before any spend), which "
+                    "provider API keys are set (names/booleans only), and per-route unlock hints. "
+                    "Optional 'url' also lists the local discovery sources that would be attempted. "
+                    "Call this before any paid-capable work to reason about the escalation ladder. "
+                    "Purely local; performs no network probing."
+                ),
+                annotations=ToolAnnotations(
+                    title="Explain routes",
+                    readOnlyHint=True,
+                    openWorldHint=False,
+                    idempotentHint=True,
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "url": {
+                            "type": "string",
+                            "pattern": "^https://",
+                            "description": "Optional HTTPS URL to list discovery sources for.",
+                        },
+                    },
+                },
+                outputSchema=_EXPLAIN_ROUTES_OUTPUT_SCHEMA,
             ),
             Tool(
                 name="export_pack",

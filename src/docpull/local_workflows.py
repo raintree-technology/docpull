@@ -6,6 +6,7 @@ import argparse
 import asyncio
 import re
 from collections import Counter
+from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -40,7 +41,7 @@ from .pack_tools import (
     search_pack,
 )
 from .source_scoring import score_source_entries
-from .time_utils import utc_now_iso
+from .time_utils import parse_persisted_datetime, utc_now, utc_now_iso
 
 if TYPE_CHECKING:
     from .pack_tools import _PackAnalysis
@@ -373,6 +374,7 @@ def audit_pack(
     *,
     required_domains: list[str] | None = None,
     fail_under: float | None = None,
+    max_age_days: float | None = None,
     markdown_path: Path | None = None,
     json_path: Path | None = None,
     _analysis: _PackAnalysis | None = None,
@@ -393,11 +395,27 @@ def audit_pack(
     )
     dimensions = _audit_dimensions(records, score_payload, citation_payload)
     stale_sidecar_issues = _stale_sidecar_issues(pack_dir, records, score_payload)
+    effective_max_age_days = max_age_days if max_age_days is not None else _policy_max_age_days(pack_dir)
+    stale_sources = _stale_source_report(pack_dir, records, effective_max_age_days)
     weighted_score = max(
         0,
-        _weighted_audit_score(dimensions, score_payload["score"]) - min(30, len(stale_sidecar_issues) * 15),
+        _weighted_audit_score(dimensions, score_payload["score"])
+        - min(30, len(stale_sidecar_issues) * 15)
+        - min(20, stale_sources["stale_count"] * 5),
     )
     issues = [*score_payload["issues"], *stale_sidecar_issues]
+    if stale_sources["stale_count"]:
+        issues.append(
+            _issue(
+                "stale_sources",
+                (
+                    f"{stale_sources['stale_count']} source(s) are older than "
+                    f"{stale_sources['max_age_days']:g} day(s). "
+                    f"Run `docpull refresh {pack_dir} --changed-only` to revalidate."
+                ),
+                urls=[str(entry["url"]) for entry in stale_sources["stale"][:5]],
+            )
+        )
     payload = {
         "schema_version": AUDIT_SCHEMA_VERSION,
         "generated_at": utc_now_iso(),
@@ -408,6 +426,7 @@ def audit_pack(
         "fail_under": fail_under,
         "passed": fail_under is None or (weighted_score / 100) >= fail_under,
         "dimensions": dimensions,
+        "stale_sources": stale_sources,
         "issues": issues,
         "warnings": score_payload["warnings"],
         "summary": {
@@ -415,6 +434,7 @@ def audit_pack(
             "source_count": citation_payload["source_count"],
             "citation_coverage": dimensions["citation_coverage"]["value"],
             "stale_sidecar_count": len(stale_sidecar_issues),
+            "stale_source_count": stale_sources["stale_count"],
         },
     }
     output = json_path or (pack_dir / "pack.audit.json")
@@ -483,6 +503,107 @@ def _stale_sidecar_issues(
             )
         )
     return issues
+
+
+_SECONDS_PER_DAY = 86400.0
+
+
+def _audit_now() -> datetime:
+    """Return the audit clock instant; tests monkeypatch this for determinism."""
+    return utc_now()
+
+
+def _policy_max_age_days(pack_dir: Path) -> float | None:
+    """Read freshness.max_age_seconds from the pack's source_policy.json, if present."""
+    payload = _read_json(pack_dir / "source_policy.json", required=False)
+    if not isinstance(payload, dict):
+        return None
+    freshness = payload.get("freshness")
+    if not isinstance(freshness, dict):
+        return None
+    max_age_seconds = freshness.get("max_age_seconds")
+    if isinstance(max_age_seconds, bool) or not isinstance(max_age_seconds, (int, float)):
+        return None
+    if max_age_seconds < 0:
+        return None
+    return float(max_age_seconds) / _SECONDS_PER_DAY
+
+
+def _record_fetch_entries(pack_dir: Path, records: list[dict[str, Any]]) -> list[tuple[str, Any]]:
+    """Pair each corpus record URL with its fetched_at value.
+
+    corpus.manifest.json records are the primary source; manifests written
+    without fetched_at fall back to the matching documents.ndjson record.
+    """
+    fallback: dict[str, Any] = {}
+    for record in records:
+        fetched_at = record.get("fetched_at")
+        if not fetched_at:
+            continue
+        for key in ("document_id", "url"):
+            value = str(record.get(key) or "")
+            if value:
+                fallback.setdefault(value, fetched_at)
+    manifest = _read_json(pack_dir / "corpus.manifest.json", required=False)
+    manifest_records = manifest.get("records") if isinstance(manifest, dict) else None
+    if not isinstance(manifest_records, list) or not manifest_records:
+        return [(str(record.get("url") or ""), record.get("fetched_at")) for record in records]
+    entries: list[tuple[str, Any]] = []
+    for raw in manifest_records:
+        if not isinstance(raw, dict):
+            continue
+        url = str(raw.get("url") or "")
+        fetched_at = raw.get("fetched_at")
+        if not fetched_at:
+            fetched_at = fallback.get(str(raw.get("document_id") or "")) or fallback.get(url)
+        entries.append((url, fetched_at))
+    return entries
+
+
+def _stale_source_report(
+    pack_dir: Path,
+    records: list[dict[str, Any]],
+    max_age_days: float | None,
+) -> dict[str, Any]:
+    """Build the age-based stale_sources audit section."""
+    if max_age_days is None:
+        return {
+            "evaluated": False,
+            "max_age_days": None,
+            "stale": [],
+            "stale_count": 0,
+            "unknown_age_count": 0,
+            "freshest_fetched_at": None,
+            "oldest_fetched_at": None,
+        }
+    now = _audit_now()
+    stale: list[dict[str, Any]] = []
+    parsed: list[tuple[datetime, str]] = []
+    unknown_age_count = 0
+    for url, fetched_at in _record_fetch_entries(pack_dir, records):
+        raw = str(fetched_at or "").strip()
+        if not raw:
+            unknown_age_count += 1
+            continue
+        try:
+            fetched = parse_persisted_datetime(raw)
+        except ValueError:
+            unknown_age_count += 1
+            continue
+        parsed.append((fetched, raw))
+        age_days = (now - fetched).total_seconds() / _SECONDS_PER_DAY
+        if age_days > max_age_days:
+            stale.append({"url": url, "fetched_at": raw, "age_days": round(age_days, 2)})
+    stale.sort(key=lambda entry: float(entry["age_days"]), reverse=True)
+    return {
+        "evaluated": True,
+        "max_age_days": max_age_days,
+        "stale": stale,
+        "stale_count": len(stale),
+        "unknown_age_count": unknown_age_count,
+        "freshest_fetched_at": max(parsed)[1] if parsed else None,
+        "oldest_fetched_at": min(parsed)[1] if parsed else None,
+    }
 
 
 def answer_pack(
@@ -746,6 +867,26 @@ def _audit_markdown(payload: dict[str, Any]) -> str:
         lines.append(
             f"- {name.replace('_', ' ').title()}: {dimension.get('score')}/100 - {dimension.get('summary')}"
         )
+    stale_sources = payload.get("stale_sources")
+    if isinstance(stale_sources, dict) and stale_sources.get("stale"):
+        lines.extend(
+            [
+                "",
+                "## Stale Sources",
+                "",
+                (
+                    f"{stale_sources.get('stale_count')} source(s) exceed max age "
+                    f"{stale_sources.get('max_age_days')} day(s); "
+                    f"{stale_sources.get('unknown_age_count')} record(s) have unknown fetch age."
+                ),
+                "",
+            ]
+        )
+        for entry in stale_sources["stale"][:5]:
+            lines.append(
+                f"- {entry.get('url')} (fetched {entry.get('fetched_at')}, {entry.get('age_days')} days old)"
+            )
+        lines.extend(["", f"Suggested: `docpull refresh {payload.get('pack_dir')} --changed-only`"])
     if payload.get("issues"):
         lines.extend(["", "## Issues", ""])
         for issue in payload["issues"]:

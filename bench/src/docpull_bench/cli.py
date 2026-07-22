@@ -7,6 +7,7 @@ import hashlib
 import json
 import sys
 from collections import Counter, defaultdict
+from collections.abc import Callable
 from datetime import date
 from pathlib import Path
 from typing import Any, cast
@@ -18,6 +19,7 @@ from .adapters import (
     CommandAdapter,
     ContextCrawlAdapter,
     ContextMarkdownAdapter,
+    Crawl4AIAdapter,
     DocPullAdapter,
     ExaContentsAdapter,
     ExaFullContentsAdapter,
@@ -27,6 +29,7 @@ from .adapters import (
     FirecrawlSearchAdapter,
     ParallelFullExtractAdapter,
     ParallelSearchAdapter,
+    ReadabilityAdapter,
     ReplayAdapter,
     SystemAdapter,
     TavilyAdvancedExtractAdapter,
@@ -34,6 +37,7 @@ from .adapters import (
     TavilyExtractAdapter,
     TavilyGuidedAdvancedCrawlAdapter,
     TavilySearchAdapter,
+    TrafilaturaAdapter,
 )
 from .baselines import check_baseline, update_baseline
 from .challenges import export_blinded_challenge, materialize_blinded_challenge, seal_blinded_gold
@@ -175,6 +179,9 @@ def _add_run_arguments(run: argparse.ArgumentParser) -> None:
         "--adapter",
         choices=(
             "docpull",
+            "trafilatura",
+            "readability",
+            "crawl4ai",
             "tavily",
             "tavily-advanced",
             "tavily-crawl",
@@ -437,10 +444,19 @@ def _adapter(args: argparse.Namespace) -> SystemAdapter:
         "contextdev": ("context.dev", ContextMarkdownAdapter),
         "contextdev-crawl": ("context.dev-crawl", ContextCrawlAdapter),
     }
+    local_baselines: dict[str, Callable[[], SystemAdapter]] = {
+        "trafilatura": TrafilaturaAdapter,
+        "readability": ReadabilityAdapter,
+        "crawl4ai": Crawl4AIAdapter,
+    }
     if args.adapter == "docpull":
         if args.system != "docpull":
             raise ValueError("docpull adapter requires --system docpull")
         return DocPullAdapter(python_executable=args.docpull_python)
+    if args.adapter in local_baselines:
+        if args.system != args.adapter:
+            raise ValueError(f"{args.adapter} adapter requires --system {args.adapter}")
+        return local_baselines[args.adapter]()
     if args.adapter in hosted:
         if args.max_cost_usd is None:
             raise ValueError("hosted adapters require --max-cost-usd")

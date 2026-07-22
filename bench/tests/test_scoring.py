@@ -6,6 +6,8 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
+from docpull_bench import tokens
+from docpull_bench.fixtures import fixture_html_inputs
 from docpull_bench.models import (
     ArtifactRecord,
     BenchmarkCase,
@@ -226,6 +228,70 @@ def test_optional_content_quality_assertions_are_deterministic() -> None:
     assert score.metrics["fenced_code_blocks"] == 1
     assert score.metrics["markdown_table_rows"] == 2
     assert score.metrics["long_token_rate"] == 0.0
+
+
+def test_token_economics_metrics_use_labeled_fallback_estimator(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(tokens, "_encoder", None)
+    case = next(item for item in _cases() if item.input.lane is Lane.EXTRACT)
+    observation = _passing_observation(case)
+    score = score_observation(case, observation)
+
+    assert isinstance(observation.payload, ContentPayload)
+    record_count = len(observation.payload.records)
+    combined = "\n".join(record.content for record in observation.payload.records)
+    expected_output = tokens.estimate_tokens(combined)
+    assert score.metrics["total_tokens"] == expected_output.tokens
+    assert score.metrics["tokens_per_page"] == expected_output.tokens / record_count
+    assert score.metrics["token_estimator"] == tokens.HEURISTIC_ESTIMATOR
+
+    html_paths = fixture_html_inputs(case.input)
+    assert html_paths
+    expected_html_tokens = sum(
+        tokens.estimate_tokens(path.read_text(encoding="utf-8")).tokens for path in html_paths
+    )
+    assert score.metrics["html_input_tokens"] == expected_html_tokens
+    assert score.metrics["token_reduction_vs_html"] == 1 - expected_output.tokens / expected_html_tokens
+
+
+def test_token_reduction_absent_without_committed_html_input(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(tokens, "_encoder", None)
+    original = next(item for item in _cases() if item.input.lane is Lane.EXTRACT)
+    case = original.model_copy(
+        update={"input": original.input.model_copy(update={"url": "https://example.com/article"})}
+    )
+    observation = RunObservation(
+        case_id=case.id,
+        system="fixture",
+        status="completed",
+        payload=ContentPayload(
+            records=[ArtifactRecord(url="https://example.com/article", content="plain evidence text")]
+        ),
+        elapsed_seconds=0.1,
+        adapter_version="test",
+    )
+    score = score_observation(case, observation)
+    expected_tokens = tokens.estimate_tokens("plain evidence text").tokens
+    assert score.metrics["total_tokens"] == expected_tokens
+    assert score.metrics["tokens_per_page"] == expected_tokens
+    assert "html_input_tokens" not in score.metrics
+    assert "token_reduction_vs_html" not in score.metrics
+
+
+def test_crawl_token_metrics_sum_all_graph_pages(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(tokens, "_encoder", None)
+    case = next(item for item in _cases() if item.input.lane is Lane.CRAWL)
+    score = score_observation(case, _passing_observation(case))
+    html_paths = fixture_html_inputs(case.input)
+    assert len(html_paths) > 1
+    expected_html_tokens = sum(
+        tokens.estimate_tokens(path.read_text(encoding="utf-8")).tokens for path in html_paths
+    )
+    assert score.metrics["html_input_tokens"] == expected_html_tokens
+    assert score.metrics["token_estimator"] == tokens.HEURISTIC_ESTIMATOR
 
 
 def test_required_order_uses_a_valid_later_occurrence() -> None:

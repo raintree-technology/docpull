@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import json
 import os
+import shlex
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -23,6 +24,7 @@ from docpull.rendering import (
     agent_browser_binary,
     build_agent_browser_command,
     build_cloud_agent_browser_command,
+    build_degradation_report,
     check_agent_browser_availability,
     check_e2b_sandbox_availability,
     check_render_backend_availability,
@@ -130,6 +132,69 @@ def test_agent_browser_command_construction():
         "get html html",
         "close",
     ]
+
+
+def test_agent_browser_command_appends_screenshot_step_before_close(tmp_path):
+    config = RenderConfig(mode="agent-browser", viewport="800x600")
+    shot_path = tmp_path / "shot.png"
+
+    command = build_agent_browser_command(
+        "https://example.com/app",
+        config,
+        binary="/opt/bin/agent-browser",
+        screenshot_path=shot_path,
+    )
+
+    # The screenshot step must not change the deterministic session name.
+    assert command[2] == "docpull-render-08d099a4ffed"
+    assert command[-3:] == [
+        "get html html",
+        f"screenshot {shlex.quote(str(shot_path))}",
+        "close",
+    ]
+
+
+def test_agent_browser_command_cookie_header_step_and_distinct_session():
+    anonymous = build_agent_browser_command(
+        "https://example.com/app",
+        RenderConfig(mode="agent-browser"),
+    )
+    config = RenderConfig(mode="agent-browser", cookie_env="DOCS_COOKIE")
+
+    command = build_agent_browser_command(
+        "https://example.com/app",
+        config,
+        cookie_header="session=super-secret",
+    )
+
+    header_steps = [part for part in command if part.startswith("set headers ")]
+    assert len(header_steps) == 1
+    assert json.loads(shlex.split(header_steps[0])[2]) == {"Cookie": "session=super-secret"}
+    # Header must be staged before the first navigation.
+    assert command.index(header_steps[0]) < command.index("open https://example.com/app")
+    # Authenticated sessions must not share browser state with anonymous ones,
+    # but the name stays deterministic and derived from the env var NAME only.
+    assert command[2] != anonymous[2]
+    assert command[2].startswith("docpull-render-")
+    assert command[2] == build_agent_browser_command("https://example.com/app", config)[2]
+
+
+def test_build_degradation_report_detects_wait_timeout_and_healthy_none():
+    degraded = build_degradation_report(
+        payload=[
+            {"command": "open https://example.com/app", "success": True},
+            {"command": "wait --load networkidle", "error": "Timeout 30000ms exceeded"},
+            {"command": "get html html", "data": "<html></html>"},
+        ]
+    )
+
+    assert degraded == {
+        "html_truncated": False,
+        "wait_timeout": True,
+        "screenshot_failed": False,
+        "notes": ["wait step reported a timeout: Timeout 30000ms exceeded"],
+    }
+    assert build_degradation_report(payload=[{"command": "open x", "success": True}]) is None
 
 
 def test_cloud_agent_browser_install_can_be_skipped_for_prebuilt_template():
@@ -377,6 +442,180 @@ async def test_render_url_to_directory_keeps_distinct_urls_from_overwriting(tmp_
     assert first.html_path != second.html_path
     assert first.html_path.read_text(encoding="utf-8") == "<html><body>render 1</body></html>"
     assert second.html_path.read_text(encoding="utf-8") == "<html><body>render 2</body></html>"
+
+
+@pytest.mark.asyncio
+async def test_render_screenshot_artifact_lands_next_to_html(tmp_path, monkeypatch):
+    _trust_browser_targets(monkeypatch)
+
+    async def runner(command, timeout):
+        for part in command:
+            if part.startswith("screenshot "):
+                with open(shlex.split(part)[1], "wb") as fh:
+                    fh.write(b"fake-png-bytes")
+        return CommandResult(
+            returncode=0,
+            stdout=json.dumps({"html": "<html><body>shot</body></html>"}),
+            stderr="",
+        )
+
+    renderer = AgentBrowserRenderer(runner=runner)
+
+    artifact = await render_url_to_directory(
+        "https://example.com/app",
+        tmp_path,
+        config=RenderConfig(mode="agent-browser", screenshot=True),
+        renderer=renderer,
+    )
+
+    page = artifact.page
+    assert page.screenshot_path is not None
+    assert page.screenshot_path == artifact.html_path.with_name(f"{artifact.html_path.stem}.render.png")
+    assert page.screenshot_path.read_bytes() == b"fake-png-bytes"
+    assert page.diagnostics["screenshot_path"] == str(page.screenshot_path)
+    assert "degradation" not in page.diagnostics
+    record = json.loads(artifact.sidecar_path.read_text(encoding="utf-8").splitlines()[0])
+    assert record["screenshot_path"] == page.screenshot_path.name
+
+
+@pytest.mark.asyncio
+async def test_render_screenshot_missing_file_records_degradation(monkeypatch):
+    _trust_browser_targets(monkeypatch)
+
+    async def runner(command, timeout):
+        return CommandResult(
+            returncode=0,
+            stdout=json.dumps({"html": "<html><body>no shot</body></html>"}),
+            stderr="",
+        )
+
+    renderer = AgentBrowserRenderer(runner=runner)
+
+    page = await renderer.render(
+        "https://example.com/app",
+        RenderConfig(mode="agent-browser", screenshot=True),
+    )
+
+    assert page.screenshot_path is None
+    degradation = page.diagnostics["degradation"]
+    assert degradation["screenshot_failed"] is True
+    assert degradation["html_truncated"] is False
+    assert degradation["wait_timeout"] is False
+    assert degradation["notes"]
+
+
+@pytest.mark.asyncio
+async def test_render_cookie_env_injects_header_and_masks_value(monkeypatch):
+    _trust_browser_targets(monkeypatch)
+    monkeypatch.setenv("DOCS_COOKIE", "session=secret-cookie-value")
+
+    captured: list[str] = []
+
+    async def runner(command, timeout):
+        captured.extend(command)
+        return CommandResult(
+            returncode=0,
+            stdout=json.dumps({"html": "<html><body>authed</body></html>"}),
+            stderr="",
+        )
+
+    renderer = AgentBrowserRenderer(runner=runner)
+
+    page = await renderer.render(
+        "https://example.com/app",
+        RenderConfig(mode="agent-browser", cookie_env="DOCS_COOKIE"),
+    )
+
+    # The real value reaches the agent-browser invocation...
+    assert any("secret-cookie-value" in part for part in captured)
+    # ...but never any diagnostics, and the session differs from the anonymous pin.
+    assert "secret-cookie-value" not in json.dumps(page.diagnostics)
+    assert "set headers cookie_env:DOCS_COOKIE" in page.diagnostics["command"]
+    assert page.diagnostics["cookie"] == "cookie_env:DOCS_COOKIE"
+    assert captured[2] != "docpull-render-08d099a4ffed"
+
+
+@pytest.mark.asyncio
+async def test_render_cookie_env_missing_is_clear_error(monkeypatch):
+    _trust_browser_targets(monkeypatch)
+    monkeypatch.delenv("DOCS_COOKIE", raising=False)
+
+    async def runner(command, timeout):
+        raise AssertionError("renderer should not be called")
+
+    renderer = AgentBrowserRenderer(runner=runner)
+
+    with pytest.raises(RenderError, match="DOCS_COOKIE"):
+        await renderer.render(
+            "https://example.com/app",
+            RenderConfig(mode="agent-browser", cookie_env="DOCS_COOKIE"),
+        )
+
+
+@pytest.mark.asyncio
+async def test_render_truncates_html_at_max_bytes_and_records_degradation(monkeypatch):
+    _trust_browser_targets(monkeypatch)
+
+    html = "<html><body>" + "x" * 100 + "</body></html>"
+
+    async def runner(command, timeout):
+        return CommandResult(returncode=0, stdout=json.dumps({"html": html}), stderr="")
+
+    renderer = AgentBrowserRenderer(runner=runner)
+
+    page = await renderer.render(
+        "https://example.com/app",
+        RenderConfig(mode="agent-browser", max_html_bytes=16),
+    )
+
+    assert page.html == html.encode("utf-8")[:16]
+    degradation = page.diagnostics["degradation"]
+    assert degradation["html_truncated"] is True
+    assert degradation["wait_timeout"] is False
+    assert degradation["screenshot_failed"] is False
+    assert any("max_html_bytes" in note for note in degradation["notes"])
+
+
+@pytest.mark.asyncio
+async def test_cloud_renderers_refuse_session_cookies(monkeypatch):
+    _trust_browser_targets(monkeypatch)
+
+    async def runner(command, timeout):
+        raise AssertionError("renderer should not be called")
+
+    def sandbox_factory():
+        raise AssertionError("sandbox should not be created")
+
+    vercel = VercelSandboxRenderer(binary="/opt/bin/sandbox", runner=runner)
+    e2b = E2BSandboxRenderer(sandbox_factory=sandbox_factory)
+    for renderer, backend in ((vercel, "vercel-sandbox"), (e2b, "e2b-sandbox")):
+        with pytest.raises(RenderError, match="local agent-browser runtime"):
+            await renderer.render(
+                "https://example.com/app",
+                RenderConfig(mode="agent-browser", backend=backend, cookie_env="DOCS_COOKIE"),
+            )
+
+
+@pytest.mark.asyncio
+async def test_cloud_screenshot_reports_unsupported_transport(monkeypatch):
+    _trust_browser_targets(monkeypatch)
+
+    async def runner(command, timeout):
+        return CommandResult(
+            returncode=0,
+            stdout=_cloud_stdout("<html><body><h1>Cloud</h1></body></html>"),
+            stderr="",
+        )
+
+    renderer = VercelSandboxRenderer(binary="/opt/bin/sandbox", runner=runner)
+
+    page = await renderer.render(
+        "https://example.com/app",
+        RenderConfig(mode="agent-browser", backend="vercel-sandbox", screenshot=True),
+    )
+
+    assert page.screenshot_path is None
+    assert page.diagnostics["screenshot"] == "unsupported_transport"
 
 
 @pytest.mark.asyncio

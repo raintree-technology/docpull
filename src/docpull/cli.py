@@ -342,6 +342,32 @@ Examples:
         help="Output format (default: markdown; 'ndjson' streams records; 'okf' writes an OKF bundle)",
     )
     parser.add_argument(
+        "--warc",
+        action="store_true",
+        help=(
+            "Also archive every fetched HTTP response as a WARC/1.1 record in "
+            "capture.warc.gz inside the output directory"
+        ),
+    )
+    parser.add_argument(
+        "--no-respect-ai-optout",
+        dest="respect_ai_optout",
+        action="store_false",
+        help=(
+            "Ignore machine-readable AI/TDM opt-out signals (X-Robots-Tag and "
+            "meta robots noai/noimageai). Only for mirroring your own content "
+            "or sources whose owners explicitly authorized reuse."
+        ),
+    )
+    parser.add_argument(
+        "--respect-noindex",
+        action="store_true",
+        help=(
+            "Also skip pages marked noindex/none. Stricter than the default: "
+            "noindex governs search indexing, not content reuse."
+        ),
+    )
+    parser.add_argument(
         "--naming-strategy",
         choices=["full", "hierarchical"],
         default=None,
@@ -721,6 +747,12 @@ def run_fetcher(args: argparse.Namespace) -> int:
         output_kwargs["emit_chunks"] = True
     if output_kwargs:
         config_kwargs["output"] = output_kwargs
+    if args.warc:
+        config_kwargs["warc_output"] = True
+    if not args.respect_ai_optout:
+        config_kwargs["respect_ai_optout"] = False
+    if args.respect_noindex:
+        config_kwargs["respect_noindex"] = True
 
     # Crawl settings
     crawl_kwargs: dict = {}
@@ -971,6 +1003,7 @@ def run_fetcher(args: argparse.Namespace) -> int:
                         failure_skips = {
                             SkipReason.URL_VALIDATION_FAILED,
                             SkipReason.ROBOTS_DISALLOWED,
+                            SkipReason.AI_OPTOUT,
                             SkipReason.HTTP_ERROR,
                             SkipReason.INVALID_CONTENT_TYPE,
                             SkipReason.NO_CONTENT_EXTRACTED,
@@ -1270,6 +1303,25 @@ def run_render_cli(argv: list[str]) -> int:
         help="Cloud runtime template name; currently used by --runtime e2b",
     )
     parser.add_argument(
+        "--screenshot",
+        action="store_true",
+        help=(
+            "Capture a PNG evidence screenshot next to the rendered HTML as <name>.render.png. "
+            "Local runtime only; cloud runtimes return payloads over stdout/file JSON and record "
+            "screenshot=unsupported_transport in diagnostics instead."
+        ),
+    )
+    parser.add_argument(
+        "--render-cookie-env",
+        default=None,
+        metavar="ENV_NAME",
+        help=(
+            "Name of an environment variable holding a Cookie header value for authorized "
+            "logged-in captures. Resolved in memory at render time and never written to config, "
+            "diagnostics, or logs. Local runtime only; cloud runtimes refuse session cookies."
+        ),
+    )
+    parser.add_argument(
         "--quiet",
         "-q",
         action="store_true",
@@ -1308,6 +1360,8 @@ def run_render_cli(argv: list[str]) -> int:
             cloud_artifact_path=args.cloud_artifact_path,
             cloud_agent_browser_binary=args.agent_browser_bin or "agent-browser",
             e2b_template=args.template,
+            screenshot=args.screenshot,
+            cookie_env=args.render_cookie_env,
         )
     except Exception as e:
         console.print("[red]Configuration error:[/red] " + escape(str(e)))
@@ -1399,6 +1453,8 @@ def run_render_cli(argv: list[str]) -> int:
             if not args.live_smoke:
                 console.print(f"[green]HTML:[/green] {artifact.html_path}")
                 console.print(f"[green]Metadata:[/green] {artifact.sidecar_path}")
+                if artifact.page.screenshot_path is not None:
+                    console.print(f"[green]Screenshot:[/green] {artifact.page.screenshot_path}")
         if not args.live_smoke:
             maybe_write_run_accounting(
                 output_dir,

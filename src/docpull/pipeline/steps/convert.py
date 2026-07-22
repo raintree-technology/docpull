@@ -23,6 +23,12 @@ from ...conversion.special_cases import (
     looks_like_spa_output,
 )
 from ...models.events import EventType, FetchEvent, SkipReason
+from ...security.optout import (
+    USER_AGENT_TOKEN,
+    OptOutDecision,
+    evaluate_optout,
+    parse_robots_meta,
+)
 from ..base import EventEmitter, PageContext
 
 if TYPE_CHECKING:
@@ -153,6 +159,8 @@ class ConvertStep:
         remote_document_backend: str = "auto",
         remote_document_timeout_seconds: int = 60,
         remote_document_memory_mib: int = 1024,
+        respect_ai_optout: bool = True,
+        respect_noindex: bool = False,
     ):
         """Initialize the convert step.
 
@@ -171,6 +179,12 @@ class ConvertStep:
                 silently skipping.
             clean_inline_xbrl: Remove hidden Inline XBRL blocks and unwrap
                 visible ``ix:*`` tags before extraction.
+            respect_ai_optout: Honor HTML ``<meta name="robots">`` AI/TDM
+                opt-out directives (``noai``, ``noimageai``) by skipping the
+                page before conversion.
+            respect_noindex: Also treat ``noindex`` / ``none`` as opt-outs
+                (stricter than the default; those directives govern search
+                indexing, not reuse).
         """
         self._add_frontmatter = add_frontmatter
         self._frontmatter_builder = FrontmatterBuilder() if add_frontmatter else None
@@ -184,6 +198,8 @@ class ConvertStep:
         self._remote_document_backend = remote_document_backend
         self._remote_document_timeout_seconds = remote_document_timeout_seconds
         self._remote_document_memory_mib = remote_document_memory_mib
+        self._respect_ai_optout = respect_ai_optout
+        self._respect_noindex = respect_noindex
 
         # Exactly one route is active: trafilatura, ensemble, or generic.
         self._trafilatura: TrafilaturaExtractor | None = None
@@ -220,6 +236,22 @@ class ConvertStep:
             return ctx
 
         try:
+            optout = self._check_meta_robots(ctx)
+            if optout is not None:
+                reason = f"AI/TDM opt-out (meta robots: {', '.join(optout.matched)})"
+                ctx.mark_skipped(reason, SkipReason.AI_OPTOUT)
+                logger.info("Skipping %s: %s", ctx.url, reason)
+                if emit:
+                    emit(
+                        FetchEvent(
+                            type=EventType.FETCH_SKIPPED,
+                            url=ctx.url,
+                            message=f"Skipped: {reason}",
+                            skip_reason=SkipReason.AI_OPTOUT,
+                        )
+                    )
+                return ctx
+
             remote_markdown = await self._try_remote_document(ctx)
             if remote_markdown is not None:
                 markdown = remote_markdown
@@ -327,6 +359,44 @@ class ConvertStep:
             # Do not retain a full duplicate DOM after conversion. This also
             # bounds peak memory when several fetch workers finish together.
             ctx.parsed_html = None
+
+    def _check_meta_robots(self, ctx: PageContext) -> OptOutDecision | None:
+        """Return a blocking opt-out decision from HTML robots meta tags.
+
+        Reuses ``ctx.parsed_html`` when MetadataStep already parsed the
+        document; otherwise parses HTML-typed content directly. Returns None
+        when enforcement is off, the content is not HTML, or no blocking
+        directive applies.
+        """
+        if not (self._respect_ai_optout or self._respect_noindex):
+            return None
+        if ctx.html is None:
+            return None
+        media_type = (ctx.content_type or "").split(";", 1)[0].strip().casefold()
+        if media_type and media_type not in {"text/html", "application/xhtml+xml"}:
+            return None
+        soup = (
+            ctx.parsed_html
+            if isinstance(ctx.parsed_html, BeautifulSoup)
+            else BeautifulSoup(ctx.html, "html.parser")
+        )
+        directives: set[str] = set()
+        for tag in soup.find_all("meta"):
+            name = str(tag.get("name") or "").strip().casefold()
+            if name not in {"robots", USER_AGENT_TOKEN}:
+                continue
+            content = tag.get("content")
+            if content:
+                directives |= parse_robots_meta(str(content))
+        if not directives:
+            return None
+        decision = evaluate_optout(
+            directives,
+            respect_noai=self._respect_ai_optout,
+            respect_noindex=self._respect_noindex,
+            source="meta-robots",
+        )
+        return decision if decision.blocked else None
 
     async def _try_remote_document(self, ctx: PageContext) -> str | None:
         media_type = (ctx.content_type or "").split(";", 1)[0].strip().casefold()

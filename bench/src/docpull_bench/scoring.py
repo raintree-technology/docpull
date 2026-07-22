@@ -10,6 +10,7 @@ from collections.abc import Iterable
 from typing import cast
 from urllib.parse import urldefrag
 
+from .fixtures import fixture_html_inputs
 from .models import (
     AssertionResult,
     BenchmarkCase,
@@ -49,6 +50,7 @@ from .models import (
     StructuredScore,
     hostname,
 )
+from .tokens import estimate_tokens
 
 _SPACE_RE = re.compile(r"\s+")
 _LINE_BREAK_HYPHEN_RE = re.compile(r"(?<=\w)-[ \t]*\r?\n[ \t]*(?=\w)")
@@ -57,7 +59,7 @@ _ALPHA_TOKEN_RE = re.compile(r"[^\W\d_]+", re.UNICODE)
 _MARKDOWN_LINK_RE = re.compile(r"\[[^\]\n]+\]\([^\s)]+(?:\s+[^)]*)?\)")
 _FENCE_LINE_RE = re.compile(r"(?m)^\s*(`{3,}|~{3,})")
 _TABLE_ROW_RE = re.compile(r"(?m)^\s*\|[^\n]+\|\s*$")
-SCORER_VERSION = "v4-token-boundary-quality-assertions"
+SCORER_VERSION = "v5-token-economics-diagnostics"
 
 
 def _normalized_text(value: str) -> str:
@@ -296,6 +298,7 @@ def _score_extract_or_crawl(case: BenchmarkCase, observation: RunObservation) ->
         normalized = _normalized_text(heading)
         assertions.append(_assert(f"heading.required:{normalized}", _term_present(combined, normalized)))
     metrics.update({"url_recall": url_recall, "domain_precision": domain_precision})
+    metrics.update(_token_economics(case, records))
     if isinstance(expected, CrawlExpected):
         hashes = [hashlib.sha256(_normalized_text(record.content).encode()).hexdigest() for record in records]
         duplicate_rate = 1 - _ratio(len(set(hashes)), len(hashes)) if hashes else 0.0
@@ -309,6 +312,25 @@ def _score_extract_or_crawl(case: BenchmarkCase, observation: RunObservation) ->
         )
         metrics["duplicate_rate"] = duplicate_rate
     return _finalize(case, observation, assertions, metrics)
+
+
+def _token_economics(case: BenchmarkCase, records: list) -> dict[str, MetricValue]:
+    """Diagnostic token metrics for extract/crawl output; never pass/fail assertions."""
+    output = estimate_tokens("\n".join(record.content for record in records))
+    metrics: dict[str, MetricValue] = {
+        "total_tokens": output.tokens,
+        "tokens_per_page": output.tokens / len(records) if records else None,
+        "token_estimator": output.estimator,
+    }
+    html_paths = fixture_html_inputs(case.input)
+    if html_paths:
+        html_tokens = sum(
+            estimate_tokens(path.read_text(encoding="utf-8", errors="replace")).tokens for path in html_paths
+        )
+        metrics["html_input_tokens"] = html_tokens
+        if html_tokens > 0:
+            metrics["token_reduction_vs_html"] = 1 - output.tokens / html_tokens
+    return metrics
 
 
 def _score_parse(case: BenchmarkCase, observation: RunObservation) -> CaseScore:

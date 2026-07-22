@@ -20,6 +20,7 @@ tool.
 | Build a custom crawling pipeline with queues, middleware, and spiders | Scrapy | Mature scraping framework for custom pipelines and broad crawler control |
 | Automate a real browser or interact with JavaScript-heavy pages | agent-browser, Puppeteer, Selenium | Required when useful content only exists after client-side rendering or interaction |
 | Build browser-backed crawlers in the JavaScript ecosystem | Crawlee | Strong fit for JavaScript/TypeScript crawling stacks |
+| Self-host a browser-based crawler with LLM-oriented Markdown output | Crawl4AI | Open-source, self-hosted, browser-driven; a good fit when pages need a real browser and you want to run the infrastructure yourself |
 | Use a hosted web-to-LLM extraction service | Firecrawl, Jina Reader, hosted extraction APIs | Useful when you want an API service to manage crawling/extraction infrastructure |
 | Search the live web before building a pack | Dedicated search/extract providers, then DocPull source ingestion | Search providers find candidate sources; DocPull's public release contract starts when selected sources are fetched, parsed, packed, and validated locally |
 
@@ -57,7 +58,18 @@ tool.
 | Scrapy | Yes | Yes by default | Yes | No | No | No |
 | agent-browser/Puppeteer/Selenium | Yes | No | Mixed | Yes | No | No |
 | Crawlee | Yes | Mixed | No | No | No | No |
+| Crawl4AI | Yes | No (browser-driven) | Yes | Partial | Partial | Self-host |
 | Firecrawl/Jina Reader/hosted extraction APIs | No | Hidden/varies | API-first | Partial | Partial | Yes |
+
+The main axis versus Crawl4AI and Firecrawl is the browser: both drive a real
+browser (Crawl4AI self-hosted, Firecrawl hosted), which handles JS-only apps
+DocPull skips by default but adds runtime weight and, for Firecrawl, an external
+dependency and per-call cost. DocPull stays browser-free and local unless you
+opt into rendering. For measured extraction-quality and tokens-per-page
+comparisons against these tools on a fixed corpus, see the evaluation lab in
+[`bench/`](../bench/README.md); it also carries local `trafilatura`,
+`readability`, and `crawl4ai` extractor baselines so the framework-aware
+extraction claim is measured rather than asserted.
 
 ## Practical Positioning
 

@@ -34,9 +34,11 @@ from ..pipeline.steps import (
     SqliteSaveStep,
     ValidateStep,
 )
+from ..pipeline.steps.screen import InjectionScreenStep
 from ..security.download_policy import SafeDownloadPolicy
 from ..security.robots import RobotsChecker
 from ..security.url_validator import UrlValidator
+from ..warc import WARC_FILENAME, WarcWriter, WarcWriteStep
 
 
 def _url_to_filename(url: str, base_url: str | None = None) -> str:
@@ -230,6 +232,7 @@ class Fetcher:
         self._ndjson_saver: NdjsonSaveStep | None = None
         self._okf_saver: OkfSaveStep | None = None
         self._save_step: SaveStep | None = None
+        self._warc_writer: WarcWriter | None = None
         self._output_was_used = False
 
     def _run_fingerprint(self) -> dict[str, object]:
@@ -366,6 +369,9 @@ class Fetcher:
 
         output_dir = self.config.output.directory.resolve()
 
+        if self.config.warc_output:
+            self._warc_writer = WarcWriter(output_dir / WARC_FILENAME)
+
         if self.config.cache.enabled:
             cache_dir = self.config.cache.directory.resolve()
             self._cache_manager = CacheManager(
@@ -404,6 +410,7 @@ class Fetcher:
                     cache_manager=self._cache_manager,
                     skip_unchanged=self.config.cache.skip_unchanged,
                     allowed_remote_document_types=allowed_remote_document_types,
+                    capture_raw=self.config.warc_output,
                 )
             )
             if render_mode == "fallback":
@@ -444,6 +451,18 @@ class Fetcher:
                     tokenizer=self.config.output.tokenizer,
                 )
             )
+
+        # Advisory prompt-injection screening of the converted Markdown.
+        # Always on: it only adds metadata (manifest trust labels) and never
+        # skips or fails a page. Runs after dedup so duplicate pages skip the
+        # scan, and before save so labels reach manifest records.
+        steps.append(InjectionScreenStep())
+
+        # Archive raw responses after conversion (so record IDs never leak
+        # into frontmatter and change content hashes) and before save (so
+        # manifest records carry the WARC linkage via ctx.metadata).
+        if self._warc_writer is not None:
+            steps.append(WarcWriteStep(self._warc_writer))
 
         if self.config.output.format == "json":
             self._json_saver = JsonSaveStep(base_output_dir=output_dir, run_identity=self.run_identity)
@@ -570,6 +589,10 @@ class Fetcher:
         self._sqlite_saver = None
         self._okf_saver = None
         self._save_step = None
+
+        if self._warc_writer:
+            self._warc_writer.close()
+            self._warc_writer = None
 
         # Flush cache to disk
         if self._cache_manager:

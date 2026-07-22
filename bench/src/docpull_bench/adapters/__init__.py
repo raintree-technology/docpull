@@ -20,6 +20,7 @@ from .hosted import (
     TavilyGuidedAdvancedCrawlAdapter,
     TavilySearchAdapter,
 )
+from .local_baselines import Crawl4AIAdapter, ReadabilityAdapter, TrafilaturaAdapter
 from .replay import ReplayAdapter
 
 __all__ = [
@@ -27,6 +28,7 @@ __all__ = [
     "CommandAdapter",
     "ContextMarkdownAdapter",
     "ContextCrawlAdapter",
+    "Crawl4AIAdapter",
     "DocPullAdapter",
     "ExaContentsAdapter",
     "ExaFullContentsAdapter",
@@ -36,6 +38,7 @@ __all__ = [
     "FirecrawlSearchAdapter",
     "ParallelFullExtractAdapter",
     "ParallelSearchAdapter",
+    "ReadabilityAdapter",
     "ReplayAdapter",
     "SystemAdapter",
     "TavilyExtractAdapter",
@@ -43,4 +46,5 @@ __all__ = [
     "TavilyCrawlAdapter",
     "TavilyGuidedAdvancedCrawlAdapter",
     "TavilySearchAdapter",
+    "TrafilaturaAdapter",
 ]

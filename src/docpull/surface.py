@@ -320,6 +320,7 @@ PUBLIC_MCP_TOOLS = frozenset(
         "graph_neighbors",
         "graph_refresh",
         "validate_policy",
+        "explain_routes",
         "export_pack",
         "serve_pack_status",
         "add_source",
@@ -361,6 +362,9 @@ PUBLIC_PACK_SUBCOMMANDS = frozenset(
         "prepare",
         "intelligence-bundle",
         "company-brain",
+        "seal",
+        "verify-seal",
+        "keygen",
     }
 )
 PRUNED_PACK_SUBCOMMANDS: frozenset[str] = frozenset()

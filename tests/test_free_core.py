@@ -266,7 +266,7 @@ def test_exhaustive_crawl_writes_routes_and_markdown_alternates(
     selected_urls = (output_dir / "selected_urls.txt").read_text(encoding="utf-8")
 
     assert payload["mode"] == "exhaustive-docs"
-    assert route_names[:3] == ["llms_txt", "sitemaps", "docs_nav"]
+    assert route_names[:3] == ["sitemaps", "docs_nav", "llms_txt"]
     assert "core_crawl" in route_names
     assert "markdown_alternates" in route_names
     assert "https://docs.example.com/guide.md" in selected_urls

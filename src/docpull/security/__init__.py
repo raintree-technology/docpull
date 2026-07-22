@@ -8,15 +8,27 @@ from typing import TYPE_CHECKING, Any
 
 _LAZY_EXPORTS = {
     **{name: (".download_policy", name) for name in ("SafeDownloadPolicy", "UnsafeDownloadError")},
+    **{name: (".injection", name) for name in ("InjectionScreenResult", "InjectionSpan", "screen_text")},
+    **{
+        name: (".optout", name)
+        for name in ("OptOutDecision", "evaluate_optout", "parse_robots_meta", "parse_x_robots_tag")
+    },
     "RobotsChecker": (".robots", "RobotsChecker"),
     **{name: (".url_validator", name) for name in ("UrlValidationResult", "UrlValidator")},
 }
 __all__ = [
+    "InjectionScreenResult",
+    "InjectionSpan",
+    "OptOutDecision",
     "RobotsChecker",
     "SafeDownloadPolicy",
     "UnsafeDownloadError",
     "UrlValidationResult",
     "UrlValidator",
+    "evaluate_optout",
+    "parse_robots_meta",
+    "parse_x_robots_tag",
+    "screen_text",
 ]
 
 
@@ -36,6 +48,8 @@ def __dir__() -> list[str]:
 
 if TYPE_CHECKING:
     from .download_policy import SafeDownloadPolicy, UnsafeDownloadError
+    from .injection import InjectionScreenResult, InjectionSpan, screen_text
+    from .optout import OptOutDecision, evaluate_optout, parse_robots_meta, parse_x_robots_tag
     from .robots import RobotsChecker
     from .url_validator import UrlValidationResult, UrlValidator
 

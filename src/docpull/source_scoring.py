@@ -91,6 +91,7 @@ def score_source(
     url: str,
     title: str = "",
     expected_domains: list[str] | None = None,
+    archive_snapshot: bool = False,
 ) -> dict[str, Any]:
     """Score one source URL for agent-loading priority.
 
@@ -143,6 +144,11 @@ def score_source(
     if any(part in path for part in LOWER_PRIORITY_PATH_PARTS):
         score -= 8
         reasons.append("lower_priority_path")
+
+    # Archive-index candidates stay usable but lose ties against live URLs.
+    if archive_snapshot:
+        score -= 5
+        reasons.append("archive_snapshot")
 
     if not parsed.scheme.startswith("http"):
         score -= 15

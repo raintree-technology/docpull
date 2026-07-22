@@ -5,6 +5,9 @@ web pages into local, auditable context artifacts for agents,
 retrieval-augmented generation (RAG) systems, offline archives, and source
 packs.
 
+For the identity, robots.txt, rate-limit, and AI/TDM opt-out rules docpull
+enforces while fetching, see [Compliance Posture](compliance.md).
+
 ## What docpull should do
 
 - Fetch HTTPS pages with async HTTP, URL validation, DNS pinning, redirect

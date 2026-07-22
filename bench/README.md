@@ -8,6 +8,25 @@ The lab is local-first, deterministic, content-free in reports, and fail-closed
 on paid work. Pydantic Evals schedules trials; the framework-neutral schema and
 canonical lane scorers remain authoritative.
 
+## Reproduce it
+
+One command replays the committed controlled corpus (212 cases, no network,
+no spend) and rescores it:
+
+```bash
+uv sync --project bench --locked --dev
+uv run --project bench --locked docpull-bench run bench/cases/controlled-v2.yaml \
+  --adapter replay --system fixture --version 2 \
+  --replay-dir bench/replays/controlled-v2 --output-dir bench/runs/controlled \
+  --network-isolation enforced
+```
+
+Raw traces land under `bench/runs/controlled/<run-id>/`: `report.json`,
+`observations.ndjson`, `scores.ndjson`, and an `artifacts/` directory for
+adapters that write files. Reports stay content-free (hashes, lengths,
+statuses, metric vectors). This lab informs internal product decisions; it is
+not a public leaderboard (see [POSITIONING.md](POSITIONING.md)).
+
 ## Rules
 
 - Gold expectations stay in the harness and never cross an adapter boundary.
@@ -20,8 +39,14 @@ canonical lane scorers remain authoritative.
   read.
 - Portable reports contain sanitized URLs, hashes, lengths, timings, usage,
   costs, statuses, and metric vectors—not fetched bodies.
-- New runs write integrity-checked portable report schema v3 and scorer v4;
+- New runs write integrity-checked portable report schema v3 and scorer v5;
   schema-v2 reports remain readable as legacy history but are never claim-ready.
+- Extract and crawl scores carry diagnostic token-economics metrics
+  (`total_tokens`, `tokens_per_page`, `token_estimator`, and
+  `html_input_tokens`/`token_reduction_vs_html` when the case maps to
+  committed fixture HTML). They never gate pass/fail. The estimator is
+  tiktoken cl100k_base when importable, else a labeled
+  `max(words, chars/4)` heuristic recorded per score.
 
 ## Lanes and corpora
 
@@ -80,6 +105,27 @@ TAVILY_API_KEY=... uv run --project bench --locked docpull-bench run \
 The command adapter receives only a minimal base environment plus explicit
 `--allow-env` names. Its output cannot override case, system, version, or timing
 identity.
+
+## Local OSS baselines
+
+Zero-cost local adapters run popular open-source extractors on the same
+committed fixture bytes the controlled corpus serves to live adapters:
+
+| Adapter | Lanes | Notes |
+| --- | --- | --- |
+| `trafilatura` | extract | Markdown output when the installed release supports it, else plain text. |
+| `readability` | extract | readability-lxml main content plus a minimal stdlib HTML→Markdown conversion. |
+| `crawl4ai` | extract | Runs Crawl4AI's HTML→Markdown generator on fixture bytes. The crawl lane is not claimed: Crawl4AI crawling requires a live Playwright browser and network, which the controlled replay policy forbids. |
+
+Dependencies are optional. Install them with
+`uv sync --project bench --locked --extra baselines`. A missing dependency
+yields a failed observation naming the missing package, mirroring hosted
+adapters with missing API keys; it never crashes a run.
+
+```bash
+uv run --project bench --locked docpull-bench run bench/cases/controlled-v2.yaml \
+  --adapter trafilatura --system trafilatura --output-dir bench/runs/baselines
+```
 
 ## Baselines and publication
 

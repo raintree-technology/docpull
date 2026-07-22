@@ -25,6 +25,12 @@ from .output_contract import (
     validate_pack_contract,
     validation_report_text,
 )
+from .provenance import (
+    ProvenanceError,
+    generate_signing_keypair,
+    seal_pack,
+    verify_pack_seal,
+)
 from .source_scoring import score_source_entries
 from .time_utils import utc_now_iso
 
@@ -199,6 +205,11 @@ def create_pack_parser() -> argparse.ArgumentParser:
         "--fail-under",
         type=float,
         help="Exit non-zero if audit score is below this 0.0-1.0 threshold",
+    )
+    audit.add_argument(
+        "--max-age-days",
+        type=float,
+        help="Flag sources whose fetched_at is older than N days (default: pack source_policy freshness)",
     )
     audit.add_argument(
         "--require-domain",
@@ -394,6 +405,36 @@ def create_pack_parser() -> argparse.ArgumentParser:
         bundle.add_argument("--output", type=Path)
         bundle.add_argument("--markdown", type=Path)
 
+    seal = subparsers.add_parser(
+        "seal",
+        help="Seal a pack with content digests and an optional DSSE signature",
+    )
+    seal.add_argument("pack_dir", type=Path, help="Context pack directory")
+    seal.add_argument("--json", action="store_true", dest="json_output", help="Print seal JSON")
+
+    verify_seal = subparsers.add_parser(
+        "verify-seal",
+        help="Verify pack digests and the DSSE provenance signature",
+    )
+    verify_seal.add_argument("pack_dir", type=Path, help="Context pack directory")
+    verify_seal.add_argument(
+        "--public-key",
+        type=Path,
+        help="Public key PEM used for signature verification",
+    )
+    verify_seal.add_argument(
+        "--json",
+        action="store_true",
+        dest="json_output",
+        help="Print verification JSON",
+    )
+
+    keygen = subparsers.add_parser(
+        "keygen",
+        help="Generate a local ed25519 keypair for pack sealing",
+    )
+    keygen.add_argument("--force", action="store_true", help="Overwrite existing signing keys")
+
     return parser
 
 
@@ -433,6 +474,7 @@ def run_pack_cli(argv: list[str] | None = None) -> int:
                 pack_dir,
                 required_domains=args.required_domains,
                 fail_under=args.fail_under,
+                max_age_days=args.max_age_days,
                 json_path=audit_json_path,
                 markdown_path=audit_markdown_path,
             )
@@ -638,14 +680,72 @@ def run_pack_cli(argv: list[str] | None = None) -> int:
                 f"{payload['artifacts']['intelligence_bundle']}"
             )
             return 0
+        if args.command == "seal":
+            payload = seal_pack(args.pack_dir)
+            if args.json_output:
+                console.print_json(data=payload)
+            else:
+                console.print(
+                    f"[green]Pack sealed:[/green] {payload['file_count']} files -> "
+                    f"{payload['artifacts']['digests']}"
+                )
+                if payload["signed"]:
+                    console.print(
+                        f"[green]Signed:[/green] keyid {payload['keyid']} -> "
+                        f"{payload['artifacts']['envelope']}"
+                    )
+                else:
+                    console.print(
+                        "[yellow]Signing skipped:[/yellow] " + escape(str(payload["signing_skipped"]))
+                    )
+            return 0
+        if args.command == "verify-seal":
+            payload = verify_pack_seal(args.pack_dir, public_key=args.public_key)
+            if args.json_output:
+                console.print_json(data=payload)
+            else:
+                _print_verify_seal_report(console, payload)
+            return 0 if payload["ok"] else 1
+        if args.command == "keygen":
+            payload = generate_signing_keypair(force=args.force)
+            console.print(f"[green]Signing key:[/green] {payload['private_key']}")
+            console.print(f"[green]Public key:[/green] {payload['public_key']} (keyid {payload['keyid']})")
+            return 0
         parser.error(f"Unknown command: {args.command}")
-    except (PackToolError, OutputContractError) as err:
+    except (PackToolError, OutputContractError, ProvenanceError) as err:
         console.print("[red]Pack error:[/red] " + escape(str(err)))
         return 1
     except Exception as err:  # noqa: BLE001
         console.print("[red]Pack command failed:[/red] " + escape(str(err)))
         return 1
     return 1
+
+
+def _print_verify_seal_report(console: Console, payload: dict[str, Any]) -> None:
+    if payload["ok"]:
+        console.print(
+            f"[green]Seal verified:[/green] {payload['file_count']} files match "
+            f"({escape(str(payload['pack_dir']))})"
+        )
+    else:
+        console.print("[red]Seal verification failed:[/red] " + escape(str(payload["pack_dir"])))
+    files = payload["files"]
+    for label in ("added", "removed", "modified"):
+        for path in files[label]:
+            console.print(f"  [red]{label}:[/red] {escape(str(path))}")
+    if not payload["root_hash"]["ok"]:
+        console.print("  [red]root_hash mismatch:[/red] digest index does not match its recorded root hash")
+    signature = payload["signature"]
+    status = signature["status"]
+    detail = str(signature.get("detail") or "")
+    if status == "valid":
+        console.print(f"  [green]signature:[/green] valid (keyid {signature.get('keyid')})")
+    elif status == "absent":
+        console.print("  signature: absent (digest-only verification)")
+    elif status == "skipped":
+        console.print("  [yellow]signature:[/yellow] skipped - " + escape(detail))
+    else:
+        console.print(f"  [red]signature:[/red] {status} - " + escape(detail))
 
 
 def score_pack(

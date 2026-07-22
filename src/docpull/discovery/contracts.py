@@ -7,7 +7,7 @@ import re
 from collections.abc import Iterable, Iterator
 from pathlib import Path
 from typing import Any
-from urllib.parse import quote, urljoin, urlparse
+from urllib.parse import quote, urlencode, urljoin, urlparse
 
 from bs4 import BeautifulSoup
 from defusedxml import ElementTree
@@ -26,8 +26,13 @@ SOURCE_POLICY_FILENAME = "source_policy.json"
 DISCOVERY_GUIDE_FILENAME = "DISCOVERY.md"
 SELECTED_SOURCES_FILENAME = "selected_sources.ndjson"
 SELECTED_URLS_FILENAME = "selected_urls.txt"
-SITE_SCAN_SOURCES = ("links", "llms", "feeds", "openapi", "sitemaps", "github")
+SITE_SCAN_SOURCES = ("links", "llms", "feeds", "openapi", "sitemaps", "github", "wayback", "commoncrawl")
 _MAX_SCAN_RESOURCE_BYTES = 5 * 1024 * 1024
+_WAYBACK_CDX_URL = "https://web.archive.org/cdx/search/cdx"
+_WAYBACK_REPLAY_PREFIX = "https://web.archive.org/web"
+_COMMONCRAWL_COLLINFO_URL = "https://index.commoncrawl.org/collinfo.json"
+_ARCHIVE_QUERY_LIMIT = 500
+_ARCHIVE_INDEX_TYPES = frozenset({"wayback_cdx", "commoncrawl_index"})
 _URL_RE = re.compile(r"https?://[^\s<>)\"']+")
 _MARKDOWN_LINK_RE = re.compile(r"\[([^\]]+)]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)")
 
@@ -254,8 +259,9 @@ async def records_from_site_scan(
     """Discover local/open candidate URLs from a site without provider calls.
 
     This is the Phase 3 free-first producer: it reads machine-published hints
-    such as ``llms.txt``, RSS/Atom feeds, OpenAPI specs, sitemaps, and GitHub
-    contents trees, then emits normal discovery-pack records.
+    such as ``llms.txt``, RSS/Atom feeds, OpenAPI specs, sitemaps, GitHub
+    contents trees, and free archive indexes (Wayback CDX, Common Crawl),
+    then emits normal discovery-pack records.
     """
     parsed = urlparse(start_url)
     if parsed.scheme not in {"http", "https"} or not parsed.netloc:
@@ -309,6 +315,27 @@ async def records_from_site_scan(
         await add_many(
             await _scan_github_docs_tree(start_url, client=client, timeout_seconds=timeout_seconds),
             "github",
+        )
+    archive_limit = min(_ARCHIVE_QUERY_LIMIT, max_results_per_source)
+    if "wayback" in enabled:
+        await add_many(
+            await _scan_wayback_cdx(
+                start_url,
+                client=client,
+                timeout_seconds=timeout_seconds,
+                limit=archive_limit,
+            ),
+            "wayback",
+        )
+    if "commoncrawl" in enabled:
+        await add_many(
+            await _scan_commoncrawl_index(
+                start_url,
+                client=client,
+                timeout_seconds=timeout_seconds,
+                limit=archive_limit,
+            ),
+            "commoncrawl",
         )
 
     return records
@@ -623,9 +650,14 @@ def _append_site_scan_record(
 
     title = str(candidate["title"]).strip() if candidate.get("title") else None
     snippet = str(candidate["snippet"]).strip()[:1000] if candidate.get("snippet") else None
-    local_score = score_source(url=url, title=title or "", expected_domains=expected_domains)
     candidate_metadata = candidate.get("metadata")
     extra_metadata = candidate_metadata if isinstance(candidate_metadata, dict) else {}
+    local_score = score_source(
+        url=url,
+        title=title or "",
+        expected_domains=expected_domains,
+        archive_snapshot=extra_metadata.get("index_type") in _ARCHIVE_INDEX_TYPES,
+    )
     metadata = {
         "discovery_engine": engine,
         "source_url": candidate.get("source_url"),
@@ -1185,6 +1217,184 @@ async def _scan_github_docs_tree(
                 }
             )
     return candidates
+
+
+async def _scan_wayback_cdx(
+    start_url: str,
+    *,
+    client: HttpClient,
+    timeout_seconds: float,
+    limit: int = _ARCHIVE_QUERY_LIMIT,
+) -> list[dict[str, Any]]:
+    """Query the free Internet Archive CDX index for archived pages on the host."""
+    domain = (urlparse(start_url).hostname or "").rstrip(".")
+    if not domain or limit < 1:
+        return []
+    query = urlencode(
+        [
+            ("url", f"{domain}/*"),
+            ("output", "json"),
+            ("fl", "original,timestamp,mimetype,statuscode"),
+            ("filter", "statuscode:200"),
+            ("filter", "mimetype:text/html"),
+            ("collapse", "urlkey"),
+            ("limit", str(limit)),
+        ]
+    )
+    index_url = f"{_WAYBACK_CDX_URL}?{query}"
+    response = await _fetch_scan_response(
+        client,
+        index_url,
+        timeout_seconds=timeout_seconds,
+        headers={"Accept": "application/json, text/plain, */*"},
+    )
+    if response is None:
+        return []
+    try:
+        rows = json.loads(_decode_scan_text(response))
+    except json.JSONDecodeError:
+        return []
+    if not isinstance(rows, list) or not rows:
+        return []
+    header = rows[0]
+    if not isinstance(header, list) or "original" not in header:
+        return []
+    original_index = header.index("original")
+    timestamp_index = header.index("timestamp") if "timestamp" in header else None
+
+    source_url = response.url or index_url
+    candidates: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for row in rows[1:]:
+        if len(candidates) >= limit:
+            break
+        if not isinstance(row, list) or len(row) <= original_index:
+            continue
+        original = str(row[original_index]).strip()
+        resolved = _resolve_candidate_url(original, start_url)
+        if not resolved:
+            continue
+        key = normalize_url(resolved)
+        if key in seen:
+            continue
+        seen.add(key)
+        metadata: dict[str, Any] = {"index_type": "wayback_cdx"}
+        timestamp = ""
+        if timestamp_index is not None and len(row) > timestamp_index:
+            timestamp = str(row[timestamp_index]).strip()
+        if timestamp:
+            metadata["snapshot_url"] = f"{_WAYBACK_REPLAY_PREFIX}/{timestamp}/{original}"
+            metadata["snapshot_timestamp"] = timestamp
+        candidates.append(
+            {
+                "url": resolved,
+                "snippet": "Archived copy indexed by the Internet Archive CDX API",
+                "source_url": source_url,
+                "rank": len(candidates) + 1,
+                "raw_ref": f"{source_url}#{len(candidates) + 1}",
+                "metadata": metadata,
+            }
+        )
+    return candidates
+
+
+async def _scan_commoncrawl_index(
+    start_url: str,
+    *,
+    client: HttpClient,
+    timeout_seconds: float,
+    limit: int = _ARCHIVE_QUERY_LIMIT,
+) -> list[dict[str, Any]]:
+    """Query the newest free Common Crawl CDX collection for pages on the host."""
+    domain = (urlparse(start_url).hostname or "").rstrip(".")
+    if not domain or limit < 1:
+        return []
+    cdx_api = await _latest_commoncrawl_cdx_api(client, timeout_seconds=timeout_seconds)
+    if cdx_api is None:
+        return []
+    query = urlencode(
+        [
+            ("url", f"{domain}/*"),
+            ("output", "json"),
+            ("limit", str(limit)),
+            ("filter", "status:200"),
+        ]
+    )
+    index_url = f"{cdx_api}?{query}"
+    response = await _fetch_scan_response(
+        client,
+        index_url,
+        timeout_seconds=timeout_seconds,
+        headers={"Accept": "application/json, text/plain, */*"},
+    )
+    if response is None:
+        return []
+
+    source_url = response.url or index_url
+    candidates: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for line in _decode_scan_text(response).splitlines():
+        if len(candidates) >= limit:
+            break
+        clean = line.strip()
+        if not clean:
+            continue
+        try:
+            entry = json.loads(clean)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(entry, dict):
+            continue
+        resolved = _resolve_candidate_url(str(entry.get("url") or "").strip(), start_url)
+        if not resolved:
+            continue
+        key = normalize_url(resolved)
+        if key in seen:
+            continue
+        seen.add(key)
+        metadata: dict[str, Any] = {"index_type": "commoncrawl_index", "cdx_api": cdx_api}
+        timestamp = str(entry.get("timestamp") or "").strip()
+        if timestamp:
+            metadata["snapshot_timestamp"] = timestamp
+        mime = str(entry.get("mime") or "").strip()
+        if mime:
+            metadata["mimetype"] = mime
+        candidates.append(
+            {
+                "url": resolved,
+                "snippet": "Archived copy indexed by the Common Crawl CDX index",
+                "source_url": source_url,
+                "rank": len(candidates) + 1,
+                "raw_ref": f"{source_url}#{len(candidates) + 1}",
+                "metadata": metadata,
+            }
+        )
+    return candidates
+
+
+async def _latest_commoncrawl_cdx_api(client: HttpClient, *, timeout_seconds: float) -> str | None:
+    response = await _fetch_scan_response(
+        client,
+        _COMMONCRAWL_COLLINFO_URL,
+        timeout_seconds=timeout_seconds,
+        headers={"Accept": "application/json"},
+    )
+    if response is None:
+        return None
+    try:
+        collections = json.loads(_decode_scan_text(response))
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(collections, list):
+        return None
+    # collinfo.json lists collections newest-first.
+    for collection in collections:
+        if not isinstance(collection, dict):
+            continue
+        cdx_api = str(collection.get("cdx-api") or "").strip()
+        if cdx_api.startswith(("http://", "https://")):
+            return cdx_api
+    return None
 
 
 def _github_repo(url: str) -> tuple[str, str] | None:

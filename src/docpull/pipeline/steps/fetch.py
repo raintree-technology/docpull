@@ -10,6 +10,7 @@ from ...security.download_policy import (
     ALLOWED_DOCUMENT_CONTENT_TYPES,
     is_allowed_document_content_type,
 )
+from ...security.optout import evaluate_optout, parse_x_robots_tag
 from ..base import EventEmitter, PageContext
 
 if TYPE_CHECKING:
@@ -69,6 +70,9 @@ class FetchStep:
         cache_manager: "CacheManager | None" = None,
         skip_unchanged: bool = True,
         allowed_remote_document_types: set[str] | None = None,
+        capture_raw: bool = False,
+        respect_ai_optout: bool = True,
+        respect_noindex: bool = False,
     ) -> None:
         """
         Initialize the fetch step.
@@ -84,12 +88,23 @@ class FetchStep:
             skip_unchanged: When False, the conditional headers are not
                 attached even if the cache has a manifest entry. Lets users
                 force a re-fetch via ``--no-skip-unchanged``.
+            capture_raw: When True, snapshot the raw response body and full
+                header map on the context for WARC output. Off by default so
+                normal runs don't hold a second copy of every page in memory.
+            respect_ai_optout: Honor ``X-Robots-Tag`` AI/TDM opt-out
+                directives (``noai``, ``noimageai``) by skipping the page.
+            respect_noindex: Also treat ``noindex`` / ``none`` as opt-outs
+                (stricter than the default; those directives govern search
+                indexing, not reuse).
         """
         self._client = http_client
         self._validate_content_type = validate_content_type
         self._cache_manager = cache_manager
         self._skip_unchanged = skip_unchanged
         self._allowed_remote_document_types = frozenset(allowed_remote_document_types or set())
+        self._capture_raw = capture_raw
+        self._respect_ai_optout = respect_ai_optout
+        self._respect_noindex = respect_noindex
 
     def _is_valid_content_type(self, content_type: str) -> bool:
         """
@@ -249,8 +264,44 @@ class FetchStep:
                     )
                 return ctx
 
+            # Honor machine-readable AI/TDM opt-out signals before keeping
+            # any content. `dict(...)`-flattened headers may carry arbitrary
+            # key casing, so collect every X-Robots-Tag variant.
+            if self._respect_ai_optout or self._respect_noindex:
+                directives: set[str] = set()
+                for header_name, header_value in response.headers.items():
+                    if header_name.lower() == "x-robots-tag":
+                        directives |= parse_x_robots_tag(header_value)
+                decision = evaluate_optout(
+                    directives,
+                    respect_noai=self._respect_ai_optout,
+                    respect_noindex=self._respect_noindex,
+                    source="x-robots-tag",
+                )
+                if decision.blocked:
+                    reason = f"AI/TDM opt-out (x-robots-tag: {', '.join(decision.matched)})"
+                    ctx.mark_skipped(reason, SkipReason.AI_OPTOUT)
+                    logger.info(f"Skipping {url}: {reason}")
+                    if emit:
+                        emit(
+                            FetchEvent(
+                                type=EventType.FETCH_SKIPPED,
+                                url=url,
+                                status_code=response.status_code,
+                                message=f"Skipped: {reason}",
+                                skip_reason=SkipReason.AI_OPTOUT,
+                            )
+                        )
+                    return ctx
+
             # Store content
             ctx.html = response.content
+
+            if self._capture_raw:
+                # Snapshot the exact fetched bytes and full header map now:
+                # later steps (XBRL cleanup, rendering) may replace ctx.html.
+                ctx.raw_content = response.content
+                ctx.raw_response_headers = dict(response.headers)
 
             # Extract caching headers. aiohttp's response.headers is a
             # case-insensitive multidict, but `dict(...)` flattens it to a
