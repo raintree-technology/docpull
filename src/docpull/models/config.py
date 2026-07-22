@@ -255,6 +255,22 @@ class RenderConfig(BaseModel):
         ByteSize(10 * 1024 * 1024),
         description="Maximum rendered HTML bytes accepted from the backend",
     )
+    screenshot: bool = Field(
+        False,
+        description=(
+            "Capture a PNG screenshot as an evidence artifact next to the rendered HTML. "
+            "Local agent-browser runtime only; cloud runtimes record "
+            "screenshot=unsupported_transport in diagnostics."
+        ),
+    )
+    cookie_env: str | None = Field(
+        None,
+        description=(
+            "Name of an environment variable holding a Cookie header value for authorized "
+            "logged-in captures. The variable is resolved in memory at render time; the value "
+            "is never stored in config, diagnostics, or logs. Local runtime only."
+        ),
+    )
     cloud_agent_browser_install: Literal["auto", "skip"] = Field(
         "skip",
         description=(
@@ -347,6 +363,21 @@ class RenderConfig(BaseModel):
                 normalized.append(domain)
                 seen.add(domain)
         return normalized
+
+    @field_validator("cookie_env")
+    @classmethod
+    def _validate_cookie_env(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        name = value.strip()
+        if not name:
+            return None
+        if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name):
+            raise ValueError(
+                "cookie_env must be an environment variable NAME "
+                "(letters, digits, underscores), never a cookie value"
+            )
+        return name
 
     @field_validator("cloud_artifact_path", mode="before")
     @classmethod
@@ -702,6 +733,27 @@ class DocpullConfig(BaseModel):
     )
     log_file: Path | None = Field(None, description="Log file path")
     dry_run: bool = Field(False, description="Simulate without writing files")
+    warc_output: bool = Field(
+        False,
+        description=(
+            "Append every fetched HTTP response as a WARC/1.1 record to "
+            "capture.warc.gz in the output directory"
+        ),
+    )
+    respect_ai_optout: bool = Field(
+        True,
+        description=(
+            "Honor machine-readable AI/TDM opt-out signals (X-Robots-Tag and "
+            "meta robots noai/noimageai) by skipping opted-out pages"
+        ),
+    )
+    respect_noindex: bool = Field(
+        False,
+        description=(
+            "Also treat noindex/none robots directives as opt-outs. Off by "
+            "default: noindex governs search indexing, not content reuse"
+        ),
+    )
 
     model_config = {"extra": "forbid"}
 

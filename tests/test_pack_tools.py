@@ -711,6 +711,26 @@ def test_pack_audit_flags_stale_score_and_audit_sidecars(tmp_path: Path) -> None
     assert payload["score"] < 100
 
 
+def test_pack_audit_cli_accepts_max_age_days(tmp_path: Path) -> None:
+    pack = tmp_path / "pack"
+    old_record = _record("https://parallel.ai/products/old", "aaa")
+    old_record["fetched_at"] = "2020-01-01T00:00:00+00:00"
+    unknown_record = _record("https://parallel.ai/products/unknown", "bbb")
+    _write_pack(pack, [old_record, unknown_record], include_domains=["parallel.ai"])
+
+    assert main(["pack", "audit", str(pack), "--max-age-days", "30"]) == 0
+
+    payload = json.loads((pack / "pack.audit.json").read_text(encoding="utf-8"))
+    stale_sources = payload["stale_sources"]
+    assert stale_sources["evaluated"] is True
+    assert stale_sources["max_age_days"] == 30.0
+    assert stale_sources["stale_count"] == 1
+    assert stale_sources["unknown_age_count"] == 1
+    assert stale_sources["stale"][0]["url"] == "https://parallel.ai/products/old"
+    issue_codes = {issue["code"] for issue in payload["issues"]}
+    assert "stale_sources" in issue_codes
+
+
 def test_pack_score_flags_missing_declared_artifacts_and_sources(tmp_path: Path) -> None:
     pack = tmp_path / "pack"
     _write_pack(

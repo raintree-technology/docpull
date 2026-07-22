@@ -110,7 +110,7 @@ tokens = [
 ]
 mcp = [
     "cryptography>=48.0.1",
-    "mcp>=1.0.0",
+    "mcp>=1.28.1",
     "pydantic-settings>=2.14.2",
     "pyjwt>=2.13.0",
     "python-multipart>=0.0.27",
@@ -141,6 +141,9 @@ parse = [
 presidio = [
     "presidio-analyzer>=2.2.0",
 ]
+provenance = [
+    "cryptography>=48.0.1",
+]
 e2b = [
     "e2b>=2.0.0",
 ]
@@ -153,7 +156,7 @@ all = [
     "trafilatura>=1.12.0",
     "tiktoken>=0.7.0",
     "cryptography>=48.0.1",
-    "mcp>=1.0.0",
+    "mcp>=1.28.1",
     "pydantic-settings>=2.14.2",
     "pyjwt>=2.13.0",
     "python-multipart>=0.0.27",

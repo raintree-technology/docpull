@@ -9,6 +9,7 @@ import types
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
+from urllib.parse import urlparse
 
 import pytest
 
@@ -254,6 +255,19 @@ def test_benchmark_phase2_zero_dollar_target_set_classifies_routes(
     assert suggestions["packaging_search_to_evidence"]["estimated_paid_request_count"] == 3
     assert suggestions["packaging_search_to_evidence"]["estimated_paid_cost_usd"] > 0
     assert "--dry-run" in suggestions["packaging_search_to_evidence"]["commands"][0]
+    archive_suggestions = [
+        item for item in completion["escalation_suggestions"] if item["action"] == "try_archive_discovery"
+    ]
+    archive_targets = {item["target_id"] for item in archive_suggestions}
+    assert "packaging_search_to_evidence" in archive_targets
+    provider_index = completion["escalation_suggestions"].index(suggestions["packaging_search_to_evidence"])
+    archive_for_provider_target = next(
+        item for item in archive_suggestions if item["target_id"] == "packaging_search_to_evidence"
+    )
+    assert completion["escalation_suggestions"].index(archive_for_provider_target) < provider_index
+    assert archive_for_provider_target["paid_capable"] is False
+    assert archive_for_provider_target["estimated_paid_cost_usd"] == 0.0
+    assert "--source wayback --source commoncrawl" in archive_for_provider_target["commands"][0]
     markdown = (tmp_path / "bench" / "benchmark.summary.md").read_text(encoding="utf-8")
     assert "Zero-Dollar Completion" in markdown
     assert "Escalation suggestions" in markdown
@@ -1116,3 +1130,240 @@ def test_runs_n_aggregates_with_median_and_spread(
 
     summary = (tmp_path / "bench" / "benchmark.summary.md").read_text(encoding="utf-8")
     assert "1.0" in summary and "3.0" in summary  # spread is rendered
+
+
+def test_adversarial_v3_target_group_shape() -> None:
+    """Every adversarial-v3 target must parse without any network access."""
+    targets = benchmark.ADVERSARIAL_V3_TARGETS
+    assert len(targets) == 20
+    ids = [target.id for target in targets]
+    assert len(set(ids)) == len(ids)
+    for target in targets:
+        parsed = urlparse(target.url)
+        assert parsed.scheme == "https", target.id
+        assert parsed.netloc, target.id
+        assert target.include_domains, target.id
+        assert target.queries, target.id
+        assert target.objective, target.id
+        assert target.notes, target.id
+        assert target.min_expected_records >= 1, target.id
+        assert target.zero_dollar_route in benchmark.ZERO_DOLLAR_ROUTE_CLASSES, target.id
+        json.dumps(target.report_dict())
+
+
+def test_target_sets_add_adversarial_v3_and_full_without_changing_existing() -> None:
+    sets = benchmark.TARGET_SETS
+    assert len(sets["tool-docs"]) == 5
+    assert len(sets["provider-matrix"]) == 8
+    assert len(sets["v2"]) == 8
+    assert len(sets["zero-dollar"]) == 12
+    assert len(sets["phase2"]) == 12
+    assert len(sets["adversarial-v3"]) == 20
+    assert sets["adversarial-v3"] == benchmark.ADVERSARIAL_V3_TARGETS
+    assert len(sets["full"]) == 32
+    assert sets["full"] == (*sets["zero-dollar"], *sets["adversarial-v3"])
+    full_ids = [target.id for target in sets["full"]]
+    assert len(set(full_ids)) == len(full_ids)
+    assert "adversarial-v3" in benchmark.TARGET_SET_CHOICES
+    assert "full" in benchmark.TARGET_SET_CHOICES
+    # New sets must never run implicitly: the default stays the single target.
+    assert benchmark.DEFAULT_TARGET_SET == "single"
+    resolved = benchmark._resolve_benchmark_targets(
+        target_url="https://docs.parallel.ai",
+        target_set="adversarial-v3",
+        include_domains=[],
+        objective=None,
+        queries=[],
+    )
+    assert [target.id for target in resolved] == [target.id for target in benchmark.ADVERSARIAL_V3_TARGETS]
+
+
+class _FakeTokenCounter:
+    """Deterministic heuristic-path stand-in for TokenCounter."""
+
+    encoding = "cl100k_base"
+    exact = False
+
+    def count(self, text: str) -> int:
+        return max(1, len(text) // 4)
+
+
+def test_token_metrics_from_synthetic_pack(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(benchmark, "TokenCounter", _FakeTokenCounter)
+    records = [
+        {"url": "https://docs.example.com/a", "content": "a" * 40, "token_count": 100},
+        {"url": "https://docs.example.com/a", "content": "b" * 40, "token_count": 50},
+        # No token_count: falls back to the heuristic tokenizer (80 // 4 = 20).
+        {"url": "https://docs.example.com/b", "content": "c" * 80},
+    ]
+    (tmp_path / "documents.ndjson").write_text(
+        "\n".join(json.dumps(record) for record in records) + "\n",
+        encoding="utf-8",
+    )
+    payload: dict[str, Any] = {
+        "pack_score": {"score": 90, "summary": {"record_count": 3, "total_tokens": 170}},
+        "stats": {"bytes_downloaded": 1000},
+    }
+
+    benchmark._attach_benchmark_score(payload, tmp_path, ["docs.example.com"])
+
+    assert payload["token_metrics"] == {
+        "total_tokens": 170,
+        "page_count": 2,
+        "tokens_per_page": 85.0,
+        "tokenizer": "heuristic",
+        "markdown_bytes": 160,
+        "source_bytes": 1000,
+        "byte_reduction": 0.84,
+    }
+
+
+def test_token_metrics_none_without_records_and_no_source_bytes_for_providers(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    empty_payload: dict[str, Any] = {"pack_score": None}
+    benchmark._attach_benchmark_score(empty_payload, tmp_path / "missing", [])
+    assert empty_payload["token_metrics"] is None
+    assert empty_payload["benchmark_score"] is None
+
+    monkeypatch.setattr(benchmark, "TokenCounter", _FakeTokenCounter)
+    pack_dir = tmp_path / "provider"
+    write_context_pack(pack_dir, provider="tavily")
+    provider_payload: dict[str, Any] = {
+        "pack_score": {"score": 100, "summary": {"record_count": 1, "total_tokens": 17}},
+    }
+    benchmark._attach_benchmark_score(provider_payload, pack_dir, ["docs.parallel.ai"])
+    metrics = provider_payload["token_metrics"]
+    assert metrics["page_count"] == 1
+    assert metrics["total_tokens"] > 0
+    assert metrics["tokenizer"] == "heuristic"
+    assert metrics["markdown_bytes"] > 0
+    # Provider packs know nothing about raw source bytes; skip honestly.
+    assert "source_bytes" not in metrics
+    assert "byte_reduction" not in metrics
+
+
+def test_aggregate_runs_medians_token_metrics(tmp_path: Path) -> None:
+    def run_case(total_tokens: int, page_count: int, tokens_per_page: float) -> dict[str, Any]:
+        return {
+            "name": "core-llm",
+            "workflow": "core-llm",
+            "output_dir": str(tmp_path),
+            "wall_seconds": 1.0,
+            "token_metrics": {
+                "total_tokens": total_tokens,
+                "page_count": page_count,
+                "tokens_per_page": tokens_per_page,
+                "tokenizer": "heuristic",
+                "markdown_bytes": 10,
+            },
+        }
+
+    runs = [run_case(100, 2, 50.0), run_case(300, 3, 100.0), run_case(200, 2, 100.0)]
+    case = benchmark._aggregate_runs(
+        runs,
+        name="core-llm",
+        workflow="core-llm",
+        output_dir=tmp_path,
+        runs_total=3,
+    )
+
+    metrics = case["token_metrics"]
+    assert metrics["total_tokens"] == 200
+    assert metrics["page_count"] == 2
+    assert metrics["tokens_per_page"] == 100.0
+    assert metrics["tokens_per_page_min"] == 50.0
+    assert metrics["tokens_per_page_max"] == 100.0
+    assert metrics["tokens_per_page_runs"] == [50.0, 100.0, 100.0]
+    assert metrics["tokenizer"] == "heuristic"
+
+    failed_only = benchmark._aggregate_runs(
+        [{"name": "core-llm", "workflow": "core-llm", "status": "failed", "wall_seconds": 0.1}],
+        name="core-llm",
+        workflow="core-llm",
+        output_dir=tmp_path,
+        runs_total=1,
+    )
+    assert failed_only["token_metrics"] is None
+
+
+def test_report_json_and_markdown_carry_token_metrics(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def fake_core(**kwargs: Any) -> dict[str, Any]:
+        case = await _fake_core_case(**kwargs)
+        case["token_metrics"] = {
+            "total_tokens": 240,
+            "page_count": 2,
+            "tokens_per_page": 120.0,
+            "tokenizer": "heuristic",
+            "markdown_bytes": 960,
+            "source_bytes": 4800,
+            "byte_reduction": 0.8,
+        }
+        return case
+
+    monkeypatch.setattr(benchmark, "_run_core_case", fake_core)
+
+    report = run_quick_benchmark(
+        target_url="https://docs.parallel.ai",
+        output_dir=tmp_path / "bench",
+        max_pages=1,
+        max_depth=1,
+        max_concurrent=1,
+        per_host_concurrent=1,
+        cache_enabled=True,
+        cached_pass=False,
+        parallel=False,
+        parallel_objective=None,
+        parallel_queries=[],
+        include_domains=[],
+        mode="advanced",
+        max_search_results=8,
+        extract_limit=3,
+        max_estimated_cost=0.05,
+    )
+
+    assert report["cases"][0]["token_metrics"]["tokens_per_page"] == 120.0
+    report_json = json.loads((tmp_path / "bench" / "benchmark.report.json").read_text(encoding="utf-8"))
+    metrics = report_json["cases"][0]["token_metrics"]
+    assert metrics["total_tokens"] == 240
+    assert metrics["page_count"] == 2
+    assert metrics["tokenizer"] == "heuristic"
+    assert metrics["byte_reduction"] == 0.8
+    markdown = (tmp_path / "bench" / "benchmark.summary.md").read_text(encoding="utf-8")
+    assert "Tokens/page" in markdown
+    assert "120.0" in markdown
+
+
+def test_parallel_search_case_computes_token_metrics(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_search_pack(**kwargs: object) -> None:
+        write_context_pack(Path(str(kwargs["output_dir"])), provider="search")
+
+    monkeypatch.setattr(benchmark, "run_search_pack", fake_search_pack)
+
+    payload = benchmark._run_parallel_search_case(
+        objective="Build a pack",
+        queries=["Parallel API docs"],
+        output_dir=tmp_path / "search",
+        include_domains=["docs.parallel.ai"],
+        source_policy={"include_domains": ["docs.parallel.ai"]},
+        mode="advanced",
+        max_search_results=2,
+        estimated_cost=0.001,
+    )
+
+    metrics = payload["token_metrics"]
+    assert metrics["page_count"] == 1
+    assert metrics["total_tokens"] > 0
+    assert metrics["tokens_per_page"] == metrics["total_tokens"]
+    assert metrics["tokenizer"] in {"tiktoken:cl100k_base", "heuristic"}
+    assert "source_bytes" not in metrics

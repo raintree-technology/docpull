@@ -1,4 +1,13 @@
-"""Schema-shaped extraction grounded in local evidence."""
+"""Schema-shaped extraction grounded in local evidence.
+
+The default ``deterministic`` mode extracts a JSON shape from local evidence
+with regex/heuristic rules and makes no model calls. The opt-in ``llm`` mode is
+bring-your-own-key (BYOK): it asks the user's own Anthropic model to fill the
+same schema, validates the result against the schema, and records the model and
+an estimated cost so provenance stays honest. LLM mode is paid-capable, so it is
+blocked before any network call when a zero budget is in force, and it never
+silently falls back to the deterministic path.
+"""
 
 from __future__ import annotations
 
@@ -8,7 +17,9 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
+from ..accounting import budget_block_payload, paid_action_blocked
 from ..basis import basis_record, write_basis
+from ..llm_client import LlmTransportError, resolve_client, resolve_model
 from ..parity import load_output_schema, validate_structured_output
 from ..policy import PolicyConfig
 from .common import (
@@ -30,6 +41,11 @@ from .common import (
 
 SCHEMA_WORKFLOW = "extract-schema"
 DEFAULT_SCHEMA_OUTPUT_DIR = Path("packs/schema")
+# Flat, clearly-labeled estimate used only for the budget gate and accounting
+# metadata; true token cost is unknowable before the call.
+LLM_ESTIMATED_COST_USD = 0.05
+EXTRACT_MODES = ("deterministic", "llm")
+_LLM_CONTENT_CHAR_LIMIT = 30_000
 PRICE_RE = re.compile(
     r"(?P<currency>[$€£]|USD|EUR|GBP|CAD|AUD|JPY)\s*(?P<amount>\d+(?:,\d{3})*(?:\.\d{1,2})?)",
     re.IGNORECASE,
@@ -47,16 +63,38 @@ def extract_schema(
     output_dir: Path = DEFAULT_SCHEMA_OUTPUT_DIR,
     policy: PolicyConfig | None = None,
     fact_check: bool = False,
+    mode: str = "deterministic",
+    model: str | None = None,
+    budget: float | None = None,
+    llm_client: Any = None,
 ) -> dict[str, Any]:
-    """Extract a JSON shape from URL or pack evidence without provider calls."""
+    """Extract a JSON shape from URL or pack evidence.
+
+    ``mode="deterministic"`` (default) uses local regex/heuristic rules and makes
+    no model calls. ``mode="llm"`` is opt-in BYOK: it asks the user's own model to
+    fill the schema, validates against it, and is blocked before any call when a
+    zero budget is in force.
+    """
+    if mode not in EXTRACT_MODES:
+        raise ContextPackError(f"Unknown extract mode {mode!r}; choose from {', '.join(EXTRACT_MODES)}.")
     schema = load_output_schema(schema_path)
     output_dir = output_dir.resolve()
+    llm_meta: dict[str, Any] | None = None
+    if mode == "llm":
+        blocked = _llm_budget_block(url_or_pack, schema_path, budget, output_dir)
+        if blocked is not None:
+            return blocked
     pages, run = _pages_from_input(url_or_pack, policy=policy, output_dir=output_dir)
     if not pages:
         raise ContextPackError("No local evidence was available for schema extraction.")
     domain = domain_from_input(pages[0].url) or (urlparse(pages[0].url).hostname or "")
     run.policy = ensure_policy_for_domain(policy, domain) if domain else (policy or PolicyConfig())
-    result, field_evidence = _deterministic_output(schema, pages)
+    if mode == "llm":
+        result, field_evidence, llm_meta = _llm_output(schema, pages, model=model, client=llm_client)
+        if llm_meta.get("error"):
+            return _llm_error_payload(url_or_pack, schema_path, fact_check, llm_meta)
+    else:
+        result, field_evidence = _deterministic_output(schema, pages)
     validation = validate_structured_output(result, schema)
     fact_check_payload = _fact_check_output(result, field_evidence, enabled=fact_check)
     if fact_check and not fact_check_payload["valid"]:
@@ -75,7 +113,8 @@ def extract_schema(
     write_json(validation_path, validation)
     result_payload = {
         "workflow": SCHEMA_WORKFLOW,
-        "provider": "local",
+        "provider": "byok-anthropic" if mode == "llm" else "local",
+        "extraction_mode": mode,
         "status": "completed" if validation.get("valid") else "completed_with_validation_errors",
         "input": {"value": str(url_or_pack), "schema_path": str(schema_path), "fact_check": fact_check},
         "summary": {
@@ -96,6 +135,8 @@ def extract_schema(
             "fact_check": fact_check,
         },
     }
+    if llm_meta is not None:
+        result_payload["llm"] = llm_meta
     return write_basic_pack_files(
         run=run,
         pages=pages,
@@ -199,6 +240,159 @@ def _deterministic_output(
                 }
             ]
     return output, field_evidence
+
+
+def _llm_budget_block(
+    url_or_pack: str | Path,
+    schema_path: Path,
+    budget: float | None,
+    output_dir: Path,
+) -> dict[str, Any] | None:
+    """Return a blocked payload when a zero budget forbids the paid-capable call."""
+    if not paid_action_blocked(budget, estimated_cost_usd=LLM_ESTIMATED_COST_USD):
+        return None
+    block = budget_block_payload(
+        "llm-schema-extraction",
+        budget_limit_usd=budget,
+        estimated_cost_usd=LLM_ESTIMATED_COST_USD,
+        provider="byok-anthropic",
+    )
+    return {
+        "workflow": SCHEMA_WORKFLOW,
+        "provider": "byok-anthropic",
+        "extraction_mode": "llm",
+        "status": "blocked_by_budget",
+        "input": {"value": str(url_or_pack), "schema_path": str(schema_path)},
+        "data": None,
+        "warnings": [],
+        "errors": ["LLM schema extraction is paid-capable and was blocked by the budget."],
+        **block,
+    }
+
+
+def _llm_error_payload(
+    url_or_pack: str | Path,
+    schema_path: Path,
+    fact_check: bool,
+    llm_meta: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        "workflow": SCHEMA_WORKFLOW,
+        "provider": "byok-anthropic",
+        "extraction_mode": "llm",
+        "status": "failed",
+        "input": {"value": str(url_or_pack), "schema_path": str(schema_path), "fact_check": fact_check},
+        "data": None,
+        "llm": llm_meta,
+        "warnings": [],
+        "errors": [str(llm_meta.get("error"))],
+    }
+
+
+def _llm_output(
+    schema: dict[str, Any],
+    pages: list[PageSnapshot],
+    *,
+    model: str | None,
+    client: Any,
+) -> tuple[dict[str, Any], dict[str, list[dict[str, Any]]], dict[str, Any]]:
+    """Fill the schema with the user's own model; validate and retry once."""
+    resolved_model = resolve_model(model)
+    meta: dict[str, Any] = {
+        "extraction_mode": "llm",
+        "model": resolved_model,
+        "estimated_cost_usd": LLM_ESTIMATED_COST_USD,
+        "validator": "parity.validate_structured_output",
+    }
+    active_client = client if client is not None else resolve_client(model)
+    if active_client is None:
+        meta["error"] = "LLM mode requires a model key. Set ANTHROPIC_API_KEY or use --mode deterministic."
+        return {}, {}, meta
+    meta["model"] = getattr(active_client, "model", resolved_model)
+
+    context_text, truncated = _llm_context(pages)
+    meta["content_truncated"] = truncated
+    system = (
+        "You extract structured data from web page evidence. Return ONLY a JSON object that "
+        "conforms to the provided JSON Schema. Use null for fields the evidence does not support. "
+        "Do not invent values. Output no prose, only JSON."
+    )
+    schema_text = json.dumps(schema, ensure_ascii=False)
+    base_user = f"JSON Schema:\n{schema_text}\n\nPage evidence:\n{context_text}"
+
+    errors_feedback = ""
+    last_errors: list[str] = []
+    for attempt in range(2):
+        user = base_user if not errors_feedback else f"{base_user}\n\n{errors_feedback}"
+        try:
+            raw = active_client.complete(system, user)
+        except LlmTransportError as exc:
+            meta["error"] = f"model call failed: {exc}"
+            return {}, {}, meta
+        parsed = _parse_json_object(raw)
+        if parsed is None:
+            last_errors = ["model response was not a JSON object"]
+        else:
+            validation = validate_structured_output(parsed, schema)
+            if validation.get("valid"):
+                meta["attempts"] = attempt + 1
+                field_evidence = _llm_field_evidence(parsed, pages)
+                return parsed, field_evidence, meta
+            last_errors = [str(err) for err in validation.get("errors", [])]
+        errors_feedback = (
+            "Your previous answer did not validate. Fix these errors and return only JSON:\n"
+            + "\n".join(last_errors)
+        )
+    meta["error"] = "model output failed schema validation after one retry: " + "; ".join(last_errors)
+    meta["attempts"] = 2
+    return {}, {}, meta
+
+
+def _llm_context(pages: list[PageSnapshot]) -> tuple[str, bool]:
+    context_text = "\n\n".join(page.markdown for page in pages)
+    if len(context_text) <= _LLM_CONTENT_CHAR_LIMIT:
+        return context_text, False
+    return context_text[:_LLM_CONTENT_CHAR_LIMIT] + "\n\n[content truncated]", True
+
+
+def _parse_json_object(raw: str) -> dict[str, Any] | None:
+    """Extract a JSON object from a model response, tolerating prose/fences."""
+    candidates: list[str] = []
+    fence = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", raw, re.DOTALL)
+    if fence:
+        candidates.append(fence.group(1))
+    start = raw.find("{")
+    end = raw.rfind("}")
+    if start != -1 and end > start:
+        candidates.append(raw[start : end + 1])
+    candidates.append(raw.strip())
+    for candidate in candidates:
+        try:
+            value = json.loads(candidate)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(value, dict):
+            return value
+    return None
+
+
+def _llm_field_evidence(
+    result: dict[str, Any],
+    pages: list[PageSnapshot],
+) -> dict[str, list[dict[str, Any]]]:
+    first = pages[0]
+    field_evidence: dict[str, list[dict[str, Any]]] = {}
+    for name, value in result.items():
+        if _is_non_null_scalar(value):
+            field_evidence[name] = [
+                {
+                    "citation_id": "S1",
+                    "url": first.url,
+                    "title": first.title,
+                    "excerpt": text_excerpt(first.markdown, str(value), limit=260),
+                }
+            ]
+    return field_evidence
 
 
 def _field_value(

@@ -1,6 +1,6 @@
 import json
 
-from docpull.accounting import RunAccounting, write_run_accounting
+from docpull.accounting import RunAccounting, default_route_steps, write_run_accounting
 
 
 def test_write_run_accounting_links_existing_pack_artifacts(tmp_path):
@@ -27,3 +27,14 @@ def test_write_run_accounting_links_existing_pack_artifacts(tmp_path):
     agent_context_text = agent_context.read_text(encoding="utf-8")
     assert "## Run Accounting" in agent_context_text
     assert "`run.accounting.json`" in agent_context_text
+
+
+def test_default_route_steps_place_archive_fallback_before_local_render():
+    steps = default_route_steps()
+
+    names = [step.name for step in steps]
+    assert names.index("archive_fallback") == names.index("embedded_data_extraction") + 1
+    assert names.index("archive_fallback") < names.index("local_render")
+    archive = steps[names.index("archive_fallback")]
+    assert archive.status == "available"
+    assert archive.cost_class == "local"

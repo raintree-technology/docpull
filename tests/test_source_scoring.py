@@ -38,3 +38,14 @@ def test_source_scoring_deprioritizes_newsletter_paths() -> None:
 
     assert homepage["score"] > newsletter["score"]
     assert "lower_priority_path" in newsletter["reasons"]
+
+
+def test_source_scoring_penalizes_archive_snapshots_but_keeps_them_usable() -> None:
+    live = score_source(url="https://docs.example.com/guide")
+    archived = score_source(url="https://docs.example.com/guide", archive_snapshot=True)
+
+    assert archived["score"] == live["score"] - 5
+    assert live["score"] > archived["score"]
+    assert "archive_snapshot" in archived["reasons"]
+    assert "archive_snapshot" not in live["reasons"]
+    assert archived["grade"] in {"usable", "strong", "primary"}

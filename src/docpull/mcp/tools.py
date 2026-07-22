@@ -20,10 +20,12 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
+from urllib.parse import urlsplit
 
 import regex
 import yaml
 
+from ..accounting import default_route_steps
 from ..models.config import ContentFilterConfig, CrawlConfig, DocpullConfig, OutputConfig, ProfileName
 from ..models.schema import MCP_META_SCHEMA_VERSION
 from ..security.url_validator import UrlValidator
@@ -47,7 +49,37 @@ GREP_TIMEOUT_SECONDS = 10.0
 GREP_LINE_TIMEOUT_SECONDS = 0.05
 MAX_READ_DOC_BYTES = 1_000_000
 
+# Opt-in token-efficient responses: when enabled, fetch_url/grep_docs/read_doc
+# return a short text summary and keep the full payload in structuredContent
+# instead of duplicating it in both places. Default OFF because many hosts
+# render only the text content.
+COMPACT_TEXT_ENV_VAR = "DOCPULL_MCP_COMPACT_TEXT"
+
+# Provider key names surfaced by explain_routes. Names and set/unset status
+# only — values must never appear in any tool output.
+PROVIDER_KEY_ENV_VARS: tuple[str, ...] = ("PARALLEL_API_KEY", "TAVILY_API_KEY", "EXA_API_KEY")
+
+_ROUTE_UNLOCK_HINTS: dict[str, str] = {
+    "cache": "Always on: reuses fresh local artifacts at $0.",
+    "direct_http": "Always on: fetches public HTTPS pages directly at $0.",
+    "sitemap_link_discovery": "Always on: walks sitemap and static links at $0.",
+    "embedded_data_extraction": "Always on: reads framework/static page data at $0.",
+    "archive_fallback": "Always on: replays Wayback CDX and Common Crawl snapshots at $0.",
+    "local_render": "Opt in via render_url runtime=local (requires agent-browser); treated as local/$0.",
+    "byok_provider": (
+        "Set PARALLEL_API_KEY, TAVILY_API_KEY, or EXA_API_KEY and opt in explicitly; blocked when budget=0."
+    ),
+    "hosted_cloud": (
+        "Call render_url with runtime=vercel or e2b and a budget above 0; blocked when budget=0."
+    ),
+}
+
 _FETCH_URL_VALIDATOR = UrlValidator(allowed_schemes={"https"})
+
+
+def _compact_text_enabled() -> bool:
+    value = os.environ.get(COMPACT_TEXT_ENV_VAR, "")
+    return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
 def __getattr__(name: str) -> Any:
@@ -379,7 +411,96 @@ async def fetch_url(
         body = "\n\n".join(parts)
     chunks_meta = f" _chunks: {len(ctx.chunks)}_" if ctx.chunks else ""
     header = f"# {ctx.title or url}\n_source: {url}_ _type: {ctx.source_type or 'generic'}_{chunks_meta}\n\n"
-    return ToolResult(header + body)
+    full = header + body
+    if _compact_text_enabled():
+        return ToolResult(
+            f"Fetched {url}: {len(full)} chars (~{len(full) // 4} tokens). "
+            "Full Markdown is in structuredContent.markdown.",
+            data={
+                "url": url,
+                "title": ctx.title or url,
+                "source_type": ctx.source_type or "generic",
+                "chunk_count": len(ctx.chunks) if ctx.chunks else 0,
+                "markdown": full,
+            },
+        )
+    return ToolResult(full)
+
+
+def explain_routes(url: str | None = None) -> ToolResult:
+    """Explain the cost-ordered route ladder without touching the network.
+
+    Returns the standard escalation ladder from ``default_route_steps()``
+    (route, status, cost_class), budget semantics (``budget=0`` blocks every
+    paid-capable route before any spend), which provider API keys are set
+    (names and boolean status only — never values), and a one-line unlock
+    hint per route. With ``url``, also lists the local discovery sources
+    that would be attempted for that URL. Purely local; no probing.
+    """
+    parsed = urlsplit(url) if url is not None else None
+    if url is not None and (parsed is None or parsed.scheme != "https" or not parsed.netloc):
+        return ToolResult(f"'url' must be an HTTPS URL, got '{url}'.", is_error=True)
+
+    provider_keys: list[dict[str, Any]] = [
+        {"name": name, "configured": bool(os.environ.get(name))} for name in PROVIDER_KEY_ENV_VARS
+    ]
+    providers_configured = any(entry["configured"] for entry in provider_keys)
+    steps = default_route_steps(include_provider=providers_configured)
+    route_steps: list[dict[str, Any]] = []
+    for step in steps:
+        payload = step.to_dict()
+        payload["unlock"] = _ROUTE_UNLOCK_HINTS.get(step.name, "")
+        route_steps.append(payload)
+    paid_routes = [step.name for step in steps if step.cost_class == "paid-capable"]
+
+    data: dict[str, Any] = {
+        "route_steps": route_steps,
+        "budget_semantics": {
+            "paid_capable_routes": paid_routes,
+            "budget_zero_blocks_paid_routes": True,
+            "description": (
+                "budget=0 blocks every paid-capable action before any spend and returns a structured "
+                "blocked_by_budget payload with the cost estimate. Local routes always run at $0. "
+                "Paid-capable routes additionally require explicit opt-in (provider keys or a cloud "
+                "runtime); omitting budget never silently enables them."
+            ),
+        },
+        "provider_keys": provider_keys,
+    }
+
+    lines = ["Route ladder (cheapest first):"]
+    for payload in route_steps:
+        detail = f" — {payload['detail']}" if payload.get("detail") else ""
+        lines.append(f"- {payload['name']} [{payload['status']}, {payload['cost_class']}]{detail}")
+    configured_names = [str(entry["name"]) for entry in provider_keys if entry["configured"]]
+    lines.append("Provider keys configured: " + (", ".join(configured_names) if configured_names else "none"))
+    lines.append(f"budget=0 blocks paid-capable routes ({', '.join(paid_routes)}) before any spend.")
+
+    if url is not None and parsed is not None:
+        origin = f"https://{parsed.netloc}"
+        discovery_sources: list[dict[str, Any]] = [
+            {"source": "cache", "target": url, "cost_class": "local"},
+            {"source": "direct_http", "target": url, "cost_class": "local"},
+            {
+                "source": "sitemap_link_discovery",
+                "target": f"{origin}/sitemap.xml",
+                "cost_class": "local",
+            },
+            {"source": "embedded_data_extraction", "target": url, "cost_class": "local"},
+            {
+                "source": "archive_fallback",
+                "target": url,
+                "cost_class": "local",
+                "detail": "Wayback CDX and Common Crawl index snapshot lookups",
+            },
+        ]
+        data["url"] = url
+        data["discovery_sources"] = discovery_sources
+        lines.append(
+            f"Discovery sources for {url}: " + ", ".join(str(item["source"]) for item in discovery_sources)
+        )
+
+    return ToolResult("\n".join(lines), data=data)
 
 
 def list_sources(category: str | None = None) -> ToolResult:
@@ -654,6 +775,24 @@ def grep_docs(
         )
 
     truncated = total > rendered
+    data = {
+        "pattern": pattern,
+        "total_matches": total,
+        "files": files_payload,
+        "truncated": truncated,
+        "timed_out": timed_out,
+    }
+    if _compact_text_enabled():
+        compact_notes = ""
+        if truncated:
+            compact_notes += f" {total - rendered} more match(es) hidden — increase limit to see them."
+        if timed_out:
+            compact_notes += " Search timed out before all libraries were scanned."
+        return ToolResult(
+            f"{total} match(es) for '{pattern}' across {len(file_hits)} file(s); "
+            f"matches are in structuredContent.files.{compact_notes}",
+            data=data,
+        )
     truncated_note = (
         f"\n\n_({total - rendered} more match(es) hidden — increase `limit` to see them.)_"
         if truncated
@@ -663,13 +802,7 @@ def grep_docs(
     header = f"{total} match(es) for '{pattern}' across {len(file_hits)} file(s):\n\n"
     return ToolResult(
         header + "\n\n---\n\n".join(blocks) + truncated_note + timeout_note,
-        data={
-            "pattern": pattern,
-            "total_matches": total,
-            "files": files_payload,
-            "truncated": truncated,
-            "timed_out": timed_out,
-        },
+        data=data,
     )
 
 
@@ -717,8 +850,15 @@ def read_doc(
     if line_start is None and line_end is None:
         text = target.read_text(errors="replace")
         total_lines = text.count("\n") + 1 if text else 0
+        if _compact_text_enabled():
+            rendered_text = (
+                f"{library}/{path}: {total_lines} lines ({len(text)} chars). "
+                "Content is in structuredContent.text."
+            )
+        else:
+            rendered_text = f"# {library}/{path}\n\n{text}"
         return ToolResult(
-            f"# {library}/{path}\n\n{text}",
+            rendered_text,
             data={
                 "library": library,
                 "path": path,
@@ -765,9 +905,15 @@ def read_doc(
             is_error=True,
         )
     sliced = "\n".join(lines)
-    header = f"# {library}/{path} (lines {start}–{end} of {total_lines})\n\n"
+    if _compact_text_enabled():
+        rendered_slice = (
+            f"{library}/{path}: lines {start}-{end} of {total_lines} ({len(sliced)} chars). "
+            "Content is in structuredContent.text."
+        )
+    else:
+        rendered_slice = f"# {library}/{path} (lines {start}–{end} of {total_lines})\n\n" + sliced
     return ToolResult(
-        header + sliced,
+        rendered_slice,
         data={
             "library": library,
             "path": path,

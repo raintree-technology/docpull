@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import contextlib
 import hashlib
 import importlib
 import json
@@ -11,8 +12,9 @@ import os
 import re
 import shlex
 import shutil
+import tempfile
 from collections.abc import Awaitable, Callable, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Literal, Protocol
 from urllib.parse import urlparse
@@ -53,6 +55,7 @@ class RenderedPage:
     source: str = "agent-browser"
     diagnostics: dict[str, Any] = field(default_factory=dict)
     rendered_at: str = field(default_factory=utc_now_iso)
+    screenshot_path: Path | None = None
 
     @property
     def html_bytes(self) -> int:
@@ -169,12 +172,28 @@ def build_agent_browser_command(
     config: RenderConfig,
     *,
     binary: str = "agent-browser",
+    screenshot_path: Path | str | None = None,
+    cookie_header: str | None = None,
 ) -> list[str]:
     """Build the shell command used by the agent-browser backend."""
     wait_for = shlex.quote(config.wait_for)
     width = str(int(config.viewport.width))
     height = str(int(config.viewport.height))
-    session = f"docpull-render-{hashlib.sha256(url.encode('utf-8')).hexdigest()[:12]}"
+    session = _render_session_name(url, config)
+    steps = [f"set viewport {width} {height}"]
+    if cookie_header is not None:
+        # Headers must be staged before `open` so they apply to the first navigation.
+        steps.append(f"set headers {shlex.quote(json.dumps({'Cookie': cookie_header}))}")
+    steps.extend(
+        [
+            f"open {shlex.quote(url)}",
+            f"wait --load {wait_for}",
+            "get html html",
+        ]
+    )
+    if screenshot_path is not None:
+        steps.append(f"screenshot {shlex.quote(str(screenshot_path))}")
+    steps.append("close")
     return [
         binary,
         "--session",
@@ -182,12 +201,113 @@ def build_agent_browser_command(
         "batch",
         "--bail",
         "--json",
-        f"set viewport {width} {height}",
-        f"open {shlex.quote(url)}",
-        f"wait --load {wait_for}",
-        "get html html",
-        "close",
+        *steps,
     ]
+
+
+def _render_session_name(url: str, config: RenderConfig) -> str:
+    seed = url
+    if config.cookie_env:
+        # Mix in the env var NAME (never the value) so authenticated renders never
+        # share browser session state with anonymous renders of the same URL.
+        seed = f"{url}\ncookie_env:{config.cookie_env}"
+    return f"docpull-render-{hashlib.sha256(seed.encode('utf-8')).hexdigest()[:12]}"
+
+
+def _resolve_cookie_header(config: RenderConfig) -> str | None:
+    """Resolve the Cookie header value from the configured env var, in memory only."""
+    name = config.cookie_env
+    if not name:
+        return None
+    value = os.environ.get(name)
+    if value is None or not value.strip():
+        raise RenderError(
+            f"cookie_env references {name!r}, but that environment variable is unset or empty. "
+            "Export the Cookie header value under that name before rendering."
+        )
+    if any(ord(char) < 32 or char == "\x7f" for char in value):
+        raise RenderError(
+            f"cookie_env {name!r} holds a value with control characters; "
+            "provide a single-line Cookie header value."
+        )
+    return value
+
+
+def _redact_render_command(command: Sequence[str], cookie_env: str | None) -> list[str]:
+    """Return a diagnostics-safe copy of the command with cookie material masked."""
+    if not cookie_env:
+        return list(command)
+    return [
+        f"set headers cookie_env:{cookie_env}" if part.startswith("set headers ") else part
+        for part in command
+    ]
+
+
+def _ensure_cookie_local_only(config: RenderConfig, backend: CloudSandboxBackend) -> None:
+    if config.cookie_env:
+        raise RenderError(
+            "Render cookies are limited to the local agent-browser runtime; refusing to send "
+            f"session cookie material (cookie_env:{config.cookie_env}) to {backend}."
+        )
+
+
+def build_degradation_report(
+    *,
+    payload: Any = None,
+    html_truncated: bool = False,
+    screenshot_failed: bool = False,
+    max_html_bytes: int | None = None,
+) -> dict[str, Any] | None:
+    """Build the structured ``degradation`` diagnostics entry for partial failures.
+
+    Returns ``None`` when nothing degraded so healthy renders keep their
+    diagnostics unchanged.
+    """
+    wait_timeout, notes = _detect_wait_timeout(payload)
+    if html_truncated:
+        note = "rendered HTML exceeded max_html_bytes and was truncated"
+        if max_html_bytes is not None:
+            note = f"{note} to {max_html_bytes} bytes"
+        notes.append(f"{note}; raise --render-max-html-bytes only for trusted targets")
+    if screenshot_failed:
+        notes.append("agent-browser did not produce the requested screenshot artifact")
+    if not (html_truncated or wait_timeout or screenshot_failed):
+        return None
+    return {
+        "html_truncated": html_truncated,
+        "wait_timeout": wait_timeout,
+        "screenshot_failed": screenshot_failed,
+        "notes": notes,
+    }
+
+
+def _detect_wait_timeout(payload: Any) -> tuple[bool, list[str]]:
+    """Conservatively detect a timed-out ``wait`` step in agent-browser batch output."""
+    if not isinstance(payload, list):
+        return False, []
+    for item in payload:
+        if not isinstance(item, dict):
+            continue
+        step = str(item.get("command") or item.get("cmd") or item.get("step") or "")
+        error = item.get("error")
+        if error is None and item.get("success") is False:
+            error = item.get("message")
+        if not isinstance(error, str):
+            continue
+        lowered = error.lower()
+        if "timeout" not in lowered and "timed out" not in lowered:
+            continue
+        if step.strip().startswith("wait") or "wait" in lowered:
+            summary = " ".join(error.split())[:200]
+            return True, [f"wait step reported a timeout: {summary}"]
+    return False, []
+
+
+def _is_nonempty_file(path: Path) -> bool:
+    try:
+        return path.is_file() and path.stat().st_size > 0
+    except OSError:
+        return False
 
 
 class AgentBrowserRenderer:
@@ -207,48 +327,79 @@ class AgentBrowserRenderer:
         _validate_render_target(url, allowed)
         _ensure_action_policy_restrictive(config)
 
-        command = build_agent_browser_command(url, config, binary=self._binary)
+        cookie_header = _resolve_cookie_header(config)
+        screenshot_target: Path | None = None
+        if config.screenshot:
+            screenshot_target = Path(tempfile.mkdtemp(prefix="docpull-render-shot-")) / "screenshot.png"
+
+        command = build_agent_browser_command(
+            url,
+            config,
+            binary=self._binary,
+            screenshot_path=screenshot_target,
+            cookie_header=cookie_header,
+        )
+        screenshot_kept = False
         try:
-            result = await self._runner(command, float(config.timeout_seconds))
-        except FileNotFoundError as err:
-            raise RendererUnavailableError(_missing_agent_browser_message(self._binary)) from err
+            try:
+                result = await self._runner(command, float(config.timeout_seconds))
+            except FileNotFoundError as err:
+                raise RendererUnavailableError(_missing_agent_browser_message(self._binary)) from err
 
-        if result.returncode != 0:
-            stderr = result.stderr.strip()
-            detail = f": {stderr}" if stderr else ""
-            raise RenderError(f"agent-browser exited with status {result.returncode}{detail}")
+            if result.returncode != 0:
+                stderr = result.stderr.strip()
+                if cookie_header is not None:
+                    stderr = stderr.replace(cookie_header, f"cookie_env:{config.cookie_env}")
+                detail = f": {stderr}" if stderr else ""
+                raise RenderError(f"agent-browser exited with status {result.returncode}{detail}")
 
-        payload = _parse_agent_browser_json(result.stdout)
-        html_text = _extract_html(payload)
-        if html_text is None:
-            raise RenderError(
-                "agent-browser did not return rendered HTML. Expected JSON with "
-                "`html`, `content`, `data.html`, or `result.html`."
+            payload = _parse_agent_browser_json(result.stdout)
+            html_text = _extract_html(payload)
+            if html_text is None:
+                raise RenderError(
+                    "agent-browser did not return rendered HTML. Expected JSON with "
+                    "`html`, `content`, `data.html`, or `result.html`."
+                )
+
+            html = html_text.encode("utf-8")
+            max_bytes = int(config.max_html_bytes)
+            html_truncated = len(html) > max_bytes
+            if html_truncated:
+                html = html[:max_bytes]
+
+            screenshot_kept = screenshot_target is not None and _is_nonempty_file(screenshot_target)
+            degradation = build_degradation_report(
+                payload=payload,
+                html_truncated=html_truncated,
+                screenshot_failed=screenshot_target is not None and not screenshot_kept,
+                max_html_bytes=max_bytes if html_truncated else None,
             )
 
-        html = html_text.encode("utf-8")
-        max_bytes = int(config.max_html_bytes)
-        if len(html) > max_bytes:
-            raise RenderError(
-                f"Rendered HTML is {len(html)} bytes, above max_html_bytes={max_bytes}. "
-                "Raise --render-max-html-bytes only for trusted targets."
+            diagnostics = _extract_diagnostics(payload)
+            diagnostics.update(
+                {
+                    "command": _redact_render_command(command, config.cookie_env),
+                    "allowed_domains": allowed,
+                    "stdout_bytes": len(result.stdout.encode("utf-8")),
+                    "stderr_bytes": len(result.stderr.encode("utf-8")),
+                }
             )
-
-        diagnostics = _extract_diagnostics(payload)
-        diagnostics.update(
-            {
-                "command": command,
-                "allowed_domains": allowed,
-                "stdout_bytes": len(result.stdout.encode("utf-8")),
-                "stderr_bytes": len(result.stderr.encode("utf-8")),
-            }
-        )
-        return RenderedPage(
-            url=url,
-            html=html,
-            backend=config.backend,
-            diagnostics=diagnostics,
-        )
+            if config.cookie_env:
+                diagnostics["cookie"] = f"cookie_env:{config.cookie_env}"
+            if screenshot_kept and screenshot_target is not None:
+                diagnostics["screenshot_path"] = str(screenshot_target)
+            if degradation is not None:
+                diagnostics["degradation"] = degradation
+            return RenderedPage(
+                url=url,
+                html=html,
+                backend=config.backend,
+                diagnostics=diagnostics,
+                screenshot_path=screenshot_target if screenshot_kept else None,
+            )
+        finally:
+            if screenshot_target is not None and not screenshot_kept:
+                shutil.rmtree(screenshot_target.parent, ignore_errors=True)
 
 
 class VercelSandboxRenderer:
@@ -267,6 +418,7 @@ class VercelSandboxRenderer:
         allowed = effective_allowed_domains(url, config)
         _validate_render_target(url, allowed)
         _ensure_action_policy_restrictive(config)
+        _ensure_cookie_local_only(config, "vercel-sandbox")
         _ensure_cloud_budget("vercel-sandbox", config)
 
         command = build_cloud_agent_browser_command(url, config)
@@ -298,6 +450,9 @@ class VercelSandboxRenderer:
                 "provider": "vercel",
                 "runtime": config.vercel_runtime,
                 "result_transport": "stdout",
+                # Cloud transports return a JSON payload, not files, so screenshots
+                # stay a local-runtime feature instead of failing the render.
+                "screenshot": "unsupported_transport" if config.screenshot else None,
                 "renderer": "agent-browser",
                 "agent_browser_binary": config.cloud_agent_browser_binary,
                 "agent_browser_install": config.cloud_agent_browser_install,
@@ -319,6 +474,7 @@ class E2BSandboxRenderer:
         allowed = effective_allowed_domains(url, config)
         _validate_render_target(url, allowed)
         _ensure_action_policy_restrictive(config)
+        _ensure_cookie_local_only(config, "e2b-sandbox")
         _ensure_cloud_budget("e2b-sandbox", config)
         return await asyncio.to_thread(self._render_sync, url, config)
 
@@ -364,6 +520,9 @@ class E2BSandboxRenderer:
                     "template": config.e2b_template or os.environ.get("DOCPULL_E2B_TEMPLATE"),
                     "result_transport": "file" if payload is not None else "stdout",
                     "file_transport_error": file_transport_error,
+                    # Cloud transports return a JSON payload, not files, so screenshots
+                    # stay a local-runtime feature instead of failing the render.
+                    "screenshot": "unsupported_transport" if config.screenshot else None,
                     "artifact_path": config.cloud_artifact_path,
                     "renderer": "agent-browser",
                     "agent_browser_binary": config.cloud_agent_browser_binary,
@@ -428,14 +587,31 @@ async def render_url_to_directory(
     output_dir.mkdir(parents=True, exist_ok=True)
     html_path = output_dir / _url_to_html_filename(url)
     html_path.write_bytes(page.html)
+    page = _relocate_screenshot(page, html_path)
     sidecar_path = append_rendered_page_record(
         output_dir,
         page,
         render_config,
         source="docpull_render_cli",
         artifact_path=html_path,
+        screenshot_path=page.screenshot_path,
     )
     return RenderArtifact(page=page, html_path=html_path, sidecar_path=sidecar_path)
+
+
+def _relocate_screenshot(page: RenderedPage, html_path: Path) -> RenderedPage:
+    """Move a scratch screenshot next to the rendered HTML as ``<slug>.render.png``."""
+    source = page.screenshot_path
+    if source is None:
+        return page
+    target = html_path.with_name(f"{html_path.stem}.render.png")
+    if source != target:
+        shutil.move(str(source), str(target))
+        if source.parent.name.startswith("docpull-render-shot-"):
+            with contextlib.suppress(OSError):
+                source.parent.rmdir()
+    page.diagnostics["screenshot_path"] = str(target)
+    return replace(page, screenshot_path=target)
 
 
 def create_renderer(config: RenderConfig) -> Renderer:
@@ -451,7 +627,7 @@ def create_renderer(config: RenderConfig) -> Renderer:
 
 def render_metadata(page: RenderedPage, config: RenderConfig) -> dict[str, Any]:
     """Return metadata stored on rendered ``DocumentRecord`` objects."""
-    return {
+    metadata: dict[str, Any] = {
         "rendered": True,
         "backend": page.backend,
         "source": page.source,
@@ -466,6 +642,9 @@ def render_metadata(page: RenderedPage, config: RenderConfig) -> dict[str, Any]:
         "action_policy": config.action_policy.model_dump(mode="json"),
         "diagnostics": page.diagnostics,
     }
+    if page.screenshot_path is not None:
+        metadata["screenshot_path"] = str(page.screenshot_path)
+    return metadata
 
 
 def build_cloud_agent_browser_command(url: str, config: RenderConfig) -> str:
@@ -776,6 +955,7 @@ def append_rendered_page_record(
     *,
     source: str,
     artifact_path: Path | None = None,
+    screenshot_path: Path | None = None,
 ) -> Path:
     """Append one rendered-page provenance record to ``rendered_pages.ndjson``."""
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -802,6 +982,11 @@ def append_rendered_page_record(
             record["artifact_path"] = str(artifact_path.resolve().relative_to(output_dir.resolve()))
         except ValueError:
             record["artifact_path"] = str(artifact_path)
+    if screenshot_path is not None:
+        try:
+            record["screenshot_path"] = str(screenshot_path.resolve().relative_to(output_dir.resolve()))
+        except ValueError:
+            record["screenshot_path"] = str(screenshot_path)
     with sidecar_path.open("a", encoding="utf-8") as fh:
         fh.write(json.dumps(record, ensure_ascii=False, sort_keys=True) + "\n")
     return sidecar_path

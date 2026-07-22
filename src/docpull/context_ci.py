@@ -132,8 +132,14 @@ def run_context_ci(
     sync: bool = False,
     predictions_path: Path | None = None,
     cli_thresholds: dict[str, Any] | None = None,
+    prediction_grader: str = "deterministic",
 ) -> dict[str, Any]:
-    """Run local Context CI checks over a project or standalone pack."""
+    """Run local Context CI checks over a project or standalone pack.
+
+    ``prediction_grader`` is forwarded to ``freshdocs_bench`` when predictions
+    are graded: ``deterministic`` (default), ``llm``, or ``hybrid``. The gate
+    keeps reading ``summary.pass_rate``, which always carries the final rate.
+    """
 
     target = _resolve_target(path)
     thresholds = _resolve_thresholds(target, cli_thresholds or {}, strict=strict)
@@ -195,7 +201,7 @@ def run_context_ci(
             fail_on_weak=thresholds.fail_on_medium_coverage or predictions_path is not None,
         )
     )
-    gates.append(_context_predictions_gate(pack_dir, predictions_path, thresholds))
+    gates.append(_context_predictions_gate(pack_dir, predictions_path, thresholds, grader=prediction_grader))
 
     if sync_payload:
         gates.append(_gate("project_sync", "pass", "Project sync completed before CI.", details=sync_payload))
@@ -565,6 +571,8 @@ def _context_predictions_gate(
     pack_dir: Path,
     predictions_path: Path | None,
     thresholds: CIThresholds,
+    *,
+    grader: str = "deterministic",
 ) -> dict[str, Any]:
     if predictions_path is None:
         return _gate(
@@ -573,7 +581,7 @@ def _context_predictions_gate(
             "No predictions were provided; context prediction grading skipped.",
         )
     try:
-        report = freshdocs_bench(pack_dir, predictions_path=predictions_path)
+        report = freshdocs_bench(pack_dir, predictions_path=predictions_path, grader=grader)
     except EvalGradeError as err:
         return _gate("context_prediction_pass_rate", "fail", str(err))
     summary = _dict_value(report.get("summary"))

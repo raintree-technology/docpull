@@ -56,8 +56,10 @@ through their typed lanes and do not use discovery.
 
 The original `docpull URL ...` workflow still works: fetch public or explicitly
 authorized static/server-rendered web pages and write clean Markdown, NDJSON,
-SQLite, or OKF outputs. Project mode adds the persistent evidence lifecycle on
-top: sources, runs, diffs, exports, evals, accounting, and local auditability.
+SQLite, or Open Knowledge Format (OKF) outputs. OKF is a portable bundle format
+that keeps content, indexes, and manifests together for reuse across tools.
+Project mode adds the persistent evidence lifecycle on top: sources, runs,
+diffs, exports, evals, accounting, and local auditability.
 
 DocPull is local-first: direct fetching, sitemap/link discovery, extraction,
 indexing, pack intelligence, and opt-in `agent-browser` rendering can run with
@@ -580,6 +582,13 @@ installed.
 | Hosted extraction APIs | Managed extraction at scale | External dependency and cost |
 | docpull | Local public web-source extraction and context packs | No JavaScript rendering by default |
 
+For a tool-by-tool comparison, including self-hosted browser crawlers and
+hosted extraction services, see [Alternatives](docs/alternatives.md). Measured
+extraction-quality, tokens-per-page, and cost comparisons on a fixed corpus —
+plus local extractor baselines — live in the evaluation lab under
+[`bench/`](bench/README.md), which is an internal, reproducible harness rather
+than a public leaderboard.
+
 ## Python SDK
 
 ```python
@@ -673,6 +682,9 @@ part of the package release contract.
 
 When running with `--proxy`, DNS pinning is delegated to the proxy. Pass
 `--require-pinned-dns` to refuse that configuration.
+
+See [Compliance Posture](docs/compliance.md) for the full identity, robots.txt,
+rate-limit, and AI/TDM opt-out behavior.
 
 ## Troubleshooting
 

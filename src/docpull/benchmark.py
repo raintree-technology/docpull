@@ -87,7 +87,16 @@ BENCHMARK_SCORE_WEIGHTS = {
     "density": 0.15,
 }
 PASS_AT_K_THRESHOLDS: tuple[int, ...] = (70, 80, 90)
-TARGET_SET_CHOICES = ("single", "tool-docs", "provider-matrix", "zero-dollar", "phase2", "v2")
+TARGET_SET_CHOICES = (
+    "single",
+    "tool-docs",
+    "provider-matrix",
+    "zero-dollar",
+    "phase2",
+    "v2",
+    "adversarial-v3",
+    "full",
+)
 HTTP_MAX_RESPONSE_BYTES = 16 * 1024 * 1024
 HTTP_MAX_ERROR_BYTES = 64 * 1024
 # Conservative per-call USD figures used ONLY for the pre-flight
@@ -306,12 +315,269 @@ PHASE2_MEASUREMENT_TARGETS: tuple[_BenchmarkTarget, ...] = (
 )
 
 
+ADVERSARIAL_V3_TARGETS: tuple[_BenchmarkTarget, ...] = (
+    _BenchmarkTarget(
+        id="nyt_snowfall_paywall",
+        label="NYT Snow Fall metered paywall",
+        url="https://www.nytimes.com/projects/2012/snow-fall/",
+        include_domains=("www.nytimes.com", "nytimes.com"),
+        objective="Measure honest failure/skip behavior on a metered news paywall",
+        queries=("New York Times Snow Fall avalanche Tunnel Creek feature",),
+        kind="paywalled_news",
+        min_expected_records=1,
+        notes=(
+            "Metered paywall family: the page presents a paywall/registration "
+            "prompt; the harness should record an honest skip, not fabricated content."
+        ),
+        zero_dollar_route="policy",
+    ),
+    _BenchmarkTarget(
+        id="bloomberg_bot_wall",
+        label="Bloomberg What Is Code bot wall",
+        url="https://www.bloomberg.com/graphics/2015-paul-ford-what-is-code/",
+        include_domains=("www.bloomberg.com", "bloomberg.com"),
+        objective="Measure behavior against a paywalled site with an aggressive bot wall",
+        queries=("Bloomberg Paul Ford what is code essay",),
+        kind="bot_wall_paywall",
+        min_expected_records=1,
+        notes="Paywall plus PX-style bot challenge; expect a challenge page, not article text.",
+        zero_dollar_route="cloud_browser",
+    ),
+    _BenchmarkTarget(
+        id="linkedin_robots_disallow",
+        label="LinkedIn robots-disallowed profile",
+        url="https://www.linkedin.com/company/anthropicresearch",
+        include_domains=("www.linkedin.com", "linkedin.com"),
+        objective="Measure robots.txt-disallowed capture behavior on LinkedIn",
+        queries=("Anthropic LinkedIn company page",),
+        kind="robots_disallowed_profile",
+        min_expected_records=1,
+        notes="robots.txt disallow + auth wall family; correct behavior is a policy skip.",
+        zero_dollar_route="policy",
+    ),
+    _BenchmarkTarget(
+        id="x_login_wall_spa",
+        label="X login-walled SPA profile",
+        url="https://x.com/AnthropicAI",
+        include_domains=("x.com", "twitter.com"),
+        objective="Measure behavior on a login-walled JavaScript-only social profile",
+        queries=("Anthropic X Twitter profile posts",),
+        kind="login_walled_spa",
+        min_expected_records=1,
+        notes="Login wall + SPA shell; static HTML carries no post content.",
+        zero_dollar_route="policy",
+    ),
+    _BenchmarkTarget(
+        id="quora_robots_login_nag",
+        label="Quora robots-disallowed topic",
+        url="https://www.quora.com/topic/Artificial-Intelligence",
+        include_domains=("www.quora.com", "quora.com"),
+        objective="Measure robots-disallowed and login-nag behavior on Quora",
+        queries=("Quora artificial intelligence topic questions",),
+        kind="robots_disallowed_forum",
+        min_expected_records=1,
+        notes="robots.txt disallows most crawling and a login overlay interrupts content.",
+        zero_dollar_route="policy",
+    ),
+    _BenchmarkTarget(
+        id="reddit_infinite_scroll",
+        label="Reddit infinite-scroll listing",
+        url="https://www.reddit.com/r/MachineLearning/",
+        include_domains=("www.reddit.com", "reddit.com"),
+        objective="Measure extraction from an infinite-scroll listing page",
+        queries=("Reddit MachineLearning subreddit recent posts",),
+        kind="infinite_scroll_listing",
+        min_expected_records=1,
+        notes="Infinite scroll family: static fetch sees only the first page of the feed.",
+        zero_dollar_route="local_browser",
+    ),
+    _BenchmarkTarget(
+        id="excalidraw_spa_only",
+        label="Excalidraw client-only SPA",
+        url="https://excalidraw.com",
+        include_domains=("excalidraw.com",),
+        objective="Measure behavior on a canvas SPA with no server-rendered content",
+        queries=("Excalidraw virtual whiteboard app",),
+        kind="spa_only_app",
+        min_expected_records=1,
+        notes="Pure client-side app shell; there is no meaningful static document body.",
+        zero_dollar_route="local_browser",
+    ),
+    _BenchmarkTarget(
+        id="openai_platform_docs_challenge",
+        label="OpenAI platform docs bot challenge",
+        url="https://platform.openai.com/docs/api-reference",
+        include_domains=("platform.openai.com",),
+        objective="Measure behavior on Cloudflare-challenge-fronted SPA docs",
+        queries=("OpenAI API reference platform documentation",),
+        kind="bot_challenge_docs",
+        min_expected_records=1,
+        freshness_terms=("changelog", "latest", "deprecat"),
+        notes="Cloudflare challenge + client-rendered docs; direct HTTP sees the challenge page.",
+        zero_dollar_route="cloud_browser",
+    ),
+    _BenchmarkTarget(
+        id="crunchbase_bot_wall",
+        label="Crunchbase hard bot wall",
+        url="https://www.crunchbase.com/organization/anthropic",
+        include_domains=("www.crunchbase.com", "crunchbase.com"),
+        objective="Measure honest failure against a hard bot-wall host",
+        queries=("Anthropic Crunchbase company profile funding",),
+        kind="bot_wall_profile",
+        min_expected_records=1,
+        notes="Aggressive bot wall typically answers non-browser clients with 403.",
+        zero_dollar_route="cloud_browser",
+    ),
+    _BenchmarkTarget(
+        id="whatwg_html_spec_huge",
+        label="WHATWG HTML spec single page",
+        url="https://html.spec.whatwg.org/",
+        include_domains=("html.spec.whatwg.org",),
+        objective="Build a context pack from one very large single-page spec",
+        queries=("WHATWG HTML living standard single page spec",),
+        kind="huge_single_page",
+        min_expected_records=1,
+        freshness_terms=("living standard", "last updated"),
+        notes="Very-large-page family: a multi-megabyte single document stresses size caps.",
+    ),
+    _BenchmarkTarget(
+        id="ecma262_spec_huge",
+        label="ECMAScript spec single page",
+        url="https://tc39.es/ecma262/",
+        include_domains=("tc39.es",),
+        objective="Build a context pack from the very large ECMAScript specification page",
+        queries=("ECMAScript language specification ecma262",),
+        kind="huge_single_page",
+        min_expected_records=1,
+        freshness_terms=("ecmascript", "edition"),
+        notes="Very-large-page family: single-page spec measured in tens of megabytes.",
+    ),
+    _BenchmarkTarget(
+        id="python_docs_japanese",
+        label="Python tutorial in Japanese",
+        url="https://docs.python.org/ja/3/tutorial/index.html",
+        include_domains=("docs.python.org",),
+        objective="Build a context pack from non-English (Japanese) Python docs",
+        queries=("Python チュートリアル 日本語 ドキュメント",),
+        kind="non_english_docs",
+        min_expected_records=3,
+        freshness_terms=("python", "チュートリアル"),
+        notes="Non-English family: English boilerplate sniffing under-reports CJK noise.",
+    ),
+    _BenchmarkTarget(
+        id="mdn_french_js",
+        label="MDN JavaScript docs in French",
+        url="https://developer.mozilla.org/fr/docs/Web/JavaScript",
+        include_domains=("developer.mozilla.org",),
+        objective="Build a context pack from non-English (French) MDN JavaScript docs",
+        queries=("MDN JavaScript documentation française guide",),
+        kind="non_english_docs",
+        min_expected_records=3,
+        freshness_terms=("javascript", "baseline"),
+        notes="Non-English family: localized navigation defeats English-only cleanup heuristics.",
+    ),
+    _BenchmarkTarget(
+        id="wikipedia_arabic_rtl",
+        label="Arabic Wikipedia AI article",
+        url="https://ar.wikipedia.org/wiki/%D8%B0%D9%83%D8%A7%D8%A1_%D8%A7%D8%B5%D8%B7%D9%86%D8%A7%D8%B9%D9%8A",
+        include_domains=("ar.wikipedia.org",),
+        objective="Build a context pack from a right-to-left Arabic encyclopedia article",
+        queries=("ويكيبيديا ذكاء اصطناعي مقالة",),
+        kind="non_english_rtl",
+        min_expected_records=1,
+        freshness_terms=("ذكاء",),
+        notes="RTL + non-Latin family: exercises encoding, direction, and template stripping.",
+    ),
+    _BenchmarkTarget(
+        id="django_docs_redirect_chain",
+        label="Django docs locale/version redirects",
+        url="https://docs.djangoproject.com/",
+        include_domains=("docs.djangoproject.com",),
+        objective="Build a context pack behind a language and version redirect chain",
+        queries=("Django documentation stable release",),
+        kind="redirect_chain_docs",
+        min_expected_records=3,
+        freshness_terms=("django", "release notes"),
+        notes="Redirect-chain family: root URL negotiates through locale and version hops.",
+    ),
+    _BenchmarkTarget(
+        id="httpbin_redirect_chain",
+        label="httpbin three-hop redirect",
+        url="https://httpbin.org/redirect/3",
+        include_domains=("httpbin.org",),
+        objective="Measure redirect-chain handling on a deterministic multi-hop endpoint",
+        queries=("httpbin redirect endpoint testing",),
+        kind="redirect_chain_json",
+        min_expected_records=1,
+        notes="Redirect-chain family: three deterministic hops that terminate in a JSON body.",
+    ),
+    _BenchmarkTarget(
+        id="yahoo_yql_gone",
+        label="Retired Yahoo YQL docs",
+        url="https://developer.yahoo.com/yql/",
+        include_domains=("developer.yahoo.com",),
+        objective="Measure archive-fallback behavior for a retired documentation product",
+        queries=("Yahoo YQL query language documentation archive",),
+        kind="gone_page_archive_fallback",
+        min_expected_records=1,
+        notes="404/410 family: YQL was retired; Wayback snapshots are the only recovery path.",
+        zero_dollar_route="provider",
+    ),
+    _BenchmarkTarget(
+        id="bootstrap2_docs_gone",
+        label="Legacy Bootstrap 2 docs URL",
+        url="https://twitter.github.io/bootstrap/",
+        include_domains=("twitter.github.io", "getbootstrap.com"),
+        objective="Measure archive fallback for a moved and deleted legacy docs site",
+        queries=("Bootstrap 2 documentation twitter github pages",),
+        kind="gone_page_archive_fallback",
+        min_expected_records=1,
+        notes="404/410 family: original Bootstrap docs host is gone but archived in Wayback.",
+        zero_dollar_route="provider",
+    ),
+    _BenchmarkTarget(
+        id="soundcloud_embedded_json",
+        label="SoundCloud embedded-JSON page",
+        url="https://soundcloud.com/nasa",
+        include_domains=("soundcloud.com",),
+        objective="Measure extraction when content lives only in embedded hydration JSON",
+        queries=("NASA SoundCloud audio tracks",),
+        kind="embedded_json_content",
+        min_expected_records=1,
+        notes="Embedded-JSON family: page content ships in a window hydration blob, not HTML.",
+        zero_dollar_route="local_browser",
+    ),
+    _BenchmarkTarget(
+        id="swagger_petstore_openapi_only",
+        label="Swagger Petstore OpenAPI-only UI",
+        url="https://petstore3.swagger.io/",
+        include_domains=("petstore3.swagger.io",),
+        objective="Measure extraction from a reference UI whose content is only an OpenAPI document",
+        queries=("Swagger Petstore OpenAPI 3 reference",),
+        kind="openapi_only_reference",
+        min_expected_records=1,
+        notes=(
+            "OpenAPI-only family: the HTML is an empty Swagger UI shell; the reference "
+            "lives in /api/v3/openapi.json fetched by JavaScript."
+        ),
+        zero_dollar_route="local_browser",
+    ),
+)
+
+
 TARGET_SETS: dict[str, tuple[_BenchmarkTarget, ...]] = {
     "tool-docs": TOOL_DOC_TARGETS,
     "provider-matrix": (*TOOL_DOC_TARGETS, *ADVERSARIAL_TARGETS),
     "zero-dollar": (*TOOL_DOC_TARGETS, *ADVERSARIAL_TARGETS, *PHASE2_MEASUREMENT_TARGETS),
     "phase2": (*TOOL_DOC_TARGETS, *ADVERSARIAL_TARGETS, *PHASE2_MEASUREMENT_TARGETS),
     "v2": (*TOOL_DOC_TARGETS, *ADVERSARIAL_TARGETS),
+    "adversarial-v3": ADVERSARIAL_V3_TARGETS,
+    "full": (
+        *TOOL_DOC_TARGETS,
+        *ADVERSARIAL_TARGETS,
+        *PHASE2_MEASUREMENT_TARGETS,
+        *ADVERSARIAL_V3_TARGETS,
+    ),
 }
 
 
@@ -338,7 +604,10 @@ def create_benchmark_parser() -> argparse.ArgumentParser:
             "'provider-matrix' adds low-cap hard targets; 'zero-dollar' adds "
             "Phase 2 measurement targets for JS docs, pricing, filings, feeds, "
             "sitemaps, and search-to-evidence. 'phase2' aliases 'zero-dollar'; "
-            "'v2' remains as a compatibility alias."
+            "'v2' remains as a compatibility alias. 'adversarial-v3' runs the "
+            "hard-failure-family matrix (paywalls, robots blocks, bot walls, "
+            "SPAs, huge pages, non-English docs, redirects, dead pages); "
+            "'full' runs every target group."
         ),
     )
     quick.add_argument(
@@ -1906,6 +2175,7 @@ def _failed_case(
             "artifact_size_bytes": _dir_size(output_dir),
             "pack_score": None,
             "benchmark_score": None,
+            "token_metrics": None,
             "source_score_count": 0,
         }
     )
@@ -2059,17 +2329,60 @@ def _attach_benchmark_score(
     *,
     target: _BenchmarkTarget | None = None,
 ) -> None:
+    records = _read_benchmark_records(output_dir)
+    payload["token_metrics"] = _token_metrics(payload, records)
     score = payload.get("pack_score")
     if not isinstance(score, dict):
         payload["benchmark_score"] = None
         return
-    records = _read_benchmark_records(output_dir)
     payload["benchmark_score"] = _benchmark_score(
         payload=payload,
         records=records,
         include_domains=include_domains,
         target=target,
     )
+
+
+def _token_metrics(payload: dict[str, Any], records: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """Aggregate per-record token counts into a per-case token block.
+
+    ``page_count`` is the number of unique record URLs (chunked records from
+    one document count once); when no record carries a URL it falls back to
+    the record count. ``source_bytes``/``byte_reduction`` are only reported
+    when the case's crawl stats recorded downloaded bytes — provider packs do
+    not expose raw source sizes, so the fields are omitted there.
+    """
+    if not records:
+        return None
+    counter = TokenCounter()
+    total_tokens = 0
+    markdown_bytes = 0
+    urls: set[str] = set()
+    for record in records:
+        content = str(record.get("content") or "")
+        token_count = record.get("token_count")
+        if isinstance(token_count, int) and not isinstance(token_count, bool) and token_count > 0:
+            total_tokens += token_count
+        elif content:
+            total_tokens += counter.count(content)
+        markdown_bytes += len(content.encode("utf-8"))
+        url = str(record.get("url") or "")
+        if url:
+            urls.add(url)
+    page_count = len(urls) if urls else len(records)
+    metrics: dict[str, Any] = {
+        "total_tokens": total_tokens,
+        "page_count": page_count,
+        "tokens_per_page": round(total_tokens / page_count, 1) if page_count else 0.0,
+        "tokenizer": f"tiktoken:{counter.encoding}" if counter.exact else "heuristic",
+        "markdown_bytes": markdown_bytes,
+    }
+    stats = payload.get("stats")
+    source_bytes = stats.get("bytes_downloaded") if isinstance(stats, dict) else None
+    if isinstance(source_bytes, int) and not isinstance(source_bytes, bool) and source_bytes > 0:
+        metrics["source_bytes"] = source_bytes
+        metrics["byte_reduction"] = round(1 - markdown_bytes / source_bytes, 4)
+    return metrics
 
 
 def _benchmark_score(
@@ -2192,6 +2505,25 @@ def _aggregate_runs(
         }
     else:
         case["benchmark_score"] = None
+
+    token_metrics_runs = [
+        run["token_metrics"] for run in successful if isinstance(run.get("token_metrics"), dict)
+    ]
+    if token_metrics_runs:
+        total_tokens = [int(metrics.get("total_tokens") or 0) for metrics in token_metrics_runs]
+        page_counts = [int(metrics.get("page_count") or 0) for metrics in token_metrics_runs]
+        tokens_per_page = [float(metrics.get("tokens_per_page") or 0.0) for metrics in token_metrics_runs]
+        case["token_metrics"] = {
+            **token_metrics_runs[0],
+            "total_tokens": _median_int(total_tokens),
+            "page_count": _median_int(page_counts),
+            "tokens_per_page": round(median(tokens_per_page), 1),
+            "tokens_per_page_min": round(min(tokens_per_page), 1),
+            "tokens_per_page_max": round(max(tokens_per_page), 1),
+            "tokens_per_page_runs": [round(value, 1) for value in tokens_per_page],
+        }
+    else:
+        case["token_metrics"] = None
 
     if not successful:
         case["status"] = "failed"
@@ -2973,10 +3305,12 @@ def _zero_dollar_escalation_suggestions(target_results: dict[str, dict[str, Any]
         if class_name == "complete_with_local_browser":
             suggestions.append(_local_browser_escalation(target_id, result))
         elif class_name == "requires_provider":
+            suggestions.append(_archive_escalation(target_id, result))
             suggestions.append(_provider_escalation(target_id, result))
         elif class_name == "requires_cloud_browser":
             suggestions.append(_cloud_browser_escalation(target_id, result))
         elif class_name == "partial_for_0":
+            suggestions.append(_archive_escalation(target_id, result))
             suggestions.append(_local_discovery_escalation(target_id, result))
         elif class_name == "blocked_by_policy":
             suggestions.append(_policy_escalation(target_id, result))
@@ -3026,6 +3360,43 @@ def _local_discovery_escalation(target_id: str, result: dict[str, Any]) -> dict[
                 "top:10",
                 "-o",
                 f"./packs/{target_id}-local",
+            ),
+        ],
+        "estimated_paid_request_count": 0,
+        "estimated_paid_cost_usd": 0.0,
+        "paid_capable": False,
+    }
+
+
+def _archive_escalation(target_id: str, result: dict[str, Any]) -> dict[str, Any]:
+    url = _target_url(result)
+    archive_dir = f"./packs/{target_id}-archives"
+    return {
+        "target_id": target_id,
+        "action": "try_archive_discovery",
+        "summary": "Replay free Wayback CDX and Common Crawl index snapshots before paid providers.",
+        "commands": [
+            _command(
+                "docpull",
+                "discover",
+                "scan",
+                url,
+                "--source",
+                "wayback",
+                "--source",
+                "commoncrawl",
+                "-o",
+                archive_dir,
+            ),
+            _command(
+                "docpull",
+                "discover",
+                "fetch",
+                archive_dir,
+                "--select",
+                "top:10",
+                "-o",
+                f"./packs/{target_id}-archive-pack",
             ),
         ],
         "estimated_paid_request_count": 0,
@@ -3382,9 +3753,9 @@ def _markdown_report(report: dict[str, Any]) -> str:
         "",
         (
             "| Target | Case | Workflow | Wall seconds | Benchmark score | "
-            "Pack score | Records | Estimated cost |"
+            "Pack score | Records | Tokens/page | Estimated cost |"
         ),
-        "| --- | --- | --- | ---: | ---: | ---: | ---: | ---: |",
+        "| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |",
     ]
     for case in report["cases"]:
         score = case.get("pack_score")
@@ -3415,6 +3786,7 @@ def _markdown_report(report: dict[str, Any]) -> str:
             f"{benchmark_score} | "
             f"{score_value} | "
             f"{record_count} | "
+            f"{_case_tokens_per_page_text(case)} | "
             f"{cost_text} |"
         )
     heatmap = _matrix_heatmap_markdown(report)
@@ -3600,6 +3972,21 @@ def _case_wall_seconds_text(case: dict[str, Any]) -> str:
         and seconds_min != seconds_max
     ):
         text += f" [{seconds_min}–{seconds_max}]"
+    return text
+
+
+def _case_tokens_per_page_text(case: dict[str, Any]) -> str:
+    metrics = case.get("token_metrics")
+    if not isinstance(metrics, dict):
+        return ""
+    value = metrics.get("tokens_per_page")
+    if not isinstance(value, int | float) or isinstance(value, bool):
+        return ""
+    text = f"{float(value):.1f}"
+    value_min = metrics.get("tokens_per_page_min")
+    value_max = metrics.get("tokens_per_page_max")
+    if isinstance(value_min, int | float) and isinstance(value_max, int | float) and value_min != value_max:
+        text += f" [{value_min}–{value_max}]"
     return text
 
 

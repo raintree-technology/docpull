@@ -269,6 +269,13 @@ def run_extract_cli(argv: list[str] | None = None) -> int:
     parser.add_argument("target")
     parser.add_argument("--schema", type=Path)
     parser.add_argument("--preset", choices=["brand", "product", "styleguide"])
+    parser.add_argument(
+        "--mode",
+        choices=["deterministic", "llm"],
+        default="deterministic",
+        help="deterministic (default, local, $0) or llm (opt-in BYOK, needs ANTHROPIC_API_KEY and --budget)",
+    )
+    parser.add_argument("--model", help="Model name for --mode llm (default: DOCPULL_LLM_MODEL or built-in).")
     args = parser.parse_args(argv)
     return _print_result(
         lambda: extract_target(
@@ -278,6 +285,9 @@ def run_extract_cli(argv: list[str] | None = None) -> int:
             output_dir=args.output_dir,
             policy=_policy(args.policy),
             dry_run=args.dry_run,
+            mode=args.mode,
+            model=args.model,
+            budget=args.budget,
         ),
         json_output=args.json_output,
         label="Extract",
@@ -744,10 +754,12 @@ async def _acquire_crawl_candidates(
                 fallback_reason="core_crawl_shallow",
             )
     else:
+        # Sitemaps and navigation carry the discovery weight; llms.txt adoption
+        # is still sparse, so it stays as a bonus signal rather than the lead.
         for route, source in (
-            ("llms_txt", "llms"),
             ("sitemaps", "sitemaps"),
             ("docs_nav", "links"),
+            ("llms_txt", "llms"),
             ("openapi_refs", "openapi"),
             ("github_docs_tree", "github"),
         ):
@@ -1553,9 +1565,14 @@ def extract_target(
     output_dir: Path,
     policy: PolicyConfig,
     dry_run: bool = False,
+    mode: str = "deterministic",
+    model: str | None = None,
+    budget: float | None = None,
 ) -> dict[str, Any]:
     if bool(schema_path) == bool(preset):
         raise FreeCoreError("Use exactly one of --schema or --preset")
+    if mode == "llm" and preset is not None:
+        raise FreeCoreError("--mode llm applies to --schema extraction, not presets")
     if dry_run:
         output_dir.mkdir(parents=True, exist_ok=True)
         return {"schema_version": FREE_CORE_SCHEMA_VERSION, "workflow": "extract", "status": "dry_run"}
@@ -1567,7 +1584,15 @@ def extract_target(
         payload = build_styleguide_pack(target, output_dir=output_dir, policy=policy)
     else:
         assert schema_path is not None
-        payload = extract_schema(target, schema_path=schema_path, output_dir=output_dir, policy=policy)
+        payload = extract_schema(
+            target,
+            schema_path=schema_path,
+            output_dir=output_dir,
+            policy=policy,
+            mode=mode,
+            model=model,
+            budget=budget,
+        )
     _write_extraction_basis(output_dir, target)
     _write_validation_report(output_dir, payload)
     _publish_if_pack_readable(output_dir)

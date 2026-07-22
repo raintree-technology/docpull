@@ -7,6 +7,7 @@ import hashlib
 import json
 import re
 from collections import Counter
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -17,6 +18,7 @@ from rich.markup import escape
 from .time_utils import utc_now_iso
 
 EVAL_GRADE_SCHEMA_VERSION = 3
+FRESHDOCS_GRADERS = ("deterministic", "llm", "hybrid")
 DEFAULT_EVAL_TYPES = ("current-context-qa", "version-drift", "citation", "coverage-aware")
 LEGACY_EVAL_TYPE_ALIASES = {"current-docs-qa": "current-context-qa"}
 _KNOWN_EVAL_TYPES = frozenset((*DEFAULT_EVAL_TYPES, *LEGACY_EVAL_TYPE_ALIASES))
@@ -610,8 +612,33 @@ def freshdocs_bench(
     output: Path | None = None,
     markdown_path: Path | None = None,
     limit: int = 50,
+    grader: str = "deterministic",
+    judge_client: Callable[[str], str] | None = None,
 ) -> dict[str, Any]:
-    """Write a local FreshDocs Bench report for one eval-grade pack."""
+    """Write a local FreshDocs Bench report for one eval-grade pack.
+
+    ``grader`` selects how predictions are scored:
+
+    * ``deterministic`` (default): the existing claim/citation rubric only.
+    * ``llm``: the key-gated LLM judge grades every prediction; a task the
+      judge could not grade (malformed verdict or transport error) keeps its
+      deterministic result as a backstop. If the judge is skipped entirely
+      (no ``ANTHROPIC_API_KEY`` and no injected ``judge_client``), grading
+      falls back to deterministic and ``summary.llm_grader.status`` records
+      ``skipped_no_api_key``.
+    * ``hybrid``: deterministic first; the LLM judge grades only the tasks
+      that failed deterministically, and a task passes when either grader
+      passes it (catches correct-but-differently-phrased answers).
+
+    ``summary.pass_rate`` always reports the final rate. When an LLM grader
+    mode is requested the summary additively gains ``pass_rate_deterministic``,
+    ``pass_rate_final`` (same value as ``pass_rate``), and ``llm_grader``, and
+    the payload gains per-task ``grader_verdicts``. ``judge_client`` is an
+    injection point for tests; it receives the judge prompt and returns the
+    raw model text.
+    """
+    if grader not in FRESHDOCS_GRADERS:
+        raise EvalGradeError(f"Unsupported grader: {grader}. Expected one of: {', '.join(FRESHDOCS_GRADERS)}")
     pack_dir = pack_dir.resolve()
     _require_pack(pack_dir)
     eval_dir = pack_dir / "evals"
@@ -642,29 +669,52 @@ def freshdocs_bench(
         for task in tasks
         if isinstance(task, dict)
     ]
+    deterministic_passed_by_id = {str(item["id"]): bool(item["passed"]) for item in graded}
+    llm_grader: dict[str, Any] | None = None
+    grader_verdicts: dict[str, dict[str, Any]] = {}
+    if grader in {"llm", "hybrid"}:
+        llm_grader, grader_verdicts = _apply_llm_grader(
+            grader,
+            tasks=tasks,
+            graded=graded,
+            prediction_by_id=prediction_by_id,
+            hidden_by_id=hidden_by_id,
+            judge_client=judge_client,
+        )
     graded_with_predictions = [item for item in graded if item["status"] != "missing_prediction"]
     passed = sum(1 for item in graded_with_predictions if item["passed"])
     report_path = (output or (pack_dir / "freshdocs.report.json")).resolve()
     markdown_output = (markdown_path or (pack_dir / "FRESHDOCS_BENCH.md")).resolve()
+    summary: dict[str, Any] = {
+        "task_count": len(tasks),
+        "hidden_answer_count": len(hidden_answers),
+        "prediction_count": len(predictions),
+        "graded_prediction_count": len(graded_with_predictions),
+        "passed_count": passed,
+        "pass_rate": (passed / len(graded_with_predictions)) if graded_with_predictions else None,
+        "citation_requirement_count": sum(
+            len(task.get("citation_requirements") or []) for task in tasks if isinstance(task, dict)
+        ),
+        "source_hash_requirement_count": sum(
+            len(task.get("expected_source_hashes") or []) for task in tasks if isinstance(task, dict)
+        ),
+        "grader": grader,
+        "generated_missing_evals": generated is not None,
+    }
+    if grader != "deterministic":
+        deterministic_passed = sum(
+            1 for item in graded_with_predictions if deterministic_passed_by_id.get(str(item["id"]), False)
+        )
+        summary["pass_rate_deterministic"] = (
+            (deterministic_passed / len(graded_with_predictions)) if graded_with_predictions else None
+        )
+        summary["pass_rate_final"] = summary["pass_rate"]
+        summary["llm_grader"] = llm_grader
     payload = {
         "schema_version": EVAL_GRADE_SCHEMA_VERSION,
         "generated_at": utc_now_iso(),
         "pack_dir": str(pack_dir),
-        "summary": {
-            "task_count": len(tasks),
-            "hidden_answer_count": len(hidden_answers),
-            "prediction_count": len(predictions),
-            "graded_prediction_count": len(graded_with_predictions),
-            "passed_count": passed,
-            "pass_rate": (passed / len(graded_with_predictions)) if graded_with_predictions else None,
-            "citation_requirement_count": sum(
-                len(task.get("citation_requirements") or []) for task in tasks if isinstance(task, dict)
-            ),
-            "source_hash_requirement_count": sum(
-                len(task.get("expected_source_hashes") or []) for task in tasks if isinstance(task, dict)
-            ),
-            "generated_missing_evals": generated is not None,
-        },
+        "summary": summary,
         "artifacts": {
             "tasks_public": _artifact_ref(pack_dir, tasks_path),
             "answers_hidden": _artifact_ref(pack_dir, hidden_path),
@@ -673,6 +723,8 @@ def freshdocs_bench(
         },
         "results": graded,
     }
+    if grader != "deterministic":
+        payload["grader_verdicts"] = grader_verdicts
     _write_json(report_path, payload)
     markdown_output.write_text(_freshdocs_markdown(payload), encoding="utf-8")
     return payload
@@ -692,6 +744,15 @@ def run_freshdocs_cli(argv: list[str] | None = None) -> int:
     bench.add_argument("--output", "-o", type=Path, help="Report JSON output path")
     bench.add_argument("--markdown", type=Path, help="Markdown report output path")
     bench.add_argument("--limit", type=int, default=50, help="Evalgen limit when eval files are missing")
+    bench.add_argument(
+        "--grader",
+        choices=list(FRESHDOCS_GRADERS),
+        default="deterministic",
+        help=(
+            "Prediction grader: deterministic (default), llm (LLM judge, needs ANTHROPIC_API_KEY), "
+            "or hybrid (LLM judge re-grades deterministic failures)"
+        ),
+    )
     bench.add_argument("--json", action="store_true", dest="json_output", help="Print JSON summary")
     args = parser.parse_args(argv)
     console = Console()
@@ -705,6 +766,7 @@ def run_freshdocs_cli(argv: list[str] | None = None) -> int:
                 output=args.output,
                 markdown_path=args.markdown,
                 limit=args.limit,
+                grader=args.grader,
             )
         else:  # pragma: no cover - guarded by argparse
             parser.error(f"Unknown command: {args.command}")
@@ -927,6 +989,58 @@ def grade(answer: str, task: dict) -> dict:
 '''
 
 
+def _apply_llm_grader(
+    grader: str,
+    *,
+    tasks: list[dict[str, Any]],
+    graded: list[dict[str, Any]],
+    prediction_by_id: dict[str, dict[str, Any]],
+    hidden_by_id: dict[str, dict[str, Any]],
+    judge_client: Callable[[str], str] | None,
+) -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
+    """Fuse LLM-judge verdicts into deterministically graded results, in place.
+
+    ``llm`` re-grades every graded task; ``hybrid`` grades only deterministic
+    failures and a task passes when either grader passes it. Ungraded judge
+    verdicts never change a deterministic result (deterministic backstop).
+    """
+    from .judge import judge_qa_answers
+
+    task_by_id = {str(task.get("id") or ""): task for task in tasks if isinstance(task, dict)}
+    judge_ids = [
+        str(item["id"])
+        for item in graded
+        if item["status"] == "graded" and (grader == "llm" or not item["passed"])
+    ]
+    judge_tasks = [task_by_id[task_id] for task_id in judge_ids if task_id in task_by_id]
+    qa_result = judge_qa_answers(judge_tasks, prediction_by_id, hidden_by_id, client=judge_client)
+    if qa_result.skipped:
+        return (
+            {"status": "skipped_no_api_key", "reason": qa_result.skip_reason, "model": qa_result.model},
+            {},
+        )
+    grader_verdicts = {str(verdict["task_id"]): verdict for verdict in qa_result.verdicts}
+    for item in graded:
+        if item["status"] != "graded":
+            continue
+        item["passed_deterministic"] = bool(item["passed"])
+        verdict = grader_verdicts.get(str(item["id"]))
+        correct = verdict.get("correct") if verdict else None
+        if not isinstance(correct, bool):
+            continue
+        item["passed"] = correct if grader == "llm" else bool(item["passed"] or correct)
+        item["score"] = 1.0 if item["passed"] else 0.0
+    llm_grader = {
+        "status": "completed",
+        "model": qa_result.model,
+        "graded_count": qa_result.graded_count,
+        "correct_count": qa_result.correct_count,
+        "ungraded_count": qa_result.ungraded_count,
+        "accuracy": qa_result.accuracy,
+    }
+    return llm_grader, grader_verdicts
+
+
 def _grade_prediction(
     task: dict[str, Any],
     prediction: dict[str, Any] | None,
@@ -995,6 +1109,15 @@ def _freshdocs_markdown(payload: dict[str, Any]) -> str:
         f"- Citation requirements: `{summary.get('citation_requirement_count', 0)}`",
         f"- Source hash requirements: `{summary.get('source_hash_requirement_count', 0)}`",
     ]
+    if summary.get("grader") not in (None, "deterministic"):
+        llm_grader = _dict_value(summary.get("llm_grader"))
+        lines.extend(
+            [
+                f"- Grader: `{summary.get('grader')}`",
+                f"- Deterministic pass rate: `{summary.get('pass_rate_deterministic')}`",
+                f"- LLM grader status: `{llm_grader.get('status', 'unknown')}`",
+            ]
+        )
     if summary.get("generated_missing_evals"):
         lines.append("- Eval files were generated because none were present.")
     return "\n".join(lines).rstrip() + "\n"

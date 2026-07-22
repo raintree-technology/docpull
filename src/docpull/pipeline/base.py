@@ -63,6 +63,13 @@ class PageContext:
     etag: str | None = None
     last_modified: str | None = None
 
+    # Raw response capture for WARC output. Populated by FetchStep only when
+    # WARC output is enabled, and snapshotted before ConvertStep can mutate
+    # ctx.html, so the archived bytes are exactly what the server sent.
+    raw_response_headers: dict[str, str] | None = None
+    raw_content: bytes | None = field(default=None, repr=False)
+    warc_record_id: str | None = None
+
     # Framework detection and LLM-oriented output
     source_type: str | None = None
     chunks: list[object] = field(default_factory=list)

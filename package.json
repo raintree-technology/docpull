@@ -19,7 +19,8 @@
     "postcss": "^8.5.10"
   },
   "workspaces": [
-    "mcp"
+    "mcp",
+    "sdk/js"
   ],
   "engines": {
     "node": "24.x"

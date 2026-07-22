@@ -14,6 +14,7 @@ class SkipReason(str, Enum):
     """Reasons for skipping a URL during fetch."""
 
     ROBOTS_DISALLOWED = "robots_disallowed"
+    AI_OPTOUT = "ai_optout"
     ALREADY_FETCHED = "already_fetched"
     CACHE_UNCHANGED = "cache_unchanged"
     INVALID_CONTENT_TYPE = "invalid_content_type"

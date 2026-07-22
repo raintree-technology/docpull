@@ -1912,12 +1912,12 @@
     }
   },
   "environment_label": "local",
-  "previous_sha256": "6cf972022da3ca80dbcd757addafead9aec2261fa362f940f0c363002919f9a0",
-  "protocol_sha256": "f22d41f3b5df7c1a9f4d9cc5a61af98b513d68fbdec3ba49aea5aefda1385278",
-  "reason": "scorer v4 and portable report v3 integrity remediation",
+  "previous_sha256": "dc9dd194dd7697d9042808fc6d3dd4d64e1a1834d361b5eb22b8aa90c04a384e",
+  "protocol_sha256": "2e5ffbea044154e4e2e4f196cd4d2d2910228853ac1706afa167bb11fb2315eb",
+  "reason": "scorer v5 token economics diagnostic metrics",
   "schema_version": 2,
-  "source_report_sha256": "b4eb08033405283fb15795c09f12e84c2f077c44daeac8628d918f30bc8d7d88",
+  "source_report_sha256": "24c0b2e8b38a25b65f5ee0b5dcc85d9aa0d92d58ee05899f896053e64dac26b5",
   "suite_sha256": "21ea6cca08e27dcb7f52d1ebc6b38f969949240576ac9b6a1b13a1aa3374d639",
   "system": "fixture",
-  "updated_at": "2026-07-15T04:57:34.843445+00:00"
+  "updated_at": "2026-07-22T03:30:30.077676+00:00"
 }

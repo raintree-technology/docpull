@@ -232,6 +232,11 @@ def default_route_steps(
         RouteStep("direct_http", "available", detail="fetch public HTTPS source directly"),
         RouteStep("sitemap_link_discovery", "available", detail="use sitemap and static links"),
         RouteStep("embedded_data_extraction", "available", detail="use framework/static page data"),
+        RouteStep(
+            "archive_fallback",
+            "available",
+            detail="replay Wayback CDX and Common Crawl index snapshots at zero cost",
+        ),
     ]
     steps.append(
         RouteStep(
