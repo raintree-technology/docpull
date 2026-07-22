@@ -1302,7 +1302,7 @@ wheels = [
 
 [[package]]
 name = "docpull"
-version = "6.4.0"
+version = "6.5.0"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
@@ -1390,6 +1390,9 @@ pdf = [
 presidio = [
     { name = "presidio-analyzer" },
 ]
+provenance = [
+    { name = "cryptography" },
+]
 proxy = [
     { name = "aiohttp-socks" },
 ]
@@ -1417,6 +1420,7 @@ requires-dist = [
     { name = "beautifulsoup4", specifier = ">=4.12.0" },
     { name = "cryptography", marker = "extra == 'all'", specifier = ">=48.0.1" },
     { name = "cryptography", marker = "extra == 'mcp'", specifier = ">=48.0.1" },
+    { name = "cryptography", marker = "extra == 'provenance'", specifier = ">=48.0.1" },
     { name = "defusedxml", specifier = ">=0.7.1" },
     { name = "e2b", marker = "extra == 'all'", specifier = ">=2.0.0" },
     { name = "e2b", marker = "extra == 'e2b'", specifier = ">=2.0.0" },
@@ -1426,8 +1430,8 @@ requires-dist = [
     { name = "markitdown", extras = ["docx", "pdf"], marker = "extra == 'all'", specifier = ">=0.1.0" },
     { name = "markitdown", extras = ["docx", "pdf"], marker = "extra == 'markitdown'", specifier = ">=0.1.0" },
     { name = "markitdown", extras = ["docx", "pdf"], marker = "extra == 'parse'", specifier = ">=0.1.0" },
-    { name = "mcp", marker = "extra == 'all'", specifier = ">=1.0.0" },
-    { name = "mcp", marker = "extra == 'mcp'", specifier = ">=1.0.0" },
+    { name = "mcp", marker = "extra == 'all'", specifier = ">=1.28.1" },
+    { name = "mcp", marker = "extra == 'mcp'", specifier = ">=1.28.1" },
     { name = "msgpack", marker = "extra == 'dev'", specifier = ">=1.2.1" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.0.0" },
     { name = "pip-audit", marker = "extra == 'dev'", specifier = ">=2.0.0" },
@@ -1475,7 +1479,7 @@ requires-dist = [
     { name = "uvicorn", marker = "extra == 'all'", specifier = ">=0.30.0" },
     { name = "uvicorn", marker = "extra == 'serve'", specifier = ">=0.30.0" },
 ]
-provides-extras = ["proxy", "normalize", "trafilatura", "tokens", "mcp", "serve", "parquet", "markitdown", "unstructured", "pdf", "parse", "presidio", "e2b", "llm", "all", "dev"]
+provides-extras = ["proxy", "normalize", "trafilatura", "tokens", "mcp", "serve", "parquet", "markitdown", "unstructured", "pdf", "parse", "presidio", "provenance", "e2b", "llm", "all", "dev"]
 
 [[package]]
 name = "e2b"
