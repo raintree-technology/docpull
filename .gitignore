@@ -52,6 +52,9 @@ cover/
 # Local audit artifacts
 audit/
 
+# Benchmark run outputs may contain extracted document text.
+bench/runs/
+
 # Translations
 *.mo
 *.pot
