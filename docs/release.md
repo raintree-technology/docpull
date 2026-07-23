@@ -56,10 +56,15 @@ make release-publish VERSION=6.0.0
 
 This verifies `origin/main` has the requested `pyproject.toml` version, puts
 `vX.Y.Z` on the merged `origin/main` commit, and pushes the tag to start the
-PyPI workflow. After the PyPI trusted-publish step succeeds on a tag push, the
-workflow creates or updates the GitHub Release for that tag and marks it as the
-latest release. It uses `docs/release-post-vX.Y.md` when present and otherwise
-falls back to generated notes.
+PyPI and npm workflows. After the PyPI trusted-publish step succeeds on a tag
+push, the workflow creates or updates the GitHub Release for that tag and marks
+it as the latest release. The npm workflow publishes
+`@raintree-technology/docpull-sdk` with provenance when `sdk/js/package.json`
+has the same version. It uses no npm token: configure npm trusted publishing
+for organization `raintree-technology`, repository `docpull`, and workflow
+`publish-sdk.yml` before the next version is released. The GitHub Release uses
+`docs/release-post-vX.Y.md` when present and otherwise falls back to generated
+notes.
 
 Verify both public release surfaces:
 
@@ -70,6 +75,7 @@ import json, urllib.request
 with urllib.request.urlopen("https://pypi.org/pypi/docpull/json", timeout=20) as r:
     print(json.load(r)["info"]["version"])
 PY
+npm view @raintree-technology/docpull-sdk version
 ```
 
 The helper refuses to move an existing remote tag by default.
@@ -88,6 +94,7 @@ the merged `main` commit:
 
 ```bash
 make release-dispatch VERSION=6.0.0
+gh workflow run publish-sdk.yml --ref main -f version=6.0.0
 ```
 
 The workflow refuses manual dispatch from any branch other than `main`, and the
