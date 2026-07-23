@@ -3,7 +3,7 @@
 docpull writes context packs to disk: `corpus.manifest.json`,
 `documents.ndjson` (or `documents.jsonl`), Markdown source files, and
 sidecars. This page covers the consumers that read those packs directly:
-the `@docpull/sdk` TypeScript package and the Python loaders for LangChain
+the `@raintree-technology/docpull-sdk` TypeScript package and the Python loaders for LangChain
 and LlamaIndex. All of them read local files only; none of them touch the
 network.
 
@@ -56,19 +56,19 @@ deterministic. Both classes are also importable from
 `docpull.integrations` directly; the framework import happens lazily, so
 importing the module never requires the framework.
 
-## JavaScript/TypeScript: @docpull/sdk
+## JavaScript/TypeScript: @raintree-technology/docpull-sdk
 
 The SDK lives in `sdk/js` and ships typed readers for the v3 pack contract
 plus a thin wrapper around the `docpull` CLI.
 
 ```bash
-bun add @docpull/sdk   # or: npm install @docpull/sdk
+bun add @raintree-technology/docpull-sdk   # or: npm install @raintree-technology/docpull-sdk
 ```
 
 ### Read a pack
 
 ```ts
-import { readCorpusManifest, readDocuments, readPack } from "@docpull/sdk";
+import { readCorpusManifest, readDocuments, readPack } from "@raintree-technology/docpull-sdk";
 
 const manifest = await readCorpusManifest("./packs/example");
 console.log(manifest.record_count, manifest.records[0]?.output_path);
@@ -94,7 +94,7 @@ so nothing is shell-interpolated. Non-zero exits reject with a
 `DocpullCliError` carrying `exitCode` and `stderr`.
 
 ```ts
-import { fetchToPack, runDocpull } from "@docpull/sdk";
+import { fetchToPack, runDocpull } from "@raintree-technology/docpull-sdk";
 
 // docpull https://example.com/docs -o ./packs/example --budget 0
 await fetchToPack("https://example.com/docs", "./packs/example", { budget: 0 });

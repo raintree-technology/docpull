@@ -1,5 +1,5 @@
 {
-  "name": "@docpull/sdk",
+  "name": "@raintree-technology/docpull-sdk",
   "version": "6.5.0",
   "description": "TypeScript SDK for reading docpull context packs and running the docpull CLI",
   "license": "MIT",
