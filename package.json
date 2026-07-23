@@ -11,7 +11,7 @@
     "lint": "uv run --locked --extra dev python scripts/sync_release_metadata.py --check && uv run --locked --extra dev python scripts/generate_contract_schemas.py --check && uv run --locked --extra dev python -m ruff check . && uv run --locked --extra dev python -m ruff format --check .",
     "lint:fix": "uv run --locked --extra dev python -m ruff check . --fix && uv run --locked --extra dev python -m ruff format .",
     "format": "uv run --locked --extra dev python -m ruff format .",
-    "typecheck": "uv run --locked --extra dev python -m mypy src && bun run --cwd mcp typecheck",
+    "typecheck": "uv run --locked --all-extras python -m mypy src && bun run --cwd mcp typecheck",
     "validate": "bun run lint && bun run typecheck && bun run test",
     "validate:full": "bun run validate && bun run build"
   },
