@@ -20,7 +20,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 # The user-agent token that scoped directives must name to apply to us.
-USER_AGENT_TOKEN = "docpull"
+USER_AGENT_TOKEN = "docpull"  # nosec B105
 
 # Directives that signal an AI/TDM reuse opt-out.
 AI_OPTOUT_DIRECTIVES = frozenset({"noai", "noimageai"})

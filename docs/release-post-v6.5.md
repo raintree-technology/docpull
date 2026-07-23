@@ -5,7 +5,7 @@ source opt-out handling, WARC export, and explicit provenance records. Pack
 authors can create digest manifests, optionally sign them with Ed25519, and
 verify both content and signature state before an agent consumes the pack.
 
-The new `@docpull/sdk` package reads DocPull packs from Node or Bun and invokes
+The new `@raintree-technology/docpull-sdk` package reads DocPull packs from Node or Bun and invokes
 the local CLI without a shell. Python integrations for LangChain and
 LlamaIndex expose the same cited local artifacts without changing DocPull's
 browser-free and budget-guarded defaults.

@@ -2175,7 +2175,8 @@ def _failed_case(
             "artifact_size_bytes": _dir_size(output_dir),
             "pack_score": None,
             "benchmark_score": None,
-            "token_metrics": None,
+            # Report data, not a credential.
+            "token_metrics": None,  # nosec B105
             "source_score_count": 0,
         }
     )

@@ -1,4 +1,4 @@
-# @docpull/sdk
+# @raintree-technology/docpull-sdk
 
 TypeScript SDK for [docpull](https://github.com/raintree-technology/docpull).
 It reads local context packs (the v3 pack contract) and runs the `docpull`
@@ -8,13 +8,13 @@ requires the `docpull` CLI on PATH.
 ## Install
 
 ```bash
-bun add @docpull/sdk   # or: npm install @docpull/sdk
+bun add @raintree-technology/docpull-sdk   # or: npm install @raintree-technology/docpull-sdk
 ```
 
 ## Read a pack
 
 ```ts
-import { readCorpusManifest, readDocuments, readPack } from "@docpull/sdk";
+import { readCorpusManifest, readDocuments, readPack } from "@raintree-technology/docpull-sdk";
 
 const manifest = await readCorpusManifest("./packs/example");
 console.log(manifest.record_count, manifest.records[0]?.url);
@@ -37,7 +37,7 @@ unknown fields as forward-compatible metadata.
 ## Run the CLI
 
 ```ts
-import { fetchToPack, runDocpull } from "@docpull/sdk";
+import { fetchToPack, runDocpull } from "@raintree-technology/docpull-sdk";
 
 // docpull https://example.com/docs -o ./packs/example --budget 0
 await fetchToPack("https://example.com/docs", "./packs/example", { budget: 0 });
