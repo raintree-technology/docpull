@@ -143,6 +143,33 @@ jobs:
       - name: Run mypy
         run: uv run --locked python -m mypy src
 
+  # The mcp package is covered by the mcp-security job in security.yml. Without
+  # this job the published JS SDK would only ever be tested by publish-sdk.yml,
+  # i.e. after a release tag is already cut.
+  sdk-js:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+
+      - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db
+        with:
+          version: 2026.7.1
+          install: true
+          cache: true
+
+      - name: Install locked dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Run SDK tests
+        run: bun run --cwd sdk/js test
+
+      - name: Typecheck SDK
+        run: bun run --cwd sdk/js typecheck
+
   package:
     runs-on: ubuntu-24.04
     timeout-minutes: 30

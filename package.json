@@ -5,13 +5,13 @@
   "scripts": {
     "dev": "bun run --cwd mcp dev",
     "build": "uv run --locked --with-requirements requirements-release.txt python scripts/build_release.py --verify-reproducible --clean",
-    "test": "uv run --locked --all-extras python -m pytest -q && bun run --cwd mcp test",
+    "test": "uv run --locked --all-extras python -m pytest -q && bun run --cwd mcp test && bun run --cwd sdk/js test",
     "test:unit": "uv run --locked --all-extras python -m pytest -q",
     "test:e2e": "uv run --locked python scripts/real_feature_smoke.py --json",
     "lint": "uv run --locked --extra dev python scripts/sync_release_metadata.py --check && uv run --locked --extra dev python scripts/generate_contract_schemas.py --check && uv run --locked --extra dev python -m ruff check . && uv run --locked --extra dev python -m ruff format --check .",
     "lint:fix": "uv run --locked --extra dev python -m ruff check . --fix && uv run --locked --extra dev python -m ruff format .",
     "format": "uv run --locked --extra dev python -m ruff format .",
-    "typecheck": "uv run --locked --all-extras python -m mypy src && bun run --cwd mcp typecheck",
+    "typecheck": "uv run --locked --all-extras python -m mypy src && bun run --cwd mcp typecheck && bun run --cwd sdk/js typecheck",
     "validate": "bun run lint && bun run typecheck && bun run test",
     "validate:full": "bun run validate && bun run build"
   },
