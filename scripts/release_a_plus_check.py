@@ -17,6 +17,18 @@ from typing import Any
 
 SCORECARD_SCHEMA_VERSION = 1
 
+# Release gates need the pinned build/publish tooling from requirements-release.txt.
+# The project .venv deliberately does not carry twine or wheel, so run those gates
+# the same way `bun run build` and .github/workflows/publish.yml do.
+RELEASE_TOOLING_PREFIX = (
+    "uv",
+    "run",
+    "--locked",
+    "--with-requirements",
+    "requirements-release.txt",
+    "python",
+)
+
 AREAS = (
     "Core fetch/output",
     "v3 pack contract",
@@ -216,7 +228,10 @@ def _run_command_gates(
         ("pip_audit", [python, "-m", "pip_audit"], repo, 240, "required"),
         (
             "package_build",
-            [python, "scripts/build_release.py", "--verify-reproducible"],
+            # Matches the `bun run build` entry point: pinned release tooling from
+            # requirements-release.txt, and --clean so a checkout that already has
+            # dist/ artifacts from an earlier build still grades.
+            [*RELEASE_TOOLING_PREFIX, "scripts/build_release.py", "--verify-reproducible", "--clean"],
             repo,
             300,
             "required",
@@ -224,7 +239,7 @@ def _run_command_gates(
         (
             "twine_check",
             [
-                python,
+                *RELEASE_TOOLING_PREFIX,
                 "-c",
                 (
                     "import glob, subprocess, sys; files=glob.glob('dist/*'); "
