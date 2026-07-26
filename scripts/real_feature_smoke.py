@@ -1560,8 +1560,17 @@ class RealFeatureSmoke:
                     expected = set(PUBLIC_MCP_TOOLS)
                     assert names == expected, sorted(expected ^ names)
 
-                    async def call(name, args):
+                    called = set()
+
+                    async def call(name, args, allow_error=None):
+                        called.add(name)
                         result = await session.call_tool(name, args)
+                        if result.isError and allow_error:
+                            text = " ".join(
+                                getattr(item, "text", "") for item in result.content
+                            )
+                            assert allow_error in text, f"{name}: {result.content}"
+                            return result
                         assert not result.isError, f"{name}: {result.content}"
                         return result
 
@@ -1653,8 +1662,102 @@ class RealFeatureSmoke:
                                 "output": str(base_dir / "mcp-export" / "openai.jsonl"),
                             },
                         )
+
+                        await call("explain_routes", {"url": "https://example.com"})
+                        await call(
+                            "intelligence_bundle",
+                            {
+                                "pack_dir": pack_dir,
+                                "objective": "Summarize package context",
+                                "max_excerpts": 3,
+                            },
+                        )
+                        packs_root = base_dir / "mcp-packs"
+                        await call(
+                            "website_pack",
+                            {
+                                "url_or_domain": "https://example.com",
+                                "output_dir": str(packs_root / "website"),
+                                "max_pages": 1,
+                                "max_depth": 0,
+                            },
+                        )
+                        await call(
+                            "brand_pack",
+                            {
+                                "domain_or_url": "https://example.com",
+                                "output_dir": str(packs_root / "brand"),
+                                "max_pages": 1,
+                            },
+                        )
+                        await call(
+                            "product_pack",
+                            {
+                                "url_or_domain": "https://example.com",
+                                "output_dir": str(packs_root / "product"),
+                                "max_pages": 1,
+                            },
+                        )
+                        await call(
+                            "styleguide_pack",
+                            {
+                                "domain_or_url": "https://example.com",
+                                "output_dir": str(packs_root / "styleguide"),
+                                "max_stylesheets": 1,
+                            },
+                        )
+                        await call(
+                            "image_pack",
+                            {
+                                "url_or_pack": "https://example.com",
+                                "output_dir": str(packs_root / "image"),
+                                "max_assets": 2,
+                            },
+                        )
+                        await call(
+                            "policy_pack",
+                            {
+                                "domain_or_url": "https://example.com",
+                                "output_dir": str(packs_root / "policy"),
+                                "max_pages": 1,
+                            },
+                        )
+                        await call(
+                            "relationship_pack",
+                            {
+                                "source": "https://example.com",
+                                "output_dir": str(packs_root / "relationship"),
+                                "max_pages_per_source": 1,
+                            },
+                        )
+                        await call(
+                            "workflow_run",
+                            {
+                                "workflow": "website-pack",
+                                "value": "https://example.com",
+                                "output_dir": str(packs_root / "workflow"),
+                            },
+                        )
+                        # screenshot-pack launches a browser, so it stays behind the
+                        # explicit opt-out env var. Without it the tool must refuse,
+                        # and that refusal is the behaviour worth pinning here.
+                        await call(
+                            "screenshot_pack",
+                            {
+                                "url": "https://example.com",
+                                "output_dir": str(packs_root / "screenshot"),
+                            },
+                            allow_error=(
+                                None
+                                if os.environ.get("DOCPULL_RENDER_TRUSTED_BROWSER_TARGETS") == "1"
+                                else "DOCPULL_RENDER_TRUSTED_BROWSER_TARGETS=1"
+                            ),
+                        )
                     finally:
                         await call("remove_source", {"name": source_name, "delete_cache": True})
+
+                    uncalled = expected - called
+                    assert not uncalled, f"public MCP tools never called: {sorted(uncalled)}"
 
 
             asyncio.run(main())
@@ -1673,7 +1776,7 @@ class RealFeatureSmoke:
                 "1" if self.args.full_mcp else "0",
             ],
             cwd=self.repo,
-            timeout=360 if self.args.full_mcp else 90,
+            timeout=900 if self.args.full_mcp else 90,
         )
 
     def _project_lifecycle(self) -> None:
