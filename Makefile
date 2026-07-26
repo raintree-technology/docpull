@@ -93,21 +93,21 @@ benchmark:
 	DOCPULL_BENCHMARK_10K=1 $(PYTHON) -m pytest tests/benchmarks/test_10k_pages.py -v -s
 
 benchmark-quick:
-	$(PYTHON) -m docpull benchmark quick
+	$(PYTHON) -m docpull.benchmark quick
 
 benchmark-parallel:
-	$(PYTHON) -m docpull benchmark quick --provider parallel --max-estimated-cost 0.05
+	$(PYTHON) -m docpull.benchmark quick --provider parallel --max-estimated-cost 0.05
 
 benchmark-compare:
-	$(PYTHON) -m docpull benchmark quick --provider all --max-estimated-cost 0.10
+	$(PYTHON) -m docpull.benchmark quick --provider all --max-estimated-cost 0.10
 
 benchmark-matrix:
-	$(PYTHON) -m docpull benchmark quick --target-set provider-matrix --provider all \
+	$(PYTHON) -m docpull.benchmark quick --target-set provider-matrix --provider all \
 		--max-pages 8 --max-depth 1 --max-search-results 5 --extract-limit 2 \
 		--max-estimated-cost 0.10
 
 benchmark-raindrop:
-	$(PYTHON) -m docpull benchmark quick --target-set provider-matrix --provider all --trace raindrop \
+	$(PYTHON) -m docpull.benchmark quick --target-set provider-matrix --provider all --trace raindrop \
 		--max-pages 8 --max-depth 1 --max-search-results 5 --extract-limit 2 \
 		--max-estimated-cost 0.10
 
