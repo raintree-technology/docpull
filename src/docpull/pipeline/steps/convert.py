@@ -58,6 +58,28 @@ _FRONTMATTER_METADATA_KEYS: tuple[str, ...] = (
 # outline. Code fences are also excluded — see _extract_headings below.
 _HEADING_LINE_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*#*\s*$")
 
+_ACCESS_WALL_MARKERS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("bot_challenge", ("client challenge", "verify you are human", "checking your browser", "captcha")),
+    ("auth_wall", ("sign in to continue", "log in to continue", "authentication required")),
+    ("paywall", ("subscribe to continue", "subscription required", "purchase a subscription")),
+)
+
+
+def detect_access_wall(value: bytes | str) -> str | None:
+    """Return a stable category for a short challenge, login, or paywall response."""
+    text = value.decode("utf-8", errors="replace") if isinstance(value, bytes) else value
+    normalized = re.sub(r"\s+", " ", text).casefold()
+    if len(normalized) > 50_000:
+        return None
+    for category, markers in _ACCESS_WALL_MARKERS:
+        if any(marker in normalized for marker in markers):
+            return category
+    if "enable javascript" in normalized and any(
+        marker in normalized for marker in ("proceed", "continue", "challenge", "access")
+    ):
+        return "bot_challenge"
+    return None
+
 
 def _extract_headings(markdown: str, max_level: int = 2, limit: int = 12) -> list[str]:
     """Pull a flat list of top-level headings from converted Markdown.
@@ -236,6 +258,13 @@ class ConvertStep:
             return ctx
 
         try:
+            access_wall = detect_access_wall(ctx.html)
+            if access_wall is not None:
+                ctx.mark_failed(f"access_wall:{access_wall}")
+                if emit:
+                    emit(FetchEvent(type=EventType.FETCH_FAILED, url=ctx.url, error=ctx.error))
+                return ctx
+
             optout = self._check_meta_robots(ctx)
             if optout is not None:
                 reason = f"AI/TDM opt-out (meta robots: {', '.join(optout.matched)})"
@@ -300,6 +329,13 @@ class ConvertStep:
             # "Loading..." shell. Treat as empty if so.
             if looks_like_spa_output(markdown):
                 return self._handle_empty_content(ctx, emit)
+
+            access_wall = detect_access_wall(markdown)
+            if access_wall is not None:
+                ctx.mark_failed(f"access_wall:{access_wall}")
+                if emit:
+                    emit(FetchEvent(type=EventType.FETCH_FAILED, url=ctx.url, error=ctx.error))
+                return ctx
 
             markdown = clean_article_markdown(markdown, url=ctx.url, metadata=ctx.metadata)
             headings, heading_count = _heading_summary(markdown)

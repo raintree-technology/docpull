@@ -87,6 +87,15 @@ def test_boundary_scope_requires_a_predeclared_reason() -> None:
             rights=rights,
         )
 
+    boundary = CaseMetadata(
+        description="robots policy",
+        comparison_scope="boundary",
+        boundary_reason="robots_policy",
+        expected_outcome="typed_refusal",
+        rights=rights,
+    )
+    assert boundary.expected_outcome == "typed_refusal"
+
 
 def test_remote_subject_profile_hash_is_derived_from_snapshot() -> None:
     profile = {"endpoint": "/extract", "mode": "full"}

@@ -22,12 +22,14 @@ from .models import (
     PortableReport,
 )
 
-SliceType = Literal["overall", "scope", "split", "family"]
+SliceType = Literal["overall", "scope", "boundary_kind", "split", "family"]
 
 
-def compare_reports(paths: list[Path]) -> ComparisonReport:
+def compare_reports(paths: list[Path], *, equivalence_margin: float = 0.05) -> ComparisonReport:
     if len(paths) < 2:
         raise ValueError("comparison requires at least two reports")
+    if not 0 < equivalence_margin < 1:
+        raise ValueError("equivalence margin must be between zero and one")
     reports = [load_portable_report(path) for path in paths]
     first = reports[0].manifest
     for report in reports[1:]:
@@ -67,6 +69,22 @@ def compare_reports(paths: list[Path]) -> ComparisonReport:
                     )
                     for value in ("core", "boundary")
                 )
+                slices.extend(
+                    (
+                        "boundary_kind",
+                        value,
+                        [
+                            score
+                            for score in lane_scores
+                            if _boundary_kind(boundary_cases.get(score.case_id, [])) == value
+                        ],
+                    )
+                    for value in ("policy", "access")
+                    if any(
+                        _boundary_kind(boundary_cases.get(score.case_id, [])) == value
+                        for score in lane_scores
+                    )
+                )
             slices.extend(
                 ("split", value, [score for score in lane_scores if score.split == value])
                 for value in sorted({score.split for score in lane_scores})
@@ -88,7 +106,7 @@ def compare_reports(paths: list[Path]) -> ComparisonReport:
             )
             case_rows.extend(_case_rows(lane_scores, report, boundary_case_ids))
 
-    order = {"overall": 0, "scope": 1, "split": 2, "family": 3}
+    order = {"overall": 0, "scope": 1, "boundary_kind": 2, "split": 3, "family": 4}
     rows.sort(key=lambda row: (row.lane.value, order[row.slice_type], row.slice_value, row.system))
     case_rows.sort(key=lambda row: (row.lane.value, row.case_id, row.system))
     return ComparisonReport(
@@ -103,7 +121,8 @@ def compare_reports(paths: list[Path]) -> ComparisonReport:
         boundary_cases=boundary_cases,
         rows=rows,
         case_rows=case_rows,
-        pairwise=_holm_adjust(_pairwise_rows(case_rows)),
+        equivalence_margin=equivalence_margin,
+        pairwise=_holm_adjust(_pairwise_rows(case_rows, equivalence_margin=equivalence_margin)),
     )
 
 
@@ -122,6 +141,18 @@ def _comparison_row(
     passed_count = sum(pass_all.values())
     ci_low, ci_high = wilson_interval(passed_count, len(pass_all))
     completed_scores = [score for score in scores if score.completed]
+    selected_case_ids = set(by_case)
+    selected_observations = [item for item in report.observations if item.case_id in selected_case_ids]
+    quality_scores = [
+        score
+        for score in completed_scores
+        if next(
+            item.expected_outcome
+            for item in selected_observations
+            if item.case_id == score.case_id and item.trial_index == score.trial_index
+        )
+        == "extract"
+    ]
     completion_count = len(completed_scores)
     completion_low, completion_high = wilson_interval(completion_count, len(scores))
     family_rates = [
@@ -157,10 +188,11 @@ def _comparison_row(
         latency_comparable=latency_comparable,
         completion_ci95_low=completion_low,
         completion_ci95_high=completion_high,
-        quality_eligible_trials=completion_count,
+        quality_eligible_trials=len(quality_scores),
         quality_pass_rate_completed=(
-            mean(float(score.passed) for score in completed_scores) if completed_scores else 0
+            mean(float(score.passed) for score in quality_scores) if quality_scores else 0
         ),
+        contract_conformance_rate=mean(float(item.contract_conformant) for item in selected_observations),
     )
 
 
@@ -175,6 +207,8 @@ def _case_rows(
     output: list[ComparisonCaseRow] = []
     for case_id, items in by_case.items():
         first = items[0]
+        observations = [item for item in report.observations if item.case_id == case_id]
+        first_observation = observations[0]
         statuses = {item.status for item in items}
         status = next(iter(statuses)) if len(statuses) == 1 else "mixed"
         output.append(
@@ -185,6 +219,9 @@ def _case_rows(
                 family=first.family,
                 critical=first.critical,
                 comparison_scope="boundary" if case_id in boundary_case_ids else "core",
+                boundary_reason=first_observation.boundary_reason,
+                expected_outcome=first_observation.expected_outcome,
+                contract_conformance_rate=mean(float(item.contract_conformant) for item in observations),
                 system=report.manifest.system,
                 status=status,
                 trial_count=len(items),
@@ -199,7 +236,9 @@ def _case_rows(
     return output
 
 
-def _pairwise_rows(rows: list[ComparisonCaseRow]) -> list[PairwiseComparisonRow]:
+def _pairwise_rows(
+    rows: list[ComparisonCaseRow], *, equivalence_margin: float
+) -> list[PairwiseComparisonRow]:
     output: list[PairwiseComparisonRow] = []
     lanes = sorted({row.lane for row in rows}, key=lambda lane: lane.value)
     for lane in lanes:
@@ -207,6 +246,11 @@ def _pairwise_rows(rows: list[ComparisonCaseRow]) -> list[PairwiseComparisonRow]
         slices: list[tuple[SliceType, str]] = [("overall", "all")]
         if any(row.comparison_scope == "boundary" for row in lane_rows):
             slices.extend(("scope", value) for value in ("core", "boundary"))
+            slices.extend(
+                ("boundary_kind", value)
+                for value in ("policy", "access")
+                if any(_row_boundary_kind(row) == value for row in lane_rows)
+            )
         slices.extend(("split", value) for value in sorted({row.split for row in lane_rows}))
         slices.extend(("family", value) for value in sorted({row.family for row in lane_rows}))
         systems = sorted({row.system for row in lane_rows})
@@ -216,6 +260,7 @@ def _pairwise_rows(rows: list[ComparisonCaseRow]) -> list[PairwiseComparisonRow]
                 for row in lane_rows
                 if slice_type == "overall"
                 or (slice_type == "scope" and row.comparison_scope == slice_value)
+                or (slice_type == "boundary_kind" and _row_boundary_kind(row) == slice_value)
                 or (slice_type == "split" and row.split == slice_value)
                 or (slice_type == "family" and row.family == slice_value)
             ]
@@ -246,10 +291,32 @@ def _pairwise_rows(rows: list[ComparisonCaseRow]) -> list[PairwiseComparisonRow]
                 completion_b = sum(row.completed_trials for row in system_b_rows) / sum(
                     row.trial_count for row in system_b_rows
                 )
-                operationally_comparable = completion_a >= 0.95 and completion_b >= 0.95
+                boundary_slice = slice_type in {"scope", "boundary_kind"} and (
+                    slice_type == "boundary_kind" or slice_value == "boundary"
+                )
+                operationally_comparable = (
+                    min(
+                        mean(row.contract_conformance_rate for row in system_a_rows),
+                        mean(row.contract_conformance_rate for row in system_b_rows),
+                    )
+                    >= 0.95
+                    if boundary_slice
+                    else completion_a >= 0.95 and completion_b >= 0.95
+                )
                 delta_low, delta_high = paired_bootstrap_interval(
                     outcomes,
                     seed=f"{lane.value}:{slice_type}:{slice_value}:{system_a}:{system_b}",
+                )
+                equivalence_low, equivalence_high = paired_bootstrap_interval(
+                    outcomes,
+                    seed=f"equivalence:{lane.value}:{slice_type}:{slice_value}:{system_a}:{system_b}",
+                    lower_quantile=0.05,
+                    upper_quantile=0.95,
+                )
+                equivalent = (
+                    operationally_comparable
+                    and equivalence_low > -equivalence_margin
+                    and equivalence_high < equivalence_margin
                 )
                 output.append(
                     PairwiseComparisonRow(
@@ -267,7 +334,9 @@ def _pairwise_rows(rows: list[ComparisonCaseRow]) -> list[PairwiseComparisonRow]
                         exact_mcnemar_p_value=p_value,
                         holm_adjusted_p_value=p_value,
                         verdict=(
-                            "no_significant_difference"
+                            "equivalent_within_margin"
+                            if equivalent
+                            else "no_significant_difference"
                             if operationally_comparable
                             else "insufficient_operational_conformance"
                         ),
@@ -275,6 +344,10 @@ def _pairwise_rows(rows: list[ComparisonCaseRow]) -> list[PairwiseComparisonRow]
                         pass_rate_delta_ci95_low=delta_low,
                         pass_rate_delta_ci95_high=delta_high,
                         discordant_cases=a_only + b_only,
+                        equivalence_margin=equivalence_margin,
+                        equivalence_ci90_low=equivalence_low,
+                        equivalence_ci90_high=equivalence_high,
+                        equivalent=equivalent,
                     )
                 )
     return output
@@ -299,6 +372,18 @@ def _boundary_cases(reports: list[PortableReport]) -> dict[str, list[str]]:
     }
 
 
+def _boundary_kind(reasons: list[str]) -> str | None:
+    if "robots_policy" in reasons:
+        return "policy"
+    return "access" if reasons else None
+
+
+def _row_boundary_kind(row: ComparisonCaseRow) -> str | None:
+    if row.boundary_reason == "robots_policy":
+        return "policy"
+    return "access" if row.boundary_reason is not None else None
+
+
 def _holm_adjust(rows: list[PairwiseComparisonRow]) -> list[PairwiseComparisonRow]:
     if not rows:
         return rows
@@ -319,10 +404,13 @@ def _holm_adjust(rows: list[PairwiseComparisonRow]) -> list[PairwiseComparisonRo
             "a_better",
             "b_better",
             "no_significant_difference",
+            "equivalent_within_margin",
             "insufficient_operational_conformance",
         ]
         verdict = (
-            "no_significant_difference"
+            "equivalent_within_margin"
+            if row.equivalent
+            else "no_significant_difference"
             if row.operationally_comparable
             else "insufficient_operational_conformance"
         )
@@ -362,7 +450,12 @@ def exact_mcnemar(a_only: int, b_only: int) -> float:
 
 
 def paired_bootstrap_interval(
-    outcomes: list[tuple[bool, bool]], *, seed: str, resamples: int = 5000
+    outcomes: list[tuple[bool, bool]],
+    *,
+    seed: str,
+    resamples: int = 5000,
+    lower_quantile: float = 0.025,
+    upper_quantile: float = 0.975,
 ) -> tuple[float, float]:
     """Deterministic paired bootstrap interval for the pass-rate effect size."""
     if not outcomes:
@@ -378,7 +471,7 @@ def paired_bootstrap_interval(
         / count
         for _ in range(resamples)
     ]
-    return (percentile(deltas, 0.025), percentile(deltas, 0.975))
+    return (percentile(deltas, lower_quantile), percentile(deltas, upper_quantile))
 
 
 def comparison_markdown(report: ComparisonReport) -> str:
@@ -391,18 +484,20 @@ def comparison_markdown(report: ComparisonReport) -> str:
         "",
         "Every pass requires all lane assertions. No cross-lane composite or winner is computed.",
         "",
-        "| Lane | System | Cases | Ops | Quality (completed) | Strict trial pass | "
+        "| Lane | System | Cases | Ops | Quality (completed extracts) | Contract | Strict trial pass | "
         "pass@k | pass^k | Trial agreement | Checks | p50/p95 s | Provider spend |",
-        "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+        "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
     ]
     boundary_lanes = {row.lane for row in report.case_rows if row.comparison_scope == "boundary"}
     for row in report.rows:
-        if row.slice_type not in {"overall", "scope"}:
+        if row.slice_type not in {"overall", "scope", "boundary_kind"}:
             continue
         if row.slice_type == "overall" and row.lane in boundary_lanes:
             lane_label = f"{row.lane.value} (all)"
         elif row.slice_type == "scope":
             lane_label = f"{row.lane.value} ({row.slice_value})"
+        elif row.slice_type == "boundary_kind":
+            lane_label = f"{row.lane.value} (boundary: {row.slice_value})"
         else:
             lane_label = row.lane.value
         latency = f"{row.median_elapsed_seconds:.3f}/{row.p95_elapsed_seconds:.3f}"
@@ -412,7 +507,7 @@ def comparison_markdown(report: ComparisonReport) -> str:
         quality = f"{row.quality_pass_rate_completed:.1%}" if row.quality_eligible_trials else "N/A"
         lines.append(
             f"| {lane_label} | {row.system} | {row.case_count} | {row.completion_rate:.1%} | "
-            f"{quality} | {row.trial_pass_rate:.1%} | "
+            f"{quality} | {row.contract_conformance_rate:.1%} | {row.trial_pass_rate:.1%} | "
             f"{row.pass_any_trial_rate:.1%} | {row.pass_all_trials_rate:.1%} | "
             f"{row.trial_stability_rate:.1%} (k={repeat}) | {row.mean_required_check_rate:.1%} | "
             f"{latency} | ${row.accounted_cost_usd:.6f} |"
@@ -420,7 +515,9 @@ def comparison_markdown(report: ComparisonReport) -> str:
     lines.extend(
         [
             "",
-            "Quality (completed) is conditional on successful acquisition and must not be read as "
+            "Boundary contract success means the observed extract, typed refusal, or typed error "
+            "matched the predeclared outcome. Quality (completed extracts) is conditional on "
+            "successful acquisition and must not be read as "
             "quality on failed or unsupported inputs. Trial agreement can include consistently "
             "incorrect outcomes and is weak evidence when k is small.",
             "",
@@ -432,8 +529,10 @@ def comparison_markdown(report: ComparisonReport) -> str:
             "system recorded a robots-policy block. Boundary outcomes remain reported separately; "
             "the evaluator never bypasses robots or access controls.",
             "",
-            "Paired tests use exact McNemar p-values with Holm correction. A non-significant result "
-            "does not establish equivalence.",
+            "Paired tests use exact McNemar p-values with Holm correction. Equivalence is declared "
+            "only when the paired 90% interval is inside the predeclared "
+            f"±{report.equivalence_margin:.1%} margin; "
+            "a non-significant result alone does not establish equivalence.",
             "",
             "Holm correction is scoped to the compared systems within each declared slice; "
             "exploratory family slices do not dilute the overall hypothesis family.",
@@ -444,9 +543,12 @@ def comparison_markdown(report: ComparisonReport) -> str:
         ]
     )
     for pair in report.pairwise:
-        if pair.slice_type in {"overall", "scope"}:
+        if pair.slice_type in {"overall", "scope", "boundary_kind"}:
+            boundary_prefix = "boundary: " if pair.slice_type == "boundary_kind" else ""
             lane_label = (
-                pair.lane.value if pair.slice_type == "overall" else f"{pair.lane.value} ({pair.slice_value})"
+                pair.lane.value
+                if pair.slice_type == "overall"
+                else f"{pair.lane.value} ({boundary_prefix}{pair.slice_value})"
             )
             lines.append(
                 f"| {lane_label} | {pair.system_a} | {pair.system_b} | {pair.common_cases} | "

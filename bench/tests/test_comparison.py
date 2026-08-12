@@ -52,6 +52,9 @@ def test_comparison_is_lane_local_and_holm_corrected(tmp_path: Path) -> None:
         "policy",
     }
     assert all(row.holm_adjusted_p_value >= row.exact_mcnemar_p_value for row in comparison.pairwise)
+    comparable = [row for row in comparison.pairwise if row.operationally_comparable]
+    assert all(row.equivalent for row in comparable)
+    assert all(row.verdict == "equivalent_within_margin" for row in comparable)
     assert "No cross-lane composite" in comparison_markdown(comparison)
     assert "Provider spend" in comparison_markdown(comparison)
     assert "conditional on successful acquisition" in comparison_markdown(comparison)
@@ -200,3 +203,26 @@ def test_legacy_comparison_never_infers_scope_from_runtime_errors() -> None:
     assert comparison.source_report_schema_versions == [2, 2]
     assert comparison.boundary_cases == {}
     assert not any(row.slice_type == "scope" for row in comparison.rows)
+
+
+def test_boundary_reports_split_policy_from_access(tmp_path: Path) -> None:
+    paths = _reports(tmp_path)
+    for path in paths:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        case_ids = list(dict.fromkeys(item["case_id"] for item in payload["observations"]))[:2]
+        for observation in payload["observations"]:
+            if observation["case_id"] in case_ids:
+                observation["comparison_scope"] = "boundary"
+                observation["boundary_reason"] = (
+                    "robots_policy" if observation["case_id"] == case_ids[0] else "managed_access"
+                )
+        path.write_text(json.dumps(payload), encoding="utf-8")
+    comparison = compare_reports(paths)
+
+    assert {row.slice_value for row in comparison.rows if row.slice_type == "boundary_kind"} == {
+        "policy",
+        "access",
+    }
+    markdown = comparison_markdown(comparison)
+    assert "extract (boundary: policy)" in markdown
+    assert "extract (boundary: access)" in markdown

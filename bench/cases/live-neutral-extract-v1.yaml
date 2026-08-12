@@ -209,6 +209,7 @@ cases:
   metadata:
     comparison_scope: boundary
     boundary_reason: robots_policy
+    expected_outcome: typed_refusal
     description: Large normative W3C recommendation with deeply nested requirements.
     split: dev
     family: standards
@@ -354,6 +355,7 @@ cases:
   metadata:
     comparison_scope: boundary
     boundary_reason: robots_policy
+    expected_outcome: typed_refusal
     description: Long encyclopedic article with infoboxes, citations, and navigation
       noise.
     split: dev
@@ -504,6 +506,7 @@ cases:
   metadata:
     comparison_scope: boundary
     boundary_reason: managed_access
+    expected_outcome: typed_error
     description: Public package page that returned a JavaScript client challenge during
       source verification; reported only in the managed-access slice.
     split: dev
@@ -687,6 +690,7 @@ cases:
   metadata:
     comparison_scope: boundary
     boundary_reason: robots_policy
+    expected_outcome: typed_refusal
     description: Very long generated API reference with stability markers and code.
     split: test
     family: long-reference

@@ -30,6 +30,7 @@ from .models import (
     ChangePayload,
     CheckPayload,
     ContentPayload,
+    ObservedOutcome,
     PackPayload,
     PortableReport,
     ReportObservation,
@@ -105,6 +106,7 @@ def run_suite(
                 adapter_version=adapter.version,
                 attempt_count=0,
                 error=scrub_secrets(f"{type(error).__name__}: {error}"),
+                failure_category="other",
             )
 
     eval_report = asyncio.run(
@@ -122,6 +124,7 @@ def run_suite(
     report_observations: list[ReportObservation] = []
     scores: list[CaseScore] = []
     for observation in observations:
+        observation = _classify_observation(observation)
         case = case_by_id[observation.case_id]
         trials_seen[observation.case_id] += 1
         trial_index = trials_seen[observation.case_id]
@@ -227,6 +230,10 @@ def _portable_observation(
         critical=case.metadata.critical,
         comparison_scope=case.metadata.comparison_scope,
         boundary_reason=case.metadata.boundary_reason,
+        expected_outcome=case.metadata.expected_outcome,
+        observed_outcome=_observed_outcome(observation),
+        contract_conformant=_observed_outcome(observation) == case.metadata.expected_outcome,
+        failure_category=observation.failure_category,
         system=observation.system,
         status=observation.status,
         payload_summary=_payload_summary(observation.payload),
@@ -245,6 +252,39 @@ def _portable_observation(
         normalized_output_sha256=output_commitment(observation),
         evidence_ciphertext_sha256=ciphertext_sha256,
     )
+
+
+def _observed_outcome(observation: RunObservation) -> ObservedOutcome:
+    if observation.status == "completed":
+        return "extract"
+    if observation.failure_category == "robots":
+        return "typed_refusal"
+    if observation.failure_category is not None:
+        return "typed_error"
+    return "untyped_error"
+
+
+def _classify_observation(observation: RunObservation) -> RunObservation:
+    """Backfill the stable taxonomy for adapters that only return error text."""
+    if observation.status == "completed" or observation.failure_category is not None:
+        return observation
+    text = (observation.error or "").casefold()
+    category = "other"
+    if "robots" in text:
+        category = "robots"
+    elif any(value in text for value in ("auth", "login", "log in", "sign in")):
+        category = "auth_wall"
+    elif any(value in text for value in ("paywall", "subscription", "subscribe")):
+        category = "paywall"
+    elif any(value in text for value in ("captcha", "client challenge", "verify you are human")):
+        category = "bot_challenge"
+    elif "timeout" in text or "timed out" in text:
+        category = "timeout"
+    elif observation.status == "unsupported":
+        category = "unsupported"
+    elif observation.status == "budget_blocked":
+        category = "budget"
+    return observation.model_copy(update={"failure_category": category})
 
 
 def _portable_score(score: CaseScore, trial_index: int) -> CaseScore:

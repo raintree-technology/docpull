@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from docpull.pipeline.base import PageContext
-from docpull.pipeline.steps.convert import ConvertStep
+from docpull.pipeline.steps.convert import ConvertStep, detect_access_wall
 
 
 def _page_context(url: str, html: bytes) -> PageContext:
@@ -219,3 +219,13 @@ async def test_article_cleanup_removes_caption_labels_and_related_sections():
     assert "Short orphan caption" not in result.markdown
     assert "More on this story" not in result.markdown
     assert "Unrelated link" not in result.markdown
+
+
+# Access-wall classification is intentionally testable without network or an
+# async pipeline so challenge fixtures remain deterministic.
+def test_access_wall_detection_is_typed_and_avoids_large_page_false_positives() -> None:
+    challenge = b"<title>Client Challenge</title>Please enable JavaScript to proceed"
+    assert detect_access_wall(challenge) == "bot_challenge"
+    assert detect_access_wall("Sign in to continue") == "auth_wall"
+    assert detect_access_wall("Subscribe to continue reading") == "paywall"
+    assert detect_access_wall("Sign in is documented here. " + "x" * 50_000) is None

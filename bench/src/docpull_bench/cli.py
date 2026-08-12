@@ -39,6 +39,7 @@ from .adapters import (
     TavilySearchAdapter,
     TrafilaturaAdapter,
 )
+from .audit import audit_scorer
 from .baselines import check_baseline, update_baseline
 from .challenges import export_blinded_challenge, materialize_blinded_challenge, seal_blinded_gold
 from .claims import (
@@ -105,6 +106,12 @@ def _build_parser() -> argparse.ArgumentParser:
     compare.add_argument("--output", type=Path)
     compare.add_argument("--markdown", type=Path)
     compare.add_argument("--json", action="store_true")
+    compare.add_argument("--equivalence-margin", type=float, default=0.05)
+
+    scorer_audit = actions.add_parser("audit-scorer", help="compare scorer decisions with human labels")
+    scorer_audit.add_argument("report", type=Path)
+    scorer_audit.add_argument("labels", type=Path)
+    scorer_audit.add_argument("--output", type=Path)
 
     baseline = actions.add_parser("baseline", help="controlled baseline operations").add_subparsers(
         dest="baseline_action", required=True
@@ -207,7 +214,7 @@ def _add_run_arguments(run: argparse.ArgumentParser) -> None:
     run.add_argument("--replay-dir", type=Path)
     run.add_argument("--output-dir", type=Path, default=Path("bench/runs"))
     run.add_argument("--case", action="append", dest="case_ids")
-    run.add_argument("--repeat", type=int, default=1)
+    run.add_argument("--repeat", type=int, default=3)
     run.add_argument("--max-concurrency", type=int, default=1)
     run.add_argument("--max-cost-usd", type=float)
     run.add_argument("--environment-label", default="local")
@@ -265,6 +272,15 @@ def main(argv: list[str] | None = None) -> int:
             return _context(args)
         if args.action == "compare":
             return _compare(args)
+        if args.action == "audit-scorer":
+            payload = audit_scorer(args.report, args.labels)
+            serialized = json.dumps(payload, indent=2) + "\n"
+            if args.output:
+                args.output.parent.mkdir(parents=True, exist_ok=True)
+                args.output.write_text(serialized, encoding="utf-8")
+            else:
+                print(serialized, end="")
+            return 0
         if args.action == "baseline":
             return _baseline(args)
         if args.action == "publish":
@@ -575,7 +591,7 @@ def _context(args: argparse.Namespace) -> int:
 
 
 def _compare(args: argparse.Namespace) -> int:
-    comparison = compare_reports(args.reports)
+    comparison = compare_reports(args.reports, equivalence_margin=args.equivalence_margin)
     markdown = comparison_markdown(comparison)
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)

@@ -599,6 +599,11 @@ def _content_observation(
     output_root: Path,
 ) -> RunObservation:
     status, error = _process_status(process, bool(records))
+    failure_category = _failure_category(error, records)
+    if status == "completed" and failure_category in {"auth_wall", "paywall", "bot_challenge"}:
+        status = "failed"
+        error = f"access_wall:{failure_category}"
+        records = []
     return RunObservation(
         case_id=inputs.case_id,
         system=adapter.system,
@@ -613,8 +618,42 @@ def _content_observation(
         request_count=0,
         adapter_version=adapter.version,
         error=error,
+        failure_category=failure_category if status == "failed" else None,
         artifacts=_artifacts(case_dir, output_root),
     )
+
+
+def _failure_category(
+    error: str | None, records: list[ArtifactRecord]
+) -> Literal["robots", "auth_wall", "paywall", "bot_challenge", "timeout", "other"] | None:
+    combined = " ".join([error or "", *(f"{record.title} {record.content}" for record in records)]).casefold()
+    if "robots" in combined:
+        return "robots"
+    if "access_wall:auth_wall" in combined or any(
+        value in combined
+        for value in ("sign in to continue", "log in to continue", "authentication required")
+    ):
+        return "auth_wall"
+    if "access_wall:paywall" in combined or any(
+        value in combined for value in ("subscribe to continue", "subscription required")
+    ):
+        return "paywall"
+    if any(
+        value in combined
+        for value in (
+            "access_wall:bot_challenge",
+            "client challenge",
+            "verify you are human",
+            "captcha",
+            "enable javascript to proceed",
+        )
+    ):
+        return "bot_challenge"
+    if "timeout" in combined or "timed out" in combined:
+        return "timeout"
+    if error:
+        return "other"
+    return None
 
 
 def _process_status(

@@ -20,6 +20,20 @@ SCHEMA_VERSION = 3
 MetricValue: TypeAlias = bool | int | float | str | None
 ComparisonScope: TypeAlias = Literal["core", "boundary"]
 BoundaryReason: TypeAlias = Literal["managed_access", "robots_policy", "browser_required", "auth_required"]
+ExpectedOutcome: TypeAlias = Literal["extract", "typed_refusal", "typed_error"]
+ObservedOutcome: TypeAlias = Literal["extract", "typed_refusal", "typed_error", "untyped_error"]
+FailureCategory: TypeAlias = Literal[
+    "robots",
+    "auth_wall",
+    "paywall",
+    "bot_challenge",
+    "timeout",
+    "parse",
+    "quality_mismatch",
+    "unsupported",
+    "budget",
+    "other",
+]
 
 
 class StrictModel(BaseModel):
@@ -294,6 +308,7 @@ class CaseMetadata(StrictModel):
     reference_expires_at: str | None = None
     comparison_scope: ComparisonScope = "core"
     boundary_reason: BoundaryReason | None = None
+    expected_outcome: ExpectedOutcome = "extract"
     rights: RightsMetadata
 
     @model_validator(mode="after")
@@ -302,6 +317,8 @@ class CaseMetadata(StrictModel):
             raise ValueError("boundary cases require boundary_reason")
         if self.comparison_scope == "core" and self.boundary_reason is not None:
             raise ValueError("core cases cannot declare boundary_reason")
+        if self.comparison_scope == "core" and self.expected_outcome != "extract":
+            raise ValueError("core cases must expect extraction")
         return self
 
 
@@ -450,12 +467,15 @@ class RunObservation(StrictModel):
     attempt_count: int = Field(default=1, ge=0)
     adapter_version: str
     error: str | None = None
+    failure_category: FailureCategory | None = None
     artifacts: dict[str, str] = Field(default_factory=dict)
 
     @model_validator(mode="after")
     def validate_observation(self) -> RunObservation:
         if self.status == "failed" and not self.error:
             raise ValueError("failed observations require an error")
+        if self.status == "completed" and self.failure_category is not None:
+            raise ValueError("completed observations cannot declare failure_category")
         if self.cost_kind != "unknown" and self.cost_usd is None:
             raise ValueError("accounted costs require cost_usd")
         if self.status == "completed" and self.payload is None:
@@ -489,6 +509,10 @@ class ReportObservation(StrictModel):
     critical: bool
     comparison_scope: ComparisonScope | None = None
     boundary_reason: BoundaryReason | None = None
+    expected_outcome: ExpectedOutcome = "extract"
+    observed_outcome: ObservedOutcome = "extract"
+    contract_conformant: bool = True
+    failure_category: FailureCategory | None = None
     system: str
     status: Literal["completed", "failed", "unsupported", "budget_blocked"]
     payload_summary: dict[str, Any] = Field(default_factory=dict)
@@ -827,7 +851,7 @@ class PortableReport(StrictModel):
 
 class ComparisonRow(StrictModel):
     lane: Lane
-    slice_type: Literal["overall", "scope", "split", "family"]
+    slice_type: Literal["overall", "scope", "boundary_kind", "split", "family"]
     slice_value: str
     system: str
     adapter_version: str
@@ -852,6 +876,7 @@ class ComparisonRow(StrictModel):
     completion_ci95_high: float = Field(default=0, ge=0, le=1)
     quality_eligible_trials: int = Field(default=0, ge=0)
     quality_pass_rate_completed: float = Field(default=0, ge=0, le=1)
+    contract_conformance_rate: float = Field(default=1, ge=0, le=1)
 
 
 class ComparisonCaseRow(StrictModel):
@@ -861,6 +886,9 @@ class ComparisonCaseRow(StrictModel):
     family: str
     critical: bool
     comparison_scope: Literal["core", "boundary"] = "core"
+    boundary_reason: BoundaryReason | None = None
+    expected_outcome: ExpectedOutcome = "extract"
+    contract_conformance_rate: float = Field(default=1, ge=0, le=1)
     system: str
     status: str
     trial_count: int = Field(ge=1)
@@ -874,7 +902,7 @@ class ComparisonCaseRow(StrictModel):
 
 class PairwiseComparisonRow(StrictModel):
     lane: Lane
-    slice_type: Literal["overall", "scope", "split", "family"]
+    slice_type: Literal["overall", "scope", "boundary_kind", "split", "family"]
     slice_value: str
     system_a: str
     system_b: str
@@ -890,12 +918,17 @@ class PairwiseComparisonRow(StrictModel):
         "a_better",
         "b_better",
         "no_significant_difference",
+        "equivalent_within_margin",
         "insufficient_operational_conformance",
     ]
     operationally_comparable: bool = True
     pass_rate_delta_ci95_low: float = Field(default=0, ge=-1, le=1)
     pass_rate_delta_ci95_high: float = Field(default=0, ge=-1, le=1)
     discordant_cases: int = Field(default=0, ge=0)
+    equivalence_margin: float = Field(default=0.05, gt=0, lt=1)
+    equivalence_ci90_low: float = Field(default=0, ge=-1, le=1)
+    equivalence_ci90_high: float = Field(default=0, ge=-1, le=1)
+    equivalent: bool = False
 
 
 class ComparisonReport(StrictModel):
@@ -909,6 +942,7 @@ class ComparisonReport(StrictModel):
     system_count: int = Field(ge=1)
     source_report_schema_versions: list[Literal[2, 3]] = Field(default_factory=list)
     boundary_cases: dict[str, list[str]] = Field(default_factory=dict)
+    equivalence_margin: float = Field(default=0.05, gt=0, lt=1)
     rows: list[ComparisonRow] = Field(min_length=1)
     case_rows: list[ComparisonCaseRow] = Field(min_length=1)
     pairwise: list[PairwiseComparisonRow] = Field(default_factory=list)

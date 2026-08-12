@@ -31,6 +31,9 @@ not a public leaderboard (see [POSITIONING.md](POSITIONING.md)).
 
 - Gold expectations stay in the harness and never cross an adapter boundary.
 - A case passes only when all required assertions pass.
+- Boundary cases predeclare `extract`, `typed_refusal`, or `typed_error`; they
+  pass on behavioral-contract conformance, not forced extraction. Robots-policy
+  and managed-access results remain separate families.
 - Metrics remain separated by lane; there is no global score or winner.
 - Unsupported capability returns `unsupported`, not a fabricated failure.
 - Live gold expires and must be manually rechecked.
@@ -38,7 +41,11 @@ not a public leaderboard (see [POSITIONING.md](POSITIONING.md)).
   disabled and the conservative full run is reserved before credentials are
   read.
 - Portable reports contain sanitized URLs, hashes, lengths, timings, usage,
-  costs, statuses, and metric vectors—not fetched bodies.
+  costs, statuses, expected/observed outcomes, stable failure categories, and
+  metric vectors—not fetched bodies. `observations.ndjson` and `scores.ndjson`
+  are the per-trial machine-readable records.
+- Ordinary runs default to three trials. Claim-grade runs require five. Treat
+  agreement as weak evidence when upstream caching is provider-managed.
 - New runs write integrity-checked portable report schema v3 and scorer v5;
   schema-v2 reports remain readable as legacy history but are never claim-ready.
 - Extract and crawl scores carry diagnostic token-economics metrics
@@ -133,6 +140,7 @@ uv run --project bench --locked docpull-bench run bench/cases/controlled-v2.yaml
 docpull-bench baseline check REPORT bench/baselines/controlled-v2.fixture.json
 docpull-bench baseline update REPORT BASELINE --reason 'reviewed protocol change'
 docpull-bench compare REPORT_A REPORT_B --markdown COMPARISON.md
+docpull-bench audit-scorer REPORT HUMAN_LABELS.json --output SCORER_AUDIT.json
 docpull-bench publish create SUITE REPORT_A REPORT_B --output-dir BUNDLE
 docpull-bench publish sign BUNDLE
 docpull-bench publish verify BUNDLE --trusted-gpg-fingerprint FINGERPRINT
@@ -143,11 +151,26 @@ and the 100 ms/10 MiB floors are advisory. Verification recomputes publication
 hashes, reparses reports, and regenerates the comparison; narrative findings
 remain hand-reviewed.
 
+Comparison predeclares a ±5% equivalence margin by default and only reports
+equivalence when the paired 90% interval is wholly inside it. Override the
+margin before analysis with `--equivalence-margin`; a non-significant McNemar
+result is still inconclusive rather than parity.
+
 For sensitive live diagnostics, `--evidence-dir` and `--evidence-recipient`
 encrypt canonical normalized output directly to an external age escrow. The
 report retains plaintext commitments and ciphertext hashes only. DocPull claim
 subjects must use `--docpull-python` plus `--subject-artifact` to bind an
 isolated clean wheel rather than the harness interpreter.
+
+The committed controlled corpus and replay adapter are the CI record/replay
+path. Live runs remain periodic validation: content-free commitments expose
+drift, live references expire, and raw content may only enter external encrypted
+escrow. This avoids committing third-party or private fetched text.
+
+Provider spend excludes local compute, operator time, and maintenance. A local
+zero-dollar row means no provider charge, not zero economic cost. Latency is
+rankable only when environment and cache classes match; otherwise it is
+descriptive. Reports retain peak RSS when an adapter can measure it.
 
 Current manual live evidence and its hand-reviewed decision note are indexed in
 [`results/manual/README.md`](results/manual/README.md).

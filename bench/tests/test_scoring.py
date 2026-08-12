@@ -104,6 +104,25 @@ def test_unsupported_capability_is_explicit_not_fabricated_failure() -> None:
     assert not score.passed
 
 
+def test_boundary_case_scores_the_predeclared_behavioral_contract() -> None:
+    suite = BenchmarkSuite.from_yaml(ROOT / "cases" / "live-neutral-extract-v1.yaml")
+    case = next(item for item in suite.cases if item.id == "dev.access.pypi-pydantic")
+    observation = RunObservation(
+        case_id=case.id,
+        system="docpull",
+        status="failed",
+        elapsed_seconds=0.1,
+        adapter_version="test",
+        error="access_wall:bot_challenge",
+        failure_category="bot_challenge",
+    )
+
+    score = score_observation(case, observation)
+
+    assert score.passed
+    assert score.assertions[0].name == "outcome.contract"
+
+
 def test_malformed_observation_fails_schema_validation() -> None:
     with pytest.raises(ValidationError):
         RunObservation.model_validate(

@@ -274,6 +274,29 @@ def _content_checks(
 def _score_extract_or_crawl(case: BenchmarkCase, observation: RunObservation) -> CaseScore:
     expected = case.expected
     assert isinstance(expected, (ExtractExpected, CrawlExpected))
+    if case.metadata.expected_outcome != "extract":
+        observed = (
+            "extract"
+            if observation.status == "completed"
+            else "typed_refusal"
+            if observation.failure_category == "robots"
+            else "typed_error"
+            if observation.failure_category is not None
+            else "untyped_error"
+        )
+        return _finalize(
+            case,
+            observation,
+            [
+                _assert(
+                    "outcome.contract",
+                    observed == case.metadata.expected_outcome,
+                    actual=observed,
+                    expected=case.metadata.expected_outcome,
+                )
+            ],
+            {"contract_conformant": observed == case.metadata.expected_outcome},
+        )
     assertions, metrics = _content_checks(case, observation, expected)
     records = _records(observation)
     urls = {_normalized_url(record.url) for record in records if record.url}

@@ -11,8 +11,13 @@ It deliberately avoids a cross-capability leaderboard.
 4. Live-web and hosted-provider changes are advisory until a protected manual
    run supplies fresh gold, credentials, and an explicit spend ceiling.
 5. Statistical output emphasizes paired effect sizes, Wilson intervals,
-   pass@k/pass^k, stability, exact McNemar tests, and Holm correction. Failure to
-   reject a null hypothesis is never described as equivalence.
+   pass@k/pass^k, stability, exact McNemar tests, and Holm correction. A
+   predeclared TOST-style equivalence check uses a paired 90% interval and ±5%
+   default margin. Failure to reject a null hypothesis is never equivalence.
+6. Boundary cases are judged against predeclared behavioral outcomes. Robots
+   policy and managed access are reported separately from extraction quality.
+7. Scorer changes require a blinded sample of human labels before a comparative
+   claim. Report agreement and adjudication with the run bundle.
 
 ## Schema v2
 
