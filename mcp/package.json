@@ -18,8 +18,8 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "hono": "4.12.27",
-    "ip-address": "^10.2.0",
+    "hono": "4.12.34",
+    "ip-address": "^10.3.1",
     "openai": "^6.44.0",
     "pg": "^8.22.0",
     "yaml": "^2.9.0",
@@ -28,9 +28,9 @@
   "overrides": {
     "@hono/node-server": "^2.0.4",
     "ajv": "^8.18.0",
-    "fast-uri": "^3.1.2",
-    "hono": "4.12.25",
-    "ip-address": "^10.2.0",
+    "fast-uri": "^3.1.5",
+    "hono": "4.12.34",
+    "ip-address": "^10.3.1",
     "path-to-regexp": "^8.4.2",
     "qs": "^6.15.2",
     "zod": "^4.4.3"

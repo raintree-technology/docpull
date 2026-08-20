@@ -148,6 +148,6 @@ for current lifecycle and distribution links.
 
 ## Project policies
 
-[Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) ·
+[Contributing](CONTRIBUTING.md) · [Code of Conduct](CODE_OF_CONDUCT.md) · [Security](SECURITY.md) ·
 [Metrics and evidence limits](METRICS.md) · [Source repository](https://github.com/raintree-technology/docpull) ·
 [MIT License](LICENSE)
