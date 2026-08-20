@@ -1,4 +1,4 @@
-# Internal MCP Lab
+# Internal MCP lab
 
 This directory is not the supported docpull MCP server.
 

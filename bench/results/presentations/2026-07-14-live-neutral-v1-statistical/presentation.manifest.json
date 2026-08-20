@@ -1,0 +1,11 @@
+{
+  "files": {
+    "SUMMARY.md": "dc1a376344ec00c78d5d9504b634f64f3c47ae24295c7a82f164331dedb9e03b"
+  },
+  "kind": "historical-publication-presentation",
+  "schema_version": 4,
+  "source_bundle": "../../provisional/2026-07-14-live-neutral-v1-statistical",
+  "source_manifest_sha256": "9e1487db74f119d598d1857a758b634d306bd5f569fc964c24cf1400152de061",
+  "source_publication_schema": 1,
+  "source_status": "historical"
+}

@@ -34,7 +34,7 @@ LEGACY_BROWSER_AVAILABILITY_CHECK = "check_" + LEGACY_BROWSER_RUNNER + "_availab
 
 PRIMARY_DOC_PATHS = [
     "README.md",
-    "docs/examples/README.md",
+    "docs/cli-recipes.md",
     "docs/context-packs.md",
     "docs/context-ci.md",
     "docs/context-pack-contract-v3.md",

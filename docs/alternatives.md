@@ -67,7 +67,7 @@ DocPull skips by default but adds runtime weight and, for Firecrawl, an external
 dependency and per-call cost. DocPull stays browser-free and local unless you
 opt into rendering. For measured extraction-quality and tokens-per-page
 comparisons against these tools on a fixed corpus, see the evaluation lab in
-[`bench/`](../bench/README.md); it also carries local `trafilatura`,
+[the evaluation lab](../bench/docs/index.md); it also carries local `trafilatura`,
 `readability`, and `crawl4ai` extractor baselines so the framework-aware
 extraction claim is measured rather than asserted.
 

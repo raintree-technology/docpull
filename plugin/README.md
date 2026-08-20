@@ -6,13 +6,47 @@
   />
 </p>
 
-# docpull plugin
+# DocPull agent plugin
 
-Pull static and server-rendered public web sources into Codex or Claude Code. Local, fast, no API keys.
+**Active plugin for developers using Codex or Claude Code.** Pull static and
+server-rendered public web sources into an agent's local context with citations.
 
 DocPull aligns core workflows across CLI, Python SDK, and MCP, with each surface
 optimized for its user. See the [Surface Contract](../docs/surface-contract.md)
 for the boundary between the plugin's MCP tools and the broader CLI/SDK.
+
+## Install
+
+The plugin wraps the `docpull` CLI. Install the MCP extra first:
+
+```bash
+pip install 'docpull[mcp]'          # or: pipx install 'docpull[mcp]'
+docpull --version                   # should print 6.5.0 or newer
+docpull mcp --help
+```
+
+The plain `pip install docpull` does not include the MCP dependency.
+
+In Claude Code:
+
+```text
+/plugin marketplace add raintree-technology/docpull
+/plugin install docpull@docpull
+```
+
+In Codex, install the plugin from the configured marketplace or a local plugin
+source. The plugin starts the `docpull mcp` stdio server and exposes the
+`docpull-research` skill.
+
+## Try one source
+
+```text
+> /web-add fastapi
+> How does FastAPI handle dependency injection scoping?
+```
+
+Expected result: the agent searches the cached source and answers with attribution to the local
+Markdown. The first crawl populates the cache; later reads stay local.
 
 ## What you get
 
@@ -31,48 +65,6 @@ for the boundary between the plugin's MCP tools and the broader CLI/SDK.
   - `/docs-add`, `/docs-search`, `/docs-list`, `/docs-refresh`, and `/docs-remove` remain compatibility aliases for existing users.
 - **Meta-skill** (`docpull-research`): teaches the agent *when* to reach for docpull — so you don't have to remember the tool exists every time you ask about a library, API, vendor, product page, or web source.
 
-## Prerequisite
-
-The plugin wraps the `docpull` CLI; install it with the `[mcp]` extra so the
-MCP server is available:
-
-```bash
-pip install 'docpull[mcp]'          # or: pipx install 'docpull[mcp]'
-                                    #     uv tool install 'docpull[mcp]'
-docpull --version                   # should print 6.5.0 or newer
-docpull mcp --help                  # confirm the MCP subcommand is wired
-```
-
-The plain `pip install docpull` works for CLI use but does **not** include the
-`mcp` Python package — `docpull mcp` will exit with "requires the 'mcp'
-package". Always install with `[mcp]` for plugin use.
-
-## Install In Codex
-
-Install this plugin from the configured marketplace or local plugin source. The plugin starts the `docpull mcp` stdio server and makes the `docpull-research` skill available.
-
-## Install In Claude Code
-
-In Claude Code:
-
-```
-/plugin marketplace add raintree-technology/docpull
-/plugin install docpull@docpull
-```
-
-The MCP server starts automatically. The slash commands and skill activate when you ask Claude about a specific source.
-
-## 60-second demo
-
-```
-> /web-add fastapi
-[fetches the FastAPI docs in ~15s; ~400 pages, full-text indexed locally]
-
-> How does FastAPI handle dependency injection scoping?
-[The agent reaches for grep_docs(library="fastapi", pattern="depend"), pulls the
- relevant section, and answers with attribution to the cached source file]
-```
-
 ## Built-in source aliases
 
 These are fetchable by name without any URL setup: `react`, `nextjs`, `tailwindcss`, `vite`, `hono`, `fastapi`, `express`, `anthropic`, `openai`, `langchain`, `supabase`, `drizzle`, `prisma`.
@@ -83,11 +75,14 @@ For anything else, pass an HTTPS URL: `/web-add https://www.python.org/blogs/`.
 
 By default, fetched Markdown lives under `$XDG_DATA_HOME/docpull-mcp/docs/` (or `~/.local/share/docpull-mcp/docs/` on macOS/Linux). Override with `DOCPULL_DOCS_DIR` if you want it somewhere else (e.g. one cache per project).
 
-## Privacy
+## Limits and privacy
 
 - 100% local. No telemetry. No remote services.
 - The plugin only sends HTTP requests to the URLs you ask it to fetch.
 - The User-Agent is `docpull/<version> (+https://github.com/raintree-technology/docpull)` — public, identifiable, robots.txt-respecting.
+- JavaScript rendering is explicit rather than part of the default fetch path.
+- The plugin supports research workflows; it does not certify that a source is
+  complete, current, or correct.
 
 ## Troubleshooting
 
@@ -95,12 +90,15 @@ By default, fetched Markdown lives under `$XDG_DATA_HOME/docpull-mcp/docs/` (or 
 |---------------------------------------------|-----|
 | MCP tools missing after install             | Run `docpull mcp --help`. If it errors with "requires the 'mcp' package", reinstall with `pip install 'docpull[mcp]'`. |
 | `/web-add fastapi` says "unknown source"    | Run `mcp__docpull__list_sources()` to see current aliases. Use a URL instead. |
-| Slow first fetch                            | Normal — first crawl populates the cache. Subsequent runs hit the conditional-GET cache (~70 ms time-to-first-result). |
+| Slow first fetch                            | Normal — the first crawl populates the cache. Later runs use the local cache and conditional requests. |
 | Want to refresh stale sources               | `mcp__docpull__ensure_docs(source="<alias>", force=true)`. |
 
-## Roadmap
+## Deeper documentation
 
-- Per-project source cache directory, `/web-skill <source>` for generating skill scaffolds from fetched sources, and a `web-researcher` subagent for multi-source research.
+- [DocPull project guide](../README.md)
+- [Surface contract](../docs/surface-contract.md)
+- [CLI recipes](../docs/cli-recipes.md)
+- [Security policy](../SECURITY.md)
 
 ## License
 

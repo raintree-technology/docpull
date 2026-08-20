@@ -17,7 +17,7 @@ DEFAULT_RELEASE_FILES = (
     "docs/context-packs.md",
     "docs/context-ci.md",
     "docs/context-dependencies.md",
-    "docs/examples/README.md",
+    "docs/cli-recipes.md",
     "docs/surface-contract.md",
 )
 

@@ -1,0 +1,11 @@
+{
+  "files": {
+    "SUMMARY.md": "05d23cc0d9eebf4d0ce84d0ee856b53028518727a0f2c7acbb285dbcc2364c49"
+  },
+  "kind": "historical-publication-presentation",
+  "schema_version": 4,
+  "source_bundle": "../../manual/2026-07-14-live-neutral-extract-v4-analysis",
+  "source_manifest_sha256": "c6e2ab1fdcc8f84072389b9ea43134df8e56946bbd5c75bb66689c3a1603d88d",
+  "source_publication_schema": 2,
+  "source_status": "provisional-not-current-evidence-not-for-marketing"
+}

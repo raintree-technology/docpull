@@ -59,6 +59,7 @@ from .models import (
     PortableReport,
     RunObservation,
 )
+from .presentation import create_presentation, verify_legacy_publication, verify_presentation
 from .publication import publish_results, sign_publication, verify_publication
 from .runner import run_suite
 
@@ -141,6 +142,17 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     publish_verify.add_argument("bundle", type=Path)
     publish_verify.add_argument("--trusted-gpg-fingerprint")
+
+    presentation = actions.add_parser(
+        "presentation", help="create or verify a presentation for an immutable publication"
+    ).add_subparsers(dest="presentation_action", required=True)
+    presentation_create = presentation.add_parser("create")
+    presentation_create.add_argument("bundle", type=Path)
+    presentation_create.add_argument("--output-dir", type=Path, required=True)
+    presentation_verify = presentation.add_parser("verify")
+    presentation_verify.add_argument("output_dir", type=Path)
+    presentation_source_verify = presentation.add_parser("verify-source")
+    presentation_source_verify.add_argument("bundle", type=Path)
 
     claim = actions.add_parser("claim", help="fail-closed public-claim evidence gates").add_subparsers(
         dest="claim_action", required=True
@@ -307,6 +319,16 @@ def main(argv: list[str] | None = None) -> int:
                 )
             else:
                 raise AssertionError(f"unhandled publish action: {args.publish_action}")
+            return 0
+        if args.action == "presentation":
+            if args.presentation_action == "create":
+                print(f"presentation: {create_presentation(args.bundle, output_dir=args.output_dir)}")
+            elif args.presentation_action == "verify":
+                print(json.dumps(verify_presentation(args.output_dir), indent=2))
+            elif args.presentation_action == "verify-source":
+                print(json.dumps(verify_legacy_publication(args.bundle), indent=2))
+            else:
+                raise AssertionError(f"unhandled presentation action: {args.presentation_action}")
             return 0
         if args.action == "claim":
             return _claim(args)

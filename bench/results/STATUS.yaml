@@ -3,6 +3,19 @@ registry_updated_at: "2026-07-14"
 authority: >-
   This overlay classifies result bundles without changing any file inside a
   bundle. A bundle status must be read together with this registry.
+presentation_index: presentations/index.md
+presentations:
+  - { source: manual/2026-07-14-live-neutral-crawl-v2, current: presentations/2026-07-14-live-neutral-crawl-v2 }
+  - { source: manual/2026-07-14-live-neutral-crawl-v4-analysis, current: presentations/2026-07-14-live-neutral-crawl-v4-analysis }
+  - { source: manual/2026-07-14-live-neutral-extract-v2, current: presentations/2026-07-14-live-neutral-extract-v2 }
+  - { source: manual/2026-07-14-live-neutral-extract-v4-analysis, current: presentations/2026-07-14-live-neutral-extract-v4-analysis }
+  - { source: manual/2026-07-14-live-neutral-extract-v5-current-v3, current: presentations/2026-07-14-live-neutral-extract-v5-current-v3 }
+  - { source: manual/2026-07-14-live-search-v2, current: presentations/2026-07-14-live-search-v2 }
+  - { source: manual/2026-07-14-live-search-v4-analysis, current: presentations/2026-07-14-live-search-v4-analysis }
+  - { source: provisional/2026-07-14-context-lifecycle-v1, current: presentations/2026-07-14-context-lifecycle-v1 }
+  - { source: provisional/2026-07-14-live-neutral-crawl-v1, current: presentations/2026-07-14-live-neutral-crawl-v1 }
+  - { source: provisional/2026-07-14-live-neutral-v1-statistical, current: presentations/2026-07-14-live-neutral-v1-statistical }
+  - { source: provisional/2026-07-14-live-neutral-v1, current: presentations/2026-07-14-live-neutral-v1 }
 bundles:
   - path: manual/2026-07-14-live-neutral-extract-v5-current-v3
     publication_manifest_sha256: "ce7e547a6d8f5afbb18d2a5b82cad7e07032c585bb49a147a77d968014fc63a4"

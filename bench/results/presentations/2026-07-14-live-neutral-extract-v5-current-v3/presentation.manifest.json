@@ -1,0 +1,11 @@
+{
+  "files": {
+    "SUMMARY.md": "ee6a855103d0fdf34c37aba78d944de6e5e34713ea967cb3eaebcbf3e9283484"
+  },
+  "kind": "historical-publication-presentation",
+  "schema_version": 4,
+  "source_bundle": "../../manual/2026-07-14-live-neutral-extract-v5-current-v3",
+  "source_manifest_sha256": "ce7e547a6d8f5afbb18d2a5b82cad7e07032c585bb49a147a77d968014fc63a4",
+  "source_publication_schema": 2,
+  "source_status": "data-only"
+}

@@ -1,4 +1,4 @@
-# DocPull Launch Assets
+# DocPull brand and launch assets
 
 Generated on 2026-06-15 for launch listings, newsletters, and directory
 submissions.

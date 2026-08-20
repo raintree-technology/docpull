@@ -1,0 +1,11 @@
+{
+  "files": {
+    "SUMMARY.md": "984145d9336b763272b7998d3d73252246513317a4f626ab40e2d8520baefdfb"
+  },
+  "kind": "historical-publication-presentation",
+  "schema_version": 4,
+  "source_bundle": "../../manual/2026-07-14-live-neutral-crawl-v2",
+  "source_manifest_sha256": "93e98b9a5371f130913f48da2e36b39f785d9c339222c21b630026c7d4f1b5ea",
+  "source_publication_schema": 2,
+  "source_status": "data-only"
+}

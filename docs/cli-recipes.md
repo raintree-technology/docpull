@@ -1,4 +1,4 @@
-# DocPull Release Examples
+# DocPull CLI recipes
 
 These examples cover the supported release surface: context dependencies,
 v3 pack contracts, validation/preparation, exports, Context CI, document

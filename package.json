@@ -8,7 +8,7 @@
     "test": "uv run --locked --all-extras python -m pytest -q && bun run --cwd mcp test && bun run --cwd sdk/js test",
     "test:unit": "uv run --locked --all-extras python -m pytest -q",
     "test:e2e": "uv run --locked python scripts/real_feature_smoke.py --json",
-    "lint": "uv run --locked --extra dev python scripts/sync_release_metadata.py --check && uv run --locked --extra dev python scripts/generate_contract_schemas.py --check && uv run --locked --extra dev python -m ruff check . && uv run --locked --extra dev python -m ruff format --check .",
+    "lint": "uv run --locked --extra dev python scripts/check_readme.py && uv run --locked --extra dev python scripts/sync_release_metadata.py --check && uv run --locked --extra dev python scripts/generate_contract_schemas.py --check && uv run --locked --extra dev python -m ruff check . && uv run --locked --extra dev python -m ruff format --check . && biome check .",
     "lint:fix": "uv run --locked --extra dev python -m ruff check . --fix && uv run --locked --extra dev python -m ruff format .",
     "format": "uv run --locked --extra dev python -m ruff format .",
     "typecheck": "uv run --locked --all-extras python -m mypy src && bun run --cwd mcp typecheck && bun run --cwd sdk/js typecheck",
@@ -25,5 +25,8 @@
   ],
   "engines": {
     "node": "24.x"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.6"
   }
 }

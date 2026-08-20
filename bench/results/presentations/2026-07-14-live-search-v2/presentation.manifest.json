@@ -1,0 +1,11 @@
+{
+  "files": {
+    "SUMMARY.md": "5317abd5850fc0e70058d60cbb5c8fc1e2bf91fe8ab9b4ef345d3979d4764d99"
+  },
+  "kind": "historical-publication-presentation",
+  "schema_version": 4,
+  "source_bundle": "../../manual/2026-07-14-live-search-v2",
+  "source_manifest_sha256": "630909125a7761b4f6ad183dfe95579c97d2757d28d6defe0b0065a1f755e087",
+  "source_publication_schema": 2,
+  "source_status": "data-only"
+}

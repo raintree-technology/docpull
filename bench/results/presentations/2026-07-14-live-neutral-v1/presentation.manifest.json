@@ -1,0 +1,11 @@
+{
+  "files": {
+    "SUMMARY.md": "cb5aef81ad9ce6425e8e69a2573830e7824370a9960ce250739e83a48187fe05"
+  },
+  "kind": "historical-publication-presentation",
+  "schema_version": 4,
+  "source_bundle": "../../provisional/2026-07-14-live-neutral-v1",
+  "source_manifest_sha256": "b8ed7afcad9cb7d16aee0f44d3d670af73fff78c318dbfd230f7e614395899fa",
+  "source_publication_schema": 1,
+  "source_status": "historical"
+}

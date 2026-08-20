@@ -1,4 +1,4 @@
-# Public-claim gate
+# Public claim gate
 
 Internal benchmark data and public comparative claims have different evidence
 requirements. `docpull-bench claim check` is the fail-closed boundary between

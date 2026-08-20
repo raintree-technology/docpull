@@ -1,0 +1,24 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "root": true,
+  "files": {
+    "includes": [
+      "mcp/src/**/*.ts",
+      "sdk/js/src/**/*.ts",
+      "!**/node_modules",
+      "!**/dist"
+    ]
+  },
+  "formatter": {
+    "enabled": false
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended"
+    }
+  },
+  "assist": {
+    "enabled": false
+  }
+}

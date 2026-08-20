@@ -1,4 +1,4 @@
-# DocPull Evaluation Lab
+# DocPull evaluation lab
 
 `bench/` is an isolated uv application for internal product decisions. It does
 not change DocPull's public CLI, SDK, MCP server, artifact contract, 10k
@@ -25,7 +25,7 @@ Raw traces land under `bench/runs/controlled/<run-id>/`: `report.json`,
 `observations.ndjson`, `scores.ndjson`, and an `artifacts/` directory for
 adapters that write files. Reports stay content-free (hashes, lengths,
 statuses, metric vectors). This lab informs internal product decisions; it is
-not a public leaderboard (see [POSITIONING.md](POSITIONING.md)).
+not a public leaderboard (see [benchmark positioning](../POSITIONING.md)).
 
 ## Rules
 
@@ -173,9 +173,9 @@ rankable only when environment and cache classes match; otherwise it is
 descriptive. Reports retain peak RSS when an adapter can measure it.
 
 Current manual live evidence and its hand-reviewed decision note are indexed in
-[`results/manual/README.md`](results/manual/README.md).
+the [benchmark result index](../results/index.md).
 The authoritative non-mutating status overlay is
-[`results/STATUS.yaml`](results/STATUS.yaml). The repository-hosted manual
+[`results/STATUS.yaml`](../results/STATUS.yaml). The repository-hosted manual
 workflow is exploratory only.
 
 ## Public-claim readiness
@@ -197,7 +197,7 @@ docpull-bench validate PRIVATE_SUITE --claim-grade
 ```
 
 The frozen quality-max configuration for a future external extraction study is
-[`protocols/future-extraction-quality-v1.yaml`](protocols/future-extraction-quality-v1.yaml).
+[`protocols/future-extraction-quality-v1.yaml`](../protocols/future-extraction-quality-v1.yaml).
 It is a predeclaration, not a completed run.
 
 Create a future held set from a draft that has never entered the repository.
@@ -221,7 +221,7 @@ docpull-bench challenge materialize bench/cases/public-challenge.yaml \
 ```
 
 Plaintext drafts, gold, and materialized private suites are refused inside the
-repository and written mode `0600`. See [`claim/README.md`](claim/README.md).
+repository and written mode `0600`. See the [public claim gate](public-claim-gate.md).
 Encrypt the private gold explicitly with an external age recipient before
 custody transfer; this command never deletes the plaintext or treats its
 unsigned manifest as claim evidence:
