@@ -172,6 +172,9 @@ cython_debug/
 Thumbs.db
 
 # Project-specific
+# JavaScript workspace dependencies
+node_modules/
+
 # Downloaded documentation (output from docpull)
 # Note: docs/ is NOT ignored - it contains project documentation
 *-docs/
