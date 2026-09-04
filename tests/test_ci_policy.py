@@ -310,20 +310,42 @@ def test_plugin_manifest_versions_match_project_version() -> None:
         assert manifest["version"] == project_version()
 
 
-def test_plugin_launcher_reports_actionable_setup_when_docpull_is_missing() -> None:
+def test_plugin_launcher_reports_actionable_setup_when_docpull_is_missing(
+    tmp_path: Path,
+) -> None:
     launcher = REPO_ROOT / "plugin" / "scripts" / "launch-docpull-mcp.mjs"
-    node = shutil.which("node")
-    assert node is not None
+    node_shim = shutil.which("node")
+    assert node_shim is not None
+    node = subprocess.run(  # nosec B603
+        [node_shim, "-p", "process.execPath"],
+        check=True,
+        text=True,
+        capture_output=True,
+    ).stdout.strip()
     proc = subprocess.run(  # nosec B603
         [node, str(launcher)],
         check=False,
         text=True,
         env={"PATH": ""},
         capture_output=True,
+        cwd=tmp_path,
     )
 
     assert proc.returncode == 127
-    assert "pipx install 'docpull[mcp]==6.5.3'" in proc.stderr
+    assert "pipx install 'docpull[mcp]==6.5.4'" in proc.stderr
+
+    (tmp_path / "docpull").mkdir()
+    proc = subprocess.run(  # nosec B603
+        [node, str(launcher)],
+        check=False,
+        text=True,
+        env={"PATH": ""},
+        capture_output=True,
+        cwd=tmp_path,
+    )
+
+    assert proc.returncode == 127
+    assert "pipx install 'docpull[mcp]==6.5.4'" in proc.stderr
 
 
 def test_codex_plugin_default_prompt_fits_host_limit() -> None:

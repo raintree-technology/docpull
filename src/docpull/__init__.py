@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Any
 
 from .surface import PUBLIC_SDK_EXPORTS
 
-__version__ = "6.5.3"
+__version__ = "6.5.4"
 
 _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
     **{
