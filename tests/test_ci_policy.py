@@ -323,7 +323,15 @@ def test_plugin_launcher_reports_actionable_setup_when_docpull_is_missing() -> N
     )
 
     assert proc.returncode == 127
-    assert "pipx install 'docpull[mcp]==6.5.2'" in proc.stderr
+    assert "pipx install 'docpull[mcp]==6.5.3'" in proc.stderr
+
+
+def test_codex_plugin_default_prompt_fits_host_limit() -> None:
+    manifest = json.loads(
+        (REPO_ROOT / "plugin" / ".codex-plugin" / "plugin.json").read_text(encoding="utf-8")
+    )
+
+    assert len(manifest["interface"]["defaultPrompt"]) <= 128
 
 
 def test_mcp_registry_manifest_versions_match_project_version() -> None:

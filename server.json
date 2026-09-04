@@ -8,12 +8,12 @@
     "source": "github"
   },
   "websiteUrl": "https://github.com/raintree-technology/docpull",
-  "version": "6.5.2",
+  "version": "6.5.3",
   "packages": [
     {
       "registryType": "pypi",
       "identifier": "docpull",
-      "version": "6.5.2",
+      "version": "6.5.3",
       "transport": {
         "type": "stdio"
       }
