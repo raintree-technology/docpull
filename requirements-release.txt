@@ -6,7 +6,7 @@
 # building with `--no-isolation`, keeps the wheel-building entry points and
 # backend on reviewed versions. Renovate watches root requirements*.txt files
 # and opens update PRs with Socket risk checks.
-pip==26.1.2
+pip==26.2
 build==1.5.0
 setuptools==83.0.0
 twine==6.2.0
