@@ -47,6 +47,7 @@ from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Any, Literal, cast
 
+from .. import __version__
 from ..accounting import (
     RunAccounting,
     blocked_action,
@@ -87,6 +88,35 @@ SERVER_INSTRUCTIONS = (
     "include response_token_estimate (chars/4) for context budgeting. Set DOCPULL_MCP_COMPACT_TEXT=1 "
     "in the server environment for token-efficient fetch_url/grep_docs/read_doc responses."
 )
+
+
+def _advertise_tool_cost(tool: Any) -> Any:
+    """Attach the cost contract promised by the server instructions."""
+    if tool.name == "render_url":
+        description = (
+            f"Cost: local, $0 by default; vercel and e2b runtimes are paid-capable. {tool.description}"
+        )
+        contract = {
+            "cost_class": "paid-capable",
+            "default_cost_class": "local",
+            "estimated_cost_usd": 0,
+            "paid_capable": True,
+            "paid_when": {"argument": "runtime", "values": ["vercel", "e2b"]},
+            "budget_argument": "budget",
+        }
+    else:
+        description = tool.description or ""
+        if not description.startswith("Cost:"):
+            description = f"Cost: local, $0. {description}"
+        contract = {
+            "cost_class": "local",
+            "estimated_cost_usd": 0,
+            "paid_capable": False,
+        }
+
+    metadata = dict(tool.meta or {})
+    metadata["docpull/cost"] = contract
+    return tool.model_copy(update={"description": description, "meta": metadata})
 
 
 # Output schemas — keep these next to the tool list so they stay in sync.
@@ -1391,7 +1421,7 @@ async def _run_stdio() -> int:
         return 1
 
     server: Server = Server(  # type: ignore[no-any-unimported]
-        "docpull", instructions=SERVER_INSTRUCTIONS
+        "docpull", version=__version__, instructions=SERVER_INSTRUCTIONS
     )
 
     @server.list_tools()  # type: ignore[misc,no-untyped-call]
@@ -2470,7 +2500,7 @@ async def _run_stdio() -> int:
                 outputSchema=_REMOVE_SOURCE_OUTPUT_SCHEMA,
             ),
         ]
-        return [tool for tool in tools if tool.name not in PRUNED_MCP_TOOLS]
+        return [_advertise_tool_cost(tool) for tool in tools if tool.name not in PRUNED_MCP_TOOLS]
 
     async def _make_progress_callback() -> Any:
         """Return ``(pages_done, total_or_none) -> awaitable`` bound to the

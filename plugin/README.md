@@ -20,8 +20,8 @@ for the boundary between the plugin's MCP tools and the broader CLI/SDK.
 The plugin wraps the `docpull` CLI. Install the MCP extra first:
 
 ```bash
-pipx install 'docpull[mcp]==6.5.4'
-docpull --version                   # should print 6.5.4 or newer
+pipx install 'docpull[mcp]==6.5.5'
+docpull --version                   # should print 6.5.5 or newer
 docpull mcp --help
 ```
 
