@@ -848,7 +848,7 @@ wheels = [
 
 [[package]]
 name = "docpull"
-version = "6.5.0"
+version = "6.5.1"
 source = { editable = "../" }
 dependencies = [
     { name = "aiohttp" },
@@ -883,8 +883,8 @@ requires-dist = [
     { name = "markitdown", extras = ["docx", "pdf"], marker = "extra == 'all'", specifier = ">=0.1.0" },
     { name = "markitdown", extras = ["docx", "pdf"], marker = "extra == 'markitdown'", specifier = ">=0.1.0" },
     { name = "markitdown", extras = ["docx", "pdf"], marker = "extra == 'parse'", specifier = ">=0.1.0" },
-    { name = "mcp", marker = "extra == 'all'", specifier = ">=1.28.1" },
-    { name = "mcp", marker = "extra == 'mcp'", specifier = ">=1.28.1" },
+    { name = "mcp", marker = "extra == 'all'", specifier = ">=1.28.1,<2" },
+    { name = "mcp", marker = "extra == 'mcp'", specifier = ">=1.28.1,<2" },
     { name = "msgpack", marker = "extra == 'dev'", specifier = ">=1.2.1" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.0.0" },
     { name = "pip-audit", marker = "extra == 'dev'", specifier = ">=2.0.0" },

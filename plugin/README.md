@@ -21,7 +21,7 @@ The plugin wraps the `docpull` CLI. Install the MCP extra first:
 
 ```bash
 pip install 'docpull[mcp]'          # or: pipx install 'docpull[mcp]'
-docpull --version                   # should print 6.5.0 or newer
+docpull --version                   # should print 6.5.1 or newer
 docpull mcp --help
 ```
 
