@@ -1911,13 +1911,13 @@
       "status": "observed"
     }
   },
-  "environment_label": "local",
-  "previous_sha256": "dc9dd194dd7697d9042808fc6d3dd4d64e1a1834d361b5eb22b8aa90c04a384e",
-  "protocol_sha256": "2e5ffbea044154e4e2e4f196cd4d2d2910228853ac1706afa167bb11fb2315eb",
-  "reason": "scorer v5 token economics diagnostic metrics",
+  "environment_label": "ci-container",
+  "previous_sha256": "323f501c1b99848a57a6d91c60dbfe148545a094c511000872483f42705ebcab",
+  "protocol_sha256": "ae20642617060436c544a5a17e3dce02d06f3fe978fd55a2d000ace5c63c0770",
+  "reason": "Align the controlled baseline with the committed v5 scorer protocol used by DocPull 6.5.1.",
   "schema_version": 2,
-  "source_report_sha256": "24c0b2e8b38a25b65f5ee0b5dcc85d9aa0d92d58ee05899f896053e64dac26b5",
+  "source_report_sha256": "d99ac67947588254ee388a31049d8df2e62d87e48ed45f40dd16d41b0abe3f27",
   "suite_sha256": "21ea6cca08e27dcb7f52d1ebc6b38f969949240576ac9b6a1b13a1aa3374d639",
   "system": "fixture",
-  "updated_at": "2026-07-22T03:30:30.077676+00:00"
+  "updated_at": "2026-09-04T21:04:23.861629+00:00"
 }
