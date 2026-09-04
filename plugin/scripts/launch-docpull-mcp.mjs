@@ -7,9 +7,9 @@ const child = spawn("docpull", ["mcp", ...process.argv.slice(2)], {
 });
 
 child.on("error", (error) => {
-  if (error.code === "ENOENT") {
+  if (error.code === "ENOENT" || error.code === "EACCES") {
     console.error(
-      "DocPull is not installed. Run: pipx install 'docpull[mcp]==6.5.3'",
+      "DocPull is not installed or is not executable. Run: pipx install 'docpull[mcp]==6.5.4'",
     );
     process.exitCode = 127;
     return;
