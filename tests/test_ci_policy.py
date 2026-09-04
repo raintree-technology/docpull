@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 import subprocess  # nosec B404
 import sys
 from pathlib import Path
@@ -307,6 +308,22 @@ def test_plugin_manifest_versions_match_project_version() -> None:
     ):
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         assert manifest["version"] == project_version()
+
+
+def test_plugin_launcher_reports_actionable_setup_when_docpull_is_missing() -> None:
+    launcher = REPO_ROOT / "plugin" / "scripts" / "launch-docpull-mcp.mjs"
+    node = shutil.which("node")
+    assert node is not None
+    proc = subprocess.run(  # nosec B603
+        [node, str(launcher)],
+        check=False,
+        text=True,
+        env={"PATH": ""},
+        capture_output=True,
+    )
+
+    assert proc.returncode == 127
+    assert "pipx install 'docpull[mcp]==6.5.2'" in proc.stderr
 
 
 def test_mcp_registry_manifest_versions_match_project_version() -> None:

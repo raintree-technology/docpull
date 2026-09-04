@@ -1,8 +1,9 @@
 {
   "mcpServers": {
     "docpull": {
-      "command": "docpull",
-      "args": ["mcp"]
+      "command": "node",
+      "args": ["./scripts/launch-docpull-mcp.mjs"],
+      "cwd": "."
     }
   }
 }
