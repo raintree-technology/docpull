@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.5.1] - 2026-09-04
+
+### Fixed
+- Constrain the optional MCP runtime to the compatible 1.x series. This prevents
+  fresh `docpull[mcp]` installations from resolving MCP 2.x, whose low-level
+  server API is incompatible with DocPull 6.5.
+
 ## [6.4.0] - 2026-07-16
 
 ### Added

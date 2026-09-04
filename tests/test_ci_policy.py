@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 from unittest import mock
 
+import tomllib
 import yaml
 
 from docpull.mcp.sources import default_docs_dir
@@ -46,6 +47,15 @@ def project_version() -> str:
             if match:
                 return match.group(1)
     raise AssertionError("Could not find [project].version in pyproject.toml")
+
+
+def test_mcp_extra_excludes_incompatible_major_versions() -> None:
+    project = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]
+    mcp_requirements = project["optional-dependencies"]["mcp"]
+    all_requirements = project["optional-dependencies"]["all"]
+
+    assert "mcp>=1.28.1,<2" in mcp_requirements
+    assert "mcp>=1.28.1,<2" in all_requirements
 
 
 def test_github_actions_are_pinned_to_full_commit_shas() -> None:
