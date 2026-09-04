@@ -20,12 +20,13 @@ for the boundary between the plugin's MCP tools and the broader CLI/SDK.
 The plugin wraps the `docpull` CLI. Install the MCP extra first:
 
 ```bash
-pip install 'docpull[mcp]'          # or: pipx install 'docpull[mcp]'
-docpull --version                   # should print 6.5.1 or newer
+pipx install 'docpull[mcp]==6.5.2'
+docpull --version                   # should print 6.5.2 or newer
 docpull mcp --help
 ```
 
-The plain `pip install docpull` does not include the MCP dependency.
+The plain `pip install docpull` does not include the MCP dependency. If the
+executable is missing, the plugin exits with the exact `pipx` setup command.
 
 In Claude Code:
 
