@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.5.3] - 2026-09-04
+
+### Fixed
+- Shorten the Codex activation prompt to the host's 128-character limit so the
+  focused research trigger is loaded instead of ignored.
+
 ## [6.5.2] - 2026-09-04
 
 ### Fixed
