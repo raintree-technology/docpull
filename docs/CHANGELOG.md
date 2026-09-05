@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Print only the exact pinned `pipx install` command when the plugin launcher
+  cannot execute DocPull.
+
 ## [6.5.5] - 2026-09-04
 
 ### Fixed

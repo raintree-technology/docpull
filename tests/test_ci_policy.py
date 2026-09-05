@@ -332,7 +332,7 @@ def test_plugin_launcher_reports_actionable_setup_when_docpull_is_missing(
     )
 
     assert proc.returncode == 127
-    assert "pipx install 'docpull[mcp]==6.5.5'" in proc.stderr
+    assert proc.stderr == "pipx install 'docpull[mcp]==6.5.5'\n"
 
     (tmp_path / "docpull").mkdir()
     proc = subprocess.run(  # nosec B603
@@ -345,7 +345,7 @@ def test_plugin_launcher_reports_actionable_setup_when_docpull_is_missing(
     )
 
     assert proc.returncode == 127
-    assert "pipx install 'docpull[mcp]==6.5.5'" in proc.stderr
+    assert proc.stderr == "pipx install 'docpull[mcp]==6.5.5'\n"
 
 
 def test_codex_plugin_default_prompt_fits_host_limit() -> None:
