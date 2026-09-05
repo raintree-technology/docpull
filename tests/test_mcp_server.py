@@ -17,6 +17,7 @@ pytest.importorskip("mcp.client.stdio")
 
 from mcp.client.stdio import stdio_client
 
+from docpull import __version__
 from docpull.mcp import server as mcp_server
 from mcp import ClientSession, StdioServerParameters
 from tests.pack_fixtures import write_context_pack
@@ -185,10 +186,28 @@ async def test_stdio_server_lists_and_calls_tools(tmp_path):
         env=env,
     )
     async with _stdio_client_with_cleanup(server) as (read, write), ClientSession(read, write) as session:
-        await session.initialize()
+        initialization = await session.initialize()
+        assert initialization.serverInfo.version == __version__
 
         tools = await session.list_tools()
         names = {tool.name for tool in tools.tools}
+        for tool in tools.tools:
+            assert tool.description is not None
+            assert tool.description.startswith("Cost:")
+            assert tool.meta is not None
+            assert "docpull/cost" in tool.meta
+            cost = tool.meta["docpull/cost"]
+            assert cost["paid_capable"] is (tool.name == "render_url")
+            assert cost["estimated_cost_usd"] == 0
+        render_cost = next(
+            tool.meta["docpull/cost"]
+            for tool in tools.tools
+            if tool.name == "render_url" and tool.meta is not None
+        )
+        assert render_cost["paid_when"] == {
+            "argument": "runtime",
+            "values": ["vercel", "e2b"],
+        }
         fetch_tool = next(tool for tool in tools.tools if tool.name == "fetch_url")
         assert fetch_tool.inputSchema["properties"]["remote_document_backend"]["enum"] == [
             "auto",

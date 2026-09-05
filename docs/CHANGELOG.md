@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.5.5] - 2026-09-04
+
+### Fixed
+- Report the DocPull package version during MCP initialization and attach the
+  advertised cost description and `docpull/cost` metadata to every MCP tool.
+
 ## [6.5.4] - 2026-09-04
 
 ### Fixed
