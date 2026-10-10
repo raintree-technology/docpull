@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import importlib.util
 import json
 import subprocess
 import sys
 from pathlib import Path
 from types import ModuleType
+
+import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -170,3 +173,41 @@ def test_run_keeps_output_only_for_failures(tmp_path: Path) -> None:
     assert smoke.results[0].stdout_tail == ""
     assert smoke.results[1].status == "fail"
     assert "failure output" in smoke.results[1].stdout_tail
+
+
+def test_full_mcp_smoke_restores_locked_context_and_covers_public_tools(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from docpull import query_context
+    from docpull.surface import PUBLIC_MCP_TOOLS
+
+    smoke = _smoke_for_tmp(tmp_path)
+    smoke.args.full_mcp = True
+    commands = []
+    monkeypatch.setattr(smoke, "_run", lambda name, cmd, **kwargs: commands.append(cmd))
+    smoke._mcp(tmp_path / "pack")
+
+    command = commands[0]
+    called = {
+        node.args[0].value
+        for node in ast.walk(ast.parse(command[2]))
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "call"
+        and node.args
+        and isinstance(node.args[0], ast.Constant)
+    }
+    assert called == set(PUBLIC_MCP_TOOLS)
+    restored = Path(command[-1])
+    origin = tmp_path / "locked-context-origin"
+    assert (restored / ".docpull/context.lock.json").read_bytes() == (
+        origin / ".docpull/context.lock.json"
+    ).read_bytes()
+    for path in (origin / ".docpull/runs/release_context").rglob("*"):
+        if path.is_file():
+            assert (restored / path.relative_to(origin)).read_bytes() == path.read_bytes()
+    result = query_context("retry", project_roots=[restored], max_tokens=8000)
+    assert result["status"] == "ok"
+    assert result["results"]
+    assert all(item["citations"] for item in result["results"])
+    assert result["budget"]["used_tokens"] <= 8000
