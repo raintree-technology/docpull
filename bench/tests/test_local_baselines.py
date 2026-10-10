@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from docpull_bench import cli
-from docpull_bench.adapters import Crawl4AIAdapter, ReadabilityAdapter, TrafilaturaAdapter
+from docpull_bench.adapters import ReadabilityAdapter, TrafilaturaAdapter
 from docpull_bench.adapters.base import AdapterError
 from docpull_bench.adapters.local_baselines import (
     NOT_INSTALLED_VERSION,
@@ -49,7 +49,6 @@ def test_local_baseline_adapters_are_registered_with_cli() -> None:
     expected = {
         "trafilatura": TrafilaturaAdapter,
         "readability": ReadabilityAdapter,
-        "crawl4ai": Crawl4AIAdapter,
     }
     for name, adapter_type in expected.items():
         args = argparse.Namespace(adapter=name, system=name, max_cost_usd=None)
@@ -78,7 +77,7 @@ def test_unsupported_lane_is_explicit_for_local_baselines(tmp_path: Path) -> Non
         lane="crawl",
         url="https://raintree-technology.github.io/docpull/bench-fixtures/v2/crawl/graph-01/1.html",
     )
-    for adapter in (TrafilaturaAdapter(), ReadabilityAdapter(), Crawl4AIAdapter()):
+    for adapter in (TrafilaturaAdapter(), ReadabilityAdapter()):
         observation = adapter.run(crawl, tmp_path)
         assert observation.status == "unsupported"
         assert observation.attempt_count == 0
@@ -127,11 +126,13 @@ def test_readability_extracts_inline_html() -> None:
     assert title == "Inline Fixture"
 
 
-def test_crawl4ai_extracts_inline_html() -> None:
-    pytest.importorskip("crawl4ai")
-    title, content = Crawl4AIAdapter()._extract(INLINE_HTML, "https://example.com/inline")
-    assert "extract-marker-inline" in content
-    assert title == "Inline Fixture"
+def test_removed_crawl4ai_adapter_is_rejected(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        cli._build_parser().parse_args(["run", "suite.yaml", "--system", "crawl4ai", "--adapter", "crawl4ai"])
+    assert exc_info.value.code == 2
+    error = capsys.readouterr().err
+    assert "invalid choice: 'crawl4ai'" in error
+    assert "--adapter" in error
 
 
 def test_html_fragment_to_markdown_is_deterministic_and_structural() -> None:

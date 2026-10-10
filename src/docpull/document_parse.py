@@ -926,6 +926,11 @@ def _parse_markitdown(path: Path) -> tuple[str, dict[str, Any]]:
 
 
 def _parse_unstructured(path: Path) -> tuple[str, dict[str, Any]]:
+    if not (3, 11) <= sys.version_info[:2] < (3, 14):
+        raise DocumentParseError(
+            "The patched Unstructured backend requires Python 3.11–3.13. "
+            "Use the pypdf, markitdown, or text backend on this interpreter."
+        )
     try:
         module = importlib.import_module("unstructured.partition.auto")
     except ImportError as err:

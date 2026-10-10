@@ -19,7 +19,6 @@ from .adapters import (
     CommandAdapter,
     ContextCrawlAdapter,
     ContextMarkdownAdapter,
-    Crawl4AIAdapter,
     DocPullAdapter,
     ExaContentsAdapter,
     ExaFullContentsAdapter,
@@ -200,7 +199,6 @@ def _add_run_arguments(run: argparse.ArgumentParser) -> None:
             "docpull",
             "trafilatura",
             "readability",
-            "crawl4ai",
             "tavily",
             "tavily-advanced",
             "tavily-crawl",
@@ -485,7 +483,6 @@ def _adapter(args: argparse.Namespace) -> SystemAdapter:
     local_baselines: dict[str, Callable[[], SystemAdapter]] = {
         "trafilatura": TrafilaturaAdapter,
         "readability": ReadabilityAdapter,
-        "crawl4ai": Crawl4AIAdapter,
     }
     if args.adapter == "docpull":
         if args.system != "docpull":
