@@ -56,6 +56,26 @@
       ]
     },
     {
+      "area": "Project workflow",
+      "claim": "Frozen installation restores verified locked archives without fetching sources and rejects missing or tampered artifacts before installation.",
+      "references": [
+        {"type": "code", "path": "src/docpull/frozen.py"},
+        {"type": "code", "path": "src/docpull/project.py"},
+        {"type": "test", "path": "tests/test_frozen.py"},
+        {"type": "test", "path": "tests/test_project.py"},
+        {"type": "doc", "path": "docs/context-dependencies.md"}
+      ]
+    },
+    {
+      "area": "Project workflow",
+      "claim": "CLI, Python SDK, and MCP queries share locked-archive retrieval with exact version filters, passage deduplication, citation spans, and a conservative UTF-8 byte budget.",
+      "references": [
+        {"type": "code", "path": "src/docpull/context_query.py"},
+        {"type": "test", "path": "tests/test_context_query.py"},
+        {"type": "doc", "path": "docs/context-dependencies.md"}
+      ]
+    },
+    {
       "area": "Graph",
       "claim": "Local graph workflows build, query, inspect neighbors, report status, and refresh cited graph sidecars.",
       "references": [

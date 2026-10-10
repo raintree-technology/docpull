@@ -12,6 +12,7 @@ import argparse
 import csv
 import json
 import os
+import shutil
 import socket
 import sqlite3
 
@@ -36,6 +37,40 @@ DEFAULT_OPENAPI_URL = (
 )
 DEFAULT_DATASET_URL = "https://raw.githubusercontent.com/mwaskom/seaborn-data/master/iris.csv"
 DEFAULT_README_URL = "https://raw.githubusercontent.com/psf/requests/main/README.md"
+
+
+def _prepare_locked_context_fixture(base: Path) -> Path:
+    from docpull.project import add_source, init_project, install_project, sync_project
+
+    spec = base / "locked-context.openapi.json"
+    spec.write_text(
+        json.dumps(
+            {
+                "openapi": "3.0.3",
+                "info": {"title": "Retry API", "version": "2.0"},
+                "paths": {
+                    "/retry": {
+                        "get": {
+                            "summary": "Retry with exponential backoff",
+                            "responses": {"200": {"description": "Retry succeeded"}},
+                        }
+                    }
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    origin = base / "locked-context-origin"
+    fresh = base / "locked-context-restored"
+    init_project(name="release-context", root=origin)
+    add_source(str(spec), name="retry-api", source_type="openapi", root=origin)
+    sync_project(root=origin, run_id="release_context")
+    (fresh / ".docpull").mkdir(parents=True)
+    for name in ("docpull.yaml", ".docpull/context.lock.json"):
+        shutil.copyfile(origin / name, fresh / name)
+    shutil.copytree(origin / ".docpull/artifacts", fresh / ".docpull/artifacts")
+    install_project(root=fresh, frozen=True)
+    return fresh
 
 
 @dataclass
@@ -1530,6 +1565,7 @@ class RealFeatureSmoke:
                     process.wait(timeout=5)
 
     def _mcp(self, pack_dir: Path) -> None:
+        locked_project = _prepare_locked_context_fixture(self.base) if self.args.full_mcp else None
         script = textwrap.dedent(
             """
             import asyncio
@@ -1577,6 +1613,20 @@ class RealFeatureSmoke:
                     await call("serve_pack_status", {"pack_dir": pack_dir})
                     if not full:
                         return
+
+                    context = await call(
+                        "context_query",
+                        {
+                            "query": "retry",
+                            "project_roots": [sys.argv[6]],
+                            "max_tokens": 8000,
+                        },
+                    )
+                    payload = context.structuredContent
+                    assert payload["status"] == "ok", payload
+                    assert payload["results"], payload
+                    assert payload["budget"]["used_tokens"] <= 8000, payload
+                    assert all(item["citations"] for item in payload["results"]), payload
 
                     source_name = "docpull-smoke-example"
                     await call(
@@ -1774,6 +1824,7 @@ class RealFeatureSmoke:
                 str(self.base),
                 str(self.base / "policy.yml"),
                 "1" if self.args.full_mcp else "0",
+                str(locked_project) if locked_project else "",
             ],
             cwd=self.repo,
             timeout=900 if self.args.full_mcp else 90,

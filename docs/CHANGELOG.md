@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.6.0] - 2026-10-10
+
 ### Added
 
 - Query locked packs through `docpull query`, Python `query_context`, and MCP

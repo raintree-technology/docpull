@@ -8,7 +8,7 @@ const child = spawn("docpull", ["mcp", ...process.argv.slice(2)], {
 
 child.on("error", (error) => {
   if (error.code === "ENOENT" || error.code === "EACCES") {
-    console.error("pipx install 'docpull[mcp]==6.5.5'");
+    console.error("pipx install 'docpull[mcp]==6.6.0'");
     process.exitCode = 127;
     return;
   }
