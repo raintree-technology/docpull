@@ -17,6 +17,7 @@ import os
 import re
 import shutil
 import sqlite3
+import tempfile
 import time
 import urllib.error
 import urllib.request
@@ -35,6 +36,7 @@ from .accounting import RunAccounting
 from .context_aliases import context_alias_for_url, get_context_alias, list_context_aliases
 from .conversion.chunking import TokenCounter, chunk_markdown
 from .exports import export_pack
+from .frozen import FrozenArtifactError, create_run_artifact, run_fingerprints, stage_run_artifact
 from .models.config import (
     AuthConfig,
     AuthType,
@@ -452,16 +454,21 @@ def run_install_cli(argv: list[str] | None = None) -> int:
         prog="docpull install",
         description="Validate context dependencies and write a reproducibility lockfile",
     )
-    parser.add_argument(
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument(
         "--sync",
         action="store_true",
         help="Run `docpull sync` after validating dependencies",
     )
+    mode.add_argument(
+        "--frozen", action="store_true", help="Restore the exact locked context without fetching"
+    )
+    parser.add_argument("--artifact-dir", type=Path, help="Local archive directory for --frozen")
     parser.add_argument("--json", action="store_true", dest="json_output")
     args = parser.parse_args(argv)
     console = Console()
     try:
-        payload = install_project(sync=args.sync)
+        payload = install_project(sync=args.sync, frozen=args.frozen, artifact_dir=args.artifact_dir)
     except ProjectError as err:
         console.print("[red]Project install error:[/red] " + escape(str(err)))
         return 1
@@ -951,18 +958,26 @@ def list_context_sources() -> dict[str, Any]:
 def install_project(
     *,
     sync: bool = False,
+    frozen: bool = False,
+    artifact_dir: Path | None = None,
     root: Path | None = None,
 ) -> dict[str, Any]:
-    """Validate context dependencies and write or verify the lockfile."""
+    """Validate dependencies or restore pinned evidence from a local archive."""
 
+    if sync and frozen:
+        raise ProjectError("--sync and --frozen are mutually exclusive")
+    if artifact_dir is not None and not frozen:
+        raise ProjectError("--artifact-dir requires --frozen")
     project_root = find_project_root(root or Path.cwd())
     config = load_project_config(project_root)
-    paths = ensure_project_dirs(project_root)
-    ensure_project_index(project_root, config)
+    paths = project_paths(project_root)
     existing_lock = _read_context_lock(paths.context_lock)
+    if frozen:
+        return _install_frozen_project(project_root, config, existing_lock, artifact_dir)
     if existing_lock:
         _validate_context_lock(config, existing_lock)
-    payload = _write_context_lock(
+    ensure_project_index(project_root, config)
+    payload = existing_lock or _write_context_lock(
         project_root=project_root,
         config=config,
         run_id=_latest_run_id(project_root),
@@ -984,6 +999,82 @@ def install_project(
     if payload.get("run_id"):
         result["run_id"] = payload["run_id"]
     return result
+
+
+def _install_frozen_project(
+    project_root: Path,
+    config: ProjectConfig,
+    lock: dict[str, Any] | None,
+    artifact_dir: Path | None,
+) -> dict[str, Any]:
+    paths = project_paths(project_root)
+    if not lock:
+        raise ProjectError("Frozen installation requires an existing context lockfile")
+    _validate_context_lock(config, lock)
+    if lock.get("lock_hash") != _context_lock_hash(lock):
+        raise ProjectError("Context lockfile hash mismatch")
+    if lock.get("project") != config.name:
+        raise ProjectError("Context lockfile belongs to a different project")
+    if not isinstance(lock.get("run_id"), str):
+        raise ProjectError("Frozen installation requires a locked run; run `docpull sync` first")
+    run_id, run_dir = _run_dir_for_id(paths, lock["run_id"])
+    try:
+        with tempfile.TemporaryDirectory(prefix="docpull-frozen-") as temporary:
+            staged = Path(temporary) / "run"
+            staged.mkdir()
+            stage_run_artifact(lock.get("artifact"), artifact_dir or paths.state / "artifacts", staged)
+            run = _run_payload(staged)
+            if not run or run.get("run_id") != run_id or run.get("project") != config.name:
+                raise ProjectError("Frozen artifact does not match the locked run")
+            records = _read_jsonl(staged / "documents.jsonl")
+            if sorted(str(row["content_hash"]) for row in records if row.get("content_hash")) != lock.get(
+                "content_hashes"
+            ) or _content_hash_summary(records) != lock.get("content_hash_summary"):
+                raise ProjectError("Frozen artifact content does not match the lockfile")
+            chunks = _read_jsonl(staged / "chunks.jsonl")
+            errors = _read_jsonl(staged / "errors.jsonl")
+            health = _read_json(staged / "source-health.json")
+            manifest = _read_json(staged / "manifest.json")
+            if not isinstance(health, dict) or not isinstance(health.get("sources"), list):
+                raise ProjectError("Frozen artifact is missing source health")
+            if not isinstance(manifest, dict):
+                raise ProjectError("Frozen artifact is missing its manifest")
+            # The archive precedes its own lock digest. Complete operational metadata
+            # without changing any captured document, chunk, or citation bytes.
+            if "context_lock_hash" not in run:
+                run["context_lock_hash"] = lock["lock_hash"]
+                _write_json(staged / "run.json", run)
+            if run_dir.exists():
+                # Exporting changes the lock but does not change the captured evidence.
+                actual_run = dict(_run_payload(run_dir) or {})
+                expected_run = dict(run)
+                actual_run.pop("context_lock_hash", None)
+                expected_run.pop("context_lock_hash", None)
+                if actual_run != expected_run or run_fingerprints(run_dir) != run_fingerprints(staged):
+                    raise ProjectError(f"Existing run differs from frozen artifact: {run_id}")
+            else:
+                # Validation finishes before any project state is created or changed.
+                ensure_project_dirs(project_root)
+                with tempfile.TemporaryDirectory(prefix=".install-", dir=paths.state) as pending:
+                    pending_run = Path(pending) / "run"
+                    shutil.copytree(staged, pending_run)
+                    pending_run.rename(run_dir)
+            _index_run(project_root, config, run, records, chunks, errors, health["sources"])
+            _write_json(paths.manifests / f"{run_id}.json", manifest)
+            paths.latest_run.write_text(run_id + "\n", encoding="utf-8")
+    except (FrozenArtifactError, OSError) as err:
+        raise ProjectError(str(err)) from err
+    return {
+        "schema_version": PROJECT_SCHEMA_VERSION,
+        "project": config.name,
+        "source_count": len(config.sources),
+        "sources": lock["sources"],
+        "lockfile": str(paths.context_lock),
+        "validated_existing_lock": True,
+        "frozen": True,
+        "run_id": run_id,
+        "artifact": lock["artifact"],
+    }
 
 
 def context_dependency_status(*, root: Path | None = None) -> dict[str, Any]:
@@ -2124,13 +2215,6 @@ def _finalize_project_run(
     accounting = _run_accounting(config, fetch_stats)
     _write_json(run_dir / "accounting.json", accounting)
     _write_json(paths.manifests / f"{run_id}.json", manifest)
-    lock_payload = _write_context_lock(
-        project_root=project_root,
-        config=config,
-        run_id=run_id if status != "dry_run" else None,
-        records=records,
-    )
-
     run_payload = {
         "schema_version": PROJECT_SCHEMA_VERSION,
         "project": config.name,
@@ -2163,7 +2247,6 @@ def _finalize_project_run(
         },
     }
     run_payload["context_lock"] = str(paths.context_lock)
-    run_payload["context_lock_hash"] = lock_payload.get("lock_hash")
     if status != "dry_run":
         from .agent_publish import AgentPublishError, publish_agent_docs
         from .pack_tools import PackToolError
@@ -2177,6 +2260,14 @@ def _finalize_project_run(
                 "status": "completed",
                 "artifacts": publish_payload.get("artifacts", {}),
             }
+    _write_json(run_dir / "run.json", run_payload)
+    lock_payload = _write_context_lock(
+        project_root=project_root,
+        config=config,
+        run_id=run_id if status != "dry_run" else None,
+        records=records,
+    )
+    run_payload["context_lock_hash"] = lock_payload.get("lock_hash")
     _write_json(run_dir / "run.json", run_payload)
     if status != "dry_run":
         paths.latest_run.write_text(run_id + "\n", encoding="utf-8")
@@ -3045,14 +3136,29 @@ def _write_context_lock(
         "content_hash_summary": _content_hash_summary(current_records),
         "exports": exports,
     }
+    if run_id:
+        if previous and previous.get("run_id") == run_id and previous.get("artifact"):
+            payload["artifact"] = previous["artifact"]
+        else:
+            _, run_dir = _run_dir_for_id(paths, run_id)
+            if (run_dir / "run.json").is_file():
+                try:
+                    payload["artifact"] = create_run_artifact(run_dir, paths.state / "artifacts")
+                except (FrozenArtifactError, OSError) as err:
+                    raise ProjectError(str(err)) from err
+    payload["lock_hash"] = _context_lock_hash(payload)
+    _write_json(paths.context_lock, payload)
+    return payload
+
+
+def _context_lock_hash(payload: dict[str, Any]) -> str:
     lock_hash_payload = dict(payload)
     lock_hash_payload.pop("generated_at", None)
     lock_hash_payload.pop("docpull_version", None)
-    payload["lock_hash"] = hashlib.sha256(
+    lock_hash_payload.pop("lock_hash", None)
+    return hashlib.sha256(
         json.dumps(lock_hash_payload, sort_keys=True, ensure_ascii=False).encode("utf-8")
     ).hexdigest()
-    _write_json(paths.context_lock, payload)
-    return payload
 
 
 def _read_context_lock(path: Path) -> dict[str, Any] | None:

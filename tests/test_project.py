@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shutil
 import sqlite3
+import zipfile
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -448,6 +450,185 @@ def test_install_writes_skeleton_lock_and_rejects_drift(tmp_path: Path) -> None:
     assert context_dependency_status(root=tmp_path)["lock_status"] == "drifted"
     with pytest.raises(ProjectError, match="diverges"):
         install_project(root=tmp_path)
+
+
+@pytest.fixture
+def frozen_project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, Path, Path]:
+    origin = tmp_path / "origin"
+    fresh = tmp_path / "fresh"
+    _install_fake_fetcher(monkeypatch, ["# API\nUse the exact locked API version."])
+    init_project(name="demo", source="https://docs.example.com/api", root=origin)
+    sync_project(root=origin, run_id="run_pinned")
+    (fresh / ".docpull").mkdir(parents=True)
+    shutil.copyfile(origin / "docpull.yaml", fresh / "docpull.yaml")
+    shutil.copyfile(origin / ".docpull/context.lock.json", fresh / ".docpull/context.lock.json")
+
+    async def fail_fetch(**kwargs: Any) -> None:
+        pytest.fail("Frozen installation must never acquire source content")
+
+    monkeypatch.setattr(project_module, "_sync_source", fail_fetch)
+    return origin, fresh, origin / ".docpull/artifacts"
+
+
+def _project_bytes(root: Path) -> dict[str, bytes]:
+    return {p.relative_to(root).as_posix(): p.read_bytes() for p in root.rglob("*") if p.is_file()}
+
+
+def test_frozen_install_restores_exact_context_and_index(
+    frozen_project: tuple[Path, Path, Path],
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    origin, fresh, artifacts = frozen_project
+    original_lock = (fresh / ".docpull/context.lock.json").read_bytes()
+    origin_run = origin / ".docpull/runs/run_pinned"
+    citations = project_module.build_citation_map(origin_run)
+    monkeypatch.chdir(fresh)
+    assert main(["install", "--frozen", "--artifact-dir", str(artifacts), "--json"]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["frozen"] is True
+    assert payload["run_id"] == "run_pinned"
+    restored_run = fresh / ".docpull/runs/run_pinned"
+    expected = _project_bytes(origin_run)
+    assert _project_bytes(restored_run) == expected
+    restored_citations = project_module.build_citation_map(restored_run)
+    assert restored_citations["sources"] == citations["sources"]
+    assert (fresh / ".docpull/context.lock.json").read_bytes() == original_lock
+    assert (fresh / ".docpull/latest-run").read_text().strip() == "run_pinned"
+    assert project_status(root=fresh)["document_count"] == 1
+    with sqlite3.connect(fresh / ".docpull/index.sqlite") as conn:
+        assert conn.execute("SELECT COUNT(*) FROM documents").fetchone()[0] == 1
+        assert conn.execute("SELECT output_dir FROM runs").fetchone()[0] == str(restored_run)
+    # A repeated install verifies the existing run and never duplicates index rows.
+    install_project(frozen=True, artifact_dir=artifacts, root=fresh)
+    with sqlite3.connect(fresh / ".docpull/index.sqlite") as conn:
+        assert conn.execute("SELECT COUNT(*) FROM documents").fetchone()[0] == 1
+
+
+def test_frozen_install_uses_copied_default_artifact_store(frozen_project: tuple[Path, Path, Path]) -> None:
+    _, fresh, artifacts = frozen_project
+    shutil.copytree(artifacts, fresh / ".docpull/artifacts")
+    assert install_project(frozen=True, root=fresh)["run_id"] == "run_pinned"
+
+
+@pytest.mark.parametrize("damage", ["missing", "truncated", "changed-content"])
+def test_frozen_install_rejects_missing_or_tampered_artifact_without_mutation(
+    frozen_project: tuple[Path, Path, Path], damage: str
+) -> None:
+    _, fresh, artifacts = frozen_project
+    archive = next(artifacts.glob("*.zip"))
+    if damage == "missing":
+        archive.unlink()
+    elif damage == "truncated":
+        archive.write_bytes(archive.read_bytes()[:100])
+    else:
+        with zipfile.ZipFile(archive) as bundle:
+            files = {name: bundle.read(name) for name in bundle.namelist()}
+        # Preserve the claimed per-document hash: the pinned archive must still detect this edit.
+        files["documents.ndjson"] = files["documents.ndjson"].replace(b"exact locked", b"tampered")
+        with zipfile.ZipFile(archive, "w") as bundle:
+            for name, data in files.items():
+                bundle.writestr(name, data)
+    before = _project_bytes(fresh)
+    with pytest.raises(ProjectError, match="Missing frozen artifact|Artifact digest mismatch"):
+        install_project(frozen=True, artifact_dir=artifacts, root=fresh)
+    assert _project_bytes(fresh) == before
+    assert not (fresh / ".docpull/runs").exists()
+
+
+@pytest.mark.parametrize("damage", ["source-drift", "lock-hash", "legacy-lock", "missing-lock"])
+def test_frozen_install_rejects_invalid_locks_without_mutation(
+    frozen_project: tuple[Path, Path, Path], damage: str
+) -> None:
+    _, fresh, artifacts = frozen_project
+    lock_path = fresh / ".docpull/context.lock.json"
+    if damage == "source-drift":
+        add_source("https://other.example.com", root=fresh)
+    elif damage == "missing-lock":
+        lock_path.unlink()
+    else:
+        lock = json.loads(lock_path.read_text())
+        if damage == "legacy-lock":
+            lock.pop("artifact")
+            lock["lock_hash"] = project_module._context_lock_hash(lock)
+        else:
+            lock["content_hashes"] = ["modified"]
+        lock_path.write_text(json.dumps(lock))
+    before = _project_bytes(fresh)
+    with pytest.raises(
+        ProjectError, match="diverges|hash mismatch|supported frozen artifact|existing context"
+    ):
+        install_project(frozen=True, artifact_dir=artifacts, root=fresh)
+    assert _project_bytes(fresh) == before
+
+
+@pytest.mark.parametrize("changed_file", ["sources/001.md", "run.json"])
+def test_frozen_install_preserves_conflicting_existing_run(
+    frozen_project: tuple[Path, Path, Path], changed_file: str
+) -> None:
+    _, fresh, artifacts = frozen_project
+    install_project(frozen=True, artifact_dir=artifacts, root=fresh)
+    path = fresh / ".docpull/runs/run_pinned" / changed_file
+    if changed_file == "run.json":
+        run = json.loads(path.read_text())
+        run["status"] = "locally-edited"
+        path.write_text(json.dumps(run))
+    else:
+        path.write_text("local edits")
+    before = _project_bytes(fresh)
+    with pytest.raises(ProjectError, match="Existing run differs"):
+        install_project(frozen=True, artifact_dir=artifacts, root=fresh)
+    assert _project_bytes(fresh) == before
+
+
+def test_plain_install_preserves_copied_lock_without_local_runs(
+    frozen_project: tuple[Path, Path, Path],
+) -> None:
+    _, fresh, _ = frozen_project
+    lock_path = fresh / ".docpull/context.lock.json"
+    before = lock_path.read_bytes()
+    install_project(root=fresh)
+    assert lock_path.read_bytes() == before
+
+
+def test_frozen_install_selects_pinned_archive_after_later_sync(
+    frozen_project: tuple[Path, Path, Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    origin, fresh, artifacts = frozen_project
+    monkeypatch.undo()
+    _install_fake_fetcher(monkeypatch, ["# API\nNew incompatible API version."])
+    sync_project(root=origin, run_id="run_newer")
+    assert len(list(artifacts.glob("*.zip"))) == 2
+    payload = install_project(frozen=True, artifact_dir=artifacts, root=fresh)
+    assert payload["run_id"] == "run_pinned"
+    assert "exact locked" in (fresh / ".docpull/runs/run_pinned/sources/001.md").read_text()
+    assert not (fresh / ".docpull/runs/run_newer").exists()
+
+
+def test_frozen_install_restores_legacy_run_after_export(
+    frozen_project: tuple[Path, Path, Path],
+) -> None:
+    origin, fresh, artifacts = frozen_project
+    origin_lock = origin / ".docpull/context.lock.json"
+    lock = json.loads(origin_lock.read_text())
+    lock.pop("artifact")
+    lock["lock_hash"] = project_module._context_lock_hash(lock)
+    origin_lock.write_text(json.dumps(lock))
+    export_context_pack(target="codex", run_id="run_pinned", root=origin)
+    shutil.copyfile(origin_lock, fresh / ".docpull/context.lock.json")
+    install_project(frozen=True, artifact_dir=artifacts, root=fresh)
+    original = _project_bytes(origin / ".docpull/runs/run_pinned")
+    assert _project_bytes(fresh / ".docpull/runs/run_pinned") == original
+
+
+def test_install_rejects_conflicting_options(tmp_path: Path) -> None:
+    with pytest.raises(ProjectError, match="mutually exclusive"):
+        install_project(sync=True, frozen=True, root=tmp_path)
+    with pytest.raises(ProjectError, match="requires --frozen"):
+        install_project(artifact_dir=tmp_path, root=tmp_path)
+    with pytest.raises(SystemExit) as err:
+        main(["install", "--frozen", "--sync"])
+    assert err.value.code == 2
 
 
 def test_diff_status_export_and_eval_set(

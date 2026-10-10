@@ -7,7 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Query locked packs through `docpull query`, Python `query_context`, and MCP
+  `context_query`, with response budgets, exact version filters, deduplicated
+  passages, and citations tied to verified archives and source spans.
+- Restore exact locked context from local SHA-256-addressed archives with
+  `docpull install --frozen`, including validation before installation and
+  an optional `--artifact-dir` for transferred archives.
+
 ### Fixed
+
+- Preserve existing context locks during ordinary installation when retained
+  runs are absent on a fresh machine.
 - Remove the optional Crawl4AI benchmark baseline and its unpatched NLTK dependency.
 - Raise security floors and refresh Python, benchmark, and MCP dependency locks.
 - Restrict the optional Unstructured backend to Python 3.11–3.13, where patched

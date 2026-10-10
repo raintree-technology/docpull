@@ -18,6 +18,8 @@ from .surface import PUBLIC_SDK_EXPORTS
 __version__ = "6.5.5"
 
 _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
+    "query_context": (".context_query", "query_context"),
+    "ContextQueryError": (".context_query", "ContextQueryError"),
     **{
         name: (".context_packs", name)
         for name in (
@@ -207,6 +209,7 @@ if TYPE_CHECKING:
         capture_screenshot_pack,
         validate_website_snapshot_pack,
     )
+    from .context_query import ContextQueryError, query_context
     from .contracts import (
         ArtifactManifest,
         ChangeEvent,

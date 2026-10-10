@@ -25,6 +25,7 @@ pip install docpull
 docpull init stripe-docs
 docpull add https://docs.stripe.com
 docpull sync
+docpull query "retry policy" --max-tokens 4000
 docpull diff
 docpull export context-pack --target cursor
 ```
@@ -32,6 +33,11 @@ docpull export context-pack --target cursor
 The project stores declared sources in `docpull.yaml` and resolved inputs in
 `.docpull/context.lock.json`. Later syncs produce a hash-based diff while preserving
 source URLs, content hashes, run IDs, citations, and export metadata.
+
+`docpull query` retrieves deduplicated passages from locked archives with version
+filters, a response budget, and exact source spans. The same query is available
+through the Python SDK and MCP. See [Query locked context](docs/context-dependencies.md#query-locked-context)
+for budget semantics and queries across projects.
 
 ![DocPull project diff showing changed pages, local semantic categories, and zero failed URLs](docs/launch-assets/docpull-project-diff-demo.png)
 
