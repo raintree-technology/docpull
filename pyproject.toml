@@ -211,7 +211,6 @@ docpull = ["py.typed", "fixtures/*.json", "schemas/*.schema.json"]
 constraint-dependencies = [
     "h2>=4.4.1",
     "multidict>=6.9.1",
-    "nltk>=3.10.3",
     "accelerate>=1.15.0",
     "soupsieve>=2.9",
     "virtualenv>=21.7.13",

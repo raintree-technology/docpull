@@ -21,7 +21,6 @@ constraints = [
     { name = "accelerate", specifier = ">=1.15.0" },
     { name = "h2", specifier = ">=4.4.1" },
     { name = "multidict", specifier = ">=6.9.1" },
-    { name = "nltk", specifier = ">=3.10.3" },
     { name = "soupsieve", specifier = ">=2.9" },
     { name = "virtualenv", specifier = ">=21.7.13" },
 ]

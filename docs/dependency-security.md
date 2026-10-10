@@ -13,16 +13,11 @@ instead of resolving an older vulnerable release. An explicit request for that
 backend fails with a diagnostic before importing it. Use pypdf, MarkItDown, or
 the text backend where supported by the input format.
 
-## Remaining benchmark advisory
+## Retired benchmark baseline
 
-The optional Crawl4AI benchmark baseline depends on NLTK. NLTK 3.10.3 fixes the
-recorded critical advisories, but its current release remains affected by
-[GHSA-8mgp-746c-j5xp](https://github.com/advisories/GHSA-8mgp-746c-j5xp).
-No patched version is published in the package advisory metadata as of
-2026-10-10. This dependency belongs to the optional benchmark baseline and is
-absent from the updated root dependency lock.
-
-Treat model names and artifact paths passed to that baseline as trusted inputs.
-Do not use this note to suppress an audit result or consider the advisory fixed.
-Track the remaining remediation in
-[dependency issue #148](https://github.com/raintree-technology/docpull/issues/148).
+The optional Crawl4AI benchmark baseline and its CLI adapter were removed because
+Crawl4AI requires NLTK, whose current release has no published patch for
+[GHSA-8mgp-746c-j5xp](https://github.com/advisories/GHSA-8mgp-746c-j5xp)
+as of 2026-10-10. Neither dependency remains in the root or benchmark lockfile.
+Readability and Trafilatura remain supported local baselines. Historical
+benchmark data remains available. No advisory exclusions were added.

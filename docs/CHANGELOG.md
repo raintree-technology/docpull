@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- Remove the optional Crawl4AI benchmark baseline and its unpatched NLTK dependency.
 - Raise security floors and refresh Python, benchmark, and MCP dependency locks.
 - Restrict the optional Unstructured backend to Python 3.11–3.13, where patched
   releases are available. Other interpreters can use pypdf, MarkItDown, or text.
