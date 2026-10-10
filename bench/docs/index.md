@@ -122,7 +122,6 @@ committed fixture bytes the controlled corpus serves to live adapters:
 | --- | --- | --- |
 | `trafilatura` | extract | Markdown output when the installed release supports it, else plain text. |
 | `readability` | extract | readability-lxml main content plus a minimal stdlib HTML→Markdown conversion. |
-| `crawl4ai` | extract | Runs Crawl4AI's HTML→Markdown generator on fixture bytes. The crawl lane is not claimed: Crawl4AI crawling requires a live Playwright browser and network, which the controlled replay policy forbids. |
 
 Dependencies are optional. Install them with
 `uv sync --project bench --locked --extra baselines`. A missing dependency

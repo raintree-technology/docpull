@@ -19,7 +19,6 @@ dependencies = [
 
 [project.optional-dependencies]
 baselines = [
-    "crawl4ai>=0.4.0",
     "readability-lxml>=0.8.1",
     "trafilatura>=1.12.0",
 ]
@@ -42,6 +41,10 @@ constraint-dependencies = [
     "aiohttp>=3.14.3",
     "cryptography>=50.0.0",
     "h2>=4.4.1",
+    "multidict>=6.9.1",
+    "soupsieve>=2.9",
+    "httpx2>=2.13.1",
+    "httpcore2>=2.13.1",
 ]
 
 [tool.setuptools.packages.find]

@@ -210,27 +210,6 @@ class ReadabilityAdapter(LocalBaselineAdapter):
         return title, html_fragment_to_markdown(str(document.summary(html_partial=True)))
 
 
-class Crawl4AIAdapter(LocalBaselineAdapter):
-    """Crawl4AI HTML→Markdown generation on the committed fixture bytes.
-
-    Extract lane only. Crawl4AI's crawler (``AsyncWebCrawler``) requires a
-    live Playwright browser and network access, which the controlled replay
-    policy forbids, so the crawl lane is intentionally not claimed; this
-    adapter runs Crawl4AI's Markdown generation pipeline directly on the
-    fixture HTML instead.
-    """
-
-    system = "crawl4ai"
-    import_module = "crawl4ai"
-    distribution = "crawl4ai"
-
-    def _extract(self, source: str, url: str) -> tuple[str, str]:
-        from crawl4ai.markdown_generation_strategy import DefaultMarkdownGenerator
-
-        result = DefaultMarkdownGenerator().generate_markdown(source, base_url=url)
-        return _document_title(source), str(getattr(result, "raw_markdown", "") or "")
-
-
 class _MarkdownExtractor(HTMLParser):
     """Minimal deterministic HTML→Markdown-flavored text conversion."""
 
