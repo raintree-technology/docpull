@@ -43,6 +43,7 @@ DocPull targets capability alignment, not 1:1 flag parity. MCP should not mirror
 | List cached/indexed sources | Not a primary CLI command | Local filesystem/search helpers | `list_indexed` | MCP-focused |
 | Project lifecycle | `docpull init`, `add`, `install`, `deps`, `sources`, `sync`, `diff`, `status`, `history`, `review`, `release context-pack`, `watch` with explicit crawl bounds | `docpull.project` helpers | Not exposed yet | Core-aligned |
 | Search cached sources | SQLite/local search helpers where applicable | `search_sqlite_documents` | `grep_docs` | Adapted |
+| Query locked context with budgets, version filters, deduplication, and precise citations | `docpull query` | `query_context`, `ContextQueryError` | `context_query` | Core-aligned |
 | Read cached source by path/range | Filesystem responsibility | Filesystem responsibility | `read_doc` | MCP-specific |
 | Add/remove source aliases | Plugin/MCP workflow, not core CLI | Source internals, not public SDK | `add_source`, `remove_source` | MCP-specific |
 | Refresh/score/diff/audit context packs | `docpull refresh`, `docpull pack score`, `docpull pack sources`, `docpull pack diff`, `docpull pack audit` | Pack helper modules, `refresh_pack`, `audit_pack` | `refresh_pack`, `pack_score`, `pack_diff`, `audit_pack` | Core-aligned |

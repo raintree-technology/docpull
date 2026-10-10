@@ -56,6 +56,7 @@ The lockfile records:
 - discovered URLs used by the project
 - latest run ID when available
 - content hashes and an aggregate hash summary
+- a SHA-256 digest for the frozen run archive created by a new sync
 - context-pack export metadata when exports are created
 - non-secret auth readiness metadata
 
@@ -81,6 +82,145 @@ Use this to validate and then sync:
 ```bash
 docpull install --sync
 ```
+
+## Frozen Installation
+
+`docpull install --frozen` restores the captured context without fetching any
+source. Each new non-dry sync saves a ZIP archive at
+`.docpull/artifacts/<sha256>.zip` and pins its digest in the lockfile.
+
+To restore on another machine:
+
+1. Run `docpull sync` on the source machine to capture the desired context.
+2. Transfer `docpull.yaml`, `.docpull/context.lock.json`, and the archive named
+   by the lockfile's `artifact.sha256`. Keep the two project files at their
+   original relative paths in the new project directory.
+3. From that directory, run:
+
+   ```bash
+   docpull install --frozen --artifact-dir /path/to/transferred-artifacts
+   ```
+
+Omit `--artifact-dir` when the archive is already in `.docpull/artifacts`.
+The directory must be local or mounted storage; installation does not download
+archives from URLs. The Python equivalent is
+`install_project(frozen=True, artifact_dir=Path("/path/to/transferred-artifacts"), root=project_root)`.
+
+Installation verifies the lock and archive digests, stages the run, and rebuilds
+the local project index. It preserves captured document, chunk, citation, and
+agent-document bytes. If absent from the archive, the run's operational
+lock-hash field is filled from the current lock. Source-machine paths in captured
+metadata remain historical metadata; index paths point to the restored run.
+
+Missing or changed archives, source drift, unsafe archive paths, and conflicting
+existing runs fail before project state changes. Frozen installation never
+rewrites the lockfile or substitutes newly fetched content. `--frozen` and
+`--sync` are mutually exclusive. Repeating an install verifies the existing run;
+it does not overwrite local edits or later artifacts added to that run.
+
+Archives contain retained source content and run artifacts, including any
+authorized private content and acquisition output in `_fetch`. They exclude the
+project cache, credential configuration, index database, and separate exports.
+Transfer them only to recipients allowed to access that content. Exports can be regenerated
+with `docpull export context-pack --target codex` after installation.
+
+The archive captures the run at sync time. Later diff, evaluation, or seal files
+are not retroactively added to that archive. Existing locks without an artifact
+digest remain valid for ordinary installation, which now preserves existing
+locks even without local runs. To make an older retained run restorable, export
+it with `docpull export context-pack --target codex --run <run-id>`; this pins an
+archive if the selected run has none. A lockfile alone cannot recover content
+that was never retained.
+
+## Query locked context
+
+`docpull query` retrieves cited passages from one or more projects' locked
+archives. It validates each selected lock and archive before returning evidence.
+It does not fetch sources or change project files. An archive can be queried
+before frozen installation, including on a fresh machine with only the project
+manifest, lockfile, and transferred archive.
+
+```bash
+# Query the current project's locked context.
+docpull query "retry policy" --max-tokens 4000
+
+# Query two locked packs in one response.
+docpull query "retry policy" --project ./payments --project ./client --max-tokens 8000
+
+# Restrict evidence to explicit document versions and configured sources.
+docpull query "retry policy" --version 2.0 --source client-docs
+
+# Read transferred archives from a local or mounted directory.
+docpull query "retry policy" --artifact-dir /path/to/transferred-artifacts
+```
+
+Repeat `--project`, `--version`, `--pack-version`, `--source`, or `--artifact-dir`
+to provide multiple values. Filters accept exact matches; values within one
+filter are alternatives, and different filters apply together. `--version`
+matches document `metadata.version`. Documents without that field do not match
+a version filter. `--pack-version` matches the locked run ID. Neither filter
+resolves semantic version ranges or infers versions from URLs. A project exposes
+the run pinned by its current lock; query separate project roots to compare
+retained locks. `--limit` caps distinct passages at 10 by default, up to 100.
+
+The Python SDK and MCP call the same implementation:
+
+```python
+from docpull import ContextQueryError, query_context
+
+result = query_context(
+    "retry policy",
+    project_roots=["./payments", "./client"],
+    max_tokens=8000,
+    versions=["2.0"],
+)
+```
+
+The MCP tool is `context_query`. Its arguments use the SDK names: `query`,
+`project_roots`, `max_tokens`, `versions`, `pack_versions`, `sources`, `limit`,
+and `artifact_dirs`. Omit `project_roots` to use the process's current project.
+
+The result is JSON with `schema_version: 1`, `status`, `reason`, `budget`,
+`results`, and `omitted_passages`. Each result contains `text`, `citations`, and
+`omitted_citations`. Ranking uses local lexical matches. Identical passage text
+appears once, with citations from each matching document or pack. Internal
+whitespace remains intact. Distinct passages take priority over additional
+citations for duplicate text.
+
+`max_tokens` defaults to 4000 and must be at least 256. The budget uses
+`utf8_bytes_upper_bound`: one UTF-8 byte counts as one budget token. This is a
+conservative bound for byte-based tokenizers, not a model-specific token count.
+It covers the complete canonical JSON result, including citations, omission
+counts, and budget metadata. The CLI's trailing newline and MCP protocol framing
+are excluded. SDK callers can use `docpull.context_query.serialize_query_result`
+to reproduce the counted representation. Pretty-printing or adding a prompt
+requires additional space. No tokenizer data is downloaded.
+
+Paragraphs and fenced code blocks are returned whole or omitted. `budget.used_tokens`
+reports the counted response size. `omitted_passages` counts matching passages
+excluded by the budget or result limit; `omitted_citations` counts additional
+citations excluded by the budget. When no passage fits, `status` is
+`insufficient_evidence` and `reason` is `budget_exhausted`. When no passage
+matches the query and filters, the reason is `no_matches`. These statuses
+describe retrieval, not whether an answer exists elsewhere.
+
+Each citation identifies the pack, locked run, archive SHA-256, source URL,
+document ID, content hash, configured source, and explicit document version.
+`record_index` is the one-based document ordinal in the archive's
+`documents.ndjson`, ignoring blank lines. `char_start` and `char_end` select the
+exact passage from that record's `content` using Unicode character offsets,
+with an exclusive end. `line_start` and `line_end` are one-based inclusive
+line numbers within that content. Citation IDs remain stable for the same
+archive, record, and span.
+
+Missing or tampered archives, invalid locks, and source drift fail the whole
+query without partial results. The CLI exits with code 1, the SDK raises
+`ContextQueryError`, and MCP returns a tool error. The project artifact directory
+is searched before additional directories; a corrupt archive is never silently
+replaced. Locks without an archive digest require a new sync or an export of
+their retained run, as described under frozen installation. This initial query
+path verifies and scans complete archives on each call; it does not use a
+persistent search index or semantic embeddings.
 
 ## Context CI
 

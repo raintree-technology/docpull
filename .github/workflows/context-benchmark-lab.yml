@@ -2,12 +2,6 @@ name: DocPull Evaluation Lab
 
 on:
   pull_request:
-    paths:
-      - "bench/**"
-      - "src/docpull/**"
-      - "pyproject.toml"
-      - "requirements-release.txt"
-      - ".github/workflows/context-benchmark-lab.yml"
 
 permissions:
   contents: read

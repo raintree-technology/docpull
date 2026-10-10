@@ -19,6 +19,7 @@ Read-only:
 - ``pack_citations(pack_dir, required_domains?)`` — build a stable source map.
 - ``pack_entities(pack_dir, limit?, required_domains?)`` — extract cited entities.
 - ``pack_search(pack_dir, query, limit?, required_domains?)`` — search pack records.
+- ``context_query(query, project_roots?, max_tokens?, versions?, ...)`` — query locked evidence offline.
 - ``pack_brief(pack_dir, objective?, ...)`` — generate a cited local research brief.
 - ``graph_status(pack_dir)`` — report whether local graph artifacts are current.
 - ``graph_query(pack_dir, query, limit?)`` — search graph nodes and cited edge evidence.
@@ -364,6 +365,19 @@ _PACK_SEARCH_OUTPUT_SCHEMA = {
         "citations": {"type": "array", "items": {"type": "object"}},
     },
     "required": ["query", "source_count", "record_count", "result_count", "results", "citations"],
+}
+
+_CONTEXT_QUERY_OUTPUT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "schema_version": {"type": "integer"},
+        "status": {"enum": ["ok", "insufficient_evidence"]},
+        "reason": {"type": ["string", "null"]},
+        "budget": {"type": "object"},
+        "results": {"type": "array", "items": {"type": "object"}},
+        "omitted_passages": {"type": "integer"},
+    },
+    "required": ["schema_version", "status", "reason", "budget", "results", "omitted_passages"],
 }
 
 _PACK_PREPARE_OUTPUT_SCHEMA = {
@@ -1143,6 +1157,26 @@ async def _dispatch_tool(
             result = ToolResult(
                 f"Extracted entities: {payload['entity_count']}",
                 data=payload,
+            )
+
+        elif name == "context_query":
+            from ..context_query import query_context
+
+            context_payload: dict[str, Any] = await asyncio.to_thread(
+                query_context,
+                _require_str(arguments, "query"),
+                project_roots=(
+                    _string_list_arg(arguments, "project_roots") if "project_roots" in arguments else None
+                ),
+                max_tokens=_coerce_int(arguments.get("max_tokens"), name="max_tokens", default=4000),
+                versions=_string_list_arg(arguments, "versions"),
+                pack_versions=_string_list_arg(arguments, "pack_versions"),
+                sources=_string_list_arg(arguments, "sources"),
+                limit=_coerce_int(arguments.get("limit"), name="limit", default=10),
+                artifact_dirs=_string_list_arg(arguments, "artifact_dirs"),
+            )
+            result = ToolResult(
+                f"Context query: {len(context_payload['results'])} passages", data=context_payload
             )
 
         elif name == "pack_search":
@@ -2144,6 +2178,36 @@ async def _run_stdio() -> int:
                     "required": ["pack_dir", "query"],
                 },
                 outputSchema=_PACK_SEARCH_OUTPUT_SCHEMA,
+            ),
+            Tool(
+                name="context_query",
+                description=(
+                    "Query verified project lock archives offline. Return deduplicated passages and exact "
+                    "citations. max_tokens bounds the canonical JSON response including citations using a "
+                    "conservative UTF-8 byte count; MCP framing is excluded. versions filters explicit "
+                    "metadata.version values; pack_versions filters exact locked run IDs."
+                ),
+                annotations=ToolAnnotations(
+                    title="Query locked context",
+                    readOnlyHint=True,
+                    openWorldHint=False,
+                    idempotentHint=True,
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "query": {"type": "string"},
+                        "project_roots": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+                        "max_tokens": {"type": "integer", "minimum": 256, "default": 4000},
+                        "versions": {"type": "array", "items": {"type": "string"}},
+                        "pack_versions": {"type": "array", "items": {"type": "string"}},
+                        "sources": {"type": "array", "items": {"type": "string"}},
+                        "limit": {"type": "integer", "minimum": 1, "maximum": 100, "default": 10},
+                        "artifact_dirs": {"type": "array", "items": {"type": "string"}},
+                    },
+                    "required": ["query"],
+                },
+                outputSchema=_CONTEXT_QUERY_OUTPUT_SCHEMA,
             ),
             Tool(
                 name="pack_brief",

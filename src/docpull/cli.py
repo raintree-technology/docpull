@@ -1623,6 +1623,10 @@ def main(argv: list[str] | None = None) -> int:
         from .project import run_install_cli
 
         return run_install_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "query":
+        from .context_query import run_query_cli
+
+        return run_query_cli(raw_argv[1:])
     if raw_argv and raw_argv[0] == "deps":
         from .project import run_deps_cli
 
