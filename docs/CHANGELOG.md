@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Register MCP metadata after PyPI publication succeeds, with bounded retries
+  for registry propagation. Refresh npm metadata during bounded install retries
+  and verify the installed SDK version and exports.
+
 ## [6.6.0] - 2026-10-10
 
 ### Added
