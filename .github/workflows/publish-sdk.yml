@@ -24,7 +24,7 @@ concurrency:
 jobs:
   publish:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 25
     permissions:
       contents: read
       id-token: write
@@ -91,7 +91,7 @@ jobs:
           VERSION: ${{ steps.meta.outputs.version }}
         run: |
           set -euo pipefail
-          if npm view "@raintree-technology/docpull-sdk@${VERSION}" version >/dev/null 2>&1; then
+          if npm view "@raintree-technology/docpull-sdk@${VERSION}" version --prefer-online >/dev/null 2>&1; then
             echo "@raintree-technology/docpull-sdk@${VERSION} is already published."
             echo "published=false" >> "$GITHUB_OUTPUT"
             exit 0
@@ -108,13 +108,22 @@ jobs:
           smoke_dir=$(mktemp -d)
           cd "$smoke_dir"
           npm init --yes >/dev/null
-          for attempt in 1 2 3 4 5; do
-            if npm install "@raintree-technology/docpull-sdk@${VERSION}"; then
+          for attempt in $(seq 1 31); do
+            if output=$(npm install "@raintree-technology/docpull-sdk@${VERSION}" --prefer-online --fetch-retries=0 --fetch-timeout=20000 2>&1); then
+              printf '%s\n' "$output"
               break
+            else
+              install_status=$?
             fi
-            if [ "$attempt" = 5 ]; then
+            printf '%s\n' "$output"
+            if ! printf '%s\n' "$output" | grep -Eq '^npm (error|ERR!) code (ETARGET|E404|E408|E429|E500|E502|E503|E504|ECONNRESET|ETIMEDOUT|EAI_AGAIN)$'; then
+              exit "$install_status"
+            fi
+            if [ "$attempt" = 31 ]; then
+              echo "::error::npm package @raintree-technology/docpull-sdk@${VERSION} is not installable after 31 attempts."
               exit 1
             fi
-            sleep 10
+            echo "Waiting for npm registry propagation (${attempt}/31)."
+            sleep 20
           done
-          node --input-type=module -e "import('@raintree-technology/docpull-sdk').then((sdk) => { if (typeof sdk.readPack !== 'function') process.exit(1) })"
+          node --input-type=module -e "import { readFileSync } from 'node:fs'; import * as sdk from '@raintree-technology/docpull-sdk'; const pkg = JSON.parse(readFileSync('node_modules/@raintree-technology/docpull-sdk/package.json', 'utf8')); if (pkg.version !== process.env.VERSION || typeof sdk.readPack !== 'function') process.exit(1)"

@@ -1,25 +1,31 @@
 name: Publish to MCP Registry
 
 on:
+  workflow_call:
+    inputs:
+      version:
+        description: "Version successfully published by the PyPI workflow"
+        required: true
+        type: string
   workflow_dispatch:
     inputs:
       version:
         description: "Version to publish, matching pyproject.toml and server.json"
         required: true
-  push:
-    tags:
-      - "v*.*.*"
+        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  # A called workflow inherits github.workflow; keep this separate from PyPI.
+  group: mcp-registry-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
   publish:
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     permissions:
       contents: read
       id-token: write
@@ -34,7 +40,7 @@ jobs:
 
       - name: Verify registry metadata version
         env:
-          REQUESTED_VERSION: ${{ github.event.inputs.version || '' }}
+          REQUESTED_VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -50,7 +56,7 @@ jobs:
 
           server_version = server["version"]
           package_version = server["packages"][0]["version"]
-          requested_version = os.environ.get("REQUESTED_VERSION") or os.environ["GITHUB_REF_NAME"].removeprefix("v")
+          requested_version = os.environ["REQUESTED_VERSION"]
 
           versions = {
               "requested": requested_version,
@@ -76,4 +82,26 @@ jobs:
         run: ./mcp-publisher login github-oidc
 
       - name: Publish server metadata
-        run: ./mcp-publisher publish server.json
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 31); do
+            if output=$(./mcp-publisher publish server.json 2>&1); then
+              printf '%s\n' "$output"
+              exit 0
+            else
+              publish_status=$?
+            fi
+            printf '%s\n' "$output"
+            # The registry may still see a cached PyPI 404 after upload succeeds.
+            if [[ "$output" != *"PyPI package 'docpull' exists, but version '${VERSION}' was not found (status: 404)"* ]]; then
+              exit "$publish_status"
+            fi
+            if [ "$attempt" = 31 ]; then
+              echo "::error::MCP Registry still cannot see docpull ${VERSION} on PyPI after 31 attempts."
+              exit 1
+            fi
+            echo "Waiting for PyPI propagation before retrying MCP registration (${attempt}/31)."
+            sleep 20
+          done

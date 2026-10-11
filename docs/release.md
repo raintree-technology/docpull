@@ -66,7 +66,19 @@ for organization `raintree-technology`, repository `docpull`, and workflow
 `docs/release-post-vX.Y.md` when present and otherwise falls back to generated
 notes.
 
-Verify both public release surfaces:
+MCP registration runs as a dependent job after the PyPI publish job succeeds,
+using the same commit and version. It retries the registry's specific PyPI
+version-not-found response up to 31 times, 20 seconds apart, to allow cached
+metadata to propagate. Authentication and other validation errors fail immediately.
+MCP registration uses a separate concurrency group so it cannot block its caller.
+
+The npm smoke install also allows 31 attempts, 20 seconds apart, for missing
+versions and transient registry errors. Each attempt refreshes cached metadata.
+After installation, the smoke check verifies the exact version and the SDK's
+`readPack` export. Authentication, integrity, and incompatible-runtime errors
+fail immediately; exhausting either retry loop fails the workflow.
+
+Verify the public release surfaces:
 
 ```bash
 gh release view v6.0.0 --json tagName,name,publishedAt,url
@@ -99,3 +111,8 @@ gh workflow run publish-sdk.yml --ref main -f version=6.0.0
 
 The workflow refuses manual dispatch from any branch other than `main`, and the
 requested version must match `pyproject.toml`.
+
+If only MCP registration fails after PyPI succeeds, rerun that failed job from
+the PyPI workflow run. You can also dispatch `publish-mcp-registry.yml` with
+`version=X.Y.Z` from the matching release tag. This retry validates the version
+against `pyproject.toml` and `server.json` and does not upload to PyPI again.
