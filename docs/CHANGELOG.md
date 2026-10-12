@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Serve Tavily `/extract`, Exa `/contents`, and Firecrawl `/v1/scrape` and
+  `/v2/scrape` request shapes from the local fetch pipeline with
+  `docpull serve --compat`, so agent code written for those APIs can switch by
+  changing its base URL. Network binds require `--api-key-env`.
+
 ### Removed
 
 - Remove the internal modules behind commands, SDK exports, and MCP tools that

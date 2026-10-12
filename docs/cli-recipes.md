@@ -54,6 +54,31 @@ Minimal GitHub Actions step:
 - run: docpull ci --prepare
 ```
 
+## Local Extract API
+
+`docpull serve --compat` accepts the request shapes of common hosted extract
+endpoints and answers them from the local fetch pipeline. Agent code that already
+calls one of those APIs can switch by changing its base URL:
+
+```bash
+pip install "docpull[serve]"
+docpull serve --compat --port 8765
+```
+
+| Route | Request shape | Response shape |
+| --- | --- | --- |
+| `POST /extract` | Tavily extract: `urls` (string or list) | `results[].raw_content`, `failed_results[]` |
+| `POST /contents` | Exa contents: `urls` or `ids`, `text` (bool or `maxCharacters`) | `results[].text`, `statuses[]` |
+| `POST /v1/scrape`, `POST /v2/scrape` | Firecrawl scrape: `url`, `formats: ["markdown"]` | `success`, `data.markdown`, `data.metadata` |
+
+Every page goes through the same fetcher as `docpull sync`. That means
+HTTPS-only fetching, private-network blocking, and robots.txt handling. Nothing is
+sent to the hosted services. A request takes at most 20 URLs. The server binds to
+localhost. Exposing it with `--host 0.0.0.0 --allow-network-bind` also requires
+`--api-key-env NAME`, and clients must then send that key as a bearer token or
+`x-api-key`. Only Markdown output is served. Other Firecrawl formats return HTTP
+400.
+
 ## Rendering
 
 Rendering is off by default. Explicit rendering uses the canonical
