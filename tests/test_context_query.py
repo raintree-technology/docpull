@@ -6,6 +6,7 @@ import hashlib
 import json
 import shutil
 import socket
+import sqlite3
 from pathlib import Path
 from typing import Any
 
@@ -280,6 +281,37 @@ async def test_context_query_stdio_contract(tmp_path: Path, monkeypatch: pytest.
             "context_query", {"query": "retry", "project_roots": [str(tmp_path / "missing")]}
         )
         assert missing.isError is True
+
+
+@pytest.mark.parametrize("damage", ["none", "corrupt", "stale"])
+def test_sync_index_matches_scan_and_bad_indexes_fall_back(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, damage: str
+) -> None:
+    content = "# Guide\n\nCafé retry-policy: retry_count 2.\n\nNo match here.\n\n```python\nretry()\n```\n"
+    root = _project(tmp_path, monkeypatch, "indexed", [(content, "1.0"), ("Retry later.", None)])
+    index = next((root / ".docpull/search").glob("*.sqlite"))
+    query = "cafe retry-policy retry_count retry"
+    indexed = query_context(query, project_roots=[root], max_tokens=10000)
+    index.rename(index.with_suffix(".off"))
+    scanned = query_context(query, project_roots=[root], max_tokens=10000)
+    index.with_suffix(".off").rename(index)
+    assert indexed == scanned
+    assert indexed["status"] == "ok" and len(indexed["results"]) == 3
+
+    if damage == "corrupt":
+        index.write_bytes(b"not a database")
+    elif damage == "stale":
+        with sqlite3.connect(index) as conn:
+            conn.execute("UPDATE meta SET value = 'other' WHERE key = 'lock'")
+    else:
+        # A valid index must answer without unpacking the artifact.
+        def no_stage(*args: Any, **kwargs: Any) -> None:
+            pytest.fail("Indexed query unpacked the artifact")
+
+        monkeypatch.setattr(context_query, "stage_run_artifact", no_stage)
+    before = _files(root)
+    assert query_context(query, project_roots=[root], max_tokens=10000) == scanned
+    assert _files(root) == before
 
 
 def test_broad_query_matches_full_measurement(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

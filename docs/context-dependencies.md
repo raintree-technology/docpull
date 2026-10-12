@@ -218,9 +218,15 @@ query without partial results. The CLI exits with code 1, the SDK raises
 `ContextQueryError`, and MCP returns a tool error. The project artifact directory
 is searched before additional directories; a corrupt archive is never silently
 replaced. Locks without an archive digest require a new sync or an export of
-their retained run, as described under frozen installation. This initial query
-path verifies and scans complete archives on each call; it does not use a
-persistent search index or semantic embeddings.
+their retained run, as described under frozen installation.
+
+Each query hashes the pinned archive. When the archive changes, sync writes a
+full-text index of its passages to `.docpull/search/<artifact-sha256>.sqlite`.
+Queries read that index instead of unpacking and splitting the archive. Queries
+only read the index, and only when its stored lock facts match the current lock.
+A missing, corrupt, or stale index falls back to scanning the archive, with
+identical results. Query never writes project files. Retrieval is lexical; it
+does not use semantic embeddings.
 
 ## Context CI
 
