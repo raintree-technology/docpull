@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `/v2/scrape` request shapes from the local fetch pipeline with
   `docpull serve --compat`, so agent code written for those APIs can switch by
   changing its base URL. Network binds require `--api-key-env`.
+- Search the web with `docpull search` and `docpull.web_search.search_web`
+  through a backend chosen explicitly. Use a self-hosted SearXNG instance or
+  Marginalia's independent index. Domain filters are supported, and
+  `--include-content` fetches each result through the local pipeline.
+  `docpull serve --compat --search-backend ...` also serves Tavily and Exa
+  `/search` and Firecrawl `/v1/search` and `/v2/search` shapes.
 
 ### Removed
 

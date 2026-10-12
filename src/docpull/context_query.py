@@ -75,6 +75,15 @@ def _measure(payload: dict[str, Any]) -> int:
         payload["budget"]["used_tokens"] = size
 
 
+def _settle(size_without_used: int, used: int) -> int:
+    # Integer mirror of _measure, including its dependence on the starting used_tokens.
+    while True:
+        size = size_without_used + len(str(used))
+        if size == used:
+            return size
+        used = size
+
+
 def _spans(content: str) -> Iterator[tuple[int, int]]:
     """Keep paragraphs and fenced code blocks whole, with exact character offsets."""
     start = offset = 0
@@ -417,17 +426,34 @@ def query_context(
     ranked = sorted(groups.values(), key=lambda g: (-g["score"], g["text"]))
     deferred: list[tuple[dict[str, Any], list[dict[str, Any]]]] = []
     payload["omitted_passages"] = len(ranked)
+    used = payload["budget"]
+    rest = len(serialize_query_result(payload).encode("utf-8")) - len(str(used["used_tokens"]))
     for group in ranked:
         citations = sorted(group["citations"].values(), key=lambda c: c["id"])
         result = {"text": group["text"], "citations": citations[:1], "omitted_citations": len(citations) - 1}
         if len(payload["results"]) >= limit:
             break
+        # Predict the exact size without re-serializing the payload; _measure confirms fits.
+        omitted = payload["omitted_passages"]
+        candidate = (
+            rest
+            + len(serialize_query_result(result).encode("utf-8"))
+            + (1 if payload["results"] else 0)
+            + len(str(omitted - 1))
+            - len(str(omitted))
+        )
+        predicted = _settle(candidate, used["used_tokens"])
+        if predicted > max_tokens:
+            used["used_tokens"] = predicted  # the value a rejected _measure leaves behind
+            continue
         payload["results"].append(result)
         payload["omitted_passages"] -= 1
-        if _measure(payload) > max_tokens:
+        size = _measure(payload)
+        if size > max_tokens:
             payload["results"].pop()
             payload["omitted_passages"] += 1
         else:
+            rest = size - len(str(size))
             deferred.append((result, citations[1:]))
     # Spend remaining space on duplicate provenance after selecting distinct passages.
     for result, citations in deferred:

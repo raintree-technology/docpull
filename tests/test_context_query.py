@@ -312,3 +312,17 @@ def test_sync_index_matches_scan_and_bad_indexes_fall_back(
     before = _files(root)
     assert query_context(query, project_roots=[root], max_tokens=10000) == scanned
     assert _files(root) == before
+
+
+def test_broad_query_matches_full_measurement(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    documents: list[tuple[str, str | None]] = [
+        (f"# Doc {i}\n\nRetry backoff café {i}: {'wait ' * (i * 37 % 90)}\n", None) for i in range(200)
+    ]
+    root = _project(tmp_path, monkeypatch, "broad", documents)
+    args = {"project_roots": [root], "max_tokens": 3000, "limit": 100}
+    fast = query_context("retry backoff", **args)
+    assert 0 < len(fast["results"]) < 100
+    assert fast["omitted_passages"] > 0
+    # Forcing every prediction to "fits" sends each candidate through the original _measure path.
+    monkeypatch.setattr(context_query, "_settle", lambda size, used: 0)
+    assert serialize_query_result(query_context("retry backoff", **args)) == serialize_query_result(fast)

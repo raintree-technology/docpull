@@ -1687,6 +1687,10 @@ def main(argv: list[str] | None = None) -> int:
         from .graph import run_graph_cli
 
         return run_graph_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "search":
+        from .web_search import run_search_cli
+
+        return run_search_cli(raw_argv[1:])
     if raw_argv and raw_argv[0] == "serve":
         from .server import run_serve_cli
 
