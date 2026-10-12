@@ -19,6 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `--include-content` fetches each result through the local pipeline.
   `docpull serve --compat --search-backend ...` also serves Tavily and Exa
   `/search` and Firecrawl `/v1/search` and `/v2/search` shapes.
+- Answer questions from the web with `docpull research`. It searches, fetches
+  results locally, and returns ranked passages with exact spans and `[S#]`
+  citations. An optional OpenAI-compatible model, localhost unless
+  `--allow-remote-llm`, can rewrite them; the rewrite is kept only when every
+  citation names a real source. The compatible server adds Exa `/answer` and
+  Tavily `include_answer`.
 
 ### Removed
 

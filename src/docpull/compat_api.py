@@ -17,6 +17,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
 
+from .research import LlmConfig, ResearchError, answer_from_search
 from .server import ASGIReceive, ASGIScope, ASGISend, _handle_lifespan, _json_response
 from .web_search import SearchResponse, WebSearchError
 
@@ -73,10 +74,12 @@ class CompatASGIApp:
         *,
         fetch: PageFetcher = fetch_page,
         search: SearchFn | None = None,
+        llm: LlmConfig | None = None,
         api_key: str | None = None,
     ) -> None:
         self.fetch = fetch
         self.search = search
+        self.llm = llm
         self.api_key = api_key
 
     async def __call__(self, scope: ASGIScope, receive: ASGIReceive, send: ASGISend) -> None:
@@ -118,7 +121,7 @@ class CompatASGIApp:
         except SearchUnavailableError as err:
             await _json_response(send, 501, {"error": str(err)})
             return
-        except WebSearchError as err:
+        except (WebSearchError, ResearchError) as err:
             await _json_response(send, 502, {"error": str(err)})
             return
         await _json_response(send, 200, payload)
@@ -222,13 +225,17 @@ class SearchUnavailableError(RuntimeError):
 async def _tavily_search(app: CompatASGIApp, body: dict[str, Any]) -> dict[str, Any]:
     started = time.perf_counter()
     raw = body.get("include_raw_content", False)
+    wants_answer = bool(body.get("include_answer", False))
     response = await app.run_search(
         body.get("query"),
         body.get("max_results", 5),
         body.get("include_domains"),
         body.get("exclude_domains"),
-        bool(raw),
+        bool(raw) or wants_answer,
     )
+    answer = None
+    if wants_answer:
+        answer = (await answer_from_search(response.query, response, llm=app.llm)).answer or None
     results = [
         {
             "title": hit.title,
@@ -241,7 +248,7 @@ async def _tavily_search(app: CompatASGIApp, body: dict[str, Any]) -> dict[str, 
     ]
     return {
         "query": response.query,
-        "answer": None,
+        "answer": answer,
         "images": [],
         "follow_up_questions": None,
         "results": results,
@@ -275,6 +282,19 @@ async def _exa_search(app: CompatASGIApp, body: dict[str, Any]) -> dict[str, Any
     return {"requestId": uuid.uuid4().hex, "resolvedSearchType": "keyword", "results": results}
 
 
+async def _exa_answer(app: CompatASGIApp, body: dict[str, Any]) -> dict[str, Any]:
+    response = await app.run_search(body.get("query"), 5, None, None, True)
+    result = await answer_from_search(response.query, response, llm=app.llm)
+    include_text = bool(body.get("text", False))
+    citations = []
+    for source in result.sources:
+        citation: dict[str, Any] = {"id": source["url"], "url": source["url"], "title": source["title"]}
+        if include_text:
+            citation["text"] = "\n\n".join(e.text for e in result.evidence if e.source_id == source["id"])
+        citations.append(citation)
+    return {"requestId": uuid.uuid4().hex, "answer": result.answer, "citations": citations}
+
+
 async def _firecrawl_search(app: CompatASGIApp, body: dict[str, Any], *, version: int) -> dict[str, Any]:
     options = body.get("scrapeOptions")
     formats = options.get("formats") if isinstance(options, dict) else None
@@ -306,6 +326,7 @@ _ROUTES: dict[str, Callable[[CompatASGIApp, dict[str, Any]], Awaitable[dict[str,
     "/v1/scrape": _firecrawl_scrape,
     "/v2/scrape": _firecrawl_scrape,
     "/search": _tavily_search,
+    "/answer": _exa_answer,
     "/v1/search": _firecrawl_search_v1,
     "/v2/search": _firecrawl_search_v2,
 }

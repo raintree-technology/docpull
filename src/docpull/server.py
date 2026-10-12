@@ -131,6 +131,16 @@ def create_serve_parser() -> argparse.ArgumentParser:
         help="With --compat, serve /search routes through this backend",
     )
     parser.add_argument("--searxng-url", help="With --search-backend searxng, the SearXNG base URL")
+    parser.add_argument("--llm-url", help="With --compat, an OpenAI-compatible base URL for answers")
+    parser.add_argument("--llm-model", help="Model name for --llm-url")
+    parser.add_argument(
+        "--llm-api-key-env", metavar="NAME", help="Environment variable holding the model key"
+    )
+    parser.add_argument(
+        "--allow-remote-llm",
+        action="store_true",
+        help="Allow a non-localhost model endpoint, which may cost money",
+    )
     parser.add_argument(
         "--api-key-env",
         metavar="NAME",
@@ -173,6 +183,7 @@ def run_serve_cli(argv: list[str] | None = None) -> int:
 
 def _run_compat(args: argparse.Namespace, console: Console) -> int:
     from .compat_api import CompatASGIApp
+    from .research import ResearchError, _check_llm, llm_config_from_args
     from .web_search import search_web
 
     api_key = None
@@ -184,6 +195,12 @@ def _run_compat(args: argparse.Namespace, console: Console) -> int:
                 raise PackServerError(f"Environment variable {args.api_key_env} is empty or unset.")
         if api_key is None and not _is_loopback_host(args.host):
             raise PackServerError("A non-localhost --compat server requires --api-key-env.")
+        try:
+            llm = llm_config_from_args(args)
+            if llm is not None:
+                _check_llm(llm)
+        except ResearchError as err:
+            raise PackServerError(str(err)) from err
         import uvicorn
     except PackServerError as err:
         console.print("[red]Serve error:[/red] " + escape(str(err)))
@@ -208,7 +225,8 @@ def _run_compat(args: argparse.Namespace, console: Console) -> int:
                 searxng_url=args.searxng_url,
             )
 
-    uvicorn.run(CompatASGIApp(search=search, api_key=api_key), host=args.host, port=args.port)
+    app = CompatASGIApp(search=search, llm=llm, api_key=api_key)
+    uvicorn.run(app, host=args.host, port=args.port)
     return 0
 
 

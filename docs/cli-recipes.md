@@ -79,6 +79,30 @@ filter results by host. One include domain also narrows the upstream query.
 `docpull sync`, with HTTPS-only fetching, private-network blocking, and robots.txt
 handling, and attaches the Markdown.
 
+## Research
+
+`docpull research` answers a question from the web with cited passages. It searches
+with the chosen backend and fetches up to `--max-sources` results (default 5,
+at most 10) through the local pipeline. It ranks paragraphs with the same scoring
+as `docpull query` and returns the best `--max-passages` (default 8), at most three
+per source. Each passage keeps its exact character span and source ID.
+
+```bash
+docpull research "What is the GitHub REST API rate limit?" --backend searxng \
+  --include-domain docs.github.com
+
+# Optional: rewrite the cited passages with a local OpenAI-compatible model
+docpull research "What is the GitHub REST API rate limit?" --backend searxng \
+  --llm-url http://localhost:11434/v1 --llm-model llama3.1
+```
+
+Without a model, the answer is the ranked passages, each ending in a citation such
+as `[S1]`. With `--llm-url` and `--llm-model`, the model may answer only from those
+passages. Its answer is kept only when every citation names a real source. If it
+cites nothing or names an unknown source, the cited passages are returned with a
+warning. A model endpoint outside localhost needs `--allow-remote-llm`, because it
+may cost money. `--llm-api-key-env NAME` sends a bearer key from the environment.
+
 ## Local Extract API
 
 `docpull serve --compat` accepts the request shapes of common hosted extract
@@ -98,7 +122,10 @@ docpull serve --compat --port 8765
 
 Start the server with `--search-backend searxng` or `--search-backend marginalia`
 to also serve search shapes. Those are Tavily or Exa `POST /search`, chosen by the
-request fields, and Firecrawl `POST /v1/search` and `/v2/search`. A client can
+request fields, and Firecrawl `POST /v1/search` and `/v2/search`. The same server
+answers Exa `POST /answer` and fills Tavily's `answer` when a search sets
+`include_answer`. Both use `docpull research` ranking, plus the model from
+`--llm-url` and `--llm-model` when one is configured. A client can
 pin a flavor by setting its base URL to `http://127.0.0.1:8765/tavily`,
 `/exa`, or `/firecrawl`. Without a search backend, the search routes return
 HTTP 501.
