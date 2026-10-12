@@ -161,11 +161,17 @@ uv run --project bench --locked docpull-bench audit-scorer \
   bench/runs/search/<run-id>/report.json bench/labels/live-search-v2/<system>.labels.json
 ```
 
-The page binds to `127.0.0.1` and shows the case input and each output under a
-shuffled letter, not a system name. Reviewers grade 0–3; grades 2 and 3 pass.
+The page binds to `127.0.0.1`. **Evaluations** lists cases with review progress,
+search, and status and lane filters. **Evaluate** shows the case criteria and
+input, then each output side by side under a shuffled letter, not a system name.
+Reviewers grade 0–3 (grades 2 and 3 pass), can clear a grade, and can add issue
+tags from a fixed list. Focus an output and press `0`–`3` to grade it; `N` opens
+the next ungraded case. System names and pass counts appear only after every
+output is graded; changing grades after that point breaks blinding.
 Plaintext stays in memory after the ciphertext and output commitments are
 checked against the report. Each `<system>.labels.json` file holds only case
-ids, trial indexes, and grades, so `audit-scorer` can read it directly.
+ids, trial indexes, grades, and issue tags, so `audit-scorer` can read it
+directly.
 Review resumes from existing label files. Provider-specific metadata inside an
 output can still reveal its source.
 
