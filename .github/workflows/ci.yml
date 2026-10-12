@@ -41,7 +41,7 @@ jobs:
           METRICS_MAX_AGE_HOURS: "168"
         run: |
           uv run --locked python .github/scripts/check_metrics_fresh.py || {
-            echo "::warning::Metrics are stale; run the scheduled Update metrics workflow."
+            echo "::warning::Metrics are stale; run make metrics and commit METRICS.md."
           }
 
   test:
