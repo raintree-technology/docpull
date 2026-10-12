@@ -8,6 +8,9 @@ from pathlib import Path
 from typing import Any, Literal
 from urllib.parse import urlparse
 
+from ._jsonutil import dict_value as _dict_value
+from ._jsonutil import list_value as _list_value
+from ._jsonutil import write_json as _write_json
 from .time_utils import utc_now_iso
 
 OUTPUT_CONTRACT_SCHEMA_VERSION = 3
@@ -646,19 +649,6 @@ def _read_json(path: Path, *, required: bool = True) -> Any:
         if required:
             raise OutputContractError(f"Invalid JSON in {path}: {err}") from err
         return None
-
-
-def _dict_value(value: Any) -> dict[str, Any]:
-    return value if isinstance(value, dict) else {}
-
-
-def _list_value(value: Any) -> list[Any]:
-    return value if isinstance(value, list) else []
-
-
-def _write_json(path: Path, payload: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
 def _issue(

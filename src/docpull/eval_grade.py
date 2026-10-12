@@ -7,10 +7,15 @@ import json
 import re
 from collections import Counter
 from collections.abc import Callable
+from functools import partial
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
+from ._jsonutil import dict_value as _dict_value
+from ._jsonutil import list_value as _list_value
+from ._jsonutil import read_json
+from ._jsonutil import write_json as _write_json
 from .time_utils import utc_now_iso
 
 EVAL_GRADE_SCHEMA_VERSION = 3
@@ -1323,21 +1328,7 @@ def _require_pack(pack_dir: Path) -> None:
         raise EvalGradeError(f"Missing required file: {pack_dir / 'documents.ndjson'}")
 
 
-def _read_json(path: Path, *, default: Any) -> Any:
-    if not path.exists():
-        return default
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as err:
-        raise EvalGradeError(f"Invalid JSON in {path}: {err}") from err
-
-
-def _dict_value(value: Any) -> dict[str, Any]:
-    return value if isinstance(value, dict) else {}
-
-
-def _list_value(value: Any) -> list[Any]:
-    return value if isinstance(value, list) else []
+_read_json = partial(read_json, error=EvalGradeError, required=False)
 
 
 def _read_ndjson(path: Path) -> list[dict[str, Any]]:
@@ -1387,11 +1378,6 @@ def _read_jsonl(path: Path | None) -> list[dict[str, Any]]:
             raise EvalGradeError(f"Invalid JSONL in {path} line {index}: expected object")
         records.append(value)
     return records
-
-
-def _write_json(path: Path, payload: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
 def _write_jsonl(path: Path, records: list[dict[str, Any]]) -> None:

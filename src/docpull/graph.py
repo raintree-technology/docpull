@@ -14,6 +14,7 @@ from typing import Any
 from rich.console import Console
 from rich.markup import escape
 
+from ._jsonutil import write_json as _write_json
 from .pack_reader import LocalPack, PackReadError, load_pack
 from .pack_tools import (
     PackToolError,
@@ -1022,11 +1023,6 @@ def _graph_markdown(payload: dict[str, Any]) -> str:
         lines.append("- No entities extracted.")
     lines.append("")
     return "\n".join(lines)
-
-
-def _write_json(path: Path, payload: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
 def _read_json(path: Path) -> dict[str, Any]:
