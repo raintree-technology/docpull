@@ -407,7 +407,11 @@ def run_init_cli(argv: list[str] | None = None) -> int:
 
 def run_add_cli(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="docpull add", description="Add a source to a DocPull project")
-    parser.add_argument("sources", nargs="+", help="HTTPS URL, bundled alias, or typed source spec")
+    parser.add_argument(
+        "sources",
+        nargs="+",
+        help="HTTPS URL, bundled alias, typed source spec, or registry pack name@version",
+    )
     parser.add_argument("--name", help="Source name")
     parser.add_argument("--type", choices=SOURCE_TYPES, default="auto")
     parser.add_argument("--discover", action="store_true", help="Discover and store source URLs now")
@@ -424,6 +428,16 @@ def run_add_cli(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--auth-header-name", help="Header name for --auth header-env")
     args = parser.parse_args(argv)
+    if len(args.sources) == 1 and _infer_typed_source_type(args.sources[0]) is None:
+        from .registry import REF, run_add_recipe_cli
+
+        if REF.fullmatch(args.sources[0].strip()):
+            if args.name or args.type != "auto" or args.discover or args.auth:
+                Console().print(
+                    "[red]Project error:[/red] registry packs take no --name, --type, --discover, or --auth"
+                )
+                return 1
+            return run_add_recipe_cli(args.sources[0].strip())
     console = Console()
     try:
         auth = _auth_ref_from_cli(

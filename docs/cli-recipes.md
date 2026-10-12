@@ -113,6 +113,40 @@ Shards install to `DOCPULL_INDEX_DIR`, or `$XDG_DATA_HOME/docpull/index` when
 that is unset. Pass `--index-dir` to `index`, `search`, or `serve` to use
 another directory.
 
+## Shared Pack Recipes
+
+A recipe lists a pack's public sources, its pinned page URLs, and the content hash
+of every page the publisher synced. It contains no fetched content. When you add
+a recipe, DocPull fetches every page locally and reports which pages still match
+the publisher's hashes.
+
+```bash
+# Consumer: add, sync, and verify a published pack
+docpull add stripe-api@2026-10
+docpull registry verify stripe-api@2026-10 --json
+
+# Publisher: export a recipe from a synced project
+docpull registry export --name stripe-api --version 2026-10 --description "Stripe API reference"
+```
+
+`docpull add name@version`:
+1. Downloads the recipe through the registry's `index.json`, checking the
+   recipe's sha256 against its index entry.
+2. Adds the recipe's sources with their pinned URLs.
+3. Saves the recipe under `.docpull/registry/`.
+4. Runs `docpull sync`.
+5. Prints how many pages match, changed, went missing, or are new.
+
+Live pages change, so drift is reported, not treated as an error. Use
+`name@latest` for the newest version.
+
+Recipes may only contain HTTPS crawl sources. Export refuses sources that use
+`auth`, so private content never goes into a registry.
+
+The registry is a public GitHub repository, read over HTTPS. Publishing a recipe
+means opening a pull request that adds the recipe file and its `index.json`
+entry. Set `DOCPULL_REGISTRY_URL` to use another registry.
+
 ## Local Extract API
 
 `docpull serve --compat` accepts the request shapes of common hosted extract
