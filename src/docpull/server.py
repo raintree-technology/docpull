@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import ipaddress
 import json
+import os
 from collections.abc import Awaitable, Callable, MutableMapping
 from pathlib import Path
 from typing import Any
@@ -106,7 +107,7 @@ def create_serve_parser() -> argparse.ArgumentParser:
         prog="docpull serve",
         description="Serve a local DocPull pack as a localhost-only JSON API",
     )
-    parser.add_argument("pack_dir", type=Path, help="Pack directory to serve")
+    parser.add_argument("pack_dir", type=Path, nargs="?", help="Pack directory to serve")
     parser.add_argument("--host", default=DEFAULT_SERVE_HOST, help="Bind host (default: 127.0.0.1)")
     parser.add_argument("--port", type=int, default=DEFAULT_SERVE_PORT, help="Bind port (default: 8765)")
     parser.add_argument(
@@ -119,6 +120,16 @@ def create_serve_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Allow non-loopback hosts such as 0.0.0.0",
     )
+    parser.add_argument(
+        "--compat",
+        action="store_true",
+        help="Serve Tavily /extract, Exa /contents, and Firecrawl /scrape request shapes from local fetching",
+    )
+    parser.add_argument(
+        "--api-key-env",
+        metavar="NAME",
+        help="With --compat, require the API key stored in this environment variable",
+    )
     return parser
 
 
@@ -126,6 +137,10 @@ def run_serve_cli(argv: list[str] | None = None) -> int:
     parser = create_serve_parser()
     args = parser.parse_args(argv)
     console = Console()
+    if args.compat:
+        return _run_compat(args, console)
+    if args.pack_dir is None:
+        parser.error("pack_dir is required unless --compat is set")
     try:
         validate_bind_host(args.host, allow_network_bind=args.allow_network_bind)
         load_pack(args.pack_dir)
@@ -147,6 +162,30 @@ def run_serve_cli(argv: list[str] | None = None) -> int:
         f"[green]Serving:[/green] {Path(args.pack_dir).resolve()} on http://{args.host}:{args.port}"
     )
     uvicorn.run(app, host=args.host, port=args.port)
+    return 0
+
+
+def _run_compat(args: argparse.Namespace, console: Console) -> int:
+    from .compat_api import CompatASGIApp
+
+    api_key = None
+    try:
+        validate_bind_host(args.host, allow_network_bind=args.allow_network_bind)
+        if args.api_key_env:
+            api_key = os.environ.get(args.api_key_env) or None
+            if api_key is None:
+                raise PackServerError(f"Environment variable {args.api_key_env} is empty or unset.")
+        if api_key is None and not _is_loopback_host(args.host):
+            raise PackServerError("A non-localhost --compat server requires --api-key-env.")
+        import uvicorn
+    except PackServerError as err:
+        console.print("[red]Serve error:[/red] " + escape(str(err)))
+        return 1
+    except ImportError:
+        console.print("[red]Serve error:[/red] `docpull serve` needs uvicorn: `pip install docpull[serve]`.")
+        return 1
+    console.print(f"[green]Serving compatible extract API[/green] on http://{args.host}:{args.port}")
+    uvicorn.run(CompatASGIApp(api_key=api_key), host=args.host, port=args.port)
     return 0
 
 
