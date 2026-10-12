@@ -11,12 +11,29 @@ from __future__ import annotations
 import asyncio
 import hmac
 import json
+import re
 import time
 import uuid
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
 
+from .compat_jobs import (
+    RESULT_WAIT_SECONDS,
+    Crawler,
+    JobRequestError,
+    JobStore,
+    cancel_crawl,
+    crawl_site,
+    crawl_status,
+    create_crawl,
+    create_research,
+    create_task_run,
+    research_status,
+    task_run,
+    task_run_result,
+)
+from .research import LlmConfig, ResearchError, answer_from_search
 from .server import ASGIReceive, ASGIScope, ASGISend, _handle_lifespan, _json_response
 from .web_search import SearchResponse, WebSearchError
 
@@ -48,7 +65,6 @@ class CompatRequestError(ValueError):
 
 async def fetch_page(url: str) -> Page:
     """Fetch one URL to Markdown in memory with the default local pipeline."""
-    from .conversion.special_cases import _split_markdown_frontmatter
     from .core.fetcher import Fetcher
     from .models.config import DocpullConfig
 
@@ -57,6 +73,13 @@ async def fetch_page(url: str) -> Page:
             ctx = await fetcher.fetch_one(url, save=False)
     except Exception as err:  # noqa: BLE001 - surfaced per URL, like the hosted APIs
         return Page(url=url, error=str(err) or type(err).__name__)
+    return page_from_context(url, ctx)
+
+
+def page_from_context(url: str, ctx: Any) -> Page:
+    """Convert a fetched ``PageContext`` into a served page body."""
+    from .conversion.special_cases import _split_markdown_frontmatter
+
     if ctx.error or ctx.should_skip or not (ctx.markdown or "").strip():
         reason = ctx.error or ctx.skip_reason or "No extractable content"
         return Page(url=url, status_code=ctx.status_code, error=reason)
@@ -73,10 +96,15 @@ class CompatASGIApp:
         *,
         fetch: PageFetcher = fetch_page,
         search: SearchFn | None = None,
+        llm: LlmConfig | None = None,
         api_key: str | None = None,
+        crawl: Crawler = crawl_site,
     ) -> None:
+        self.jobs = JobStore()
+        self.crawl = crawl
         self.fetch = fetch
         self.search = search
+        self.llm = llm
         self.api_key = api_key
 
     async def __call__(self, scope: ASGIScope, receive: ASGIReceive, send: ASGISend) -> None:
@@ -94,11 +122,25 @@ class CompatASGIApp:
         if path == "/health" and scope.get("method") == "GET":
             await _json_response(send, 200, {"status": "ok", "endpoints": sorted(_ROUTES)})
             return
+        method = str(scope.get("method") or "GET")
+        if _is_job_route(method, path):
+            if not self._authorized(scope):
+                await _json_response(send, 401, {"error": "Missing or invalid API key"})
+                return
+            try:
+                body = await _read_body(receive) if method == "POST" else {}
+                status, payload = await _dispatch_job(self, method, path, body, scope, flavor)
+            except (CompatRequestError, JobRequestError) as err:
+                status, payload = 400, {"error": str(err)}
+            except SearchUnavailableError as err:
+                status, payload = 501, {"error": str(err)}
+            await _json_response(send, status, payload)
+            return
         handler = _ROUTES.get(path)
         if handler is None:
             await _json_response(send, 404, {"error": "Not found", "path": path})
             return
-        if scope.get("method") != "POST":
+        if method != "POST":
             await _json_response(send, 405, {"error": "Use POST"})
             return
         if not self._authorized(scope):
@@ -118,7 +160,7 @@ class CompatASGIApp:
         except SearchUnavailableError as err:
             await _json_response(send, 501, {"error": str(err)})
             return
-        except WebSearchError as err:
+        except (WebSearchError, ResearchError) as err:
             await _json_response(send, 502, {"error": str(err)})
             return
         await _json_response(send, 200, payload)
@@ -134,11 +176,15 @@ class CompatASGIApp:
         )
         return hmac.compare_digest(supplied.encode(), self.api_key.encode())
 
+    def require_search(self) -> None:
+        if self.search is None:
+            raise SearchUnavailableError("Search is not configured; start the server with --search-backend")
+
     async def run_search(
         self, query: Any, max_results: Any, include: Any, exclude: Any, content: bool
     ) -> SearchResponse:
-        if self.search is None:
-            raise SearchUnavailableError("Search is not configured; start the server with --search-backend")
+        self.require_search()
+        assert self.search is not None
         if not isinstance(query, str) or not query.strip():
             raise CompatRequestError("query is required")
         if isinstance(max_results, bool) or not isinstance(max_results, int) or not 1 <= max_results <= 20:
@@ -222,13 +268,17 @@ class SearchUnavailableError(RuntimeError):
 async def _tavily_search(app: CompatASGIApp, body: dict[str, Any]) -> dict[str, Any]:
     started = time.perf_counter()
     raw = body.get("include_raw_content", False)
+    wants_answer = bool(body.get("include_answer", False))
     response = await app.run_search(
         body.get("query"),
         body.get("max_results", 5),
         body.get("include_domains"),
         body.get("exclude_domains"),
-        bool(raw),
+        bool(raw) or wants_answer,
     )
+    answer = None
+    if wants_answer:
+        answer = (await answer_from_search(response.query, response, llm=app.llm)).answer or None
     results = [
         {
             "title": hit.title,
@@ -241,7 +291,7 @@ async def _tavily_search(app: CompatASGIApp, body: dict[str, Any]) -> dict[str, 
     ]
     return {
         "query": response.query,
-        "answer": None,
+        "answer": answer,
         "images": [],
         "follow_up_questions": None,
         "results": results,
@@ -275,6 +325,19 @@ async def _exa_search(app: CompatASGIApp, body: dict[str, Any]) -> dict[str, Any
     return {"requestId": uuid.uuid4().hex, "resolvedSearchType": "keyword", "results": results}
 
 
+async def _exa_answer(app: CompatASGIApp, body: dict[str, Any]) -> dict[str, Any]:
+    response = await app.run_search(body.get("query"), 5, None, None, True)
+    result = await answer_from_search(response.query, response, llm=app.llm)
+    include_text = bool(body.get("text", False))
+    citations = []
+    for source in result.sources:
+        citation: dict[str, Any] = {"id": source["url"], "url": source["url"], "title": source["title"]}
+        if include_text:
+            citation["text"] = "\n\n".join(e.text for e in result.evidence if e.source_id == source["id"])
+        citations.append(citation)
+    return {"requestId": uuid.uuid4().hex, "answer": result.answer, "citations": citations}
+
+
 async def _firecrawl_search(app: CompatASGIApp, body: dict[str, Any], *, version: int) -> dict[str, Any]:
     options = body.get("scrapeOptions")
     formats = options.get("formats") if isinstance(options, dict) else None
@@ -306,9 +369,63 @@ _ROUTES: dict[str, Callable[[CompatASGIApp, dict[str, Any]], Awaitable[dict[str,
     "/v1/scrape": _firecrawl_scrape,
     "/v2/scrape": _firecrawl_scrape,
     "/search": _tavily_search,
+    "/answer": _exa_answer,
     "/v1/search": _firecrawl_search_v1,
     "/v2/search": _firecrawl_search_v2,
 }
+
+
+_CRAWL_ID = re.compile(r"^/v[12]/crawl/([\w-]+)$")
+_RUN_ID = re.compile(r"^/v1/tasks/runs/([\w-]+)(/result)?$")
+_RESEARCH_ID = re.compile(r"^/research/([\w-]+)$")
+_JOB_CREATE_PATHS = frozenset({"/v1/crawl", "/v2/crawl", "/v1/tasks/runs", "/research"})
+
+
+def _is_job_route(method: str, path: str) -> bool:
+    if method == "POST":
+        return path in _JOB_CREATE_PATHS
+    if method == "DELETE":
+        return bool(_CRAWL_ID.match(path))
+    return method == "GET" and any(pattern.match(path) for pattern in (_CRAWL_ID, _RUN_ID, _RESEARCH_ID))
+
+
+async def _dispatch_job(
+    app: CompatASGIApp, method: str, path: str, body: dict[str, Any], scope: ASGIScope, flavor: str | None
+) -> tuple[int, dict[str, Any]]:
+    if method == "POST":
+        if path == "/v1/tasks/runs":
+            return await create_task_run(app, body)
+        if path == "/research":
+            return await create_research(app, body)
+        return await create_crawl(app, body, _origin(scope, flavor) + path)
+    if match := _CRAWL_ID.match(path):
+        return cancel_crawl(app, match.group(1)) if method == "DELETE" else crawl_status(app, match.group(1))
+    if match := _RUN_ID.match(path):
+        if match.group(2):
+            return await task_run_result(app, match.group(1), _query_timeout(scope))
+        return task_run(app, match.group(1))
+    match = _RESEARCH_ID.match(path)
+    assert match is not None
+    return research_status(app, match.group(1))
+
+
+def _origin(scope: ASGIScope, flavor: str | None) -> str:
+    headers = {
+        key.decode("latin-1").lower(): value.decode("latin-1") for key, value in scope.get("headers", [])
+    }
+    host = headers.get("host") or "127.0.0.1"
+    prefix = f"/{flavor}" if flavor else ""
+    return f"{scope.get('scheme', 'http')}://{host}{prefix}"
+
+
+def _query_timeout(scope: ASGIScope) -> float:
+    from urllib.parse import parse_qs
+
+    values = parse_qs(bytes(scope.get("query_string") or b"").decode()).get("timeout")
+    try:
+        return max(0.0, min(float(values[0]), RESULT_WAIT_SECONDS)) if values else RESULT_WAIT_SECONDS
+    except ValueError:
+        return RESULT_WAIT_SECONDS
 
 
 def _domains(value: Any) -> list[str]:

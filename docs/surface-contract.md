@@ -45,6 +45,7 @@ DocPull targets capability alignment, not 1:1 flag parity. MCP should not mirror
 | Search the web | `docpull search QUERY --backend searxng\|marginalia\|index` with domain filters and `--include-content` | `search_web`, `SearchResponse`, `SearchHit` in `docpull.web_search` | Not exposed | CLI-first |
 | Offline discovery index | `docpull index build\|pull\|list` | `build_shard`, `pull`, `search_index` in `docpull.discovery_index` | Not exposed | CLI-first |
 | Shared pack recipes | `docpull add name@version`, `docpull registry export\|verify` | `export_recipe`, `fetch_recipe`, `install_recipe`, `verify_recipe` in `docpull.registry` | Not exposed | CLI-first |
+| Answer a question from the web with citations | `docpull research QUESTION --backend ...` with optional `--llm-url`/`--llm-model` | `research`, `answer_from_search`, `rank_evidence`, `LlmConfig` in `docpull.research` | Not exposed | CLI-first |
 | Search cached sources | SQLite/local search helpers where applicable | `search_sqlite_documents` | `grep_docs` | Adapted |
 | Query locked context with budgets, version filters, deduplication, and precise citations | `docpull query` | `query_context`, `ContextQueryError` | `context_query` | Core-aligned |
 | Read cached source by path/range | Filesystem responsibility | Filesystem responsibility | `read_doc` | MCP-specific |
