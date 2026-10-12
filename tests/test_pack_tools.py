@@ -805,3 +805,37 @@ def test_pack_diff_cli_writes_outputs(tmp_path: Path) -> None:
     semantic = json.loads((new_pack / "semantic.diff.json").read_text(encoding="utf-8"))
     assert semantic["summary"]["removed_section"] == 1
     assert "Added" in (tmp_path / "diff.md").read_text(encoding="utf-8")
+
+
+def test_search_scoring_matches_pre_fast_path_values() -> None:
+    # Expected values were recorded from the uncompiled-regex implementation.
+    content = (
+        "- Retry  with [backoff](https://b.example) and `retry()`.\n\n"
+        "### Retry backoff\nRETRY retrying retry_count"
+    )
+    assert pack_tools_module._clean_passage(content) == (
+        "Retry with backoff and retry(). Retry backoff RETRY retrying retry_count"
+    )
+    assert pack_tools_module._clean_passage("  * Café retry-policy: CAFÉ\n1. retry-policy.retry-policy") == (
+        "Café retry-policy: CAFÉ 1. retry-policy.retry-policy"
+    )
+    assert pack_tools_module._clean_passage("a  b\x1c c\n") == "a b c"
+    cases = [
+        (
+            ["retry", "backoff"],
+            "retry backoff",
+            "# Retry Guide",
+            "## Backoff",
+            "https://x.example/retry-backoff",
+            content,
+        ),
+        (["c++", "a.b"], "c++ a.b", "C++ and a.b", "a.b", "u", "c++ c++x a.b a_b"),
+        (["wait"], "wait", "", "", "", ("wait " * 15).strip()),
+    ]
+    scores = [
+        pack_tools_module._search_score(
+            query_terms=terms, phrase=phrase, title=title, heading=heading, url=url, content=text
+        )
+        for terms, phrase, title, heading, url, text in cases
+    ]
+    assert scores == [(48, ["retry", "backoff"]), (24, ["c++", "a.b"]), (30, ["wait"])]
