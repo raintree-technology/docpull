@@ -53,7 +53,7 @@ def main() -> int:
             f"age {age.total_seconds() / 3600:.1f}h exceeds {max_age.total_seconds() / 3600:.1f}h.",
             file=sys.stderr,
         )
-        print("Run `make metrics` or re-run the Update metrics workflow.", file=sys.stderr)
+        print("Run `make metrics` and commit METRICS.md.", file=sys.stderr)
         return 1
 
     print(f"{path} is fresh: last updated {timestamp:%Y-%m-%d %H:%M UTC}.")
