@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DocPull Review</title>
+<style>
+:root{color-scheme:light dark;--fg:#1a1a1a;--muted:#666;--bg:#fff;--panel:#f5f5f4;--line:#ddd;--accent:#2563eb}
+@media (prefers-color-scheme:dark){:root{--fg:#eee;--muted:#999;--bg:#151515;--panel:#1f1f1f;--line:#333;--accent:#60a5fa}}
+body{margin:0;font:14px/1.5 system-ui,sans-serif;color:var(--fg);background:var(--bg)}
+header{display:flex;gap:12px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+header h1{font-size:16px;margin:0 auto 0 0}
+main{padding:16px}
+select,button{font:inherit;padding:4px 10px}
+pre{white-space:pre-wrap;word-break:break-word;margin:0}
+.input{background:var(--panel);padding:12px;border-radius:6px;margin-bottom:16px}
+.slots{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px}
+.slot{border:1px solid var(--line);border-radius:6px;display:flex;flex-direction:column;min-width:0}
+.slot h2{font-size:15px;margin:0;padding:8px 12px;border-bottom:1px solid var(--line);display:flex;gap:8px;align-items:center}
+.body{padding:12px;max-height:60vh;overflow:auto}
+.record{border-top:1px solid var(--line);padding-top:8px;margin-top:8px}
+.record:first-child{border:0;margin:0;padding:0}
+.muted{color:var(--muted)}
+.grades{display:flex;gap:6px;padding:8px 12px;border-top:1px solid var(--line);align-items:center}
+.grades button[aria-pressed=true]{background:var(--accent);color:#fff;border-color:var(--accent)}
+</style></head><body>
+<header><h1>DocPull blind review</h1>
+<button id="prev" type="button">Previous</button>
+<select id="pick" aria-label="Review item"></select>
+<button id="next" type="button">Next</button>
+<span id="progress" class="muted"></span></header>
+<main><p class="muted">Grade each output against the input: 0 does not help, 1 related but thin,
+2 useful but misses a requirement, 3 directly meets the need. Grades 2 and 3 count as passing.</p>
+<div id="item"></div></main>
+<script>
+let items=[],current=0;
+const el=(tag,props={},...kids)=>{const n=Object.assign(document.createElement(tag),props);n.append(...kids);return n};
+async function api(path,options){const r=await fetch(path,options);const body=await r.json();if(!r.ok)throw new Error(body.error);return body}
+function renderPayload(payload){
+  if(!payload)return el('p',{className:'muted',textContent:'No output.'});
+  const rows=payload.records||payload.results;
+  if(!Array.isArray(rows))return el('pre',{textContent:JSON.stringify(payload,null,2)});
+  if(!rows.length)return el('p',{className:'muted',textContent:'Empty result.'});
+  return el('div',{},...rows.map(row=>{const {url,title,content,...rest}=row;
+    return el('div',{className:'record'},el('strong',{textContent:title||url||''}),
+      url?el('div',{className:'muted',textContent:url}):'',
+      el('pre',{textContent:content??JSON.stringify(rest,null,2)}))}));
+}
+async function refresh(){items=await api('/api/items');
+  const done=items.filter(i=>i.graded===i.slots).length;
+  document.getElementById('progress').textContent=`${done} of ${items.length} complete`;
+  const pick=document.getElementById('pick');pick.replaceChildren(...items.map(i=>
+    el('option',{value:i.index,textContent:`${i.graded===i.slots?'✓ ':''}${i.case_id} #${i.trial_index}`})));
+  pick.value=current}
+async function show(index){current=Math.max(0,Math.min(items.length-1,index));
+  document.getElementById('pick').value=current;
+  const box=document.getElementById('item');box.replaceChildren(el('p',{className:'muted',textContent:'Decrypting…'}));
+  try{const item=await api(`/api/items/${current}`);
+    box.replaceChildren(
+      el('div',{className:'input'},el('strong',{textContent:item.case_id}),el('pre',{textContent:JSON.stringify(item.input,null,2)})),
+      el('div',{className:'slots'},...item.slots.map(slot=>{
+        const buttons=[0,1,2,3].map(g=>el('button',{type:'button',textContent:g,ariaPressed:String(slot.grade===g),
+          onclick:async()=>{try{await api('/api/grades',{method:'POST',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({index:current,slot:slot.slot,grade:g})});
+            buttons.forEach((b,i)=>b.ariaPressed=String(i===g));status.textContent='Saved';await refresh()}
+            catch(e){status.textContent=e.message}}}));
+        const status=el('span',{className:'muted'});
+        return el('section',{className:'slot'},
+          el('h2',{},`Output ${slot.slot}`,el('span',{className:'muted',textContent:slot.status})),
+          el('div',{className:'body'},renderPayload(slot.payload)),
+          el('div',{className:'grades'},'Grade',...buttons,status))})))}
+  catch(e){box.replaceChildren(el('p',{textContent:e.message}))}}
+document.getElementById('prev').onclick=()=>show(current-1);
+document.getElementById('next').onclick=()=>show(current+1);
+document.getElementById('pick').onchange=e=>show(Number(e.target.value));
+refresh().then(()=>show(Math.max(0,items.findIndex(i=>i.graded<i.slots))));
+</script></body></html>
