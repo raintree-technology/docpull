@@ -2988,6 +2988,10 @@ def _write_context_lock(
                     raise ProjectError(str(err)) from err
     payload["lock_hash"] = _context_lock_hash(payload)
     _write_json(paths.context_lock, payload)
+    if payload.get("artifact"):
+        from .context_query import build_query_index
+
+        build_query_index(paths.state, payload)
     return payload
 
 
