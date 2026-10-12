@@ -131,6 +131,8 @@ extending acquisition behavior.
 - [Context Pack Contract v3](docs/context-pack-contract-v3.md) — Artifact levels and compatibility.
 - [Public contracts](docs/contracts.md) — Schemas and versioning rules.
 - [Alternatives](docs/alternatives.md) — Browser automation and hosted extraction tradeoffs.
+- [JavaScript SDK and loaders](docs/sdk-js.md) — TypeScript client and LangChain/LlamaIndex loaders.
+- [Dependency security](docs/dependency-security.md) — Locked dependency sets and optional parser support.
 - [Evaluation lab](bench/docs/index.md) — Reproducible methods, results, and claim boundaries.
 - [Changelog](docs/CHANGELOG.md) — Release history.
 
@@ -155,6 +157,6 @@ spending, investments, assets, debts, and net worth in one current record.
 
 ## Project policies
 
-[Contributing](CONTRIBUTING.md) · [Code of Conduct](CODE_OF_CONDUCT.md) · [Security](SECURITY.md) ·
+[Contributing](.github/CONTRIBUTING.md) · [Code of Conduct](CODE_OF_CONDUCT.md) · [Security](.github/SECURITY.md) ·
 [Metrics and evidence limits](METRICS.md) · [Source repository](https://github.com/raintree-technology/docpull) ·
 [MIT License](LICENSE)

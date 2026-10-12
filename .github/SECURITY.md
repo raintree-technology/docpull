@@ -18,6 +18,11 @@ Include: description, reproduction steps, potential impact.
 
 Do not open public GitHub issues for security vulnerabilities.
 
+## Secrets
+
+Secrets are managed in Infisical. Do not commit real `.env` files or keep them on
+development devices.
+
 ## Supply Chain Security
 
 - Python dependencies in `pyproject.toml` declare supported minimum versions; JavaScript SDK dependencies are pinned in `bun.lock`.

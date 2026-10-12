@@ -64,7 +64,7 @@ exit rejects with a `DocpullCliError` that carries `exitCode` and `stderr`.
 - The SDK does not validate the truth or completeness of source content.
 
 See the [DocPull README](../../README.md) and [security
-policy](../../SECURITY.md) for the broader boundary.
+policy](../../.github/SECURITY.md) for the broader boundary.
 
 ## Maintainer checks
 
