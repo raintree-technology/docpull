@@ -11,7 +11,7 @@ from typing import Any
 
 import pytest
 
-from docpull import ContextQueryError, query_context
+from docpull import ContextQueryError, context_query, query_context
 from docpull import project as project_module
 from docpull.cli import main
 from docpull.context_query import serialize_query_result
@@ -280,3 +280,17 @@ async def test_context_query_stdio_contract(tmp_path: Path, monkeypatch: pytest.
             "context_query", {"query": "retry", "project_roots": [str(tmp_path / "missing")]}
         )
         assert missing.isError is True
+
+
+def test_broad_query_matches_full_measurement(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    documents: list[tuple[str, str | None]] = [
+        (f"# Doc {i}\n\nRetry backoff café {i}: {'wait ' * (i * 37 % 90)}\n", None) for i in range(200)
+    ]
+    root = _project(tmp_path, monkeypatch, "broad", documents)
+    args = {"project_roots": [root], "max_tokens": 3000, "limit": 100}
+    fast = query_context("retry backoff", **args)
+    assert 0 < len(fast["results"]) < 100
+    assert fast["omitted_passages"] > 0
+    # Forcing every prediction to "fits" sends each candidate through the original _measure path.
+    monkeypatch.setattr(context_query, "_settle", lambda size, used: 0)
+    assert serialize_query_result(query_context("retry backoff", **args)) == serialize_query_result(fast)
