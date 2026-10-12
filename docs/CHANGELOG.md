@@ -24,6 +24,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   are SQLite files of page URLs, titles, and headings from synced projects, with
   no page bodies. `pull` needs an explicit HTTPS manifest URL. It verifies each
   shard's sha256 and enforces a total download size limit. Searches run offline.
+- Share reproducible packs as recipes. `docpull registry export` writes a pack's
+  public sources, pinned page URLs, and per-page content hashes, with no fetched
+  content. `docpull add name@version` downloads a recipe from the registry,
+  checks its sha256, adds and syncs the sources, and reports which pages still
+  match. `docpull registry verify` repeats the check after a later sync.
 
 ### Removed
 
