@@ -728,9 +728,6 @@ def _write_private_bytes(path: Path, body: bytes) -> None:
         stream.write(body)
 
 
-_parse_one = parse_one_document
-
-
 def _parse_auto(path: Path, *, source_url: str, title: str | None, source_mime_type: str) -> ParsedDocument:
     if _is_text_compatible(path, source_mime_type):
         content, metadata = _parse_text(path)

@@ -20,8 +20,6 @@ from .pack_tools import (
     PackToolError,
     _analyze_pack,
     _artifact_ref,
-    _brief_markdown,
-    _clean_passage,
     _diff_markdown,
     _domain,
     _expected_domains,
@@ -32,13 +30,10 @@ from .pack_tools import (
     _read_pack_metadata,
     _read_pack_records,
     _safe_int,
-    _search_markdown,
     _write_json,
     build_citation_map,
-    build_research_brief,
     diff_packs,
     score_pack,
-    search_pack,
 )
 from .source_scoring import score_source_entries
 from .time_utils import parse_persisted_datetime, utc_now, utc_now_iso
@@ -48,7 +43,6 @@ if TYPE_CHECKING:
 
 REFRESH_SCHEMA_VERSION = 1
 AUDIT_SCHEMA_VERSION = 1
-ANSWER_SCHEMA_VERSION = 1
 LOCAL_PACK_SCHEMA_VERSION = 1
 
 
@@ -124,45 +118,6 @@ def run_refresh_cli(argv: list[str] | None = None) -> int:
         return 1
     except Exception as err:  # noqa: BLE001
         console.print("[red]Refresh failed:[/red] " + escape(str(err)))
-        return 1
-
-
-def create_answer_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        prog="docpull answer-pack",
-        description="Answer from a local DocPull pack with citations and refusal on missing evidence",
-    )
-    parser.add_argument("pack_dir", type=Path)
-    parser.add_argument("question")
-    parser.add_argument("--output", type=Path, help="Markdown report path")
-    parser.add_argument("--json-output", type=Path, help="JSON result path")
-    parser.add_argument("--limit", type=int, default=8, help="Maximum cited search results")
-    parser.add_argument("--require-domain", action="append", dest="required_domains", default=[])
-    return parser
-
-
-def run_answer_cli(argv: list[str] | None = None) -> int:
-    parser = create_answer_parser()
-    args = parser.parse_args(argv)
-    console = Console()
-    try:
-        payload = answer_pack(
-            args.pack_dir,
-            args.question,
-            limit=args.limit,
-            required_domains=args.required_domains,
-            markdown_path=args.output,
-            json_path=args.json_output,
-        )
-        console.print(
-            f"[green]Answer pack:[/green] {payload['artifacts']['markdown']} ({payload['answer']['status']})"
-        )
-        return 0 if payload["answer"]["status"] != "insufficient_evidence" else 2
-    except (LocalWorkflowError, PackToolError) as err:
-        console.print("[red]Answer error:[/red] " + escape(str(err)))
-        return 1
-    except Exception as err:  # noqa: BLE001
-        console.print("[red]Answer failed:[/red] " + escape(str(err)))
         return 1
 
 
@@ -606,74 +561,6 @@ def _stale_source_report(
     }
 
 
-def answer_pack(
-    pack_dir: Path,
-    question: str,
-    *,
-    limit: int = 8,
-    required_domains: list[str] | None = None,
-    markdown_path: Path | None = None,
-    json_path: Path | None = None,
-) -> dict[str, Any]:
-    """Produce a deterministic cited answer from local pack evidence."""
-    if not question.strip():
-        raise LocalWorkflowError("question must be non-empty.")
-    if limit < 1:
-        raise LocalWorkflowError("limit must be at least 1.")
-    analysis = _analyze_pack(pack_dir, required_domains)
-    pack_dir = analysis.pack_dir
-    search_payload = search_pack(
-        pack_dir,
-        question,
-        required_domains=required_domains,
-        limit=limit,
-        _analysis=analysis,
-    )
-    brief_payload = build_research_brief(
-        pack_dir,
-        objective=question,
-        required_domains=required_domains,
-        max_excerpts=max(limit, 1),
-        entity_limit=10,
-        _analysis=analysis,
-    )
-    result_count = _safe_int(search_payload.get("result_count"))
-    if result_count == 0:
-        answer = {
-            "status": "insufficient_evidence",
-            "text": "The local pack does not contain enough cited evidence to answer this question.",
-            "citations": [],
-        }
-    else:
-        answer = {
-            "status": "answered_from_local_pack",
-            "text": _synthesize_local_answer(question, search_payload),
-            "citations": search_payload.get("citations", []),
-        }
-
-    output = json_path or (pack_dir / "answer.result.json")
-    markdown = markdown_path or (pack_dir / "answer.report.md")
-    payload = {
-        "schema_version": ANSWER_SCHEMA_VERSION,
-        "generated_at": utc_now_iso(),
-        "pack_dir": str(pack_dir),
-        "question": question,
-        "answer": answer,
-        "search": search_payload,
-        "brief": {
-            "summary": brief_payload.get("summary"),
-            "key_excerpts": brief_payload.get("key_excerpts"),
-        },
-        "artifacts": {
-            "json": _artifact_ref(pack_dir, output),
-            "markdown": _artifact_ref(pack_dir, markdown),
-        },
-    }
-    _write_json(output, payload)
-    markdown.write_text(_answer_markdown(payload), encoding="utf-8")
-    return payload
-
-
 def _unique_record_urls(records: list[dict[str, Any]]) -> list[str]:
     seen: set[str] = set()
     urls: list[str] = []
@@ -922,55 +809,4 @@ def _refresh_markdown(payload: dict[str, Any]) -> str:
         lines.extend(["", "## Skips", ""])
         for skip in payload["skips"]:
             lines.append(f"- {skip.get('url')}: {skip.get('reason')}")
-    return "\n".join(lines).rstrip() + "\n"
-
-
-def _synthesize_local_answer(question: str, search_payload: dict[str, Any]) -> str:
-    parts = []
-    for result in search_payload.get("results", [])[:5]:
-        if not isinstance(result, dict):
-            continue
-        excerpt = _clean_passage(str(result.get("excerpt") or ""))
-        if not excerpt:
-            continue
-        citation = result.get("citation_id")
-        parts.append(f"[{citation}] {excerpt}")
-    if not parts:
-        return "The local pack has matching records, but no usable excerpts to summarize."
-    return f"Based only on the local pack evidence for `{question}`: " + " ".join(parts)
-
-
-def _answer_markdown(payload: dict[str, Any]) -> str:
-    answer = payload.get("answer", {})
-    lines = [
-        "# Local Pack Answer",
-        "",
-        f"Question: {payload.get('question')}",
-        f"Status: {answer.get('status')}",
-        "",
-        str(answer.get("text") or ""),
-        "",
-    ]
-    search_payload = payload.get("search")
-    if isinstance(search_payload, dict):
-        lines.extend(["## Evidence", "", _search_markdown(search_payload)])
-    brief = payload.get("brief")
-    if isinstance(brief, dict):
-        lines.extend(
-            [
-                "",
-                "## Brief Excerpts",
-                "",
-                _brief_markdown(
-                    {
-                        "objective": payload.get("question"),
-                        "generated_at": payload.get("generated_at"),
-                        "summary": brief.get("summary") or {},
-                        "load_plan": [],
-                        "key_excerpts": brief.get("key_excerpts") or [],
-                        "entities": [],
-                    }
-                ),
-            ]
-        )
     return "\n".join(lines).rstrip() + "\n"

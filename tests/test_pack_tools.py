@@ -7,7 +7,6 @@ from pathlib import Path
 
 import docpull.pack_tools as pack_tools_module
 from docpull.cli import main
-from docpull.eval_grade import run_evalgen_cli, run_freshdocs_cli
 from docpull.pack_tools import (
     build_citation_map,
     build_company_brain_bundle,
@@ -806,89 +805,3 @@ def test_pack_diff_cli_writes_outputs(tmp_path: Path) -> None:
     semantic = json.loads((new_pack / "semantic.diff.json").read_text(encoding="utf-8"))
     assert semantic["summary"]["removed_section"] == 1
     assert "Added" in (tmp_path / "diff.md").read_text(encoding="utf-8")
-
-
-def test_evalgen_cli_writes_public_tasks_and_hidden_answers(tmp_path: Path) -> None:
-    pack = tmp_path / "pack"
-    _write_pack(
-        pack,
-        [
-            _record(
-                "https://docs.parallel.ai/api-reference/search/search",
-                "aaa",
-                (
-                    "Parallel Search API returns live cited JSON results for agents. "
-                    "Deprecated legacy search behavior is no longer supported."
-                ),
-            )
-        ],
-        include_domains=["docs.parallel.ai"],
-    )
-
-    assert main(["pack", "prepare", str(pack), "--eval-grade", "--no-search", "--no-graph"]) == 0
-    assert (
-        run_evalgen_cli(
-            [
-                str(pack),
-                "--types",
-                "current-context-qa,version-drift,citation,coverage-aware",
-                "--limit",
-                "4",
-            ]
-        )
-        == 0
-    )
-
-    tasks = [
-        json.loads(line)
-        for line in (pack / "evals" / "tasks.public.jsonl").read_text(encoding="utf-8").splitlines()
-        if line.strip()
-    ]
-    answers = [
-        json.loads(line)
-        for line in (pack / "evals" / "answers.hidden.jsonl").read_text(encoding="utf-8").splitlines()
-        if line.strip()
-    ]
-    traps = [
-        json.loads(line)
-        for line in (pack / "evals" / "traps.jsonl").read_text(encoding="utf-8").splitlines()
-        if line.strip()
-    ]
-    assert {task["task_type"] for task in tasks} == {
-        "current-context-qa",
-        "version-drift",
-        "citation",
-        "coverage-aware",
-    }
-    assert all(task["citation_requirements"][0]["content_hash"] == "aaa" for task in tasks)
-    assert all("expected_claims" not in task for task in tasks)
-    assert len(answers) == 4
-    assert answers[0]["expected_claims"][0]["source_hash"] == "aaa"
-    assert traps
-    assert (pack / "evals" / "rubric.md").exists()
-    assert (pack / "evals" / "grader.py").exists()
-
-    assert run_freshdocs_cli(["bench", str(pack)]) == 0
-    report = json.loads((pack / "freshdocs.report.json").read_text(encoding="utf-8"))
-    assert report["summary"]["task_count"] == 4
-    assert report["summary"]["hidden_answer_count"] == 4
-    assert report["summary"]["citation_requirement_count"] == 4
-    assert (pack / "FRESHDOCS_BENCH.md").exists()
-
-    legacy_eval_dir = tmp_path / "legacy-evals"
-    assert (
-        run_evalgen_cli(
-            [
-                str(pack),
-                "--types",
-                "current-docs-qa",
-                "--limit",
-                "1",
-                "--output-dir",
-                str(legacy_eval_dir),
-            ]
-        )
-        == 0
-    )
-    legacy_task = json.loads((legacy_eval_dir / "tasks.public.jsonl").read_text(encoding="utf-8"))
-    assert legacy_task["task_type"] == "current-context-qa"

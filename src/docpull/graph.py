@@ -867,10 +867,6 @@ def _public_node(node: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _entity_in_content(entity: dict[str, Any], content: str) -> bool:
-    return _entity_in_haystack(_entity_candidates(entity), content.casefold())
-
-
 def _entity_candidates(entity: dict[str, Any]) -> tuple[str, ...]:
     return tuple(
         sorted(

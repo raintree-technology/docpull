@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import argparse
 import hashlib
 import json
 import re
@@ -11,9 +10,6 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
-
-from rich.console import Console
-from rich.markup import escape
 
 from .time_utils import utc_now_iso
 
@@ -567,42 +563,6 @@ def generate_eval_pack(
     }
 
 
-def run_evalgen_cli(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(
-        prog="docpull evalgen",
-        description="Generate citation-constrained eval candidates from a local context pack",
-    )
-    parser.add_argument("pack_dir", type=Path, help="Context pack directory")
-    parser.add_argument(
-        "--types",
-        default=",".join(DEFAULT_EVAL_TYPES),
-        help=(
-            "Comma-separated eval types: current-context-qa,version-drift,citation,"
-            "coverage-aware. current-docs-qa is accepted as a legacy alias."
-        ),
-    )
-    parser.add_argument("--limit", type=int, default=50, help="Maximum public tasks to generate")
-    parser.add_argument("--output-dir", "-o", type=Path, help="Eval artifact directory")
-    parser.add_argument("--json", action="store_true", dest="json_output", help="Print JSON summary")
-    args = parser.parse_args(argv)
-    console = Console()
-    try:
-        payload = generate_eval_pack(
-            args.pack_dir,
-            types=[item.strip() for item in args.types.split(",")],
-            limit=args.limit,
-            output_dir=args.output_dir,
-        )
-    except EvalGradeError as err:
-        console.print("[red]Evalgen error:[/red] " + escape(str(err)))
-        return 1
-    if args.json_output:
-        console.print_json(data=payload)
-    else:
-        console.print(f"[green]Evalgen:[/green] {payload['task_count']} tasks -> {payload['eval_dir']}")
-    return 0
-
-
 def freshdocs_bench(
     pack_dir: Path,
     *,
@@ -728,59 +688,6 @@ def freshdocs_bench(
     _write_json(report_path, payload)
     markdown_output.write_text(_freshdocs_markdown(payload), encoding="utf-8")
     return payload
-
-
-def run_freshdocs_cli(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(
-        prog="docpull freshdocs",
-        description="Run local FreshDocs Bench reports over eval-grade context packs",
-    )
-    subparsers = parser.add_subparsers(dest="command", required=True)
-    bench = subparsers.add_parser("bench", help="Write a FreshDocs Bench report for a local pack")
-    bench.add_argument("pack_dir", type=Path, help="Context pack directory")
-    bench.add_argument("--evals", type=Path, help="tasks.public.jsonl path")
-    bench.add_argument("--answers", type=Path, help="answers.hidden.jsonl path")
-    bench.add_argument("--predictions", type=Path, help="Prediction JSONL with id/task_id and answer text")
-    bench.add_argument("--output", "-o", type=Path, help="Report JSON output path")
-    bench.add_argument("--markdown", type=Path, help="Markdown report output path")
-    bench.add_argument("--limit", type=int, default=50, help="Evalgen limit when eval files are missing")
-    bench.add_argument(
-        "--grader",
-        choices=list(FRESHDOCS_GRADERS),
-        default="deterministic",
-        help=(
-            "Prediction grader: deterministic (default), llm (LLM judge, needs ANTHROPIC_API_KEY), "
-            "or hybrid (LLM judge re-grades deterministic failures)"
-        ),
-    )
-    bench.add_argument("--json", action="store_true", dest="json_output", help="Print JSON summary")
-    args = parser.parse_args(argv)
-    console = Console()
-    try:
-        if args.command == "bench":
-            payload = freshdocs_bench(
-                args.pack_dir,
-                evals_path=args.evals,
-                answers_path=args.answers,
-                predictions_path=args.predictions,
-                output=args.output,
-                markdown_path=args.markdown,
-                limit=args.limit,
-                grader=args.grader,
-            )
-        else:  # pragma: no cover - guarded by argparse
-            parser.error(f"Unknown command: {args.command}")
-    except EvalGradeError as err:
-        console.print("[red]FreshDocs error:[/red] " + escape(str(err)))
-        return 1
-    if args.json_output:
-        console.print_json(data=payload)
-    else:
-        console.print(
-            f"[green]FreshDocs Bench:[/green] {payload['summary']['task_count']} tasks -> "
-            f"{payload['artifacts']['report']}"
-        )
-    return 0
 
 
 def _classify_changed_text(
@@ -1493,7 +1400,3 @@ def _write_jsonl(path: Path, records: list[dict[str, Any]]) -> None:
         "\n".join(json.dumps(record, ensure_ascii=False) for record in records) + "\n",
         encoding="utf-8",
     )
-
-
-if __name__ == "__main__":  # pragma: no cover
-    raise SystemExit(run_evalgen_cli())

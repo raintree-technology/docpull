@@ -7,7 +7,7 @@ import json
 from collections.abc import Callable
 from contextvars import ContextVar
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any
 
 from .contracts import WorkflowRequest, WorkflowResult, build_workflow_request
 from .policy import PolicyConfig
@@ -21,25 +21,6 @@ _CURRENT_WORKFLOW_REQUEST: ContextVar[WorkflowRequest | None] = ContextVar(
     "docpull_workflow_request",
     default=None,
 )
-
-
-class PackWorkflow(Protocol):
-    """Transport-neutral protocol implemented by every registered pack lane."""
-
-    name: str
-
-    def execute(self, request: WorkflowRequest) -> dict[str, Any]: ...
-
-
-class FunctionPackWorkflow:
-    """Small adapter that gives existing SDK builders the common protocol."""
-
-    def __init__(self, name: str, executor: Callable[[WorkflowRequest], dict[str, Any]]) -> None:
-        self.name = name
-        self._executor = executor
-
-    def execute(self, request: WorkflowRequest) -> dict[str, Any]:
-        return self._executor(request)
 
 
 def create_workflow_request(
@@ -93,7 +74,7 @@ def run_workflow(request: WorkflowRequest | dict[str, Any]) -> dict[str, Any]:
         raise WorkflowExecutionError(f"Unsupported workflow {parsed.workflow!r}. Available: {available}")
     token = _CURRENT_WORKFLOW_REQUEST.set(parsed)
     try:
-        workflow.execute(parsed)
+        workflow(parsed)
     finally:
         _CURRENT_WORKFLOW_REQUEST.reset(token)
     output_dir = _request_output_dir(parsed)
@@ -271,19 +252,19 @@ def _run_crawl(request: WorkflowRequest) -> dict[str, Any]:
     return execute_acquisition_workflow(request, crawl=True)
 
 
-WORKFLOW_REGISTRY: dict[str, PackWorkflow] = {
-    "website-pack": FunctionPackWorkflow("website-pack", _run_website),
-    "brand-pack": FunctionPackWorkflow("brand-pack", _run_brand),
-    "product-pack": FunctionPackWorkflow("product-pack", _run_product),
-    "styleguide-pack": FunctionPackWorkflow("styleguide-pack", _run_styleguide),
-    "visual-pack": FunctionPackWorkflow("visual-pack", _run_visual),
-    "image-pack": FunctionPackWorkflow("image-pack", _run_visual),
-    "screenshot-pack": FunctionPackWorkflow("screenshot-pack", _run_screenshot),
-    "policy-pack": FunctionPackWorkflow("policy-pack", _run_policy),
-    "dataset-pack": FunctionPackWorkflow("dataset-pack", _run_dataset),
-    "relationship-pack": FunctionPackWorkflow("relationship-pack", _run_relationship),
-    "fetch": FunctionPackWorkflow("fetch", _run_fetch),
-    "crawl": FunctionPackWorkflow("crawl", _run_crawl),
+WORKFLOW_REGISTRY: dict[str, Callable[[WorkflowRequest], dict[str, Any]]] = {
+    "website-pack": _run_website,
+    "brand-pack": _run_brand,
+    "product-pack": _run_product,
+    "styleguide-pack": _run_styleguide,
+    "visual-pack": _run_visual,
+    "image-pack": _run_visual,
+    "screenshot-pack": _run_screenshot,
+    "policy-pack": _run_policy,
+    "dataset-pack": _run_dataset,
+    "relationship-pack": _run_relationship,
+    "fetch": _run_fetch,
+    "crawl": _run_crawl,
 }
 
 
@@ -359,7 +340,6 @@ def _optional_str(options: dict[str, Any], key: str) -> str | None:
 
 
 __all__ = [
-    "PackWorkflow",
     "WORKFLOW_REGISTRY",
     "WorkflowExecutionError",
     "async_run_workflow",

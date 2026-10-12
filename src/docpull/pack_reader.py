@@ -783,20 +783,6 @@ def _excerpt(content: str, terms: list[str], phrase: str) -> str:
     return _truncate(prefix + cleaned[start:end].strip(" ,.;:-") + suffix, 360)
 
 
-def _documents_by_url(documents: tuple[DocumentRecord, ...]) -> dict[str, DocumentRecord]:
-    by_url: dict[str, DocumentRecord] = {}
-    for record in documents:
-        by_url.setdefault(record.url, record)
-    return by_url
-
-
-def _documents_by_record_key(documents: tuple[DocumentRecord, ...]) -> dict[str, DocumentRecord]:
-    by_key: dict[str, DocumentRecord] = {}
-    for record in documents:
-        by_key.setdefault(record.chunk_id or record.document_id, record)
-    return by_key
-
-
 def _is_secret_key(key: str) -> bool:
     normalized = key.strip().lower().replace("-", "_")
     return (
