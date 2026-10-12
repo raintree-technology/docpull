@@ -18,6 +18,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from .server import ASGIReceive, ASGIScope, ASGISend, _handle_lifespan, _json_response
+from .web_search import SearchResponse, WebSearchError
 
 MAX_BODY_BYTES = 1_000_000
 MAX_URLS_PER_REQUEST = 20
@@ -36,6 +37,9 @@ class Page:
 
 
 PageFetcher = Callable[[str], Awaitable[Page]]
+# (query, max_results, include_domains, exclude_domains, include_content) -> response
+SearchFn = Callable[[str, int, list[str], list[str], bool], Awaitable["SearchResponse"]]
+FLAVORS = ("tavily", "exa", "firecrawl")
 
 
 class CompatRequestError(ValueError):
@@ -64,8 +68,15 @@ async def fetch_page(url: str) -> Page:
 class CompatASGIApp:
     """JSON-over-POST ASGI app for the compatible extract endpoints."""
 
-    def __init__(self, *, fetch: PageFetcher = fetch_page, api_key: str | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        fetch: PageFetcher = fetch_page,
+        search: SearchFn | None = None,
+        api_key: str | None = None,
+    ) -> None:
         self.fetch = fetch
+        self.search = search
         self.api_key = api_key
 
     async def __call__(self, scope: ASGIScope, receive: ASGIReceive, send: ASGISend) -> None:
@@ -73,6 +84,10 @@ class CompatASGIApp:
             await _handle_lifespan(receive, send)
             return
         path = (str(scope.get("path") or "/").rstrip("/")) or "/"
+        # A /tavily, /exa, or /firecrawl prefix lets clients pick a flavor by base URL.
+        flavor = next((name for name in FLAVORS if path.startswith(f"/{name}/")), None)
+        if flavor:
+            path = path.removeprefix(f"/{flavor}")
         if scope.get("type") != "http":
             await _json_response(send, 500, {"error": "Unsupported ASGI scope"})
             return
@@ -91,9 +106,20 @@ class CompatASGIApp:
             return
         try:
             body = await _read_body(receive)
+            if path == "/search":
+                flavor = flavor or ("exa" if _EXA_SEARCH_KEYS & body.keys() else "tavily")
+                if flavor == "firecrawl":
+                    raise CompatRequestError("Firecrawl search is served at /v1/search or /v2/search")
+                handler = _tavily_search if flavor == "tavily" else _exa_search
             payload = await handler(self, body)
         except CompatRequestError as err:
             await _json_response(send, 400, {"error": str(err)})
+            return
+        except SearchUnavailableError as err:
+            await _json_response(send, 501, {"error": str(err)})
+            return
+        except WebSearchError as err:
+            await _json_response(send, 502, {"error": str(err)})
             return
         await _json_response(send, 200, payload)
 
@@ -107,6 +133,17 @@ class CompatASGIApp:
             headers.get("x-api-key") or headers.get("authorization", "").removeprefix("Bearer ").strip()
         )
         return hmac.compare_digest(supplied.encode(), self.api_key.encode())
+
+    async def run_search(
+        self, query: Any, max_results: Any, include: Any, exclude: Any, content: bool
+    ) -> SearchResponse:
+        if self.search is None:
+            raise SearchUnavailableError("Search is not configured; start the server with --search-backend")
+        if not isinstance(query, str) or not query.strip():
+            raise CompatRequestError("query is required")
+        if isinstance(max_results, bool) or not isinstance(max_results, int) or not 1 <= max_results <= 20:
+            raise CompatRequestError("the result count must be an integer from 1 to 20")
+        return await self.search(query, max_results, _domains(include), _domains(exclude), content)
 
     async def fetch_all(self, urls: list[str]) -> list[Page]:
         semaphore = asyncio.Semaphore(FETCH_CONCURRENCY)
@@ -178,12 +215,108 @@ async def _firecrawl_scrape(app: CompatASGIApp, body: dict[str, Any]) -> dict[st
     return {"success": True, "data": {"markdown": page.markdown, "metadata": metadata}}
 
 
+class SearchUnavailableError(RuntimeError):
+    """The server was started without a search backend."""
+
+
+async def _tavily_search(app: CompatASGIApp, body: dict[str, Any]) -> dict[str, Any]:
+    started = time.perf_counter()
+    raw = body.get("include_raw_content", False)
+    response = await app.run_search(
+        body.get("query"),
+        body.get("max_results", 5),
+        body.get("include_domains"),
+        body.get("exclude_domains"),
+        bool(raw),
+    )
+    results = [
+        {
+            "title": hit.title,
+            "url": hit.url,
+            "content": hit.snippet,
+            "score": hit.score,
+            "raw_content": hit.content if raw else None,
+        }
+        for hit in response.hits
+    ]
+    return {
+        "query": response.query,
+        "answer": None,
+        "images": [],
+        "follow_up_questions": None,
+        "results": results,
+        "response_time": round(time.perf_counter() - started, 3),
+        "request_id": uuid.uuid4().hex,
+    }
+
+
+async def _exa_search(app: CompatASGIApp, body: dict[str, Any]) -> dict[str, Any]:
+    contents = body.get("contents")
+    text = contents.get("text") if isinstance(contents, dict) else body.get("text")
+    response = await app.run_search(
+        body.get("query"),
+        body.get("numResults", 10),
+        body.get("includeDomains"),
+        body.get("excludeDomains"),
+        bool(text),
+    )
+    results = []
+    for hit in response.hits:
+        result: dict[str, Any] = {
+            "id": hit.url,
+            "url": hit.url,
+            "title": hit.title,
+            "score": hit.score,
+            "publishedDate": hit.published,
+        }
+        if text:
+            result["text"] = hit.content or ""
+        results.append(result)
+    return {"requestId": uuid.uuid4().hex, "resolvedSearchType": "keyword", "results": results}
+
+
+async def _firecrawl_search(app: CompatASGIApp, body: dict[str, Any], *, version: int) -> dict[str, Any]:
+    options = body.get("scrapeOptions")
+    formats = options.get("formats") if isinstance(options, dict) else None
+    markdown = isinstance(formats, list) and "markdown" in formats
+    response = await app.run_search(body.get("query"), body.get("limit", 5), None, None, markdown)
+    data = []
+    for hit in response.hits:
+        item: dict[str, Any] = {"url": hit.url, "title": hit.title, "description": hit.snippet}
+        if markdown:
+            item["markdown"] = hit.content or ""
+        data.append(item)
+    return {"success": True, "data": data if version == 1 else {"web": data}}
+
+
+async def _firecrawl_search_v1(app: CompatASGIApp, body: dict[str, Any]) -> dict[str, Any]:
+    return await _firecrawl_search(app, body, version=1)
+
+
+async def _firecrawl_search_v2(app: CompatASGIApp, body: dict[str, Any]) -> dict[str, Any]:
+    return await _firecrawl_search(app, body, version=2)
+
+
+_EXA_SEARCH_KEYS = frozenset({"numResults", "contents", "includeDomains", "excludeDomains", "type"})
+
+
 _ROUTES: dict[str, Callable[[CompatASGIApp, dict[str, Any]], Awaitable[dict[str, Any]]]] = {
     "/extract": _tavily_extract,
     "/contents": _exa_contents,
     "/v1/scrape": _firecrawl_scrape,
     "/v2/scrape": _firecrawl_scrape,
+    "/search": _tavily_search,
+    "/v1/search": _firecrawl_search_v1,
+    "/v2/search": _firecrawl_search_v2,
 }
+
+
+def _domains(value: Any) -> list[str]:
+    if value is None:
+        return []
+    if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+        raise CompatRequestError("domain filters must be lists of strings")
+    return value
 
 
 def _urls(value: Any, *, field: str) -> list[str]:

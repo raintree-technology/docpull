@@ -126,6 +126,12 @@ def create_serve_parser() -> argparse.ArgumentParser:
         help="Serve Tavily /extract, Exa /contents, and Firecrawl /scrape request shapes from local fetching",
     )
     parser.add_argument(
+        "--search-backend",
+        choices=("searxng", "marginalia"),
+        help="With --compat, serve /search routes through this backend",
+    )
+    parser.add_argument("--searxng-url", help="With --search-backend searxng, the SearXNG base URL")
+    parser.add_argument(
         "--api-key-env",
         metavar="NAME",
         help="With --compat, require the API key stored in this environment variable",
@@ -167,6 +173,7 @@ def run_serve_cli(argv: list[str] | None = None) -> int:
 
 def _run_compat(args: argparse.Namespace, console: Console) -> int:
     from .compat_api import CompatASGIApp
+    from .web_search import search_web
 
     api_key = None
     try:
@@ -185,7 +192,23 @@ def _run_compat(args: argparse.Namespace, console: Console) -> int:
         console.print("[red]Serve error:[/red] `docpull serve` needs uvicorn: `pip install docpull[serve]`.")
         return 1
     console.print(f"[green]Serving compatible extract API[/green] on http://{args.host}:{args.port}")
-    uvicorn.run(CompatASGIApp(api_key=api_key), host=args.host, port=args.port)
+    search = None
+    if args.search_backend:
+
+        async def search(
+            query: str, max_results: int, include: list[str], exclude: list[str], content: bool
+        ) -> Any:
+            return await search_web(
+                query,
+                backend=args.search_backend,
+                max_results=max_results,
+                include_domains=include,
+                exclude_domains=exclude,
+                include_content=content,
+                searxng_url=args.searxng_url,
+            )
+
+    uvicorn.run(CompatASGIApp(search=search, api_key=api_key), host=args.host, port=args.port)
     return 0
 
 

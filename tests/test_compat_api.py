@@ -103,7 +103,7 @@ async def test_request_validation_and_methods() -> None:
     assert (await _post(app, "/extract", b"{not json"))[0] == 400
     assert (await _post(app, "/extract", [OK_URL]))[0] == 400
     assert (await _post(app, "/extract", {}, method="GET"))[0] == 405
-    assert (await _post(app, "/search", {}))[0] == 404
+    assert (await _post(app, "/nope", {}))[0] == 404
     status, health = await _post(app, "/health", {}, method="GET")
     assert status == 200 and "/extract" in health["endpoints"]
 

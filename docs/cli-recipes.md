@@ -54,6 +54,31 @@ Minimal GitHub Actions step:
 - run: docpull ci --prepare
 ```
 
+## Web Search
+
+`docpull search` queries a search backend you choose explicitly. DocPull has no
+index of its own and never calls a paid search provider for this command.
+
+```bash
+# Self-hosted SearXNG with `json` enabled under search.formats in settings.yml
+export DOCPULL_SEARXNG_URL=http://localhost:8888
+docpull search "rate limit headers" --backend searxng --include-domain docs.github.com
+
+# Marginalia's independent index with the shared public key
+docpull search "static site generators" --backend marginalia --max-results 5 --json
+```
+
+| Backend | Setup | Notes |
+| --- | --- | --- |
+| `searxng` | Run a SearXNG instance and pass `--searxng-url` or set `DOCPULL_SEARXNG_URL` | Metasearch across the engines your instance enables; the configured URL is trusted, so it may be local |
+| `marginalia` | None; set `DOCPULL_MARGINALIA_KEY` for your own key | The shared `public` key is often rate limited; results carry Marginalia's license, CC-BY-NC-SA 4.0 for free keys |
+
+Each query returns at most 20 results. `--include-domain` and `--exclude-domain`
+filter results by host. One include domain also narrows the upstream query.
+`--include-content` fetches every result through the same local pipeline as
+`docpull sync`, with HTTPS-only fetching, private-network blocking, and robots.txt
+handling, and attaches the Markdown.
+
 ## Local Extract API
 
 `docpull serve --compat` accepts the request shapes of common hosted extract
@@ -70,6 +95,13 @@ docpull serve --compat --port 8765
 | `POST /extract` | Tavily extract: `urls` (string or list) | `results[].raw_content`, `failed_results[]` |
 | `POST /contents` | Exa contents: `urls` or `ids`, `text` (bool or `maxCharacters`) | `results[].text`, `statuses[]` |
 | `POST /v1/scrape`, `POST /v2/scrape` | Firecrawl scrape: `url`, `formats: ["markdown"]` | `success`, `data.markdown`, `data.metadata` |
+
+Start the server with `--search-backend searxng` or `--search-backend marginalia`
+to also serve search shapes. Those are Tavily or Exa `POST /search`, chosen by the
+request fields, and Firecrawl `POST /v1/search` and `/v2/search`. A client can
+pin a flavor by setting its base URL to `http://127.0.0.1:8765/tavily`,
+`/exa`, or `/firecrawl`. Without a search backend, the search routes return
+HTTP 501.
 
 Every page goes through the same fetcher as `docpull sync`. That means
 HTTPS-only fetching, private-network blocking, and robots.txt handling. Nothing is
