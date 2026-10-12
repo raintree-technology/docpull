@@ -133,6 +133,28 @@ uv run --project bench --locked docpull-bench run bench/cases/controlled-v2.yaml
   --adapter trafilatura --system trafilatura --output-dir bench/runs/baselines
 ```
 
+## Blind human review
+
+`review` serves a local page for grading outputs from several systems on the
+same suite. Each system's run must use `--evidence-dir` and
+`--evidence-recipient` so its outputs exist as age-encrypted evidence.
+
+```bash
+uv run --project bench --locked docpull-bench review bench/cases/live-search-v2.yaml \
+  bench/runs/search/*/report.json --evidence-dir ~/bench-evidence \
+  --identity ~/.config/age/bench.txt --labels-dir bench/labels/live-search-v2
+uv run --project bench --locked docpull-bench audit-scorer \
+  bench/runs/search/<run-id>/report.json bench/labels/live-search-v2/<system>.labels.json
+```
+
+The page binds to `127.0.0.1` and shows the case input and each output under a
+shuffled letter, not a system name. Reviewers grade 0–3; grades 2 and 3 pass.
+Plaintext stays in memory after the ciphertext and output commitments are
+checked against the report. Each `<system>.labels.json` file holds only case
+ids, trial indexes, and grades, so `audit-scorer` can read it directly.
+Review resumes from existing label files. Provider-specific metadata inside an
+output can still reveal its source.
+
 ## Baselines and publication
 
 ```bash

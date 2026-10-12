@@ -60,6 +60,7 @@ from .models import (
 )
 from .presentation import create_presentation, verify_legacy_publication, verify_presentation
 from .publication import publish_results, sign_publication, verify_publication
+from .review import ReviewSession, serve_review
 from .runner import run_suite
 
 
@@ -112,6 +113,14 @@ def _build_parser() -> argparse.ArgumentParser:
     scorer_audit.add_argument("report", type=Path)
     scorer_audit.add_argument("labels", type=Path)
     scorer_audit.add_argument("--output", type=Path)
+
+    review = actions.add_parser("review", help="blind human grading of encrypted run evidence")
+    review.add_argument("suite", type=Path)
+    review.add_argument("reports", nargs="+", type=Path)
+    review.add_argument("--evidence-dir", type=Path, required=True)
+    review.add_argument("--identity", type=Path, required=True, help="age identity file")
+    review.add_argument("--labels-dir", type=Path, required=True)
+    review.add_argument("--port", type=int, default=0)
 
     baseline = actions.add_parser("baseline", help="controlled baseline operations").add_subparsers(
         dest="baseline_action", required=True
@@ -290,6 +299,16 @@ def main(argv: list[str] | None = None) -> int:
                 args.output.write_text(serialized, encoding="utf-8")
             else:
                 print(serialized, end="")
+            return 0
+        if args.action == "review":
+            session = ReviewSession(
+                args.suite,
+                args.reports,
+                evidence_dir=args.evidence_dir,
+                identity=args.identity,
+                labels_dir=args.labels_dir,
+            )
+            serve_review(session, port=args.port)
             return 0
         if args.action == "baseline":
             return _baseline(args)
