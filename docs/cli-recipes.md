@@ -130,6 +130,17 @@ pin a flavor by setting its base URL to `http://127.0.0.1:8765/tavily`,
 `/exa`, or `/firecrawl`. Without a search backend, the search routes return
 HTTP 501.
 
+The server also runs async jobs in the shapes those APIs use:
+
+| Create | Poll | Notes |
+| --- | --- | --- |
+| Firecrawl `POST /v1/crawl` or `/v2/crawl` with `url`, `limit` (default 50, at most 500), `maxDiscoveryDepth`, `includePaths`, `excludePaths` | `GET /v{1,2}/crawl/{id}`; `DELETE` cancels | Discovery and fetching use the local crawler. Path filters are regular expressions on the URL path, as in Firecrawl. `creditsUsed` is always 0 |
+| Parallel `POST /v1/tasks/runs` with `input` | `GET /v1/tasks/runs/{run_id}`; `GET .../result?timeout=` waits up to 600 seconds | Runs `docpull research`. `output.basis[0].citations` lists each source with its passages as `excerpts`. Needs `--search-backend` |
+| Tavily `POST /research` with `input` | `GET /research/{request_id}` returns 202 until done | Runs `docpull research`. Returns `content` and `sources`. Needs `--search-backend` |
+
+Jobs live in memory, so they are lost when the server stops. Finished jobs expire
+after 24 hours, and the server keeps at most 200 jobs.
+
 Every page goes through the same fetcher as `docpull sync`. That means
 HTTPS-only fetching, private-network blocking, and robots.txt handling. Nothing is
 sent to the hosted services. A request takes at most 20 URLs. The server binds to
