@@ -51,6 +51,9 @@ constraint-dependencies = [
 where = ["src"]
 include = ["docpull_bench*"]
 
+[tool.setuptools.package-data]
+docpull_bench = ["review.html"]
+
 [tool.ruff]
 line-length = 110
 target-version = "py310"

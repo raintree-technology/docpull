@@ -35,6 +35,11 @@ def output_commitment(observation: RunObservation) -> str:
     return hashlib.sha256(canonical_output(observation)).hexdigest()
 
 
+def evidence_filename(case_id: str, trial_index: int) -> str:
+    safe_case = _SAFE_NAME.sub("-", case_id).strip("-") or "case"
+    return f"{safe_case}.{trial_index}.json.age"
+
+
 def prepare_evidence_directory(
     evidence_dir: Path | None,
     *,
@@ -74,8 +79,7 @@ def encrypt_output(
     _require_private_directory(run_dir)
     if not isinstance(trial_index, int) or isinstance(trial_index, bool) or trial_index < 1:
         raise ValueError("evidence trial index must be a positive integer")
-    safe_case = _SAFE_NAME.sub("-", observation.case_id).strip("-") or "case"
-    destination = run_dir / f"{safe_case}.{trial_index}.json.age"
+    destination = run_dir / evidence_filename(observation.case_id, trial_index)
     if destination.exists() or destination.is_symlink():
         raise ValueError("encrypted evidence destination already exists")
     descriptor, temporary_name = tempfile.mkstemp(prefix=f".{destination.name}.", dir=run_dir)
