@@ -241,7 +241,7 @@ def build_query_index(state: Path, lock: dict[str, Any]) -> bool:
                     "content_rowid='rowid', tokenize='unicode61 remove_diacritics 2')"
                 )
                 conn.execute("INSERT INTO meta VALUES ('lock', ?)", (_index_key(lock),))
-                conn.executemany(f"INSERT INTO passages VALUES ({', '.join('?' * len(_PASSAGE_KEYS))})", rows)
+                conn.executemany("INSERT INTO passages VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", rows)
                 conn.execute("INSERT INTO passages_fts(passages_fts) VALUES ('rebuild')")
                 conn.execute(f"PRAGMA user_version = {_INDEX_SCHEMA}")
             os.replace(temporary, target)
