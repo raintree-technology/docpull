@@ -15,11 +15,11 @@ import pytest
 pytest.importorskip("mcp")
 pytest.importorskip("mcp.client.stdio")
 
+from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
 from docpull import __version__
 from docpull.mcp import server as mcp_server
-from mcp import ClientSession, StdioServerParameters
 from tests.pack_fixtures import write_context_pack
 
 

@@ -257,6 +257,7 @@ async def test_context_query_stdio_contract(tmp_path: Path, monkeypatch: pytest.
 
     pytest.importorskip("mcp")
     from mcp import ClientSession, StdioServerParameters
+
     from tests.test_mcp_server import _stdio_client_with_cleanup
 
     root = await asyncio.to_thread(_project, tmp_path, monkeypatch, "stdio", [("Retry with backoff.", "2.0")])

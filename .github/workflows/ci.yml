@@ -143,9 +143,8 @@ jobs:
       - name: Run mypy
         run: uv run --locked python -m mypy src
 
-  # The mcp package is covered by the mcp-security job in security.yml. Without
-  # this job the published JS SDK would only ever be tested by publish-sdk.yml,
-  # i.e. after a release tag is already cut.
+  # Without this job the published JS SDK would only ever be tested by
+  # publish-sdk.yml, i.e. after a release tag is already cut.
   sdk-js:
     runs-on: ubuntu-24.04
     timeout-minutes: 30

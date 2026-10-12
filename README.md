@@ -104,9 +104,7 @@ Claude Code can register the same local server:
 claude mcp add --transport stdio docpull -- docpull mcp
 ```
 
-The Python stdio server is the supported release path. The TypeScript code formerly
-documented under `mcp/` is an [internal semantic-search lab](docs/internal-mcp-lab.md),
-not part of the package contract.
+The Python stdio server is the supported MCP server.
 
 ## Limits and security boundary
 

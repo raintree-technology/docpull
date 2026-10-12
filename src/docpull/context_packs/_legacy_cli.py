@@ -9,13 +9,10 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from ..accounting import parse_budget_value
 from ..policy import PolicyConfig
 from .brand import DEFAULT_BRAND_OUTPUT_DIR, build_brand_pack
 from .cli import _positive_int, _run_and_print
 from .product import DEFAULT_PRODUCT_OUTPUT_DIR, build_product_pack
-from .schema_extract import DEFAULT_SCHEMA_OUTPUT_DIR, extract_schema
-from .search import DEFAULT_SEARCH_OUTPUT_DIR, build_search_pack
 from .styleguide import DEFAULT_STYLEGUIDE_OUTPUT_DIR, build_styleguide_pack
 from .visuals import (
     DEFAULT_IMAGE_OUTPUT_DIR,
@@ -108,31 +105,6 @@ def run_product_pack_cli(argv: list[str] | None = None) -> int:
     )
 
 
-def run_extract_schema_cli(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(
-        prog="docpull extract-schema",
-        description="Extract a JSON shape from local evidence and validate it",
-    )
-    parser.add_argument("url_or_pack")
-    parser.add_argument("--schema", type=Path, required=True)
-    parser.add_argument("--output-dir", "-o", type=Path, default=DEFAULT_SCHEMA_OUTPUT_DIR)
-    parser.add_argument("--policy", type=Path)
-    parser.add_argument("--fact-check", action="store_true")
-    parser.add_argument("--json", action="store_true", dest="json_output")
-    args = parser.parse_args(argv)
-    return _run_and_print(
-        lambda: extract_schema(
-            args.url_or_pack,
-            schema_path=args.schema,
-            output_dir=args.output_dir,
-            policy=_policy(args.policy),
-            fact_check=args.fact_check,
-        ),
-        json_output=args.json_output,
-        success_label="Extract schema",
-    )
-
-
 def run_image_pack_cli(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="docpull image-pack",
@@ -184,49 +156,6 @@ def run_screenshot_pack_cli(argv: list[str] | None = None) -> int:
         ),
         json_output=args.json_output,
         success_label="Screenshot pack",
-    )
-
-
-def run_search_pack_cli(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(
-        prog="docpull search-pack",
-        description="Build a local-first search result pack",
-    )
-    parser.add_argument("query")
-    parser.add_argument(
-        "--provider",
-        choices=["local", "parallel", "tavily", "exa", "context"],
-        default="local",
-    )
-    parser.add_argument("--pack-dir", type=Path)
-    parser.add_argument("--output-dir", "-o", type=Path, default=DEFAULT_SEARCH_OUTPUT_DIR)
-    parser.add_argument("--policy", type=Path)
-    parser.add_argument("--include-domain", action="append", dest="include_domains", default=[])
-    parser.add_argument("--exclude-domain", action="append", dest="exclude_domains", default=[])
-    parser.add_argument("--max-results", type=_positive_int, default=10)
-    parser.add_argument("--scrape", action="store_true")
-    parser.add_argument("--dry-run", action="store_true")
-    parser.add_argument("--budget", type=parse_budget_value)
-    parser.add_argument("--max-estimated-cost", type=parse_budget_value)
-    parser.add_argument("--json", action="store_true", dest="json_output")
-    args = parser.parse_args(argv)
-    return _run_and_print(
-        lambda: build_search_pack(
-            args.query,
-            provider=args.provider,
-            pack_dir=args.pack_dir,
-            output_dir=args.output_dir,
-            policy=_policy(args.policy),
-            include_domains=args.include_domains,
-            exclude_domains=args.exclude_domains,
-            max_results=args.max_results,
-            scrape=args.scrape,
-            dry_run=args.dry_run,
-            budget=args.budget,
-            max_estimated_cost=args.max_estimated_cost,
-        ),
-        json_output=args.json_output,
-        success_label="Search pack",
     )
 
 

@@ -1,7 +1,0 @@
-BEGIN;
-
-ALTER TABLE doc_embeddings
-	ALTER COLUMN embedding DROP NOT NULL,
-	ALTER COLUMN created_at DROP NOT NULL;
-
-COMMIT;

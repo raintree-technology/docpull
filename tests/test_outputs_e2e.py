@@ -9,15 +9,12 @@ from pathlib import Path
 import pytest
 import yaml
 from aiohttp import web
-from pydantic import ValidationError
 
-from docpull import ProfileName
 from docpull.conversion.special_cases import _split_markdown_frontmatter
 from docpull.core.fetcher import Fetcher
 from docpull.models.config import DocpullConfig
 from docpull.pipeline.base import PageContext
 from docpull.pipeline.steps.save_okf import OkfSaveStep
-from docpull.scraper import Scraper, scrape_one
 from docpull.security.robots import RobotsChecker
 from docpull.security.url_validator import UrlValidator
 
@@ -255,104 +252,3 @@ async def test_okf_indexes_include_nested_directories(tmp_path: Path) -> None:
     assert not nested_index.startswith("---")
     assert "* [API](_page.md)" in nested_index
     assert_okf_bundle_conformant(tmp_path)
-
-
-@pytest.mark.asyncio
-async def test_scrape_one_api_returns_in_memory_markdown(output_server: str) -> None:
-    result = await scrape_one(output_server)
-
-    assert result.url == output_server
-    assert result.title == "Alpha Docs"
-    assert result.markdown
-    assert "# Alpha" in result.text
-    assert result.error is None
-    assert result.skipped is False
-    assert result.extraction["confidence"] > 0
-
-
-@pytest.mark.asyncio
-async def test_scrape_one_api_does_not_write_default_docs_dir(
-    output_server: str,
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.chdir(tmp_path)
-
-    result = await scrape_one(output_server)
-
-    assert result.markdown
-    assert not (tmp_path / "docs").exists()
-
-
-@pytest.mark.asyncio
-async def test_scrape_one_api_ignores_existing_default_output_file(
-    output_server: str,
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.chdir(tmp_path)
-    docs_dir = tmp_path / "docs"
-    docs_dir.mkdir()
-    (docs_dir / "index.md").write_text("old content", encoding="utf-8")
-
-    result = await scrape_one(output_server)
-
-    assert result.skipped is False
-    assert result.markdown
-    assert "# Alpha" in result.markdown
-
-
-@pytest.mark.asyncio
-async def test_scrape_one_api_forwards_docpull_config_kwargs(
-    user_agent_server: tuple[str, dict[str, str | None]],
-) -> None:
-    url, seen = user_agent_server
-
-    result = await scrape_one(url, network={"user_agent": "docpull-test-agent"})
-
-    assert result.markdown
-    assert seen["user_agent"] == "docpull-test-agent"
-
-
-@pytest.mark.asyncio
-async def test_scraper_facade_writes_site_outputs(output_server: str, tmp_path: Path) -> None:
-    scraper = Scraper()
-
-    result = await scraper.scrape_site(
-        output_server,
-        output_dir=tmp_path,
-        output_format="ndjson",
-        max_pages=1,
-    )
-
-    assert result.stats.pages_fetched == 1
-    assert result.manifest_path.exists()
-    assert (tmp_path / "documents.ndjson").exists()
-
-
-@pytest.mark.asyncio
-async def test_scraper_facade_preserves_profile_output_defaults(output_server: str, tmp_path: Path) -> None:
-    scraper = Scraper()
-
-    result = await scraper.scrape_site(
-        output_server,
-        output_dir=tmp_path,
-        profile=ProfileName.OKF,
-        max_pages=1,
-    )
-
-    assert result.output_format == "okf"
-    assert result.manifest_path.exists()
-    assert (tmp_path / "_root.md").exists()
-
-
-@pytest.mark.asyncio
-async def test_scraper_facade_rejects_invalid_crawl_depth(output_server: str, tmp_path: Path) -> None:
-    scraper = Scraper()
-
-    with pytest.raises(ValidationError):
-        await scraper.scrape_site(
-            output_server,
-            output_dir=tmp_path,
-            max_depth=0,
-        )
