@@ -127,10 +127,13 @@ def create_serve_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--search-backend",
-        choices=("searxng", "marginalia"),
+        choices=("searxng", "marginalia", "index"),
         help="With --compat, serve /search routes through this backend",
     )
     parser.add_argument("--searxng-url", help="With --search-backend searxng, the SearXNG base URL")
+    parser.add_argument(
+        "--index-dir", type=Path, help="With --search-backend index, the installed shard directory"
+    )
     parser.add_argument(
         "--api-key-env",
         metavar="NAME",
@@ -206,6 +209,7 @@ def _run_compat(args: argparse.Namespace, console: Console) -> int:
                 exclude_domains=exclude,
                 include_content=content,
                 searxng_url=args.searxng_url,
+                index_dir=args.index_dir,
             )
 
     uvicorn.run(CompatASGIApp(search=search, api_key=api_key), host=args.host, port=args.port)
