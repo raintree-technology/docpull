@@ -57,10 +57,18 @@ def test_review_grades_blinded_outputs_into_audit_labels(tmp_path: Path) -> None
     assert "alpha" not in json.dumps(item) and "beta" not in json.dumps(item)
     assert item["slots"][0]["payload"]["records"]
 
-    session.grade(0, "A", 3)
+    assert session.findings() == {"complete": False, "graded": 0, "total": 2, "systems": []}
+    session.grade(0, "A", 3, ["Truncated"])
     session.grade(0, "B", 1)
     with pytest.raises(ValueError, match="grade"):
         session.grade(0, "A", 4)
+    with pytest.raises(ValueError, match="issue"):
+        session.grade(0, "A", 3, ["Free text the reviewer typed"])
+    with pytest.raises(ValueError, match="issues require a grade"):
+        session.grade(0, "A", None, ["Truncated"])
+    findings = session.findings()
+    assert findings["complete"] is True
+    assert sorted(system["passed"] for system in findings["systems"]) == [0, 1]
 
     passed = {}
     for path in sorted(labels.glob("*.labels.json")):
@@ -72,7 +80,12 @@ def test_review_grades_blinded_outputs_into_audit_labels(tmp_path: Path) -> None
     assert sorted(passed.values()) == [False, True]
 
     resumed = ReviewSession(SUITE, reports, evidence_dir=evidence, identity=identity, labels_dir=labels)
-    assert resumed.overview()[0]["graded"] == 2
+    assert all(slot["graded"] for slot in resumed.overview()[0]["slots"])
+    assert sorted(len(slot["issues"]) for slot in resumed.item(0)["slots"]) == [0, 1]
+
+    resumed.grade(0, "A", None)
+    assert sum(slot["graded"] for slot in resumed.overview()[0]["slots"]) == 1
+    assert resumed.findings()["systems"] == []
 
 
 def test_review_rejects_tampered_evidence(tmp_path: Path) -> None:

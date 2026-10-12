@@ -1,75 +1,357 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8">
+<html lang="en">
+<head>
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>DocPull Review</title>
 <style>
-:root{color-scheme:light dark;--fg:#1a1a1a;--muted:#666;--bg:#fff;--panel:#f5f5f4;--line:#ddd;--accent:#2563eb}
-@media (prefers-color-scheme:dark){:root{--fg:#eee;--muted:#999;--bg:#151515;--panel:#1f1f1f;--line:#333;--accent:#60a5fa}}
-body{margin:0;font:14px/1.5 system-ui,sans-serif;color:var(--fg);background:var(--bg)}
-header{display:flex;gap:12px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
-header h1{font-size:16px;margin:0 auto 0 0}
-main{padding:16px}
-select,button{font:inherit;padding:4px 10px}
-pre{white-space:pre-wrap;word-break:break-word;margin:0}
-.input{background:var(--panel);padding:12px;border-radius:6px;margin-bottom:16px}
-.slots{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px}
-.slot{border:1px solid var(--line);border-radius:6px;display:flex;flex-direction:column;min-width:0}
-.slot h2{font-size:15px;margin:0;padding:8px 12px;border-bottom:1px solid var(--line);display:flex;gap:8px;align-items:center}
-.body{padding:12px;max-height:60vh;overflow:auto}
-.record{border-top:1px solid var(--line);padding-top:8px;margin-top:8px}
-.record:first-child{border:0;margin:0;padding:0}
-.muted{color:var(--muted)}
-.grades{display:flex;gap:6px;padding:8px 12px;border-top:1px solid var(--line);align-items:center}
-.grades button[aria-pressed=true]{background:var(--accent);color:#fff;border-color:var(--accent)}
-</style></head><body>
-<header><h1>DocPull blind review</h1>
-<button id="prev" type="button">Previous</button>
-<select id="pick" aria-label="Review item"></select>
-<button id="next" type="button">Next</button>
-<span id="progress" class="muted"></span></header>
-<main><p class="muted">Grade each output against the input: 0 does not help, 1 related but thin,
-2 useful but misses a requirement, 3 directly meets the need. Grades 2 and 3 count as passing.</p>
-<div id="item"></div></main>
+:root{color-scheme:light;--bg:#f8f8f7;--fg:#202020;--card:#fff;--primary:#cc3d08;--primary-fg:#fff;--ring:#e45a26;
+  --secondary:#fff0e9;--secondary-fg:#a63008;--muted:#f3f3f1;--muted-fg:#636360;--accent:#f1f1ee;--border:#e2e2de;
+  --input:#8f8f8a;--danger:#c42b1c;--radius:6px}
+:root[data-theme=dark]{color-scheme:dark;--bg:#0d0d0f;--fg:#e6e6e7;--card:#111113;--primary:#ff702e;--primary-fg:#17100c;
+  --ring:#ff874d;--secondary:#301b13;--secondary-fg:#ff9a68;--muted:#232325;--muted-fg:#a3a3aa;--accent:#252527;
+  --border:#2c2c30;--input:#66666f;--danger:#ff8585}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){color-scheme:dark;--bg:#0d0d0f;--fg:#e6e6e7;--card:#111113;
+  --primary:#ff702e;--primary-fg:#17100c;--ring:#ff874d;--secondary:#301b13;--secondary-fg:#ff9a68;--muted:#232325;
+  --muted-fg:#a3a3aa;--accent:#252527;--border:#2c2c30;--input:#66666f;--danger:#ff8585}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 Arial,Helvetica,sans-serif;-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--ring);outline-offset:2px}
+.mono{font-family:ui-monospace,monospace}
+.muted{color:var(--muted-fg)}
+.small{font-size:12px}
+[hidden]{display:none!important}
+header.top{display:flex;align-items:center;gap:16px;padding:14px 24px;border-bottom:1px solid var(--border)}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:18px;letter-spacing:-.01em}
+.brand .mark{width:22px;height:22px;border-radius:50%;background:conic-gradient(var(--primary) 0 50%,var(--fg) 0)}
+.brand .sep{width:1px;height:20px;background:var(--border)}
+.brand .label{font-weight:400;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted-fg)}
+.spacer{flex:1}
+.segmented{display:inline-flex;padding:3px;gap:2px;background:var(--muted);border-radius:var(--radius)}
+.segmented button{border:0;background:none;padding:5px 12px;border-radius:4px;cursor:pointer;color:var(--muted-fg)}
+.segmented button[aria-pressed=true],.segmented button[aria-current=page]{background:var(--card);color:var(--fg);
+  box-shadow:0 1px 2px rgb(0 0 0/.15)}
+.segmented.accent button[aria-pressed=true]{background:var(--secondary);color:var(--secondary-fg)}
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);background:var(--card);
+  padding:5px 12px;border-radius:var(--radius);cursor:pointer;white-space:nowrap}
+.btn:hover:not(:disabled){background:var(--accent)}
+.btn:disabled{opacity:.5;cursor:default}
+.btn.primary{background:var(--primary);border-color:var(--primary);color:var(--primary-fg)}
+.btn.primary:hover:not(:disabled){filter:brightness(1.08);background:var(--primary)}
+.btn.ghost{border-color:transparent;background:none}
+.btn.icon{padding:5px 8px}
+select,input[type=search]{border:1px solid var(--border);background:var(--card);border-radius:var(--radius);padding:6px 10px}
+input[type=search]{flex:1;min-width:180px}
+main{max-width:1180px;margin:20px auto;padding:0 16px}
+.panel{background:var(--card);border:1px solid var(--border);border-radius:calc(var(--radius)*1.6);overflow:hidden}
+.toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:14px 16px;border-bottom:1px solid var(--border)}
+.progress{height:3px;background:var(--muted);border-radius:2px;overflow:hidden}
+.progress>span{display:block;height:100%;background:var(--primary)}
+.badge{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;padding:0 6px;
+  border-radius:4px;background:var(--muted);color:var(--muted-fg);font-size:12px;font-weight:700}
+.badge.done{background:var(--secondary);color:var(--secondary-fg)}
+.chip{display:inline-block;padding:2px 8px;border-radius:4px;background:var(--secondary);color:var(--secondary-fg);font-size:12px}
+/* Evaluations */
+.findings{padding:14px 16px;border-bottom:1px solid var(--border)}
+.findings h2{font-size:15px;margin:0 0 4px}
+.findings table{width:100%;border-collapse:collapse;margin-top:8px}
+.findings td{padding:8px 0;border-top:1px solid var(--border)}
+table.cases{width:100%;border-collapse:collapse}
+table.cases th{background:var(--muted);color:var(--muted-fg);font-weight:400;text-align:left;padding:8px 16px;font-size:13px}
+table.cases td{padding:14px 16px;border-top:1px solid var(--border);vertical-align:top}
+table.cases tr:hover td{background:color-mix(in srgb,var(--accent) 50%,transparent)}
+.case-title{font-weight:700}
+.slotchips{display:flex;flex-wrap:wrap;gap:6px}
+.footer{padding:10px 16px;border-top:1px solid var(--border);font-size:12px;color:var(--muted-fg)}
+/* Evaluate */
+.head{padding:16px 20px;border-bottom:1px solid var(--border)}
+.head h1{font-size:16px;margin:0 0 6px}
+.head p{margin:2px 0;font-size:13px}
+.head details{margin-top:10px;font-size:13px}
+.head summary{cursor:pointer;color:var(--muted-fg)}
+.head pre{background:var(--muted);padding:10px;border-radius:var(--radius);overflow:auto;margin:8px 0 0}
+.columns{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr))}
+.column{border-right:1px solid var(--border);min-width:0;display:flex;flex-direction:column}
+.column:last-child{border-right:0}
+.column:focus-visible{outline-offset:-2px}
+.colhead{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline}
+.colhead strong{color:var(--primary);font-size:15px}
+.results{padding:0 16px;flex:1}
+.result{padding:16px 0;border-bottom:1px solid var(--border)}
+.result:last-child{border-bottom:0}
+.result .row{display:flex;gap:10px;align-items:flex-start}
+.result .rank{padding-top:1px;font-size:12px;color:var(--muted-fg)}
+.result .title{font-weight:700;text-decoration:none;overflow-wrap:anywhere}
+.result a.title:hover{text-decoration:underline}
+.result .host{font-size:12px;color:var(--muted-fg);overflow-wrap:anywhere;margin-top:2px}
+.content{margin-top:10px;font-size:14px;line-height:1.6;color:color-mix(in srgb,var(--fg) 82%,transparent);overflow-wrap:anywhere}
+.content.clamp{display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden}
+.content .line{display:block;min-height:.6em;white-space:pre-wrap}
+.content .h{font-weight:700;color:var(--fg)}
+pre.json{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;margin:16px 0;font-family:ui-monospace,monospace}
+.grading{padding:14px 16px;border-top:1px solid var(--border);background:color-mix(in srgb,var(--muted) 40%,transparent)}
+.grades{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.grades .grade{min-width:38px;justify-content:center}
+.grades .grade[aria-pressed=true]{background:var(--secondary);border-color:var(--primary);color:var(--secondary-fg);font-weight:700}
+.verdict{margin:8px 0 0;font-size:12px;font-weight:700}
+.verdict.pass{color:var(--primary)}
+.grading details{margin-top:10px;font-size:12px}
+.grading summary{cursor:pointer;color:var(--muted-fg)}
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.tags button{font-size:12px;padding:3px 10px}
+.tags button[aria-pressed=true]{background:var(--secondary);border-color:var(--primary);color:var(--secondary-fg)}
+.empty{padding:40px 16px;text-align:center;color:var(--muted-fg)}
+.error{color:var(--danger)}
+kbd{font-family:ui-monospace,monospace;font-size:11px;border:1px solid var(--border);border-radius:3px;padding:0 4px}
+@media (max-width:720px){header.top{padding:12px 16px;gap:10px}.brand .label,.brand .sep{display:none}
+  table.cases thead,table.cases td:nth-child(2){display:none}
+  table.cases tr{display:grid;gap:10px;padding:14px 16px;border-top:1px solid var(--border)}
+  table.cases td{display:block;padding:0;border:0;min-width:0!important;text-align:left!important}
+  .column{border-right:0;border-bottom:1px solid var(--border)}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="mark" aria-hidden="true"></span>DocPull<span class="sep"></span><span class="label">Blind review</span></div>
+  <span class="spacer"></span>
+  <nav class="segmented" aria-label="Views">
+    <button type="button" data-view="case">Evaluate</button>
+    <button type="button" data-view="cases">Evaluations</button>
+  </nav>
+  <button type="button" class="btn ghost icon" id="theme" aria-label="Toggle color theme" title="Toggle color theme">◐</button>
+</header>
+<main id="app"><p class="empty">Loading…</p></main>
 <script>
-let items=[],current=0;
-const el=(tag,props={},...kids)=>{const n=Object.assign(document.createElement(tag),props);n.append(...kids);return n};
-async function api(path,options){const r=await fetch(path,options);const body=await r.json();if(!r.ok)throw new Error(body.error);return body}
-function renderPayload(payload){
-  if(!payload)return el('p',{className:'muted',textContent:'No output.'});
-  const rows=payload.records||payload.results;
-  if(!Array.isArray(rows))return el('pre',{textContent:JSON.stringify(payload,null,2)});
-  if(!rows.length)return el('p',{className:'muted',textContent:'Empty result.'});
-  return el('div',{},...rows.map(row=>{const {url,title,content,...rest}=row;
-    return el('div',{className:'record'},el('strong',{textContent:title||url||''}),
-      url?el('div',{className:'muted',textContent:url}):'',
-      el('pre',{textContent:content??JSON.stringify(rest,null,2)}))}));
+"use strict";
+const GRADES=[["Irrelevant","Does not help."],["Slightly relevant","Related but offers little useful information."],
+  ["Mostly relevant","Useful but misses an important requirement."],["Fully relevant","Directly meets the information need."]];
+const PASSING=2;
+const state={items:[],issues:[],findings:null,current:0,mode:"readable",show:"all",
+  filters:{q:"",status:"all",lane:"all",sort:"priority"}};
+const app=document.getElementById("app");
+
+function el(tag,props={},...kids){const n=document.createElement(tag);
+  for(const [k,v] of Object.entries(props)){if(v==null||v===false)continue;
+    if(k==="class")n.className=v;else if(k.startsWith("on"))n.addEventListener(k.slice(2),v);
+    else if(k in n&&typeof v!=="string")n[k]=v;else n.setAttribute(k,v===true?"":v)}
+  n.append(...kids.flat().filter(k=>k!=null&&k!==false));return n}
+async function api(path,options){const r=await fetch(path,options);const body=await r.json();
+  if(!r.ok)throw new Error(body.error||`HTTP ${r.status}`);return body}
+function store(key,value){try{value===undefined?localStorage.removeItem(key):localStorage.setItem(key,value)}catch{}}
+function recall(key){try{return localStorage.getItem(key)}catch{return null}}
+function safeUrl(value){try{const u=new URL(value);return /^https?:$/.test(u.protocol)?u:null}catch{return null}}
+const graded=i=>i.slots.filter(s=>s.graded).length;
+const status=i=>graded(i)===0?"unreviewed":graded(i)===i.slots.length?"complete":"in progress";
+function progress(done,total){return el("div",{class:"progress",role:"progressbar","aria-valuemin":"0",
+  "aria-valuemax":String(total),"aria-valuenow":String(done)},el("span",{style:`width:${total?100*done/total:0}%`}))}
+
+/* Theme: system by default; the toggle cycles and remembers per browser. */
+function applyTheme(t){t?document.documentElement.dataset.theme=t:delete document.documentElement.dataset.theme}
+applyTheme(recall("docpull-review-theme"));
+document.getElementById("theme").onclick=()=>{const dark=document.documentElement.dataset.theme?
+  document.documentElement.dataset.theme==="dark":matchMedia("(prefers-color-scheme: dark)").matches;
+  const next=dark?"light":"dark";applyTheme(next);store("docpull-review-theme",next)};
+
+/* Routing */
+document.querySelectorAll("[data-view]").forEach(b=>b.onclick=()=>{
+  location.hash=b.dataset.view==="cases"?"#/cases":`#/case/${state.current}`});
+window.addEventListener("hashchange",route);
+async function refresh(){[state.items,state.findings]=await Promise.all([api("/api/items"),api("/api/findings")])}
+async function route(){const m=location.hash.match(/^#\/case\/(\d+)$/);
+  document.querySelectorAll("[data-view]").forEach(b=>b.setAttribute("aria-current",
+    (m?b.dataset.view==="case":b.dataset.view==="cases")?"page":"false"));
+  if(m){state.current=Math.min(Number(m[1]),state.items.length-1);return showCase(state.current)}
+  showCases()}
+
+/* Evaluations view */
+function showCases(){const f=state.filters;
+  const lanes=[...new Set(state.items.map(i=>i.lane).filter(Boolean))].sort();
+  const done=state.items.reduce((n,i)=>n+graded(i),0),total=state.items.reduce((n,i)=>n+i.slots.length,0);
+  const select=(label,key,options)=>el("select",{"aria-label":label,onchange:e=>{f[key]=e.target.value;showCases()}},
+    options.map(([v,t])=>el("option",{value:v,selected:f[key]===v},`${label}: ${t}`)));
+  const q=f.q.toLowerCase();
+  let rows=state.items.filter(i=>(f.status==="all"||status(i)===f.status)&&(f.lane==="all"||i.lane===f.lane)&&
+    (!q||i.case_id.toLowerCase().includes(q)||i.criteria.toLowerCase().includes(q)));
+  const rank={"in progress":0,unreviewed:1,complete:2};
+  rows=[...rows].sort(f.sort==="case"?(a,b)=>a.case_id.localeCompare(b.case_id)||a.trial_index-b.trial_index:
+    (a,b)=>rank[status(a)]-rank[status(b)]||a.index-b.index);
+  const search=el("input",{type:"search",placeholder:"Search cases…","aria-label":"Search cases",value:f.q,
+    oninput:e=>{f.q=e.target.value;renderRows()}});
+  const body=el("tbody");
+  function renderRows(){const q=f.q.toLowerCase();body.replaceChildren(...rows.filter(i=>!q||
+    i.case_id.toLowerCase().includes(q)||i.criteria.toLowerCase().includes(q)).map(i=>el("tr",{},
+    el("td",{},el("div",{class:"case-title"},i.case_id),el("div",{class:"small muted"},
+      [i.lane,i.family,`trial ${i.trial_index}`].filter(Boolean).join(" · ")),
+      i.criteria?el("div",{class:"small",style:"margin-top:4px"},i.criteria):null),
+    el("td",{},el("div",{class:"slotchips"},i.slots.map(s=>el("span",{class:`badge${s.graded?" done":""}`,
+      title:s.graded?`Output ${s.slot} graded`:`Output ${s.slot} not graded`},s.slot)))),
+    el("td",{style:"min-width:180px"},el("div",{class:"small",style:"margin-bottom:6px"},
+      status(i)==="complete"?"Review complete":status(i)==="unreviewed"?"Not started":"Review incomplete",
+      el("span",{class:"muted"},` · ${graded(i)}/${i.slots.length} graded`)),progress(graded(i),i.slots.length)),
+    el("td",{style:"text-align:right"},el("button",{type:"button",class:"btn",onclick:()=>location.hash=`#/case/${i.index}`},
+      status(i)==="unreviewed"?"Start review":status(i)==="complete"?"Open":"Resume review")))));
+    count.textContent=`${body.children.length} of ${state.items.length} cases`}
+  const count=el("span");
+  const fd=state.findings;
+  const findings=el("section",{class:"findings","aria-labelledby":"findings-title"},
+    el("h2",{id:"findings-title"},"Findings by system"),
+    fd.complete?el("table",{},el("tbody",{},fd.systems.map(s=>el("tr",{},el("td",{},el("strong",{},s.system)),
+      el("td",{},`${s.passed}/${s.graded} met the need`),
+      el("td",{class:"muted",style:"text-align:right"},s.mean_grade==null?"":`mean grade ${s.mean_grade.toFixed(2)}/3`)))))
+    :el("p",{class:"small muted",style:"margin:0"},
+      `System names stay hidden until every output is graded (${done}/${total}). Grade all outputs to reveal results.`),
+    fd.complete?el("p",{class:"small muted",style:"margin:8px 0 0"},
+      "Names are now visible. Changing grades after seeing them breaks blinding."):null);
+  app.replaceChildren(el("div",{class:"panel"},
+    el("div",{class:"toolbar"},search,
+      select("Status","status",[["all","All"],["unreviewed","Not started"],["in progress","In progress"],["complete","Complete"]]),
+      select("Lane","lane",[["all","All"],...lanes.map(l=>[l,l])]),
+      select("Sort","sort",[["priority","Review priority"],["case","Case id"]])),
+    findings,
+    el("table",{class:"cases"},el("thead",{},el("tr",{},el("th",{},"Case"),el("th",{},"Outputs"),el("th",{},"Review"),
+      el("th",{},el("span",{class:"muted"},"")))),body),
+    el("div",{class:"footer"},count)));
+  renderRows();if(!rows.length)body.append(el("tr",{},el("td",{colspan:"4",class:"empty"},"No cases match these filters.")))}
+
+/* Evaluate view */
+function nextUngraded(from){const n=state.items.length;
+  for(let k=1;k<=n;k++){const i=state.items[(from+k)%n];if(graded(i)<i.slots.length)return i.index}return null}
+async function showCase(index){
+  const item=state.items[index];
+  if(!item){app.replaceChildren(el("p",{class:"empty"},"No review items."));return}
+  const done=state.items.reduce((n,i)=>n+graded(i),0),total=state.items.reduce((n,i)=>n+i.slots.length,0);
+  const next=nextUngraded(index);
+  const toolbar=el("div",{class:"toolbar"},
+    el("button",{type:"button",class:"btn",disabled:index===0,onclick:()=>location.hash=`#/case/${index-1}`,
+      title:"Previous case (←)"},"← Previous"),
+    el("button",{type:"button",class:"btn",disabled:index>=state.items.length-1,
+      onclick:()=>location.hash=`#/case/${index+1}`,title:"Next case (→)"},"Next →"),
+    el("span",{class:"small muted"},`Case ${index+1} of ${state.items.length}`),
+    el("span",{class:"spacer"}),
+    el("div",{class:"segmented accent",role:"group","aria-label":"Display"},["readable","json"].map(m=>
+      el("button",{type:"button","aria-pressed":String(state.mode===m),onclick:()=>{state.mode=m;showCase(index)}},
+        m==="readable"?"Readable":"JSON"))),
+    el("label",{class:"small muted"},"Show ",el("select",{onchange:e=>{state.show=e.target.value;showCase(index)}},
+      el("option",{value:"all",selected:state.show==="all"},"All"),
+      el("option",{value:"ungraded",selected:state.show==="ungraded"},"Ungraded"))),
+    el("button",{type:"button",class:"btn primary",disabled:next==null,onclick:()=>location.hash=`#/case/${next}`,
+      title:"Next ungraded case (N)"},"Next ungraded"));
+  const columns=el("div",{class:"columns"},el("p",{class:"empty"},"Decrypting outputs…"));
+  app.replaceChildren(el("div",{class:"panel"},toolbar,
+    el("div",{class:"head"},
+      el("div",{style:"display:flex;gap:12px;align-items:baseline;flex-wrap:wrap"},
+        el("h1",{},el("span",{class:"muted",style:"font-weight:400"},"Case: "),item.case_id),
+        el("span",{class:"small muted"},[item.lane,`trial ${item.trial_index}`].filter(Boolean).join(" · ")),
+        el("span",{class:"spacer"}),el("span",{class:"small muted"},`${done}/${total} outputs reviewed`)),
+      item.criteria?el("p",{},el("span",{class:"muted"},"Criteria: "),item.criteria):null,
+      el("p",{class:"small muted"},"Grades: "+GRADES.map((g,n)=>`${n} ${g[1]}`).join(" ")+
+        " Grades 2 and 3 meet the need."),
+      el("div",{style:"margin-top:10px"},progress(done,total)),
+      el("details",{id:"details"},el("summary",{},"Review details"),el("pre",{class:"mono",id:"input"},"…"),
+        el("p",{class:"small muted"},"Keyboard: focus an output, then press ",el("kbd",{},"0"),"–",el("kbd",{},"3"),
+          " to grade. ",el("kbd",{},"N")," next ungraded, ",el("kbd",{},"←")," ",el("kbd",{},"→")," change case."))),
+    columns));
+  let detail;
+  try{detail=await api(`/api/items/${index}`)}
+  catch(e){columns.replaceChildren(el("p",{class:"empty error"},e.message));return}
+  if(state.current!==index)return;
+  document.getElementById("input").textContent=JSON.stringify(detail.input,null,2);
+  const visible=detail.slots.filter(s=>state.show==="all"||s.grade==null);
+  columns.replaceChildren(...(visible.length?visible.map(s=>slotColumn(detail,s)):
+    [el("p",{class:"empty"},"Every output for this case is graded.")]));
 }
-async function refresh(){items=await api('/api/items');
-  const done=items.filter(i=>i.graded===i.slots).length;
-  document.getElementById('progress').textContent=`${done} of ${items.length} complete`;
-  const pick=document.getElementById('pick');pick.replaceChildren(...items.map(i=>
-    el('option',{value:i.index,textContent:`${i.graded===i.slots?'✓ ':''}${i.case_id} #${i.trial_index}`})));
-  pick.value=current}
-async function show(index){current=Math.max(0,Math.min(items.length-1,index));
-  document.getElementById('pick').value=current;
-  const box=document.getElementById('item');box.replaceChildren(el('p',{className:'muted',textContent:'Decrypting…'}));
-  try{const item=await api(`/api/items/${current}`);
-    box.replaceChildren(
-      el('div',{className:'input'},el('strong',{textContent:item.case_id}),el('pre',{textContent:JSON.stringify(item.input,null,2)})),
-      el('div',{className:'slots'},...item.slots.map(slot=>{
-        const buttons=[0,1,2,3].map(g=>el('button',{type:'button',textContent:g,ariaPressed:String(slot.grade===g),
-          onclick:async()=>{try{await api('/api/grades',{method:'POST',headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({index:current,slot:slot.slot,grade:g})});
-            buttons.forEach((b,i)=>b.ariaPressed=String(i===g));status.textContent='Saved';await refresh()}
-            catch(e){status.textContent=e.message}}}));
-        const status=el('span',{className:'muted'});
-        return el('section',{className:'slot'},
-          el('h2',{},`Output ${slot.slot}`,el('span',{className:'muted',textContent:slot.status})),
-          el('div',{className:'body'},renderPayload(slot.payload)),
-          el('div',{className:'grades'},'Grade',...buttons,status))})))}
-  catch(e){box.replaceChildren(el('p',{textContent:e.message}))}}
-document.getElementById('prev').onclick=()=>show(current-1);
-document.getElementById('next').onclick=()=>show(current+1);
-document.getElementById('pick').onchange=e=>show(Number(e.target.value));
-refresh().then(()=>show(Math.max(0,items.findIndex(i=>i.graded<i.slots))));
-</script></body></html>
+
+function contentBlock(text){const box=el("div",{class:"content clamp"},
+  text.split("\n").map(line=>el("span",{class:/^#{1,6}\s/.test(line)?"line h":"line"},line.replace(/^#{1,6}\s+/,""))));
+  const toggle=el("button",{type:"button",class:"btn ghost small",style:"margin-top:4px;padding:2px 6px",
+    onclick:()=>{const open=box.classList.toggle("clamp");toggle.textContent=open?"Show more":"Show less"}},"Show more");
+  return [box,text.split("\n").length>6||text.length>600?toggle:null]}
+function resultCard(rank,{url,title,content}){const u=safeUrl(url||"");
+  return el("article",{class:"result"},
+    el("div",{class:"row"},el("span",{class:"rank mono"},String(rank).padStart(2,"0")),
+      el("div",{style:"min-width:0;flex:1"},
+        u?el("a",{class:"title",href:u.href,target:"_blank",rel:"noopener noreferrer"},title||u.href," ↗")
+          :el("div",{class:"title"},title||url||"Untitled"),
+        el("div",{class:"host"},u?u.hostname:url||""))),
+    content?contentBlock(content):el("p",{class:"content muted"},"No content returned."))}
+function renderPayload(payload){
+  if(!payload)return [el("p",{class:"empty"},"No output.")];
+  if(state.mode==="json")return [el("pre",{class:"json"},JSON.stringify(payload,null,2))];
+  const records=payload.records||payload.results;
+  if(!Array.isArray(records))return [el("pre",{class:"json"},JSON.stringify(payload,null,2))];
+  if(!records.length)return [el("p",{class:"empty"},"Empty result.")];
+  return records.map((r,i)=>resultCard(i+1,{url:r.url||r.identity,title:r.title,content:r.content??r.excerpt}))}
+
+function slotColumn(detail,slot){
+  const records=slot.payload?.records||slot.payload?.results||[];
+  const chars=records.reduce((n,r)=>n+(r.content??r.excerpt??"").length,0);
+  let busy=false;
+  const statusLine=el("span",{role:"status",class:"small muted",style:"margin-left:auto"},slot.grade==null?"Unrated":"Saved");
+  const verdict=el("p",{class:"verdict"});
+  const gradeButtons=GRADES.map(([label,help],n)=>el("button",{type:"button",class:"btn grade",
+    "aria-label":`${n} · ${label}`,title:`${n} · ${label}. ${help}`,onclick:()=>save(n,slot.issues)}));
+  const reset=el("button",{type:"button",class:"btn ghost icon","aria-label":"Clear grade",title:"Clear grade",
+    onclick:()=>save(null,[])},"↺");
+  const summary=el("summary");
+  const tagHint=el("p",{class:"small muted",style:"margin:6px 0 0"},"Grade this output before tagging issues.");
+  const tagButtons=state.issues.map(tag=>el("button",{type:"button",class:"btn",onclick:()=>{
+    const set=new Set(slot.issues);set.has(tag)?set.delete(tag):set.add(tag);
+    save(slot.grade,state.issues.filter(t=>set.has(t)))}},tag));
+  function paint(){gradeButtons.forEach((b,n)=>{const on=slot.grade===n;b.setAttribute("aria-pressed",String(on));
+      b.textContent=on?`✓ ${n}`:String(n);b.disabled=busy});
+    reset.disabled=busy||slot.grade==null;
+    verdict.hidden=slot.grade==null;
+    verdict.className=`verdict${slot.grade>=PASSING?" pass":" muted"}`;
+    verdict.replaceChildren(slot.grade>=PASSING?"Meets the need":"Does not meet the need",
+      el("span",{class:"muted",style:"font-weight:400"},` · from grade ${slot.grade}`));
+    summary.textContent=`Issues (${slot.issues.length})`;
+    tagButtons.forEach((b,i)=>{b.setAttribute("aria-pressed",String(slot.issues.includes(state.issues[i])));
+      b.disabled=busy||slot.grade==null});
+    tagHint.hidden=slot.grade!=null}
+  async function save(grade,issues){if(busy)return;busy=true;statusLine.textContent="Saving…";
+    statusLine.className="small muted";paint();
+    try{await api("/api/grades",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({index:detail.index,slot:slot.slot,grade,issues:grade==null?[]:issues})});
+      slot.grade=grade;slot.issues=grade==null?[]:issues;statusLine.textContent=grade==null?"Unrated":"Saved";
+      await refresh();updateHeaderCounts()}
+    catch(e){statusLine.textContent=e.message;statusLine.className="small error"}
+    finally{busy=false;paint()}}
+  const column=el("section",{class:"column",tabindex:"0","aria-label":`Output ${slot.slot}`,
+    "aria-keyshortcuts":"0 1 2 3",onkeydown:e=>{
+      if(e.repeat||e.ctrlKey||e.metaKey||e.altKey||e.target.closest("button,a,select,input,summary"))return;
+      if(/^[0-3]$/.test(e.key)){e.preventDefault();save(Number(e.key),slot.issues)}}},
+    el("div",{class:"colhead"},el("strong",{},slot.slot),
+      el("span",{class:"small muted"},slot.status||"unknown"),
+      el("span",{class:"small muted"},`${records.length} ${records.length===1?"record":"records"} · ${chars.toLocaleString()} chars`)),
+    el("div",{class:"results"},renderPayload(slot.payload)),
+    el("div",{class:"grading"},
+      el("div",{class:"grades",role:"group","aria-label":`Grade output ${slot.slot}`},gradeButtons,reset,statusLine),
+      verdict,
+      el("details",{},summary,tagHint,el("div",{class:"tags"},tagButtons))));
+  paint();return column}
+
+function updateHeaderCounts(){if(!location.hash.startsWith("#/case/"))return;
+  const next=nextUngraded(state.current);
+  const button=[...app.querySelectorAll(".toolbar .btn.primary")][0];
+  if(button){button.disabled=next==null;button.onclick=()=>location.hash=`#/case/${next}`}
+  const done=state.items.reduce((n,i)=>n+graded(i),0),total=state.items.reduce((n,i)=>n+i.slots.length,0);
+  const bar=app.querySelector(".head .progress");if(bar)bar.replaceWith(progress(done,total));
+  const label=[...app.querySelectorAll(".head .small.muted")].find(n=>n.textContent.includes("outputs reviewed"));
+  if(label)label.textContent=`${done}/${total} outputs reviewed`}
+
+document.addEventListener("keydown",e=>{
+  if(!location.hash.startsWith("#/case/")||e.ctrlKey||e.metaKey||e.altKey||
+    e.target.closest("input,select,textarea,[contenteditable=true]"))return;
+  if(e.key==="ArrowLeft"&&state.current>0)location.hash=`#/case/${state.current-1}`;
+  else if(e.key==="ArrowRight"&&state.current<state.items.length-1)location.hash=`#/case/${state.current+1}`;
+  else if(e.key.toLowerCase()==="n"){const n=nextUngraded(state.current);if(n!=null)location.hash=`#/case/${n}`}});
+
+(async()=>{try{[state.issues]=await Promise.all([api("/api/issues"),refresh()]);
+    if(!location.hash){const first=state.items.find(i=>graded(i)<i.slots.length);
+      location.hash=first?`#/case/${first.index}`:"#/cases"}else route()}
+  catch(e){app.replaceChildren(el("p",{class:"empty error"},e.message))}})();
+</script>
+</body>
+</html>
