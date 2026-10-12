@@ -7,24 +7,19 @@ import json
 import subprocess
 from pathlib import Path
 from types import SimpleNamespace
-from urllib.parse import urlparse
 
 import pytest
 
 from docpull.context_packs._legacy_cli import (
     run_brand_pack_cli,
-    run_extract_schema_cli,
     run_image_pack_cli,
     run_product_pack_cli,
     run_screenshot_pack_cli,
-    run_search_pack_cli,
     run_styleguide_pack_cli,
 )
 from docpull.context_packs.brand import _local_firmographics, build_brand_pack
 from docpull.context_packs.common import ContextPackError, PageSnapshot
 from docpull.context_packs.product import build_product_pack
-from docpull.context_packs.schema_extract import extract_schema
-from docpull.context_packs.search import build_search_pack
 from docpull.context_packs.styleguide import build_styleguide_pack
 from docpull.context_packs.visuals import build_image_pack, capture_screenshot_pack
 from tests.pack_fixtures import write_context_pack
@@ -167,89 +162,6 @@ def test_product_pack_extracts_jsonld_product(
     assert (tmp_path / "products" / "products.ndjson").exists()
 
 
-def test_extract_schema_uses_existing_pack_evidence(tmp_path: Path) -> None:
-    pack = tmp_path / "pack"
-    write_context_pack(pack)
-    schema = tmp_path / "schema.json"
-    schema.write_text(
-        json.dumps(
-            {
-                "type": "object",
-                "required": ["summary", "citations"],
-                "properties": {
-                    "summary": {"type": "string"},
-                    "citations": {"type": "array"},
-                },
-            }
-        ),
-        encoding="utf-8",
-    )
-
-    payload = extract_schema(pack, schema_path=schema, output_dir=tmp_path / "schema")
-
-    assert payload["summary"]["validation_valid"] is True
-    citation_url = urlparse(payload["data"]["citations"][0]["url"])
-    assert citation_url.scheme == "https"
-    assert citation_url.hostname == "docs.parallel.ai"
-    basis_records = [
-        json.loads(line)
-        for line in (tmp_path / "schema" / "basis.ndjson").read_text(encoding="utf-8").splitlines()
-        if line.strip()
-    ]
-    assert basis_records
-    assert all(record["schema_version"] == 2 for record in basis_records)
-    assert any(record["claim_path"] == "data.summary" for record in basis_records)
-
-
-def test_extract_schema_fills_common_product_fields_from_evidence(tmp_path: Path) -> None:
-    pack = tmp_path / "pack"
-    write_context_pack(
-        pack,
-        records=[
-            {
-                "document_id": "doc_1",
-                "url": "https://books.example.com/item",
-                "title": "A Light in the Attic",
-                "content": "A Light in the Attic\nPrice (incl. tax) £51.77\nAvailability In stock",
-                "content_hash": "hash_1",
-                "source_type": "test",
-            }
-        ],
-    )
-    schema = tmp_path / "schema.json"
-    schema.write_text(
-        json.dumps(
-            {
-                "type": "object",
-                "required": ["title", "price", "currency", "availability"],
-                "properties": {
-                    "title": {"type": "string"},
-                    "price": {"type": "string"},
-                    "currency": {"type": "string"},
-                    "availability": {"type": "string"},
-                },
-            }
-        ),
-        encoding="utf-8",
-    )
-
-    payload = extract_schema(pack, schema_path=schema, output_dir=tmp_path / "schema")
-
-    assert payload["summary"]["validation_valid"] is True
-    assert payload["data"]["price"] == "£51.77"
-    assert payload["data"]["currency"] == "GBP"
-    assert payload["data"]["availability"] == "Availability In stock"
-    assert "price" in payload["field_evidence"]
-    basis_records = [
-        json.loads(line)
-        for line in (tmp_path / "schema" / "basis.ndjson").read_text(encoding="utf-8").splitlines()
-        if line.strip()
-    ]
-    by_path = {record["claim_path"]: record for record in basis_records}
-    assert by_path["data.price"]["evidence_state"] == "supported"
-    assert by_path["data.price"]["citation_ids"] == ["S1"]
-
-
 def test_image_pack_extracts_markdown_images_from_pack(tmp_path: Path) -> None:
     pack = tmp_path / "pack"
     write_context_pack(
@@ -272,41 +184,6 @@ def test_image_pack_extracts_markdown_images_from_pack(tmp_path: Path) -> None:
 
     assert payload["summary"]["candidate_count"] == 1
     assert payload["images"][0]["url"] == "https://assets.example.com/logo.png"
-
-
-def test_search_pack_local_searches_existing_pack(tmp_path: Path) -> None:
-    pack = tmp_path / "pack"
-    write_context_pack(pack)
-
-    payload = build_search_pack("cited JSON", pack_dir=pack, output_dir=tmp_path / "search")
-
-    assert payload["provider"] == "local"
-    assert payload["replay_config"]["pack_dir"] == str(pack)
-    assert payload["summary"]["result_count"] >= 1
-    assert payload["artifacts"]["accounting"] == "run.accounting.json"
-    written = json.loads((tmp_path / "search" / "search.pack.json").read_text(encoding="utf-8"))
-    assert written["replay_config"]["provider"] == "local"
-    assert (tmp_path / "search" / "search.results.ndjson").exists()
-    assert (tmp_path / "search" / "run.accounting.json").exists()
-
-
-def test_search_pack_provider_dry_run_writes_pack_artifacts(tmp_path: Path) -> None:
-    payload = build_search_pack(
-        "brand data",
-        provider="tavily",
-        output_dir=tmp_path / "search",
-        dry_run=True,
-    )
-
-    assert payload["status"] == "dry_run"
-    assert payload["output_dir"] == str((tmp_path / "search").resolve())
-    assert payload["replay_config"]["provider"] == "tavily"
-    assert payload["artifacts"]["source_policy"] == "source_policy.json"
-    written = json.loads((tmp_path / "search" / "search.pack.json").read_text(encoding="utf-8"))
-    assert written["replay_config"]["dry_run"] is True
-    assert (tmp_path / "search" / "search.pack.json").exists()
-    assert (tmp_path / "search" / "SEARCH.md").exists()
-    assert (tmp_path / "search" / "run.accounting.json").exists()
 
 
 def test_screenshot_pack_validates_options_before_renderer_gate(tmp_path: Path) -> None:
@@ -413,10 +290,8 @@ def test_screenshot_pack_reports_batch_timeout_without_traceback(
         ["brand-pack", "--help"],
         ["styleguide-pack", "--help"],
         ["product-pack", "--help"],
-        ["extract-schema", "--help"],
         ["image-pack", "--help"],
         ["screenshot-pack", "--help"],
-        ["search-pack", "--help"],
     ],
 )
 def test_context_pack_command_help_paths(argv: list[str]) -> None:
@@ -424,10 +299,8 @@ def test_context_pack_command_help_paths(argv: list[str]) -> None:
         "brand-pack": run_brand_pack_cli,
         "styleguide-pack": run_styleguide_pack_cli,
         "product-pack": run_product_pack_cli,
-        "extract-schema": run_extract_schema_cli,
         "image-pack": run_image_pack_cli,
         "screenshot-pack": run_screenshot_pack_cli,
-        "search-pack": run_search_pack_cli,
     }
     command, *rest = argv
 

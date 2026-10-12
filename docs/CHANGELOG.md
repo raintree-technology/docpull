@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- Remove the internal modules behind commands, SDK exports, and MCP tools that
+  were already pruned from the public surface: the hosted-provider and Parallel
+  workflows, the in-package benchmark, free-core and parity wrappers, discovery
+  contracts, `extract-schema` and `search-pack` builders, evidence packs, the
+  hosted control plane, and the `Scraper` facade. Importing these module paths
+  now fails; pruned commands still report that they were removed. Use
+  `docpull-bench` in `bench/` for provider comparisons.
+- Remove the unsupported TypeScript MCP lab under `mcp/`. The Python
+  `docpull mcp` stdio server remains the supported MCP server.
+
 ### Fixed
 
 - Register MCP metadata after PyPI publication succeeds, with bounded retries

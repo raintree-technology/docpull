@@ -1,10 +1,10 @@
-.PHONY: clean clean-pyc clean-build clean-test help test test-inventory test-all-local benchmark benchmark-quick benchmark-parallel benchmark-compare benchmark-matrix benchmark-raindrop contracts-check contracts-sync license-year metrics metrics-check metadata-check metadata-sync lint format release-pr release-publish release-publish-replace-tag release-dispatch
+.PHONY: clean clean-pyc clean-build clean-test help test test-inventory test-all-local benchmark contracts-check contracts-sync license-year metrics metrics-check metadata-check metadata-sync lint format release-pr release-publish release-publish-replace-tag release-dispatch
 
 PYTHON ?= .venv/bin/python
 VERSION_ARG := $(if $(VERSION),--version $(VERSION),)
 COPYRIGHT_START_YEAR := 2025
 COPYRIGHT_HOLDER := Raintree Technology
-COPYRIGHT_FILES := LICENSE mcp/LICENSE
+COPYRIGHT_FILES := LICENSE
 CURRENT_YEAR := $(shell date +%Y)
 COPYRIGHT_YEAR_RANGE := $(COPYRIGHT_START_YEAR)
 ifneq ($(CURRENT_YEAR),$(COPYRIGHT_START_YEAR))
@@ -21,11 +21,6 @@ help:
 	@echo "test-inventory - print default pytest count, fully gated pytest collection count, Bun MCP count, and coverage"
 	@echo "test-all-local - run PR-safe Python, coverage, benchmark, and Bun MCP gates"
 	@echo "benchmark - run gated synthetic 10k localhost benchmark"
-	@echo "benchmark-quick - run small real-site benchmark without live providers"
-	@echo "benchmark-parallel - run real-site benchmark with Parallel under cost guard"
-	@echo "benchmark-compare - run real-site benchmark with all configured providers"
-	@echo "benchmark-matrix - run provider target-matrix benchmark with all configured providers"
-	@echo "benchmark-raindrop - run real-site benchmark with all configured providers and Raindrop tracing"
 	@echo "license-year - refresh license copyright years"
 	@echo "metrics - refresh METRICS.md and the downloads chart from live APIs"
 	@echo "metrics-check - fail if METRICS.md is older than METRICS_MAX_AGE_HOURS"
@@ -77,8 +72,8 @@ test-inventory:
 	@$(PYTHON) -m pytest --collect-only -q | tail -n 1
 	@echo "Python fully gated pytest collection:"
 	@DOCPULL_BENCHMARKS=1 DOCPULL_BENCHMARK_10K=1 $(PYTHON) -m pytest --collect-only -q | tail -n 1
-	@echo "Bun MCP:"
-	@cd mcp && bun test 2>&1 | sed -n 's/^Ran \([0-9][0-9]* tests.*\)/\1/p'
+	@echo "Bun SDK:"
+	@cd sdk/js && bun test 2>&1 | sed -n 's/^Ran \([0-9][0-9]* tests.*\)/\1/p'
 	@echo "Coverage:"
 	@COVERAGE_FILE=/tmp/docpull_inventory_coverage $(PYTHON) -m pytest -q --cov=docpull --cov-report=json:/tmp/docpull_inventory_coverage.json >/tmp/docpull_inventory_pytest.log
 	@$(PYTHON) -c 'import json; totals=json.load(open("/tmp/docpull_inventory_coverage.json"))["totals"]; print("{}% coverage ({} statements)".format(totals["percent_covered_display"], totals["num_statements"]))'
@@ -86,30 +81,16 @@ test-inventory:
 test-all-local: metadata-check
 	COVERAGE_FILE=/tmp/docpull_coverage $(PYTHON) -m pytest -q --durations=25 --cov=docpull --cov-report=term-missing:skip-covered
 	DOCPULL_BENCHMARKS=1 $(PYTHON) -m pytest -q tests/benchmarks/test_performance.py
-	cd mcp && bun test
-	cd mcp && bun run typecheck
+	cd sdk/js && bun test
+	cd sdk/js && bun run typecheck
 
 benchmark:
 	DOCPULL_BENCHMARK_10K=1 $(PYTHON) -m pytest tests/benchmarks/test_10k_pages.py -v -s
 
-benchmark-quick:
-	$(PYTHON) -m docpull.benchmark quick
 
-benchmark-parallel:
-	$(PYTHON) -m docpull.benchmark quick --provider parallel --max-estimated-cost 0.05
 
-benchmark-compare:
-	$(PYTHON) -m docpull.benchmark quick --provider all --max-estimated-cost 0.10
 
-benchmark-matrix:
-	$(PYTHON) -m docpull.benchmark quick --target-set provider-matrix --provider all \
-		--max-pages 8 --max-depth 1 --max-search-results 5 --extract-limit 2 \
-		--max-estimated-cost 0.10
 
-benchmark-raindrop:
-	$(PYTHON) -m docpull.benchmark quick --target-set provider-matrix --provider all --trace raindrop \
-		--max-pages 8 --max-depth 1 --max-search-results 5 --extract-limit 2 \
-		--max-estimated-cost 0.10
 
 license-year:
 	@for file in $(COPYRIGHT_FILES); do \
