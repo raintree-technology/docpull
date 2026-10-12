@@ -8,7 +8,7 @@ import json
 import re
 from collections import Counter
 from dataclasses import dataclass, field
-from functools import partial
+from functools import lru_cache, partial
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -57,6 +57,8 @@ DEFAULT_GRAPH_ENTITY_LIMIT = 500
 
 _WORD_RE = re.compile(r"[a-z0-9][a-z0-9-]{2,}", re.IGNORECASE)
 _MARKDOWN_LINK_RE = re.compile(r"\[([^\]]+)]\([^)]+\)")
+_LIST_MARKER_RE = re.compile(r"^\s*[-*+]\s+", re.MULTILINE)
+_HEADING_MARKER_RE = re.compile(r"^\s{0,3}#{1,6}\s*", re.MULTILINE)
 _EMAIL_RE = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")
 _MONEY_RE = re.compile(
     r"(?<!\w)(?:\$|USD\s*)\d[\d,]*(?:\.\d+)?(?:\s?(?:k|K|m|M|b|B|million|billion|thousand))?\b"
@@ -2533,10 +2535,15 @@ def _search_score(
     return score, matched_terms
 
 
+@lru_cache(maxsize=1024)
+def _term_pattern(term: str) -> re.Pattern[str]:
+    return re.compile(rf"\b{re.escape(term)}\b", re.IGNORECASE)
+
+
 def _term_count(text: str, term: str) -> int:
     if not text or not term:
         return 0
-    return len(re.findall(rf"\b{re.escape(term)}\b", text, flags=re.IGNORECASE))
+    return len(_term_pattern(term).findall(text))
 
 
 def _best_search_excerpt(content: str, query_terms: list[str], phrase: str) -> str:
@@ -2603,12 +2610,14 @@ def _truncate_text(value: str, max_chars: int) -> str:
 
 
 def _clean_passage(value: str) -> str:
-    text = _MARKDOWN_LINK_RE.sub(r"\1", value)
-    text = re.sub(r"^\s*[-*+]\s+", "", text, flags=re.MULTILINE)
-    text = re.sub(r"^\s{0,3}#{1,6}\s*", "", text, flags=re.MULTILINE)
-    text = text.replace("`", "")
-    text = re.sub(r"\s+", " ", text)
-    return text.strip()
+    # Skip each pattern when its required character is absent; most passages have no markdown.
+    text = _MARKDOWN_LINK_RE.sub(r"\1", value) if "](" in value else value
+    if "-" in text or "*" in text or "+" in text:
+        text = _LIST_MARKER_RE.sub("", text)
+    if "#" in text:
+        text = _HEADING_MARKER_RE.sub("", text)
+    # str.split() and regex \s use the same Unicode whitespace set.
+    return " ".join(text.replace("`", "").split())
 
 
 def _nearest_sentence(content: str, start: int, end: int) -> str:
