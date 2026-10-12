@@ -5,13 +5,15 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
-import re
+from functools import partial
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
 import yaml
 
+from .._jsonutil import slugify
+from .._jsonutil import string_list as _string_list
 from ..conversion.chunking import TokenCounter, chunk_markdown
 from ..http.client import AsyncHttpClient
 from ..http.rate_limiter import PerHostRateLimiter
@@ -465,12 +467,6 @@ def _first_string(*values: Any) -> str | None:
     return None
 
 
-def _string_list(value: Any) -> list[str]:
-    if not isinstance(value, list):
-        return []
-    return [str(item).strip() for item in value if str(item).strip()]
-
-
 def _list_of_dicts(value: Any) -> list[dict[str, Any]]:
     if not isinstance(value, list):
         return []
@@ -508,12 +504,7 @@ def _json_block(value: Any) -> str:
     return json.dumps(value, indent=2, ensure_ascii=False, sort_keys=True)
 
 
-_SLUG_RE = re.compile(r"[^a-zA-Z0-9]+")
-
-
-def _slugify(value: str) -> str:
-    slug = _SLUG_RE.sub("-", value).strip("-").lower()
-    return slug[:80].strip("-") or "openapi"
+_slugify = partial(slugify, fallback="openapi")
 
 
 __all__ = ["DEFAULT_OPENAPI_OUTPUT_DIR", "build_openapi_pack"]

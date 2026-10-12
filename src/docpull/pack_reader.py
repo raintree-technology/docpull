@@ -8,10 +8,12 @@ import json
 import re
 import sqlite3
 from dataclasses import dataclass, field
+from functools import partial
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
+from ._jsonutil import read_json
 from .models.document import DocumentRecord
 from .time_utils import utc_now_iso
 
@@ -527,15 +529,7 @@ def _coerce_record(record: dict[str, Any]) -> DocumentRecord:
     return DocumentRecord.model_validate(data)
 
 
-def _read_json(path: Path, *, required: bool = True) -> Any:
-    if not path.exists():
-        if required:
-            raise PackReadError(f"Missing required file: {path}")
-        return None
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as err:
-        raise PackReadError(f"Invalid JSON in {path}: {err}") from err
+_read_json = partial(read_json, error=PackReadError)
 
 
 def _read_pack_metadata_entry(pack_dir: Path) -> tuple[dict[str, Any], Path | None]:

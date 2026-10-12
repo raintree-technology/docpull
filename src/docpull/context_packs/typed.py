@@ -5,16 +5,17 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
-import re
 from collections.abc import Mapping
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from datetime import timedelta
+from functools import partial
 from pathlib import Path
 from typing import Any, Literal
 from urllib.parse import urlparse
 
+from .._jsonutil import slugify
 from ..accounting import RunAccounting, default_route_steps, write_run_accounting
 from ..conversion.chunking import TokenCounter, chunk_markdown
 from ..http.client import AsyncHttpClient
@@ -545,12 +546,7 @@ def _decode_response(body: bytes, content_type: str) -> str:
         return body.decode("utf-8", errors="replace")
 
 
-_SLUG_RE = re.compile(r"[^a-zA-Z0-9]+")
-
-
-def _slugify(value: str) -> str:
-    slug = _SLUG_RE.sub("-", value).strip("-").lower()
-    return slug[:80].strip("-") or "item"
+_slugify = partial(slugify, fallback="item")
 
 
 __all__ = [

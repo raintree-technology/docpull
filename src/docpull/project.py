@@ -22,6 +22,7 @@ import urllib.error
 import urllib.request
 from collections.abc import Callable
 from dataclasses import dataclass
+from functools import partial
 from pathlib import Path
 from typing import Any, Literal
 from urllib.parse import urlparse
@@ -31,6 +32,8 @@ from pydantic import BaseModel, Field, ValidationError, field_validator, model_v
 from rich.console import Console
 from rich.markup import escape
 
+from ._jsonutil import dict_value as _dict_value
+from ._jsonutil import read_json, write_json
 from .accounting import RunAccounting
 from .context_aliases import context_alias_for_url, get_context_alias, list_context_aliases
 from .conversion.chunking import TokenCounter, chunk_markdown
@@ -3983,21 +3986,10 @@ def _records_by_url(records: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
     return {str(record.get("url")): record for record in records if record.get("url")}
 
 
-def _read_json(path: Path, *, default: Any = None) -> Any:
-    if not path.exists():
-        return default
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as err:
-        raise ProjectError(f"Invalid JSON in {path}: {err}") from err
+_read_json = partial(read_json, error=ProjectError, required=False)
 
 
-def _write_json(path: Path, payload: Any) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        json.dumps(payload, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
+_write_json = partial(write_json, sort_keys=True)
 
 
 def _read_jsonl(path: Path) -> list[dict[str, Any]]:
@@ -4132,10 +4124,6 @@ def _safe_int(value: Any) -> int:
         except ValueError:
             return 0
     return 0
-
-
-def _dict_value(value: Any) -> dict[str, Any]:
-    return value if isinstance(value, dict) else {}
 
 
 def _directory_size(path: Path) -> int:
