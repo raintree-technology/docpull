@@ -99,7 +99,7 @@ By default, fetched Markdown lives under `$XDG_DATA_HOME/docpull-mcp/docs/` (or 
 - [DocPull project guide](../README.md)
 - [Surface contract](../docs/surface-contract.md)
 - [CLI recipes](../docs/cli-recipes.md)
-- [Security policy](../SECURITY.md)
+- [Security policy](../.github/SECURITY.md)
 
 ## License
 
