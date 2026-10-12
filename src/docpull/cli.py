@@ -1687,6 +1687,10 @@ def main(argv: list[str] | None = None) -> int:
         from .graph import run_graph_cli
 
         return run_graph_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "registry":
+        from .registry import run_registry_cli
+
+        return run_registry_cli(raw_argv[1:])
     if raw_argv and raw_argv[0] == "research":
         from .research import run_research_cli
 
