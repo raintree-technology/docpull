@@ -6,12 +6,16 @@ import argparse
 import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from functools import partial
 from pathlib import Path
 from typing import Any, Literal
 
 from rich.console import Console
 from rich.markup import escape
 
+from ._jsonutil import dict_value as _dict_value
+from ._jsonutil import list_value as _list_value
+from ._jsonutil import read_json
 from .basis import DEFAULT_MIN_SUPPORTED_RATIO, BasisError, basis_report, read_basis
 from .eval_grade import EvalGradeError, freshdocs_bench, generate_eval_pack, prepare_eval_grade_pack
 from .local_workflows import LocalWorkflowError, audit_pack
@@ -793,21 +797,7 @@ def _read_ndjson(path: Path) -> list[dict[str, Any]]:
     return records
 
 
-def _read_json(path: Path, *, default: Any) -> Any:
-    if not path.exists():
-        return default
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as err:
-        raise ContextCIError(f"Invalid JSON in {path}: {err}") from err
-
-
-def _dict_value(value: Any) -> dict[str, Any]:
-    return value if isinstance(value, dict) else {}
-
-
-def _list_value(value: Any) -> list[Any]:
-    return value if isinstance(value, list) else []
+_read_json = partial(read_json, error=ContextCIError, required=False)
 
 
 def _read_manifest_count(pack_dir: Path) -> int | None:

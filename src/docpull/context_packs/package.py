@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import quote, urlparse
 
+from .._jsonutil import dict_value as _dict_value
 from .common import ContextPackError, write_json
 from .repo import repo_items_from_github
 from .typed import (
@@ -175,10 +176,6 @@ def _read_json(url: str, *, accept: str) -> dict[str, Any]:
     if not isinstance(parsed, dict):
         raise ContextPackError(f"Registry response was not an object: {url}")
     return parsed
-
-
-def _dict_value(value: Any) -> dict[str, Any]:
-    return value if isinstance(value, dict) else {}
 
 
 def _package_metadata_item(metadata: dict[str, Any]) -> TypedPackItem:

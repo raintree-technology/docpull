@@ -8,6 +8,7 @@ import json
 import re
 from collections import Counter
 from dataclasses import dataclass, field
+from functools import partial
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -15,6 +16,10 @@ from urllib.parse import urlparse
 from rich.console import Console
 from rich.markup import escape
 
+from ._jsonutil import dict_value as _dict_value
+from ._jsonutil import list_value as _list_value
+from ._jsonutil import read_json
+from ._jsonutil import write_json as _write_json
 from .change_events import build_change_events, write_change_events
 from .contracts import canonical_sha256, stable_id
 from .evidence import classify_source_authority, evidence_span_payload
@@ -2081,23 +2086,7 @@ def diff_packs(old_pack_dir: Path, new_pack_dir: Path) -> dict[str, Any]:
     return payload
 
 
-def _read_json(path: Path, *, required: bool = True) -> Any:
-    if not path.exists():
-        if required:
-            raise PackToolError(f"Missing required file: {path}")
-        return None
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as err:
-        raise PackToolError(f"Invalid JSON in {path}: {err}") from err
-
-
-def _dict_value(value: Any) -> dict[str, Any]:
-    return value if isinstance(value, dict) else {}
-
-
-def _list_value(value: Any) -> list[Any]:
-    return value if isinstance(value, list) else []
+_read_json = partial(read_json, error=PackToolError)
 
 
 def _read_pack_metadata(pack_dir: Path) -> dict[str, Any]:
@@ -2670,11 +2659,6 @@ def _safe_int(value: Any) -> int:
     if isinstance(value, float):
         return int(value)
     return 0
-
-
-def _write_json(path: Path, payload: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
 def _artifact_ref(pack_dir: Path, path: Path) -> str:

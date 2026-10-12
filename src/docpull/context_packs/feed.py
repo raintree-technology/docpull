@@ -10,6 +10,7 @@ import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
+from functools import partial
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote, urljoin, urlparse
@@ -17,6 +18,8 @@ from urllib.parse import quote, urljoin, urlparse
 from bs4 import BeautifulSoup
 from defusedxml import ElementTree
 
+from .._jsonutil import slugify
+from .._jsonutil import string_list as _string_list
 from ..conversion.chunking import TokenCounter, chunk_markdown
 from ..http.client import AsyncHttpClient
 from ..http.protocols import HttpResponse
@@ -882,12 +885,6 @@ def _first_string(*values: Any) -> str | None:
     return None
 
 
-def _string_list(value: Any) -> list[str]:
-    if not isinstance(value, list):
-        return []
-    return [str(item).strip() for item in value if str(item).strip()]
-
-
 def _dedupe(values: list[str]) -> list[str]:
     seen: set[str] = set()
     result: list[str] = []
@@ -908,12 +905,7 @@ def _resolve_optional_url(base_url: str, value: str | None) -> str | None:
     return urljoin(base_url, value) if value else None
 
 
-_SLUG_RE = re.compile(r"[^a-zA-Z0-9]+")
-
-
-def _slugify(value: str) -> str:
-    slug = _SLUG_RE.sub("-", value).strip("-").lower()
-    return slug[:80].strip("-") or "feed-item"
+_slugify = partial(slugify, fallback="feed-item")
 
 
 __all__ = ["DEFAULT_FEED_OUTPUT_DIR", "build_feed_pack"]
