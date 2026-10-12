@@ -1691,6 +1691,10 @@ def main(argv: list[str] | None = None) -> int:
         from .research import run_research_cli
 
         return run_research_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "index":
+        from .discovery_index import run_index_cli
+
+        return run_index_cli(raw_argv[1:])
     if raw_argv and raw_argv[0] == "search":
         from .web_search import run_search_cli
 

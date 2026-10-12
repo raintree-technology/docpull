@@ -127,7 +127,7 @@ def create_serve_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--search-backend",
-        choices=("searxng", "marginalia"),
+        choices=("searxng", "marginalia", "index"),
         help="With --compat, serve /search routes through this backend",
     )
     parser.add_argument("--searxng-url", help="With --search-backend searxng, the SearXNG base URL")
@@ -140,6 +140,9 @@ def create_serve_parser() -> argparse.ArgumentParser:
         "--allow-remote-llm",
         action="store_true",
         help="Allow a non-localhost model endpoint, which may cost money",
+    )
+    parser.add_argument(
+        "--index-dir", type=Path, help="With --search-backend index, the installed shard directory"
     )
     parser.add_argument(
         "--api-key-env",
@@ -223,6 +226,7 @@ def _run_compat(args: argparse.Namespace, console: Console) -> int:
                 exclude_domains=exclude,
                 include_content=content,
                 searxng_url=args.searxng_url,
+                index_dir=args.index_dir,
             )
 
     app = CompatASGIApp(search=search, llm=llm, api_key=api_key)

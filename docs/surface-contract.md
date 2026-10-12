@@ -42,7 +42,8 @@ DocPull targets capability alignment, not 1:1 flag parity. MCP should not mirror
 | List configured sources | Not a primary CLI command | `docpull.mcp.sources` internals, not public SDK | `list_sources` | MCP-focused |
 | List cached/indexed sources | Not a primary CLI command | Local filesystem/search helpers | `list_indexed` | MCP-focused |
 | Project lifecycle | `docpull init`, `add`, `install`, `deps`, `sources`, `sync`, `diff`, `status`, `history`, `review`, `release context-pack`, `watch` with explicit crawl bounds | `docpull.project` helpers | Not exposed yet | Core-aligned |
-| Search the web | `docpull search QUERY --backend searxng\|marginalia` with domain filters and `--include-content` | `search_web`, `SearchResponse`, `SearchHit` in `docpull.web_search` | Not exposed | CLI-first |
+| Search the web | `docpull search QUERY --backend searxng\|marginalia\|index` with domain filters and `--include-content` | `search_web`, `SearchResponse`, `SearchHit` in `docpull.web_search` | Not exposed | CLI-first |
+| Offline discovery index | `docpull index build\|pull\|list` | `build_shard`, `pull`, `search_index` in `docpull.discovery_index` | Not exposed | CLI-first |
 | Answer a question from the web with citations | `docpull research QUESTION --backend ...` with optional `--llm-url`/`--llm-model` | `research`, `answer_from_search`, `rank_evidence`, `LlmConfig` in `docpull.research` | Not exposed | CLI-first |
 | Search cached sources | SQLite/local search helpers where applicable | `search_sqlite_documents` | `grep_docs` | Adapted |
 | Query locked context with budgets, version filters, deduplication, and precise citations | `docpull query` | `query_context`, `ContextQueryError` | `context_query` | Core-aligned |

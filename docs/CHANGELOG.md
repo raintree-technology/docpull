@@ -19,6 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `--include-content` fetches each result through the local pipeline.
   `docpull serve --compat --search-backend ...` also serves Tavily and Exa
   `/search` and Firecrawl `/v1/search` and `/v2/search` shapes.
+- Build, download, and search an offline discovery index with
+  `docpull index build|pull|list` and `docpull search --backend index`. Shards
+  are SQLite files of page URLs, titles, and headings from synced projects, with
+  no page bodies. `pull` needs an explicit HTTPS manifest URL. It verifies each
+  shard's sha256 and enforces a total download size limit. Searches run offline.
 - Answer questions from the web with `docpull research`. It searches, fetches
   results locally, and returns ranked passages with exact spans and `[S#]`
   citations. An optional OpenAI-compatible model, localhost unless

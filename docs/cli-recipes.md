@@ -56,8 +56,8 @@ Minimal GitHub Actions step:
 
 ## Web Search
 
-`docpull search` queries a search backend you choose explicitly. DocPull has no
-index of its own and never calls a paid search provider for this command.
+`docpull search` queries a search backend you choose explicitly. It never calls a
+paid search provider.
 
 ```bash
 # Self-hosted SearXNG with `json` enabled under search.formats in settings.yml
@@ -72,12 +72,46 @@ docpull search "static site generators" --backend marginalia --max-results 5 --j
 | --- | --- | --- |
 | `searxng` | Run a SearXNG instance and pass `--searxng-url` or set `DOCPULL_SEARXNG_URL` | Metasearch across the engines your instance enables; the configured URL is trusted, so it may be local |
 | `marginalia` | None; set `DOCPULL_MARGINALIA_KEY` for your own key | The shared `public` key is often rate limited; results carry Marginalia's license, CC-BY-NC-SA 4.0 for free keys |
+| `index` | Download shards with `docpull index pull` | Searches installed discovery shards offline; no query leaves the machine. See [Discovery Index](#discovery-index) |
 
 Each query returns at most 20 results. `--include-domain` and `--exclude-domain`
 filter results by host. One include domain also narrows the upstream query.
 `--include-content` fetches every result through the same local pipeline as
 `docpull sync`, with HTTPS-only fetching, private-network blocking, and robots.txt
 handling, and attaches the Markdown.
+
+## Discovery Index
+
+A discovery index is a set of SQLite shards. Each shard lists page URLs, titles,
+headings, content hashes, and fetch times from synced DocPull projects. Shards
+hold no page bodies. You download shards once, then search them offline with
+`--backend index`. Use `--include-content` to fetch hits through the local
+pipeline.
+
+```bash
+# Maintainer: build a shard from one or more synced projects
+docpull index build --project ./python-docs --name python-docs --out ./published
+
+# User: download and verify shards, then search offline
+docpull index pull https://index.example/v1/manifest.json
+docpull search "asyncio timeouts" --backend index
+docpull index list
+```
+
+`build` writes `<name>.sqlite` and adds its sha256, size, and domains to
+`manifest.json` in the output directory. Shard URLs in the manifest are relative
+to the manifest.
+
+`pull` requires an HTTPS manifest URL. Pass it as an argument or set
+`DOCPULL_INDEX_URL`. DocPull has no default index URL, so nothing downloads
+unless you ask. Downloads use the same private-network blocking as page fetches
+and refuse redirects. Each shard must match its manifest sha256 before it is
+installed. `pull` skips shards that are already current. Before downloading,
+`pull` checks the total size against `--max-bytes`, which defaults to 500 MB.
+
+Shards install to `DOCPULL_INDEX_DIR`, or `$XDG_DATA_HOME/docpull/index` when
+that is unset. Pass `--index-dir` to `index`, `search`, or `serve` to use
+another directory.
 
 ## Research
 
@@ -120,8 +154,8 @@ docpull serve --compat --port 8765
 | `POST /contents` | Exa contents: `urls` or `ids`, `text` (bool or `maxCharacters`) | `results[].text`, `statuses[]` |
 | `POST /v1/scrape`, `POST /v2/scrape` | Firecrawl scrape: `url`, `formats: ["markdown"]` | `success`, `data.markdown`, `data.metadata` |
 
-Start the server with `--search-backend searxng` or `--search-backend marginalia`
-to also serve search shapes. Those are Tavily or Exa `POST /search`, chosen by the
+Start the server with `--search-backend searxng`, `marginalia`, or `index` to
+also serve search shapes. Those are Tavily or Exa `POST /search`, chosen by the
 request fields, and Firecrawl `POST /v1/search` and `/v2/search`. The same server
 answers Exa `POST /answer` and fills Tavily's `answer` when a search sets
 `include_answer`. Both use `docpull research` ranking, plus the model from
