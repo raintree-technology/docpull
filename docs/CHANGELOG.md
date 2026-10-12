@@ -29,6 +29,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   content. `docpull add name@version` downloads a recipe from the registry,
   checks its sha256, adds and syncs the sources, and reports which pages still
   match. `docpull registry verify` repeats the check after a later sync.
+- Answer questions from the web with `docpull research`. It searches, fetches
+  results locally, and returns ranked passages with exact spans and `[S#]`
+  citations. An optional OpenAI-compatible model, localhost unless
+  `--allow-remote-llm`, can rewrite them; the rewrite is kept only when every
+  citation names a real source. The compatible server adds Exa `/answer` and
+  Tavily `include_answer`.
+- Run async jobs on the compatible server. Firecrawl `/v1/crawl` and `/v2/crawl`
+  crawl locally with regex path filters and cancellation. Parallel
+  `/v1/tasks/runs` (with `/result`) and Tavily `/research` run
+  `docpull research`. Jobs are kept in memory, expire after 24 hours, and are
+  capped at 200.
 
 ### Removed
 
