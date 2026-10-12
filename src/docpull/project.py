@@ -11,7 +11,6 @@ import argparse
 import asyncio
 import hashlib
 import html
-import ipaddress
 import json
 import os
 import re
@@ -140,7 +139,6 @@ TYPED_PROJECT_SOURCE_TYPES: tuple[str, ...] = (
 )
 SOURCE_TYPES: tuple[str, ...] = (*CRAWL_SOURCE_TYPES, *TYPED_PROJECT_SOURCE_TYPES)
 CONTEXT_TARGETS: tuple[str, ...] = ("cursor", "claude", "codex", "openai", "llamaindex", "langchain")
-OUTPUT_FORMATS: tuple[str, ...] = ("markdown", "ndjson", "sqlite", "context-pack")
 
 SemanticClient = Callable[[str], str]
 
@@ -647,22 +645,6 @@ def run_project_export_cli(argv: list[str] | None = None) -> int:
     return 0
 
 
-def run_eval_set_cli(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="docpull eval-set", description="Generate a local eval set")
-    parser.add_argument("--run", dest="run_id", help="Run ID")
-    parser.add_argument("--limit", type=int, default=50)
-    parser.add_argument("--output", "-o", type=Path, help="JSONL output path")
-    args = parser.parse_args(argv)
-    console = Console()
-    try:
-        payload = generate_eval_set(run_id=args.run_id, limit=args.limit, output=args.output)
-    except ProjectError as err:
-        console.print("[red]Project error:[/red] " + escape(str(err)))
-        return 1
-    console.print(f"[green]Eval set:[/green] {payload['case_count']} cases -> {payload['path']}")
-    return 0
-
-
 def run_history_cli(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="docpull history", description="Show project run history")
     parser.add_argument("--json", action="store_true", dest="json_output")
@@ -728,50 +710,6 @@ def run_release_cli(argv: list[str] | None = None) -> int:
         console.print("[red]Project release error:[/red] " + escape(str(err)))
         return 1
     console.print(f"[green]Release created:[/green] {payload['tag']} -> {payload['release_dir']}")
-    return 0
-
-
-def run_remote_cli(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="docpull remote", description="Use a hosted DocPull API")
-    subparsers = parser.add_subparsers(dest="command", required=True)
-    login = subparsers.add_parser("login", help="Store hosted API connection metadata")
-    login.add_argument("--api-url", required=True)
-    login.add_argument("--token", required=True)
-    login.add_argument(
-        "--allow-insecure-local-http",
-        action="store_true",
-        help="Allow http://localhost or loopback API URLs for local development only",
-    )
-    for name in ("sync", "status", "diff", "export", "release"):
-        command = subparsers.add_parser(name, help=f"Call remote {name}")
-        command.add_argument("--project", required=True, help="Hosted project ID")
-        command.add_argument("--json", action="store_true", dest="json_output")
-        if name == "export":
-            command.add_argument("--target", required=True, choices=CONTEXT_TARGETS)
-        if name == "release":
-            command.add_argument("--target", required=True, choices=CONTEXT_TARGETS)
-            command.add_argument("--run")
-            command.add_argument("--tag")
-    args = parser.parse_args(argv)
-    console = Console()
-    try:
-        if args.command == "login":
-            payload = remote_login(
-                api_url=args.api_url,
-                token=args.token,
-                allow_insecure_local_http=args.allow_insecure_local_http,
-            )
-        else:
-            payload = remote_project_call(args.command, args)
-    except ProjectError as err:
-        console.print("[red]Remote error:[/red] " + escape(str(err)))
-        return 1
-    if getattr(args, "json_output", False):
-        console.print_json(data=payload)
-    elif args.command == "login":
-        console.print(f"[green]Remote configured:[/green] {payload['api_url']}")
-    else:
-        console.print(f"[green]Remote {args.command}:[/green] {payload.get('status', 'ok')}")
     return 0
 
 
@@ -1467,50 +1405,6 @@ def export_context_pack(
     return payload
 
 
-def generate_eval_set(
-    *,
-    run_id: str | None = None,
-    limit: int = 50,
-    output: Path | None = None,
-    root: Path | None = None,
-) -> dict[str, Any]:
-    if limit < 1:
-        raise ProjectError("--limit must be at least 1")
-    project_root = find_project_root(root or Path.cwd())
-    config = load_project_config(project_root)
-    paths = ensure_project_dirs(project_root)
-    selected_run_id = run_id or _latest_run_id(project_root)
-    if not selected_run_id:
-        raise ProjectError("No project run exists. Run `docpull sync` first.")
-    selected_run_id, run_dir = _run_dir_for_id(paths, selected_run_id)
-    records = _read_jsonl(run_dir / "documents.ndjson")
-    changed_urls = _eval_changed_urls(run_dir)
-    selected = (
-        [record for record in records if record.get("url") in changed_urls] if changed_urls else records
-    )
-    citation_payload = build_citation_map(run_dir)
-    citation_by_url = {
-        str(source.get("url")): str(source.get("citation_id"))
-        for source in citation_payload.get("sources", [])
-        if isinstance(source, dict) and source.get("url") and source.get("citation_id")
-    }
-    cases = [
-        _eval_case(record, citation_by_url, changed_urls)
-        for record in selected[:limit]
-        if str(record.get("content") or "").strip()
-    ]
-    output_path = (output or (paths.evals / f"{selected_run_id}.evals.jsonl")).resolve()
-    _write_jsonl(output_path, cases)
-    return {
-        "schema_version": PROJECT_SCHEMA_VERSION,
-        "generated_at": utc_now_iso(),
-        "project": config.name,
-        "run_id": selected_run_id,
-        "case_count": len(cases),
-        "path": str(output_path),
-    }
-
-
 def project_history(*, limit: int = 20, root: Path | None = None) -> dict[str, Any]:
     if limit < 1:
         raise ProjectError("--limit must be at least 1")
@@ -1648,63 +1542,6 @@ def release_context_pack(
     _write_json(release_dir / "release.json", release_payload)
     _index_release(project_root, release_payload)
     return release_payload
-
-
-def remote_login(
-    *,
-    api_url: str,
-    token: str,
-    root: Path | None = None,
-    allow_insecure_local_http: bool = False,
-) -> dict[str, Any]:
-    if not token.strip():
-        raise ProjectError("Remote token must not be empty")
-    normalized_api_url = _validate_remote_api_url(
-        api_url,
-        allow_insecure_local_http=allow_insecure_local_http,
-    )
-    paths = ensure_project_dirs(_remote_root(root))
-    payload = {
-        "schema_version": PROJECT_SCHEMA_VERSION,
-        "api_url": normalized_api_url,
-        "token": token,
-        "allow_insecure_local_http": allow_insecure_local_http,
-        "configured_at": utc_now_iso(),
-    }
-    _write_json(paths.remote_config, payload)
-    return {
-        "schema_version": PROJECT_SCHEMA_VERSION,
-        "api_url": payload["api_url"],
-        "config": str(paths.remote_config),
-        # Response placeholder, not a credential.
-        "token": "[stored]",  # nosec B105
-    }
-
-
-def remote_project_call(command: str, args: Any, *, root: Path | None = None) -> dict[str, Any]:
-    remote = _load_remote_config(root)
-    project_id = str(args.project)
-    if command == "sync":
-        return _remote_json_request(remote, "POST", f"/v1/projects/{project_id}/syncs", {})
-    if command == "status":
-        return _remote_json_request(remote, "GET", f"/v1/projects/{project_id}", None)
-    if command == "diff":
-        return _remote_json_request(remote, "GET", f"/v1/projects/{project_id}/diffs/latest", None)
-    if command == "export":
-        return _remote_json_request(
-            remote,
-            "POST",
-            f"/v1/projects/{project_id}/exports/context-pack",
-            {"target": args.target},
-        )
-    if command == "release":
-        return _remote_json_request(
-            remote,
-            "POST",
-            f"/v1/projects/{project_id}/releases",
-            {"target": args.target, "run_id": args.run, "tag": args.tag},
-        )
-    raise ProjectError(f"Unsupported remote command: {command}")
 
 
 def watch_project(
@@ -4065,38 +3902,6 @@ def _context_markdown(
     return "\n".join(lines).rstrip() + "\n"
 
 
-def _eval_changed_urls(run_dir: Path) -> set[str]:
-    diff_path = run_dir / "project.diff.json"
-    if not diff_path.exists():
-        return set()
-    payload = _read_json(diff_path, default={})
-    urls: set[str] = set()
-    for key in ("added_urls", "changed_urls"):
-        value = payload.get(key)
-        if isinstance(value, list):
-            urls.update(str(item) for item in value if isinstance(item, str))
-    return urls
-
-
-def _eval_case(
-    record: dict[str, Any],
-    citation_by_url: dict[str, str],
-    changed_urls: set[str],
-) -> dict[str, Any]:
-    url = str(record.get("url") or "")
-    title = str(record.get("title") or url)
-    content = " ".join(str(record.get("content") or "").split())
-    return {
-        "id": _stable_id("eval", str(record.get("document_id") or ""), str(record.get("content_hash") or "")),
-        "source_url": url,
-        "question": f"What does the source say about {title}?",
-        "answer_hint": content[:500],
-        "expected_citation_ids": [citation_by_url[url]] if url in citation_by_url else [],
-        "content_hash": record.get("content_hash"),
-        "kind": "changed" if url in changed_urls else "document",
-    }
-
-
 def _resolve_diff_run_ids(
     project_root: Path,
     from_run_id: str | None,
@@ -4251,84 +4056,6 @@ def _safe_release_tag(value: str) -> str:
     if not tag:
         raise ProjectError("release tag must not be empty")
     return tag
-
-
-def _remote_root(root: Path | None) -> Path:
-    start = (root or Path.cwd()).resolve()
-    try:
-        return find_project_root(start)
-    except ProjectError:
-        return start
-
-
-def _validate_remote_api_url(api_url: str, *, allow_insecure_local_http: bool) -> str:
-    normalized = api_url.strip().rstrip("/")
-    parsed = urlparse(normalized)
-    if parsed.scheme == "https" and parsed.netloc:
-        return normalized
-    if parsed.scheme == "http" and parsed.netloc:
-        if allow_insecure_local_http and _is_loopback_remote_host(parsed.hostname or ""):
-            return normalized
-        raise ProjectError(
-            "--api-url must use HTTPS. For local development only, pass "
-            "--allow-insecure-local-http with an http://localhost or loopback URL."
-        )
-    raise ProjectError("--api-url must be an absolute HTTPS URL")
-
-
-def _is_loopback_remote_host(host: str) -> bool:
-    normalized = host.lower().rstrip(".")
-    if normalized == "localhost":
-        return True
-    try:
-        return ipaddress.ip_address(normalized).is_loopback
-    except ValueError:
-        return False
-
-
-def _load_remote_config(root: Path | None = None) -> dict[str, Any]:
-    paths = project_paths(_remote_root(root))
-    if not paths.remote_config.exists():
-        raise ProjectError("No remote configured. Run `docpull remote login --api-url URL --token TOKEN`.")
-    value = _read_json(paths.remote_config, default=None)
-    if not isinstance(value, dict) or not value.get("api_url") or not value.get("token"):
-        raise ProjectError(f"Invalid remote config: {paths.remote_config}")
-    return value
-
-
-def _remote_json_request(
-    remote: dict[str, Any],
-    method: str,
-    path: str,
-    body: dict[str, Any] | None,
-) -> dict[str, Any]:
-    api_url = _validate_remote_api_url(
-        str(remote["api_url"]),
-        allow_insecure_local_http=bool(remote.get("allow_insecure_local_http")),
-    )
-    token = str(remote["token"])
-    data = None if body is None else json.dumps(body).encode("utf-8")
-    request = urllib.request.Request(
-        api_url + path,
-        data=data,
-        headers={
-            "authorization": f"Bearer {token}",
-            "content-type": "application/json",
-            "accept": "application/json",
-        },
-        method=method,
-    )
-    try:
-        with urllib.request.urlopen(request, timeout=30) as response:  # nosec B310
-            payload = json.loads(response.read() or b"{}")
-    except urllib.error.HTTPError as err:
-        detail = err.read().decode("utf-8", errors="replace")
-        raise ProjectError(f"Remote API error HTTP {err.code}: {detail}") from err
-    except urllib.error.URLError as err:
-        raise ProjectError(f"Remote API request failed: {err.reason}") from err
-    except json.JSONDecodeError as err:
-        raise ProjectError("Remote API returned non-JSON response") from err
-    return payload if isinstance(payload, dict) else {"data": payload}
 
 
 def _slug(value: str) -> str:

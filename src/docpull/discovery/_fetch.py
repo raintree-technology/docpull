@@ -31,11 +31,3 @@ async def fetch_html_response(client: HttpClient, url: str) -> HttpResponse | No
     except Exception as e:
         logger.debug(f"Failed to fetch {url}: {e}")
         return None
-
-
-async def fetch_html(client: HttpClient, url: str) -> bytes | None:
-    """Fetch ``url`` and return its body iff it is a successful HTML response."""
-    response = await fetch_html_response(client, url)
-    if response is None:
-        return None
-    return response.content

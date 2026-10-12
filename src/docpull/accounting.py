@@ -114,39 +114,6 @@ def parse_budget_value(value: str) -> float:
     return parsed
 
 
-def extract_budget_flags(argv: list[str] | None) -> tuple[list[str] | None, float | None, bool]:
-    """Strip cross-command ``--budget`` and ``--explain-route`` flags.
-
-    This supports subcommands where adding a parent argparse option would force
-    users to place the flag before the subcommand.
-    """
-    if argv is None:
-        return None, None, False
-    cleaned: list[str] = []
-    budget: float | None = None
-    explain_route = False
-    index = 0
-    while index < len(argv):
-        item = argv[index]
-        if item == "--explain-route":
-            explain_route = True
-            index += 1
-            continue
-        if item == "--budget":
-            if index + 1 >= len(argv):
-                raise ValueError("--budget requires a value")
-            budget = parse_budget_value(argv[index + 1])
-            index += 2
-            continue
-        if item.startswith("--budget="):
-            budget = parse_budget_value(item.split("=", 1)[1])
-            index += 1
-            continue
-        cleaned.append(item)
-        index += 1
-    return cleaned, budget, explain_route
-
-
 def paid_action_blocked(
     budget_limit_usd: float | None,
     *,

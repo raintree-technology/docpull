@@ -111,26 +111,6 @@ def read_https_text(
     raise ValueError("Typed pack remote sources cannot be fetched while an event loop is running.")
 
 
-async def read_https_text_async(
-    url: str,
-    *,
-    accept: str,
-    max_bytes: int = 5_000_000,
-    delay_seconds: float = 0.0,
-    headers: Mapping[str, str] | None = None,
-    source_contract: OfficialSourceContract | None = None,
-) -> RemoteText:
-    """Async variant of :func:`read_https_text` for SDK callers already in an event loop."""
-    return await _read_https_text_async(
-        url,
-        accept=accept,
-        max_bytes=max_bytes,
-        delay_seconds=delay_seconds,
-        headers=headers,
-        source_contract=source_contract,
-    )
-
-
 async def _read_https_text_async(
     url: str,
     *,
@@ -579,7 +559,6 @@ __all__ = [
     "RemoteText",
     "TypedPackItem",
     "read_https_text",
-    "read_https_text_async",
     "simple_summary_markdown",
     "typed_http_cache",
     "write_typed_pack",

@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   hosted control plane, and the `Scraper` facade. Importing these module paths
   now fails; pruned commands still report that they were removed. Use
   `docpull-bench` in `bench/` for provider comparisons.
+- Remove the handlers behind the pruned `remote`, `eval-set`, `answer`,
+  `freshdocs`, and `evalgen` commands, plus unused internal helpers.
 - Remove the unsupported TypeScript MCP lab under `mcp/`. The Python
   `docpull mcp` stdio server remains the supported MCP server.
 

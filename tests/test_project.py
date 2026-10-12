@@ -24,14 +24,12 @@ from docpull.project import (
     context_dependency_status,
     diff_project,
     export_context_pack,
-    generate_eval_set,
     init_project,
     install_project,
     list_context_sources,
     project_history,
     project_status,
     release_context_pack,
-    remote_login,
     review_project_run,
     sync_project,
     watch_project,
@@ -631,7 +629,7 @@ def test_install_rejects_conflicting_options(tmp_path: Path) -> None:
     assert err.value.code == 2
 
 
-def test_diff_status_export_and_eval_set(
+def test_diff_status_and_export(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -703,19 +701,12 @@ def test_diff_status_export_and_eval_set(
     lock_after_export = json.loads((tmp_path / ".docpull" / "context.lock.json").read_text(encoding="utf-8"))
     assert lock_after_export["exports"][0]["target"] == "openai"
 
-    eval_payload = generate_eval_set(run_id="run_b", limit=10, root=tmp_path)
-    cases = _jsonl(Path(eval_payload["path"]))
-    assert eval_payload["case_count"] == 1
-    assert cases[0]["kind"] == "changed"
-    assert cases[0]["expected_citation_ids"] == ["S1"]
-
 
 def test_project_run_helpers_reject_traversal_run_ids(tmp_path: Path) -> None:
     init_project(name="demo", root=tmp_path)
 
     for call in (
         lambda: export_context_pack(target="openai", run_id="../run", root=tmp_path),
-        lambda: generate_eval_set(run_id="..", root=tmp_path),
         lambda: review_project_run(run_id="../run", root=tmp_path),
         lambda: release_context_pack(target="cursor", run_id="../run", root=tmp_path),
     ):
@@ -750,30 +741,6 @@ def test_history_review_and_release_context_pack(
     assert release["tag"] == "v1"
     assert Path(release["release_dir"], "release.json").exists()
     assert Path(release["release_dir"], "context-pack", "context.md").exists()
-
-
-def test_remote_login_requires_https_for_bearer_tokens(tmp_path: Path) -> None:
-    with pytest.raises(ProjectError, match="must use HTTPS"):
-        remote_login(api_url="http://hosted.example", token="secret", root=tmp_path)
-
-    payload = remote_login(
-        api_url="http://127.0.0.1:8080/",
-        token="local-secret",
-        root=tmp_path,
-        allow_insecure_local_http=True,
-    )
-
-    assert payload["api_url"] == "http://127.0.0.1:8080"
-
-
-def test_remote_request_rejects_existing_cleartext_config_before_network() -> None:
-    with pytest.raises(ProjectError, match="must use HTTPS"):
-        project_module._remote_json_request(
-            {"api_url": "http://hosted.example", "token": "secret"},
-            "GET",
-            "/v1/projects/proj",
-            None,
-        )
 
 
 def test_project_cli_and_export_context_pack_preserves_legacy_export(

@@ -12,7 +12,7 @@ import pytest
 
 from docpull import local_workflows
 from docpull.cli import main
-from docpull.local_workflows import LocalWorkflowError, answer_pack, audit_pack, refresh_pack
+from docpull.local_workflows import LocalWorkflowError, audit_pack, refresh_pack
 from tests.pack_fixtures import write_context_pack
 
 AUDIT_NOW = datetime(2026, 3, 10, tzinfo=timezone.utc)
@@ -275,35 +275,3 @@ def test_pack_audit_uses_source_policy_max_age_as_default(
     explicit = audit_pack(pack_dir, max_age_days=365.0)
     assert explicit["stale_sources"]["max_age_days"] == 365.0
     assert explicit["stale_sources"]["stale_count"] == 0
-
-
-def test_answer_pack_uses_local_evidence(tmp_path: Path) -> None:
-    pack_dir = tmp_path / "pack"
-    write_context_pack(pack_dir)
-
-    payload = answer_pack(pack_dir, "What does Parallel Search return?")
-
-    assert payload["answer"]["status"] == "answered_from_local_pack"
-    assert "cited JSON" in payload["answer"]["text"]
-    assert (pack_dir / "answer.result.json").exists()
-    assert (pack_dir / "answer.report.md").exists()
-
-
-def test_answer_pack_cli_returns_two_for_missing_evidence(tmp_path: Path) -> None:
-    pack_dir = tmp_path / "pack"
-    write_context_pack(pack_dir)
-
-    assert local_workflows.run_answer_cli([str(pack_dir), "unrelated zyzzyva query"]) == 2
-
-    payload = json.loads((pack_dir / "answer.result.json").read_text(encoding="utf-8"))
-    assert payload["answer"]["status"] == "insufficient_evidence"
-
-
-def test_answer_pack_rejects_empty_questions_and_bad_limits(tmp_path: Path) -> None:
-    pack_dir = tmp_path / "pack"
-    write_context_pack(pack_dir)
-
-    with pytest.raises(LocalWorkflowError, match="question"):
-        answer_pack(pack_dir, " ")
-    with pytest.raises(LocalWorkflowError, match="limit"):
-        answer_pack(pack_dir, "Question?", limit=0)

@@ -6,7 +6,6 @@ import asyncio
 import hashlib
 import json
 import re
-import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal
@@ -41,7 +40,6 @@ from ..models.events import SkipReason
 from ..models.run import RunIdentity
 from ..output_contract import OUTPUT_CONTRACT_SCHEMA_VERSION, write_raw_contract_sidecars
 from ..pack_reader import PackReadError, load_pack, resolve_pack_path
-from ..pack_tools import build_citation_map
 from ..policy import PolicyConfig, policy_domain_matches
 from ..security.download_policy import SafeDownloadPolicy, UnsafeDownloadError, content_type_base
 from ..security.url_validator import UrlValidator
@@ -50,7 +48,6 @@ from ..time_utils import utc_now_iso
 CONTEXT_PACK_SCHEMA_VERSION = 1
 DEFAULT_CONTEXT_MAX_PAGES = 6
 DEFAULT_ASSET_MAX_BYTES = 1_000_000
-DEFAULT_CSS_MAX_BYTES = 500_000
 SECRET_QUERY_RE = re.compile(
     r"(?:^|[_-])(?:api[_-]?key|authorization|auth|bearer|cookie|password|secret|session|token)(?:$|[_-])",
     re.IGNORECASE,
@@ -1291,14 +1288,6 @@ def agent_context_markdown(workflow: str, markdown_filename: str) -> str:
     )
 
 
-def maybe_copy_asset(path: Path, destination: Path) -> str | None:
-    if not path.exists() or not path.is_file():
-        return None
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(path, destination)
-    return artifact_ref(destination.parent.parent, destination)
-
-
 def css_url_values(css_text: str, base_url: str) -> list[str]:
     urls: list[str] = []
     for match in re.finditer(r"url\(([^)]+)\)", css_text, flags=re.IGNORECASE):
@@ -1310,15 +1299,6 @@ def css_url_values(css_text: str, base_url: str) -> list[str]:
 
 def resolve_url(value: str, base_url: str) -> str:
     return public_url(urljoin(base_url, value.strip()))
-
-
-def write_pack_citations_from_documents(output_dir: Path) -> None:
-    """Best-effort citation map for packs that primarily write documents.ndjson."""
-    try:
-        citations = build_citation_map(output_dir)
-    except Exception:  # noqa: BLE001
-        return
-    write_json(output_dir / "citations.json", citations)
 
 
 def status_from_errors(errors: list[dict[str, Any]]) -> Literal["completed", "completed_with_errors"]:
