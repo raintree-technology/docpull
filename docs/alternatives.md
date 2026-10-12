@@ -23,7 +23,7 @@ tool.
 | Self-host a browser-based crawler with LLM-oriented Markdown output | Crawl4AI | Open-source, self-hosted, browser-driven; a good fit when pages need a real browser and you want to run the infrastructure yourself |
 | Point agent code written for a hosted extract API at a local fetcher | DocPull `serve --compat` | Accepts Tavily extract, Exa contents, and Firecrawl scrape request shapes and answers from the local pipeline; see [Local Extract API](cli-recipes.md#local-extract-api) |
 | Use a hosted web-to-LLM extraction service | Firecrawl, Jina Reader, hosted extraction APIs | Useful when you want an API service to manage crawling/extraction infrastructure |
-| Search the live web before building a pack | DocPull `search` with a SearXNG instance or Marginalia | `docpull search` queries a backend you choose and can fetch each result through the local pipeline; no paid provider is involved. See [Web Search](cli-recipes.md#web-search) |
+| Search the live web before building a pack | DocPull `search` with a SearXNG instance, Marginalia, or an offline discovery index | `docpull search` queries a backend you choose and can fetch each result through the local pipeline; no paid provider is involved. See [Web Search](cli-recipes.md#web-search) |
 
 ## Where DocPull Is Strongest
 

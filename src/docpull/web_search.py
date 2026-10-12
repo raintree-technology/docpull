@@ -1,9 +1,11 @@
-"""Web search through backends the user chooses: self-hosted SearXNG or Marginalia.
+"""Web search through backends the user chooses: self-hosted SearXNG, Marginalia, or
+an offline discovery index.
 
-DocPull has no search index of its own. ``search_web`` queries a backend the
-caller names explicitly, never a paid provider, then optionally fetches the top
-results through the local fetch pipeline so content keeps DocPull's SSRF and
-robots.txt protections.
+``search_web`` queries a backend the caller names explicitly, never a paid
+provider, then optionally fetches the top results through the local fetch
+pipeline so content keeps DocPull's SSRF and robots.txt protections. The
+``index`` backend searches downloaded discovery shards and sends no query
+over the network.
 """
 
 from __future__ import annotations
@@ -14,6 +16,7 @@ import json
 import os
 import sys
 from dataclasses import asdict, dataclass, field, replace
+from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -21,7 +24,7 @@ import aiohttp
 
 from . import __version__
 
-BACKENDS = ("searxng", "marginalia")
+BACKENDS = ("searxng", "marginalia", "index")
 MAX_RESULTS = 20
 SEARXNG_URL_ENV = "DOCPULL_SEARXNG_URL"
 MARGINALIA_KEY_ENV = "DOCPULL_MARGINALIA_KEY"
@@ -67,6 +70,7 @@ async def search_web(
     include_content: bool = False,
     searxng_url: str | None = None,
     marginalia_key: str | None = None,
+    index_dir: Path | None = None,
 ) -> SearchResponse:
     """Search the web with an explicitly chosen backend."""
     query = query.strip()
@@ -78,6 +82,20 @@ async def search_web(
         raise WebSearchError(f"max_results must be between 1 and {MAX_RESULTS}")
     include = [_domain(item) for item in include_domains or []]
     exclude = [_domain(item) for item in exclude_domains or []]
+
+    if backend == "index":
+        from .discovery_index import search_index
+
+        hits = search_index(
+            query,
+            index_dir=index_dir,
+            max_results=max_results,
+            include_domains=include,
+            exclude_domains=exclude,
+        )
+        if include_content:
+            hits = await _attach_content(hits)
+        return SearchResponse(query=query, backend=backend, hits=hits)
 
     key = marginalia_key or os.environ.get(MARGINALIA_KEY_ENV) or "public"
     headers = {"User-Agent": f"docpull/{__version__} (+https://github.com/raintree-technology/docpull)"}
@@ -237,7 +255,10 @@ async def _attach_content(hits: list[SearchHit]) -> list[SearchHit]:
 def create_search_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="docpull search",
-        description="Search the web through self-hosted SearXNG or Marginalia; no paid provider is used",
+        description=(
+            "Search the web through self-hosted SearXNG, Marginalia, or an offline discovery index; "
+            "no paid provider is used"
+        ),
     )
     parser.add_argument("query")
     parser.add_argument("--backend", choices=BACKENDS, required=True)
@@ -250,6 +271,7 @@ def create_search_parser() -> argparse.ArgumentParser:
         help="Fetch each result through the local pipeline and include its Markdown",
     )
     parser.add_argument("--searxng-url", help=f"SearXNG base URL (default: ${SEARXNG_URL_ENV})")
+    parser.add_argument("--index-dir", type=Path, help="With --backend index, the installed shard directory")
     parser.add_argument("--json", action="store_true", dest="json_output")
     return parser
 
@@ -266,6 +288,7 @@ def run_search_cli(argv: list[str] | None = None) -> int:
                 exclude_domains=args.exclude_domains,
                 include_content=args.include_content,
                 searxng_url=args.searxng_url,
+                index_dir=args.index_dir,
             )
         )
     except WebSearchError as err:
