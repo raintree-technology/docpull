@@ -98,8 +98,22 @@ DOCX and PDF bytes must remain identical.
 ## Providers
 
 Native comparable adapters exist for Tavily, Exa, and Parallel extract/search,
-Firecrawl extract/search/crawl, Tavily and Context.dev crawl, and Context.dev
-Markdown extract. Prices come from
+Firecrawl extract/search/crawl, Tavily and Context.dev crawl, Context.dev
+Markdown extract, and Grass Contents API extract (`--adapter grass`,
+`GRASS_API_KEY` from app.lcr.net). The Grass adapter always live-crawls
+(`maxAgeHours: 0`) and bills reported credits at the Starter plan rate as a
+ceiling. Grass rejects some domain categories, including `.gov` sites, with
+HTTP 451.
+
+Three more adapters cover common agent defaults:
+
+| Adapter | Lane | Credentials | Behavior |
+| --- | --- | --- | --- |
+| `jina` | extract | `JINA_API_KEY` | Reader default pipeline with `noCache`. Bills reported output tokens; a 200,000-token budget caps each request. |
+| `brave-search` | search | `BRAVE_API_KEY` | Web search with one case domain applied as a `site:` operator. Cases with more than one domain fail. |
+| `brightdata` | extract | `BRIGHTDATA_API_KEY`, `BRIGHTDATA_ZONE` | Web Unlocker REST API returning Markdown through US routing. |
+
+Prices come from
 `pricing/providers.yaml`, including dated official source URLs. No provider
 workflow is scheduled.
 

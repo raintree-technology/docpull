@@ -4,6 +4,8 @@ from .base import AdapterError, SystemAdapter
 from .command import CommandAdapter
 from .docpull import DocPullAdapter
 from .hosted import (
+    BraveSearchAdapter,
+    BrightDataUnlockerAdapter,
     ContextCrawlAdapter,
     ContextMarkdownAdapter,
     ExaContentsAdapter,
@@ -12,6 +14,8 @@ from .hosted import (
     FirecrawlCrawlAdapter,
     FirecrawlScrapeAdapter,
     FirecrawlSearchAdapter,
+    GrassContentsAdapter,
+    JinaReaderAdapter,
     ParallelFullExtractAdapter,
     ParallelSearchAdapter,
     TavilyAdvancedExtractAdapter,
@@ -24,6 +28,9 @@ from .local_baselines import ReadabilityAdapter, TrafilaturaAdapter
 from .replay import ReplayAdapter
 
 __all__ = [
+    "BraveSearchAdapter",
+    "BrightDataUnlockerAdapter",
+    "JinaReaderAdapter",
     "AdapterError",
     "CommandAdapter",
     "ContextMarkdownAdapter",
@@ -35,6 +42,7 @@ __all__ = [
     "FirecrawlCrawlAdapter",
     "FirecrawlScrapeAdapter",
     "FirecrawlSearchAdapter",
+    "GrassContentsAdapter",
     "ParallelFullExtractAdapter",
     "ParallelSearchAdapter",
     "ReadabilityAdapter",

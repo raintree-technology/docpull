@@ -8,6 +8,8 @@ import pytest
 
 from docpull_bench.adapters import (
     AdapterError,
+    BraveSearchAdapter,
+    BrightDataUnlockerAdapter,
     ContextCrawlAdapter,
     ContextMarkdownAdapter,
     ExaContentsAdapter,
@@ -15,6 +17,8 @@ from docpull_bench.adapters import (
     FirecrawlCrawlAdapter,
     FirecrawlScrapeAdapter,
     FirecrawlSearchAdapter,
+    GrassContentsAdapter,
+    JinaReaderAdapter,
     ParallelFullExtractAdapter,
     ParallelSearchAdapter,
     TavilyExtractAdapter,
@@ -212,6 +216,203 @@ def test_firecrawl_scrape_uses_deterministic_basic_mode(tmp_path: Path) -> None:
     assert observation.status == "completed"
     assert observation.cost_usd == pytest.approx(0.006)
     assert observation.usage["credits"] == 1
+
+
+def test_grass_contents_requests_live_compact_text_and_bills_reported_credits(tmp_path: Path) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert str(request.url) == "https://api.lcr.net/contents"
+        assert request.headers["Authorization"] == "Bearer test-key"
+        body = json.loads(request.content)
+        assert body["urls"] == ["https://example.com/article"]
+        assert body["maxAgeHours"] == 0
+        assert body["livecrawlTimeout"] == 15000
+        assert body["text"]["verbosity"] == "compact"
+        return httpx.Response(
+            200,
+            json={
+                "requestId": "request",
+                "results": [
+                    {
+                        "id": "r1",
+                        "url": "https://example.com/article",
+                        "title": "Evidence",
+                        "text": "Evidence",
+                    }
+                ],
+                "statuses": [
+                    {
+                        "id": "r1",
+                        "status": "success",
+                        "source": "livecrawled",
+                        "httpStatusCode": 200,
+                        "strategy": "browser",
+                        "credits": 2,
+                    }
+                ],
+            },
+        )
+
+    adapter = GrassContentsAdapter(
+        max_cost_usd=0.004, api_key="test-key", transport=httpx.MockTransport(handler)
+    )
+    adapter.preflight([_extract()], repeat=1)
+    observation = adapter.run(_extract(), tmp_path)
+    assert observation.status == "completed"
+    assert observation.payload is not None
+    assert observation.payload.records[0].content == "Evidence"
+    assert observation.cost_usd == pytest.approx(2 * 0.0011112)
+    assert observation.usage["strategy"] == "browser"
+    assert observation.usage["source"] == "livecrawled"
+
+
+def test_grass_contents_reports_per_url_error_tag(tmp_path: Path) -> None:
+    response = {
+        "results": [],
+        "statuses": [
+            {
+                "id": "r1",
+                "status": "error",
+                "source": "https://example.com/article",
+                "httpStatusCode": 403,
+                "strategy": None,
+                "credits": 0,
+                "error": {"tag": "SOURCE_NOT_AVAILABLE", "httpStatusCode": 403},
+            }
+        ],
+    }
+    adapter = GrassContentsAdapter(
+        max_cost_usd=0.004,
+        api_key="test-key",
+        transport=httpx.MockTransport(lambda _: httpx.Response(200, json=response)),
+    )
+    adapter.preflight([_extract()], repeat=1)
+    observation = adapter.run(_extract(), tmp_path)
+    assert observation.status == "failed"
+    assert observation.error is not None
+    assert "SOURCE_NOT_AVAILABLE" in observation.error
+
+
+def test_jina_reader_bypasses_cache_and_bills_reported_tokens(tmp_path: Path) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert str(request.url) == "https://r.jina.ai/"
+        assert request.headers["Authorization"] == "Bearer test-key"
+        assert request.headers["Accept"] == "application/json"
+        body = json.loads(request.content)
+        assert body == {
+            "url": "https://example.com/article",
+            "noCache": True,
+            "tokenBudget": 200_000,
+            "timeout": 15,
+        }
+        return httpx.Response(
+            200,
+            json={
+                "code": 200,
+                "status": 20000,
+                "data": {
+                    "url": "https://example.com/article",
+                    "title": "Evidence",
+                    "content": "# Evidence",
+                    "usage": {"tokens": 1000},
+                },
+            },
+        )
+
+    adapter = JinaReaderAdapter(max_cost_usd=0.01, api_key="test-key", transport=httpx.MockTransport(handler))
+    adapter.preflight([_extract()], repeat=1)
+    observation = adapter.run(_extract(), tmp_path)
+    assert observation.status == "completed"
+    assert observation.payload is not None
+    assert observation.payload.records[0].content == "# Evidence"
+    assert observation.cost_usd == pytest.approx(1000 * 0.00000005)
+    assert observation.usage["tokens"] == 1000
+
+
+def test_brightdata_unlocker_requests_markdown_from_configured_zone(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("BRIGHTDATA_ZONE", "bench_zone")
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert str(request.url) == "https://api.brightdata.com/request"
+        assert request.headers["Authorization"] == "Bearer test-key"
+        body = json.loads(request.content)
+        assert body == {
+            "zone": "bench_zone",
+            "url": "https://example.com/article",
+            "format": "raw",
+            "data_format": "markdown",
+            "country": "us",
+        }
+        return httpx.Response(200, text="# Evidence")
+
+    adapter = BrightDataUnlockerAdapter(
+        max_cost_usd=0.0015, api_key="test-key", transport=httpx.MockTransport(handler)
+    )
+    adapter.preflight([_extract()], repeat=1)
+    observation = adapter.run(_extract(), tmp_path)
+    assert observation.status == "completed"
+    assert observation.payload is not None
+    assert observation.payload.records[0].content == "# Evidence"
+    assert observation.cost_usd == pytest.approx(0.0015)
+
+
+def test_brightdata_unlocker_reports_bounded_error_header(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("BRIGHTDATA_ZONE", "bench_zone")
+    adapter = BrightDataUnlockerAdapter(
+        max_cost_usd=0.0015,
+        api_key="test-key",
+        transport=httpx.MockTransport(
+            lambda _: httpx.Response(502, headers={"x-brd-error": "target unreachable"}, text="secret page")
+        ),
+    )
+    adapter.preflight([_extract()], repeat=1)
+    observation = adapter.run(_extract(), tmp_path)
+    assert observation.status == "failed"
+    assert observation.error is not None
+    assert "target unreachable" in observation.error
+    assert "secret page" not in observation.error
+
+
+def test_brave_search_applies_one_domain_and_strips_markup(tmp_path: Path) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "GET"
+        assert request.headers["X-Subscription-Token"] == "test-key"
+        assert request.url.params["q"] == "official identifier site:example.com"
+        assert request.url.params["count"] == "5"
+        return httpx.Response(
+            200,
+            json={
+                "web": {
+                    "results": [
+                        {
+                            "title": "Evidence",
+                            "url": "https://example.com/a",
+                            "description": "The <strong>official</strong> identifier",
+                        }
+                    ]
+                }
+            },
+        )
+
+    search = SearchInput(
+        case_id="search.example",
+        lane="search",
+        query="official identifier",
+        max_results=5,
+        include_domains=["example.com"],
+    )
+    adapter = BraveSearchAdapter(
+        max_cost_usd=0.005, api_key="test-key", transport=httpx.MockTransport(handler)
+    )
+    adapter.preflight([search], repeat=1)
+    observation = adapter.run(search, tmp_path)
+    assert observation.status == "completed"
+    assert observation.payload is not None
+    assert observation.payload.results[0].excerpt == "The official identifier"
+    assert observation.cost_usd == pytest.approx(0.005)
 
 
 def test_firecrawl_crawl_polls_and_normalizes_bounded_pages(tmp_path: Path) -> None:

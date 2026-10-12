@@ -50,6 +50,40 @@ providers:
       usd: 0.005
       kind: upper_bound
       source: https://docs.parallel.ai/getting-started/pricing
+  grass:
+    credit:
+      unit: credit at the Starter plan rate ($100 for 90,000 credits), observed 2026-10-12
+      usd: 0.0011112
+      kind: upper_bound
+      source: https://docs.lcr.net/
+    contents:
+      unit: one-URL request at the 3-credit local-browser maximum, observed 2026-10-12
+      usd: 0.0033336
+      kind: upper_bound
+      source: https://docs.lcr.net/api-reference
+  jina:
+    token:
+      unit: output token at the $50 Standard top-up rate ($0.050 per 1M), observed 2026-10-12
+      usd: 0.00000005
+      kind: upper_bound
+      source: https://jina.ai/reader/
+    reader:
+      unit: one-URL request at the adapter's 200,000-token budget, observed 2026-10-12
+      usd: 0.01
+      kind: upper_bound
+      source: https://jina.ai/reader/
+  brave:
+    search:
+      unit: Search plan request, observed 2026-10-12
+      usd: 0.005
+      kind: upper_bound
+      source: https://brave.com/search/api/
+  brightdata:
+    unlocker:
+      unit: successful pay-as-you-go request ($1.50 per 1,000), observed 2026-10-12
+      usd: 0.0015
+      kind: upper_bound
+      source: https://brightdata.com/pricing/web-unlocker
   firecrawl:
     credit:
       unit: credit using the smallest published auto-recharge pack

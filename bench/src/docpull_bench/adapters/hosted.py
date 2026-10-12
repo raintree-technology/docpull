@@ -44,6 +44,10 @@ PARALLEL_SEARCH_URL = "https://api.parallel.ai/v1/search"
 FIRECRAWL_SCRAPE_URL = "https://api.firecrawl.dev/v2/scrape"
 FIRECRAWL_CRAWL_URL = "https://api.firecrawl.dev/v2/crawl"
 FIRECRAWL_SEARCH_URL = "https://api.firecrawl.dev/v2/search"
+GRASS_CONTENTS_URL = "https://api.lcr.net/contents"
+JINA_READER_URL = "https://r.jina.ai/"
+BRAVE_SEARCH_URL = "https://api.search.brave.com/res/v1/web/search"
+BRIGHTDATA_REQUEST_URL = "https://api.brightdata.com/request"
 MAX_RESPONSE_BYTES = 16 * 1024 * 1024
 
 
@@ -515,6 +519,56 @@ class ExaSearchAdapter(HostedAdapter):
         )
 
 
+class BraveSearchAdapter(HostedAdapter):
+    system = "brave-search"
+    version = "web-search-v1"
+    api_key_env = "BRAVE_API_KEY"
+    capabilities = frozenset({Lane.SEARCH})
+    operation_by_lane = {Lane.SEARCH: "search"}
+
+    def _request_profile(self) -> dict[str, Any]:
+        return {
+            "method": "GET",
+            "endpoint": BRAVE_SEARCH_URL,
+            "count": "case bounded, at most 20",
+            "domain_filter": "site: operator for one case domain",
+        }
+
+    def _provider_name(self) -> str:
+        return "brave"
+
+    def _execute(self, client: httpx.Client, inputs: BenchmarkInput, api_key: str) -> _ProviderResult:
+        assert isinstance(inputs, SearchInput)
+        if len(inputs.include_domains) > 1:
+            raise AdapterError(f"{self.system} supports at most one include_domains entry")
+        query = inputs.query
+        if inputs.include_domains:
+            query = f"{query} site:{inputs.include_domains[0]}"
+        response = client.get(
+            BRAVE_SEARCH_URL,
+            headers={"X-Subscription-Token": api_key, "Accept": "application/json"},
+            params={"q": query, "count": min(inputs.max_results, 20)},
+        )
+        payload = _response_object(response, self.system, api_key)
+        results = [
+            RankedResult(
+                identity=str(item.get("url")),
+                url=str(item.get("url")),
+                title=str(item.get("title") or ""),
+                excerpt=re.sub(r"<[^>]+>", "", str(item.get("description") or "")),
+            )
+            for item in _object_list(_object(payload.get("web")).get("results"))
+            if str(item.get("url") or "").strip()
+        ]
+        return _ProviderResult(
+            payload=SearchPayload(results=results),
+            cost_usd=self.estimate_case_cost(inputs),
+            cost_kind="upper_bound",
+            cost_basis=f"{self.pricing_snapshot}: Brave Search plan per-request rate.",
+            usage={"result_count": len(results)},
+        )
+
+
 class ParallelFullExtractAdapter(HostedAdapter):
     system = "parallel"
     version = "v1-live-full-v2"
@@ -626,6 +680,205 @@ class ParallelSearchAdapter(HostedAdapter):
             cost_kind="upper_bound",
             cost_basis=f"{self.pricing_snapshot}: Parallel Search ceiling.",
             usage={"result_count": len(results)},
+        )
+
+
+class GrassContentsAdapter(HostedAdapter):
+    """Grass Contents API, served by LCR; one live crawl per URL."""
+
+    system = "grass"
+    version = "contents-live-compact-v1"
+    api_key_env = "GRASS_API_KEY"
+    capabilities = frozenset({Lane.EXTRACT})
+    operation_by_lane = {Lane.EXTRACT: "contents"}
+    max_characters = 200_000
+    country_code = "us"
+
+    def _request_profile(self) -> dict[str, Any]:
+        return {
+            "method": "POST",
+            "endpoint": GRASS_CONTENTS_URL,
+            "urls": "one case URL",
+            "text": {"maxCharacters": self.max_characters, "verbosity": "compact"},
+            "country_code": self.country_code,
+            "max_age_hours": 0,
+            "livecrawl_timeout": "case timeout, at most 90000 ms",
+        }
+
+    def _execute(self, client: httpx.Client, inputs: BenchmarkInput, api_key: str) -> _ProviderResult:
+        assert isinstance(inputs, ExtractInput)
+        response = client.post(
+            GRASS_CONTENTS_URL,
+            headers={"Authorization": f"Bearer {api_key}"},
+            json={
+                "urls": [inputs.url],
+                "text": {"maxCharacters": self.max_characters, "verbosity": "compact"},
+                "countryCode": self.country_code,
+                "maxAgeHours": 0,
+                "livecrawlTimeout": max(1, min(round(inputs.timeout_seconds * 1000), 90000)),
+            },
+        )
+        payload = _response_object(response, self.system, api_key)
+        statuses = _object_list(payload.get("statuses"))
+        records = []
+        for result in _object_list(payload.get("results")):
+            # Prefer Markdown when the API returns it; the documented text mode is plain text.
+            markdown = str(result.get("markdown") or "")
+            content = markdown if markdown.strip() else str(result.get("text") or "")
+            if content.strip():
+                records.append(
+                    ArtifactRecord(
+                        url=str(result.get("url") or inputs.url),
+                        title=str(result.get("title") or ""),
+                        content=content,
+                        metadata={
+                            "provider": self.system,
+                            "format": "markdown" if markdown.strip() else "text",
+                        },
+                    )
+                )
+        if not records:
+            error = next((_object(item.get("error")) for item in statuses if item.get("error")), {})
+            if error:
+                raise AdapterError(
+                    f"{self.system} {error.get('tag', 'error')} (HTTP {error.get('httpStatusCode')})"
+                )
+        reported_credits = [_optional_number(item.get("credits")) for item in statuses]
+        credit_count = sum(item for item in reported_credits if item is not None) if statuses else None
+        first = statuses[0] if statuses else {}
+        return _ProviderResult(
+            payload=ContentPayload(records=records, selected_urls=[record.url for record in records]),
+            cost_usd=(credit_count * self.pricing.price("grass", "credit").usd)
+            if credit_count is not None
+            else self.estimate_case_cost(inputs),
+            cost_kind="upper_bound",
+            cost_basis=f"{self.pricing_snapshot}: Grass credits at the Starter plan rate.",
+            usage={
+                "credits": credit_count,
+                "strategy": first.get("strategy") if isinstance(first.get("strategy"), str) else None,
+                "source": first.get("source") if first.get("status") == "success" else None,
+                "upstream_status": _optional_number(first.get("httpStatusCode")),
+            },
+        )
+
+
+class JinaReaderAdapter(HostedAdapter):
+    """Jina Reader default pipeline; billed by output tokens."""
+
+    system = "jina"
+    version = "reader-default-nocache-v1"
+    api_key_env = "JINA_API_KEY"
+    capabilities = frozenset({Lane.EXTRACT})
+    operation_by_lane = {Lane.EXTRACT: "reader"}
+    # Matches the pricing ceiling; Jina fails the request rather than exceed it.
+    token_budget = 200_000
+
+    def _request_profile(self) -> dict[str, Any]:
+        return {
+            "method": "POST",
+            "endpoint": JINA_READER_URL,
+            "respond_with": "default content pipeline",
+            "no_cache": True,
+            "token_budget": self.token_budget,
+            "timeout": "case timeout, at most 180 s",
+        }
+
+    def _execute(self, client: httpx.Client, inputs: BenchmarkInput, api_key: str) -> _ProviderResult:
+        assert isinstance(inputs, ExtractInput)
+        response = client.post(
+            JINA_READER_URL,
+            headers={"Authorization": f"Bearer {api_key}", "Accept": "application/json"},
+            json={
+                "url": inputs.url,
+                "noCache": True,
+                "tokenBudget": self.token_budget,
+                "timeout": max(1, min(round(inputs.timeout_seconds), 180)),
+            },
+        )
+        payload = _response_object(response, self.system, api_key)
+        data = _object(payload.get("data"))
+        content = str(data.get("content") or "")
+        records = (
+            [
+                ArtifactRecord(
+                    url=str(data.get("url") or inputs.url),
+                    title=str(data.get("title") or ""),
+                    content=content,
+                    metadata={"provider": self.system},
+                )
+            ]
+            if content.strip()
+            else []
+        )
+        usage = _object(data.get("usage")) or _object(_object(payload.get("meta")).get("usage"))
+        tokens = _optional_number(usage.get("tokens"))
+        return _ProviderResult(
+            payload=ContentPayload(records=records, selected_urls=[record.url for record in records]),
+            cost_usd=(tokens * self.pricing.price("jina", "token").usd)
+            if tokens is not None
+            else self.estimate_case_cost(inputs),
+            cost_kind="upper_bound",
+            cost_basis=f"{self.pricing_snapshot}: Jina output tokens at the Standard top-up rate.",
+            usage={"tokens": tokens, "upstream_status": _optional_number(data.get("httpStatus"))},
+        )
+
+
+class BrightDataUnlockerAdapter(HostedAdapter):
+    """Bright Data Web Unlocker REST API returning Markdown."""
+
+    system = "brightdata"
+    version = "unlocker-markdown-v1"
+    api_key_env = "BRIGHTDATA_API_KEY"
+    zone_env = "BRIGHTDATA_ZONE"
+    capabilities = frozenset({Lane.EXTRACT})
+    operation_by_lane = {Lane.EXTRACT: "unlocker"}
+    country = "us"
+
+    def _request_profile(self) -> dict[str, Any]:
+        return {
+            "method": "POST",
+            "endpoint": BRIGHTDATA_REQUEST_URL,
+            "zone": f"from {self.zone_env}",
+            "format": "raw",
+            "data_format": "markdown",
+            "country": self.country,
+        }
+
+    def _execute(self, client: httpx.Client, inputs: BenchmarkInput, api_key: str) -> _ProviderResult:
+        assert isinstance(inputs, ExtractInput)
+        zone = _require_api_key(self.zone_env, None)
+        response = client.post(
+            BRIGHTDATA_REQUEST_URL,
+            headers={"Authorization": f"Bearer {api_key}"},
+            json={
+                "zone": zone,
+                "url": inputs.url,
+                "format": "raw",
+                "data_format": "markdown",
+                "country": self.country,
+            },
+        )
+        if response.is_error:
+            # Bright Data reports unlock failures in x-brd-error rather than a JSON body.
+            reason = scrub_secrets(
+                response.headers.get("x-brd-error", ""), limit=200, extra_secrets=(api_key,)
+            )
+            raise AdapterError(
+                f"{self.system} returned HTTP {response.status_code}" + (f"; {reason}" if reason else "")
+            )
+        if len(response.content) > MAX_RESPONSE_BYTES:
+            raise AdapterError(f"{self.system} response exceeds {MAX_RESPONSE_BYTES} bytes")
+        content = response.text
+        records = (
+            [ArtifactRecord(url=inputs.url, content=content, metadata={"provider": self.system})]
+            if content.strip()
+            else []
+        )
+        return _ProviderResult(
+            payload=ContentPayload(records=records, selected_urls=[record.url for record in records]),
+            cost_usd=self.estimate_case_cost(inputs),
+            cost_kind="upper_bound",
+            cost_basis=f"{self.pricing_snapshot}: Bright Data Web Unlocker pay-as-you-go rate.",
         )
 
 
