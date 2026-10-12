@@ -37,6 +37,7 @@ PUBLIC_CLI_COMMANDS: tuple[CliCommand, ...] = (
     CliCommand("render", "Render one public URL or check optional browser backends"),
     CliCommand("search", "Search the web through self-hosted SearXNG, Marginalia, or a discovery index"),
     CliCommand("index", "Build, download, and list offline discovery index shards"),
+    CliCommand("registry", "Export shareable pack recipes and verify installed ones"),
     CliCommand("openapi-pack", "Build a local v3 pack from an OpenAPI spec"),
     CliCommand("feed-pack", "Build a local v3 pack from an RSS, Atom, JSON Feed, or feed page"),
     CliCommand("paper-pack", "Build a local v3 pack from papers and scholarly metadata"),
