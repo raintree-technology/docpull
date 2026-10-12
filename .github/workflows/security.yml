@@ -72,12 +72,11 @@ jobs:
       - name: Run Python security regression tests
         run: uv run --locked python -m pytest -q tests/test_security_hardening.py tests/test_discovery.py tests/test_integration.py
 
+  # Audits the JavaScript workspace. The job keeps its original name because the
+  # main ruleset requires the mcp-security check.
   mcp-security:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
-    defaults:
-      run:
-        working-directory: mcp
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
@@ -89,14 +88,8 @@ jobs:
           version: 2026.7.1
           install: true
           cache: true
-      - name: Install MCP dependencies
+      - name: Install JavaScript dependencies
         run: mise run setup
 
-      - name: Audit MCP dependencies
+      - name: Audit JavaScript dependencies
         run: bun audit
-
-      - name: Run MCP tests
-        run: bun test
-
-      - name: Typecheck MCP
-        run: bun run typecheck

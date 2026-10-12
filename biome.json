@@ -3,7 +3,6 @@
   "root": true,
   "files": {
     "includes": [
-      "mcp/src/**/*.ts",
       "sdk/js/src/**/*.ts",
       "!**/node_modules",
       "!**/dist"

@@ -251,13 +251,11 @@ def _run_command_gates(
             "required",
         ),
     ]
-    if (repo / "mcp" / "package.json").exists():
+    if (repo / "package.json").exists():
         commands.extend(
             [
-                ("mcp_bun_install", ["bun", "install", "--frozen-lockfile"], repo / "mcp", 300, "supporting"),
-                ("mcp_bun_audit", ["bun", "audit"], repo / "mcp", 180, "required"),
-                ("mcp_bun_test", ["bun", "test"], repo / "mcp", 240, "required"),
-                ("mcp_typecheck", ["bun", "run", "typecheck"], repo / "mcp", 240, "required"),
+                ("js_bun_install", ["bun", "install", "--frozen-lockfile"], repo, 300, "supporting"),
+                ("js_bun_audit", ["bun", "audit"], repo, 180, "required"),
             ]
         )
 
@@ -588,8 +586,8 @@ def _planned_command_names(repo: Path) -> list[str]:
         "twine_check",
         "gitleaks",
     ]
-    if (repo / "mcp" / "package.json").exists():
-        names.extend(["mcp_bun_install", "mcp_bun_audit", "mcp_bun_test", "mcp_typecheck"])
+    if (repo / "package.json").exists():
+        names.extend(["js_bun_install", "js_bun_audit"])
     return names
 
 

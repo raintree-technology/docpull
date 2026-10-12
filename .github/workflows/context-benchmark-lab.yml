@@ -86,8 +86,6 @@ jobs:
           python -m ruff format --check .
           python -m mypy src
           python -m pytest -q
-          bun run --cwd mcp typecheck
-          bun run --cwd mcp test
           python scripts/build_release.py --verify-reproducible
 
       - name: Upload portable controlled reports
