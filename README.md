@@ -152,6 +152,9 @@ release cycle.
 See the [Raintree open-source portfolio](https://raintree.technology/portfolio#open-source)
 for current lifecycle and distribution links.
 
+Raintree also builds [BetterOff](https://betteroff.finance), which keeps a household's
+spending, investments, assets, debts, and net worth in one current record.
+
 ## Project policies
 
 [Contributing](CONTRIBUTING.md) · [Code of Conduct](CODE_OF_CONDUCT.md) · [Security](SECURITY.md) ·
