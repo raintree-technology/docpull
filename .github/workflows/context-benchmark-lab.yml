@@ -74,7 +74,7 @@ jobs:
 
       - name: Install root validation dependencies
         run: |
-          npm install --global bun@1.3.11
+          npm install --global bun@1.4.3
           bun install --frozen-lockfile
           python -m pip install --upgrade pip
           python -m pip install -e ".[all,dev]" -r requirements-release.txt
