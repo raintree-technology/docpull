@@ -39,14 +39,14 @@ cases:
     - documentation
     - python
     - path-filter
-    reference_checked_at: '2026-07-14'
+    reference_checked_at: '2026-10-22'
     rights:
       redistribution: allowed_with_conditions
       source: https://docs.python.org/3/license.html
       notes: Publish scores and hashes only; do not commit fetched bodies.
     product_area: legacy-v1-migrated
     critical: false
-    reference_expires_at: '2026-10-12'
+    reference_expires_at: '2027-01-20'
 - id: crawl.sqlite-language
   input:
     case_id: crawl.sqlite-language
@@ -61,7 +61,7 @@ cases:
     minimum_records: 5
     minimum_content_chars: 20000
     required_terms:
-    - Query Language Understood by SQLite
+    - SQL As Understood By SQLite
     - Built-in Aggregate Functions
     - ALTER TABLE
     required_urls:
@@ -81,7 +81,7 @@ cases:
     - documentation
     - sql
     - path-filter
-    reference_checked_at: '2026-07-14'
+    reference_checked_at: '2026-10-22'
     rights:
       redistribution: allowed
       source: https://www.sqlite.org/copyright.html
@@ -89,7 +89,7 @@ cases:
         content-free.
     product_area: legacy-v1-migrated
     critical: false
-    reference_expires_at: '2026-10-12'
+    reference_expires_at: '2027-01-20'
 - id: crawl.mdn-http
   input:
     case_id: crawl.mdn-http
@@ -124,14 +124,14 @@ cases:
     - documentation
     - http
     - path-filter
-    reference_checked_at: '2026-07-14'
+    reference_checked_at: '2026-10-22'
     rights:
       redistribution: allowed_with_conditions
       source: https://developer.mozilla.org/en-US/docs/MDN/Writing_guidelines/Attrib_copyright_license
       notes: Publish scores and hashes only; do not commit fetched bodies.
     product_area: legacy-v1-migrated
     critical: false
-    reference_expires_at: '2026-10-12'
+    reference_expires_at: '2027-01-20'
 - id: crawl.docker-get-started
   input:
     case_id: crawl.docker-get-started
@@ -146,11 +146,11 @@ cases:
     minimum_records: 5
     minimum_content_chars: 20000
     required_terms:
-    - Get Docker Desktop
+    - Docker Desktop for Linux
     - Writing a Dockerfile
     - Publishing and exposing ports
     required_urls:
-    - https://docs.docker.com/get-started/introduction/get-docker-desktop/
+    - https://docs.docker.com/get-started/get-docker/
     - https://docs.docker.com/get-started/docker-concepts/building-images/writing-a-dockerfile/
     - https://docs.docker.com/get-started/docker-concepts/running-containers/publishing-ports/
     allowed_domains:
@@ -166,14 +166,14 @@ cases:
     - documentation
     - containers
     - path-filter
-    reference_checked_at: '2026-07-14'
+    reference_checked_at: '2026-10-22'
     rights:
       redistribution: unknown
       source: https://www.docker.com/legal/docker-terms-service/
       notes: Rights not asserted; publication contains no fetched bodies.
     product_area: legacy-v1-migrated
     critical: false
-    reference_expires_at: '2026-10-12'
+    reference_expires_at: '2027-01-20'
 - id: crawl.go-docs
   input:
     case_id: crawl.go-docs
@@ -209,14 +209,14 @@ cases:
     - documentation
     - go
     - path-filter
-    reference_checked_at: '2026-07-14'
+    reference_checked_at: '2026-10-22'
     rights:
       redistribution: allowed_with_conditions
       source: https://go.dev/LICENSE
       notes: Publish scores and hashes only; do not commit fetched bodies.
     product_area: legacy-v1-migrated
     critical: false
-    reference_expires_at: '2026-10-12'
+    reference_expires_at: '2027-01-20'
 - id: crawl.rust-book
   input:
     case_id: crawl.rust-book
@@ -251,14 +251,14 @@ cases:
     - documentation
     - rust
     - path-filter
-    reference_checked_at: '2026-07-14'
+    reference_checked_at: '2026-10-22'
     rights:
       redistribution: allowed_with_conditions
       source: https://github.com/rust-lang/book
       notes: Publish scores and hashes only; do not commit fetched bodies.
     product_area: legacy-v1-migrated
     critical: false
-    reference_expires_at: '2026-10-12'
+    reference_expires_at: '2027-01-20'
 - id: crawl.fastapi-tutorial
   input:
     case_id: crawl.fastapi-tutorial
@@ -293,14 +293,14 @@ cases:
     - documentation
     - python
     - path-filter
-    reference_checked_at: '2026-07-14'
+    reference_checked_at: '2026-10-22'
     rights:
       redistribution: allowed_with_conditions
       source: https://github.com/fastapi/fastapi
       notes: Publish scores and hashes only; do not commit fetched bodies.
     product_area: legacy-v1-migrated
     critical: false
-    reference_expires_at: '2026-10-12'
+    reference_expires_at: '2027-01-20'
 - id: crawl.kubernetes-concepts
   input:
     case_id: crawl.kubernetes-concepts
@@ -335,7 +335,7 @@ cases:
     - documentation
     - kubernetes
     - path-filter
-    reference_checked_at: '2026-07-14'
+    reference_checked_at: '2026-10-22'
     rights:
       redistribution: allowed_with_conditions
       source: https://kubernetes.io/docs/contribute/style/content-guide/#content-best-practices
@@ -343,4 +343,4 @@ cases:
         content-free.
     product_area: legacy-v1-migrated
     critical: false
-    reference_expires_at: '2026-10-12'
+    reference_expires_at: '2027-01-20'

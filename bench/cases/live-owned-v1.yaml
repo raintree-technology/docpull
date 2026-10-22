@@ -15,7 +15,7 @@ cases:
     minimum_records: 1
     minimum_content_chars: 5000
     required_terms:
-    - Context dependencies for AI agents
+    - Install and sync your first source
     - docpull init
     - MCP Server
     required_urls:
@@ -38,5 +38,5 @@ cases:
     family: live
     product_area: legacy-v1-migrated
     critical: false
-    reference_checked_at: '2026-07-14'
-    reference_expires_at: '2026-10-12'
+    reference_checked_at: '2026-10-22'
+    reference_expires_at: '2027-01-20'
