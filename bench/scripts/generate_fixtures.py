@@ -954,7 +954,13 @@ def _write_live_search_suite() -> None:
             "https://chromereleases.googleblog.com/",
             "Stable Channel",
         ),
-        ("freshness", "latest OpenSSL news", "openssl-library.org", "https://openssl-library.org/news/", "News"),
+        (
+            "freshness",
+            "latest OpenSSL news",
+            "openssl-library.org",
+            "https://openssl-library.org/news/",
+            "News",
+        ),
     ]
     cases = []
     for index, (family, query, domain, url, identifier) in enumerate(entries, 1):
