@@ -769,7 +769,7 @@ def _write_live_search_suite() -> None:
             "technical",
             "Kubernetes liveness readiness startup probes",
             "kubernetes.io",
-            "https://kubernetes.io/docs/concepts/configuration/liveness-readiness-startup-probes/",
+            "https://kubernetes.io/docs/concepts/workloads/pods/probes/",
             "startupProbe",
         ),
         (
@@ -839,14 +839,14 @@ def _write_live_search_suite() -> None:
             "security",
             "NVD CVE-2021-44228",
             "nvd.nist.gov",
-            "https://nvd.nist.gov/vuln/detail/CVE-2021-44228",
+            "https://nvd.nist.gov/vuln/detail/cve-2021-44228",
             "CVE-2021-44228",
         ),
         (
             "security",
             "NVD CVE-2024-3094",
             "nvd.nist.gov",
-            "https://nvd.nist.gov/vuln/detail/CVE-2024-3094",
+            "https://nvd.nist.gov/vuln/detail/cve-2024-3094",
             "CVE-2024-3094",
         ),
         (
@@ -916,7 +916,7 @@ def _write_live_search_suite() -> None:
             "product",
             "Terraform provider configuration",
             "developer.hashicorp.com",
-            "https://developer.hashicorp.com/terraform/language/providers/configuration",
+            "https://developer.hashicorp.com/terraform/language/block/provider",
             "required_providers",
         ),
         (
@@ -954,7 +954,7 @@ def _write_live_search_suite() -> None:
             "https://chromereleases.googleblog.com/",
             "Stable Channel",
         ),
-        ("freshness", "latest OpenSSL news", "www.openssl.org", "https://www.openssl.org/news/", "News"),
+        ("freshness", "latest OpenSSL news", "openssl-library.org", "https://openssl-library.org/news/", "News"),
     ]
     cases = []
     for index, (family, query, domain, url, identifier) in enumerate(entries, 1):
@@ -983,8 +983,8 @@ def _write_live_search_suite() -> None:
                     "critical": False,
                     "live": True,
                     "tags": ["manual", "live", family],
-                    "reference_checked_at": "2026-07-14",
-                    "reference_expires_at": "2026-10-12",
+                    "reference_checked_at": "2026-10-22",
+                    "reference_expires_at": "2027-01-20",
                     "rights": {
                         "redistribution": "unknown",
                         "source": "Manual reference URL; content is never redistributed.",

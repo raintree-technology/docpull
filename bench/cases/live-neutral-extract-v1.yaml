@@ -4,7 +4,7 @@ version: 1.0.0
 description: Neutral fixed-URL extraction benchmark spanning technical documentation,
   standards, raw text, long-form pages, PDFs, modern web pages, and one explicitly
   separated managed-access challenge. Gold terms were manually checked against first-party
-  sources on 2026-07-14. Dev and test domains do not overlap.
+  sources on 2026-10-22. Dev and test domains do not overlap.
 cases:
 - id: dev.docs.python-control-flow
   input:
@@ -35,13 +35,13 @@ cases:
     - html
     - sphinx
     - code
-    reference_checked_at: '2026-07-14'
+    reference_checked_at: '2026-10-22'
     rights:
       redistribution: allowed_with_conditions
       source: Python documentation under the PSF License Agreement.
     product_area: legacy-v1-migrated
     critical: false
-    reference_expires_at: '2026-10-12'
+    reference_expires_at: '2027-01-20'
 - id: dev.docs.sqlite-select
   input:
     case_id: dev.docs.sqlite-select
@@ -71,13 +71,13 @@ cases:
     - html
     - long
     - diagrams
-    reference_checked_at: '2026-07-14'
+    reference_checked_at: '2026-10-22'
     rights:
       redistribution: allowed
       source: SQLite documentation dedicated to the public domain.
     product_area: legacy-v1-migrated
     critical: false
-    reference_expires_at: '2026-10-12'
+    reference_expires_at: '2027-01-20'
 - id: dev.docs.git-rebase
   input:
     case_id: dev.docs.git-rebase
@@ -107,14 +107,14 @@ cases:
     - html
     - manual
     - code
-    reference_checked_at: '2026-07-14'
+    reference_checked_at: '2026-10-22'
     rights:
       redistribution: unknown
       source: Git project documentation; benchmark reports do not redistribute page
         content.
     product_area: legacy-v1-migrated
     critical: false
-    reference_expires_at: '2026-10-12'
+    reference_expires_at: '2027-01-20'
 - id: dev.docs.kubernetes-object-names
   input:
     case_id: dev.docs.kubernetes-object-names
@@ -144,13 +144,13 @@ cases:
     - html
     - hugo
     - callouts
-    reference_checked_at: '2026-07-14'
+    reference_checked_at: '2026-10-22'
     rights:
       redistribution: allowed_with_conditions
       source: Kubernetes website content under CC BY 4.0.
     product_area: legacy-v1-migrated
     critical: false
-    reference_expires_at: '2026-10-12'
+    reference_expires_at: '2027-01-20'
 - id: dev.docs.mdn-using-fetch
   input:
     case_id: dev.docs.mdn-using-fetch
@@ -180,13 +180,13 @@ cases:
     - html
     - reference
     - code
-    reference_checked_at: '2026-07-14'
+    reference_checked_at: '2026-10-22'
     rights:
       redistribution: allowed_with_conditions
       source: MDN content under CC BY-SA 2.5 or later terms noted by MDN.
     product_area: legacy-v1-migrated
     critical: false
-    reference_expires_at: '2026-10-12'
+    reference_expires_at: '2027-01-20'
 - id: dev.standard.wcag-22
   input:
     case_id: dev.standard.wcag-22
@@ -218,13 +218,13 @@ cases:
     - html
     - standard
     - long
-    reference_checked_at: '2026-07-14'
+    reference_checked_at: '2026-10-22'
     rights:
       redistribution: allowed_with_conditions
       source: W3C document governed by the W3C Document License.
     product_area: legacy-v1-migrated
     critical: false
-    reference_expires_at: '2026-10-12'
+    reference_expires_at: '2027-01-20'
 - id: dev.standard.rfc9110-html
   input:
     case_id: dev.standard.rfc9110-html
@@ -254,13 +254,13 @@ cases:
     - html
     - rfc
     - long
-    reference_checked_at: '2026-07-14'
+    reference_checked_at: '2026-10-22'
     rights:
       redistribution: allowed_with_conditions
       source: IETF Trust Legal Provisions apply to RFC 9110.
     product_area: legacy-v1-migrated
     critical: false
-    reference_expires_at: '2026-10-12'
+    reference_expires_at: '2027-01-20'
 - id: dev.raw.cpython-readme
   input:
     case_id: dev.raw.cpython-readme
@@ -290,13 +290,13 @@ cases:
     - text
     - rst
     - immutable
-    reference_checked_at: '2026-07-14'
+    reference_checked_at: '2026-10-22'
     rights:
       redistribution: allowed_with_conditions
       source: CPython source under the PSF License Agreement.
     product_area: legacy-v1-migrated
     critical: false
-    reference_expires_at: '2026-10-12'
+    reference_expires_at: '2027-01-20'
 - id: dev.raw.kubernetes-readme
   input:
     case_id: dev.raw.kubernetes-readme
@@ -326,13 +326,13 @@ cases:
     - text
     - markdown
     - immutable
-    reference_checked_at: '2026-07-14'
+    reference_checked_at: '2026-10-22'
     rights:
       redistribution: allowed
       source: Kubernetes source under Apache License 2.0.
     product_area: legacy-v1-migrated
     critical: false
-    reference_expires_at: '2026-10-12'
+    reference_expires_at: '2027-01-20'
 - id: dev.long.wikipedia-grace-hopper
   input:
     case_id: dev.long.wikipedia-grace-hopper
@@ -365,13 +365,13 @@ cases:
     - html
     - article
     - infobox
-    reference_checked_at: '2026-07-14'
+    reference_checked_at: '2026-10-22'
     rights:
       redistribution: allowed_with_conditions
       source: Wikipedia text under CC BY-SA 4.0 and GFDL terms.
     product_area: legacy-v1-migrated
     critical: false
-    reference_expires_at: '2026-10-12'
+    reference_expires_at: '2027-01-20'
 - id: dev.research.attention-abstract
   input:
     case_id: dev.research.attention-abstract
@@ -401,13 +401,13 @@ cases:
     - html
     - paper
     - metadata
-    reference_checked_at: '2026-07-14'
+    reference_checked_at: '2026-10-22'
     rights:
       redistribution: unknown
       source: arXiv abstract page; reports contain only scores, hashes, and lengths.
     product_area: legacy-v1-migrated
     critical: false
-    reference_expires_at: '2026-10-12'
+    reference_expires_at: '2027-01-20'
 - id: dev.pdf.attention-paper
   input:
     case_id: dev.pdf.attention-paper
@@ -437,13 +437,13 @@ cases:
     - pdf
     - paper
     - multicolumn
-    reference_checked_at: '2026-07-14'
+    reference_checked_at: '2026-10-22'
     rights:
       redistribution: unknown
       source: arXiv-hosted paper; reports contain only scores, hashes, and lengths.
     product_area: legacy-v1-migrated
     critical: false
-    reference_expires_at: '2026-10-12'
+    reference_expires_at: '2027-01-20'
 - id: dev.modern.nextjs-installation
   input:
     case_id: dev.modern.nextjs-installation
@@ -474,13 +474,13 @@ cases:
     - html
     - nextjs
     - modern
-    reference_checked_at: '2026-07-14'
+    reference_checked_at: '2026-10-22'
     rights:
       redistribution: allowed
       source: Next.js documentation source in the MIT-licensed Next.js repository.
     product_area: legacy-v1-migrated
     critical: false
-    reference_expires_at: '2026-10-12'
+    reference_expires_at: '2027-01-20'
 - id: dev.access.pypi-pydantic
   input:
     case_id: dev.access.pypi-pydantic
@@ -516,13 +516,13 @@ cases:
     - html
     - bot-challenge
     - javascript
-    reference_checked_at: '2026-07-14'
+    reference_checked_at: '2026-10-22'
     rights:
       redistribution: unknown
       source: Public PyPI package metadata; reports do not redistribute page content.
     product_area: legacy-v1-migrated
     critical: false
-    reference_expires_at: '2026-10-12'
+    reference_expires_at: '2027-01-20'
 - id: dev.raw.openapi-petstore
   input:
     case_id: dev.raw.openapi-petstore
@@ -553,13 +553,13 @@ cases:
     - yaml
     - openapi
     - immutable
-    reference_checked_at: '2026-07-14'
+    reference_checked_at: '2026-10-22'
     rights:
       redistribution: allowed
       source: OpenAPI Specification repository under Apache License 2.0.
     product_area: legacy-v1-migrated
     critical: false
-    reference_expires_at: '2026-10-12'
+    reference_expires_at: '2027-01-20'
 - id: dev.raw.rfc8259-text
   input:
     case_id: dev.raw.rfc8259-text
@@ -589,13 +589,13 @@ cases:
     - text
     - rfc
     - pagination
-    reference_checked_at: '2026-07-14'
+    reference_checked_at: '2026-10-22'
     rights:
       redistribution: allowed_with_conditions
       source: IETF Trust Legal Provisions apply to RFC 8259.
     product_area: legacy-v1-migrated
     critical: false
-    reference_expires_at: '2026-10-12'
+    reference_expires_at: '2027-01-20'
 - id: test.docs.django-tutorial
   input:
     case_id: test.docs.django-tutorial
@@ -625,13 +625,13 @@ cases:
     - html
     - sphinx
     - code
-    reference_checked_at: '2026-07-14'
+    reference_checked_at: '2026-10-22'
     rights:
       redistribution: allowed
       source: Django documentation under the BSD 3-Clause License.
     product_area: legacy-v1-migrated
     critical: false
-    reference_expires_at: '2026-10-12'
+    reference_expires_at: '2027-01-20'
 - id: test.docs.go-spec
   input:
     case_id: test.docs.go-spec
@@ -661,13 +661,13 @@ cases:
     - html
     - specification
     - code
-    reference_checked_at: '2026-07-14'
+    reference_checked_at: '2026-10-22'
     rights:
       redistribution: allowed
       source: Go documentation under the BSD 3-Clause License.
     product_area: legacy-v1-migrated
     critical: false
-    reference_expires_at: '2026-10-12'
+    reference_expires_at: '2027-01-20'
 - id: test.docs.node-filesystem
   input:
     case_id: test.docs.node-filesystem
@@ -699,13 +699,13 @@ cases:
     - html
     - api-reference
     - long
-    reference_checked_at: '2026-07-14'
+    reference_checked_at: '2026-10-22'
     rights:
       redistribution: allowed
       source: Node.js documentation in the MIT-licensed Node.js repository.
     product_area: legacy-v1-migrated
     critical: false
-    reference_expires_at: '2026-10-12'
+    reference_expires_at: '2027-01-20'
 - id: test.docs.postgresql-tutorial
   input:
     case_id: test.docs.postgresql-tutorial
@@ -735,13 +735,13 @@ cases:
     - html
     - database
     - tutorial
-    reference_checked_at: '2026-07-14'
+    reference_checked_at: '2026-10-22'
     rights:
       redistribution: allowed
       source: PostgreSQL documentation under the PostgreSQL License.
     product_area: legacy-v1-migrated
     critical: false
-    reference_expires_at: '2026-10-12'
+    reference_expires_at: '2027-01-20'
 - id: test.docs.rust-ownership
   input:
     case_id: test.docs.rust-ownership
@@ -771,13 +771,13 @@ cases:
     - html
     - mdbook
     - code
-    reference_checked_at: '2026-07-14'
+    reference_checked_at: '2026-10-22'
     rights:
       redistribution: allowed
       source: The Rust Programming Language under MIT or Apache 2.0.
     product_area: legacy-v1-migrated
     critical: false
-    reference_expires_at: '2026-10-12'
+    reference_expires_at: '2027-01-20'
 - id: test.docs.docker-overview
   input:
     case_id: test.docs.docker-overview
@@ -808,13 +808,13 @@ cases:
     - html
     - modern
     - navigation
-    reference_checked_at: '2026-07-14'
+    reference_checked_at: '2026-10-22'
     rights:
       redistribution: allowed_with_conditions
       source: Docker documentation source under Apache License 2.0 where indicated.
     product_area: legacy-v1-migrated
     critical: false
-    reference_expires_at: '2026-10-12'
+    reference_expires_at: '2027-01-20'
 - id: test.standard.json-schema-core
   input:
     case_id: test.standard.json-schema-core
@@ -844,13 +844,13 @@ cases:
     - html
     - specification
     - long
-    reference_checked_at: '2026-07-14'
+    reference_checked_at: '2026-10-22'
     rights:
       redistribution: unknown
       source: JSON Schema specification; reports contain no source body.
     product_area: legacy-v1-migrated
     critical: false
-    reference_expires_at: '2026-10-12'
+    reference_expires_at: '2027-01-20'
 - id: test.standard.openapi-310
   input:
     case_id: test.standard.openapi-310
@@ -880,13 +880,13 @@ cases:
     - html
     - specification
     - tables
-    reference_checked_at: '2026-07-14'
+    reference_checked_at: '2026-10-22'
     rights:
       redistribution: allowed
       source: OpenAPI Specification under Apache License 2.0.
     product_area: legacy-v1-migrated
     critical: false
-    reference_expires_at: '2026-10-12'
+    reference_expires_at: '2027-01-20'
 - id: test.standard.ecmascript-lexical
   input:
     case_id: test.standard.ecmascript-lexical
@@ -917,13 +917,13 @@ cases:
     - html
     - specification
     - grammar
-    reference_checked_at: '2026-07-14'
+    reference_checked_at: '2026-10-22'
     rights:
       redistribution: allowed_with_conditions
       source: ECMA-262 governed by the Ecma copyright and software notice.
     product_area: legacy-v1-migrated
     critical: false
-    reference_expires_at: '2026-10-12'
+    reference_expires_at: '2027-01-20'
 - id: test.docs.serde
   input:
     case_id: test.docs.serde
@@ -953,13 +953,13 @@ cases:
     - html
     - rustdoc
     - api-reference
-    reference_checked_at: '2026-07-14'
+    reference_checked_at: '2026-10-22'
     rights:
       redistribution: allowed
       source: Serde documentation under MIT or Apache 2.0.
     product_area: legacy-v1-migrated
     critical: false
-    reference_expires_at: '2026-10-12'
+    reference_expires_at: '2027-01-20'
 - id: test.docs.numpy-beginners
   input:
     case_id: test.docs.numpy-beginners
@@ -989,13 +989,13 @@ cases:
     - html
     - sphinx
     - scientific
-    reference_checked_at: '2026-07-14'
+    reference_checked_at: '2026-10-22'
     rights:
       redistribution: allowed
       source: NumPy documentation under the BSD 3-Clause License.
     product_area: legacy-v1-migrated
     critical: false
-    reference_expires_at: '2026-10-12'
+    reference_expires_at: '2027-01-20'
 - id: test.docs.fastapi-first-steps
   input:
     case_id: test.docs.fastapi-first-steps
@@ -1025,13 +1025,13 @@ cases:
     - html
     - mkdocs
     - code
-    reference_checked_at: '2026-07-14'
+    reference_checked_at: '2026-10-22'
     rights:
       redistribution: allowed
       source: FastAPI documentation under the MIT License.
     product_area: legacy-v1-migrated
     critical: false
-    reference_expires_at: '2026-10-12'
+    reference_expires_at: '2027-01-20'
 - id: test.docs.ruff-tutorial
   input:
     case_id: test.docs.ruff-tutorial
@@ -1061,13 +1061,13 @@ cases:
     - html
     - mkdocs
     - code
-    reference_checked_at: '2026-07-14'
+    reference_checked_at: '2026-10-22'
     rights:
       redistribution: allowed
       source: Ruff documentation under the MIT License.
     product_area: legacy-v1-migrated
     critical: false
-    reference_expires_at: '2026-10-12'
+    reference_expires_at: '2027-01-20'
 - id: test.docs.nginx-beginners
   input:
     case_id: test.docs.nginx-beginners
@@ -1097,13 +1097,13 @@ cases:
     - html
     - guide
     - code
-    reference_checked_at: '2026-07-14'
+    reference_checked_at: '2026-10-22'
     rights:
       redistribution: unknown
       source: nginx.org documentation; reports contain no source body.
     product_area: legacy-v1-migrated
     critical: false
-    reference_expires_at: '2026-10-12'
+    reference_expires_at: '2027-01-20'
 - id: test.docs.curl-manpage
   input:
     case_id: test.docs.curl-manpage
@@ -1133,13 +1133,13 @@ cases:
     - html
     - manual
     - long
-    reference_checked_at: '2026-07-14'
+    reference_checked_at: '2026-10-22'
     rights:
       redistribution: allowed
       source: curl documentation under the curl license.
     product_area: legacy-v1-migrated
     critical: false
-    reference_expires_at: '2026-10-12'
+    reference_expires_at: '2027-01-20'
 - id: test.pdf.ray-paper
   input:
     case_id: test.pdf.ray-paper
@@ -1169,11 +1169,11 @@ cases:
     - pdf
     - paper
     - multicolumn
-    reference_checked_at: '2026-07-14'
+    reference_checked_at: '2026-10-22'
     rights:
       redistribution: unknown
       source: USENIX-hosted proceedings paper; reports contain only scores, hashes,
         and lengths.
     product_area: legacy-v1-migrated
     critical: false
-    reference_expires_at: '2026-10-12'
+    reference_expires_at: '2027-01-20'
