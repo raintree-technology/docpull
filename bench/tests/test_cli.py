@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import argparse
+from datetime import date
 from pathlib import Path
 
 import pytest
 
-from docpull_bench import cli
+from docpull_bench import cli, runner
 from docpull_bench.models import BenchmarkSuite, Lane
 
 
@@ -37,7 +38,18 @@ def test_context_alias_selects_all_supported_context_contract_lanes(
     assert args.network_isolation == "enforced"
 
 
-def test_claim_grade_validation_retains_external_holdout_sample_gate() -> None:
+def test_claim_grade_validation_retains_external_holdout_sample_gate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Pin "today" to the suite's reference check date so expiring live gold
+    # cannot mask the sample-size gate this test covers.
+    class _CheckedDay(date):
+        @classmethod
+        def today(cls) -> date:
+            return date(2026, 7, 14)
+
+    monkeypatch.setattr(cli, "date", _CheckedDay)
+    monkeypatch.setattr(runner, "date", _CheckedDay)
     with pytest.raises(ValueError, match="too few cases"):
         cli._validate_suite(
             Path("bench/cases/live-neutral-extract-v1.yaml"),
