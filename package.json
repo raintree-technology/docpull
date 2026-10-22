@@ -1,7 +1,7 @@
 {
   "name": "docpull",
   "private": true,
-  "packageManager": "bun@1.4.3",
+  "packageManager": "bun@1.4.4",
   "scripts": {
     "build": "uv run --locked --with-requirements requirements-release.txt python scripts/build_release.py --verify-reproducible --clean",
     "test": "uv run --locked --all-extras python -m pytest -q && bun run --cwd sdk/js test",
