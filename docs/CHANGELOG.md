@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.8.0] - 2026-10-22
+
+### Removed
+
+- Drop Python 3.10 support. Python 3.10 reaches end of life in October 2026,
+  and the patched Pillow 13 release requires Python 3.11 or newer. DocPull
+  6.6.0 is the last release on PyPI that installs on Python 3.10.
+
 ### Security
 
 - Raise the `mcp` floor to 1.30.0 and the `pypdf` floor to 6.21.1 for their
@@ -39,6 +47,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ||||||| 21d8640
 
 ## [6.7.0] - 2026-10-22
+
+6.7.0 was published to npm only (`@raintree-technology/docpull-sdk`). Its PyPI
+release gate stopped on dependency advisories, so the Python package, MCP
+registry entry, and GitHub release ship with 6.8.0, which includes every 6.7.0
+change below.
 
 ### Added
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import re
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 DEFAULT_MAX_AGE_HOURS = 168
@@ -16,7 +16,7 @@ def parse_timestamp(text: str) -> datetime:
     match = TIMESTAMP_RE.search(text)
     if match is None:
         raise ValueError("Could not find a METRICS.md '_Last updated:' UTC timestamp.")
-    return datetime.strptime(match.group("timestamp"), "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc)
+    return datetime.strptime(match.group("timestamp"), "%Y-%m-%d %H:%M").replace(tzinfo=UTC)
 
 
 def max_age_from_env() -> timedelta:
@@ -40,7 +40,7 @@ def main() -> int:
         print(f"metrics freshness check failed: {err}", file=sys.stderr)
         return 1
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     age = now - timestamp
 
     if age < timedelta(minutes=-5):

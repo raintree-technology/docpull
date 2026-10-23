@@ -7,10 +7,10 @@ dependency set. The Python SDK, CLI, and core Python support range remain intact
 ## Optional parser support
 
 The Unstructured backend requires Python 3.11–3.13 and Unstructured 0.24.1 or
-newer. Its patched release excludes Python 3.10 and Python 3.14. On those
-interpreters, the `unstructured`, `parse`, and `all` extras omit Unstructured
-instead of resolving an older vulnerable release. An explicit request for that
-backend fails with a diagnostic before importing it. Use pypdf, MarkItDown, or
+newer. Its patched release excludes Python 3.14. On that interpreter, the
+`unstructured`, `parse`, and `all` extras omit Unstructured instead of
+resolving an older vulnerable release. An explicit request for that backend
+fails with a diagnostic before importing it. Use pypdf, MarkItDown, or
 the text backend where supported by the input format.
 
 ## Retired benchmark baseline

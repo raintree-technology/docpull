@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
 from statistics import mean
@@ -729,7 +729,7 @@ class RunManifest(StrictModel):
 
     @classmethod
     def now(cls, **kwargs: Any) -> RunManifest:
-        return cls(created_at=datetime.now(timezone.utc).isoformat(), **kwargs)
+        return cls(created_at=datetime.now(UTC).isoformat(), **kwargs)
 
 
 class RunSummary(StrictModel):

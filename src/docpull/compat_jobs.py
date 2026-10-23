@@ -12,7 +12,7 @@ import time
 import uuid
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 from .research import ResearchResult, answer_from_search
@@ -40,8 +40,8 @@ class Job:
     id: str
     kind: str
     request: dict[str, Any]
-    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-    modified_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    modified_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     status: str = "queued"
     pages: list[Page] = field(default_factory=list)
     total: int = 0
@@ -54,7 +54,7 @@ class Job:
 
     def touch(self, status: str) -> None:
         self.status = status
-        self.modified_at = datetime.now(timezone.utc)
+        self.modified_at = datetime.now(UTC)
 
     @property
     def elapsed(self) -> float:
@@ -79,7 +79,7 @@ class JobStore:
         return job if job and job.kind == kind else None
 
     def _expire(self) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         for job_id, job in list(self._jobs.items()):
             if job.done.is_set() and now - job.modified_at > JOB_TTL:
                 del self._jobs[job_id]

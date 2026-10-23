@@ -9,7 +9,7 @@ import re
 import shutil
 import subprocess
 import tempfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 from typing import Any
 
@@ -147,7 +147,7 @@ def _write_publication(
     }
     manifest = {
         "schema_version": 3,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "status": _PROVISIONAL_STATUS if provisional else _DATA_ONLY_STATUS,
         "suite_name": suite.name,
         "suite_version": suite.version,

@@ -11,7 +11,7 @@ import subprocess  # nosec B404
 import sys
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -155,7 +155,7 @@ def run_scorecard(args: argparse.Namespace) -> dict[str, Any]:
     all_a_plus = all(area["grade"] == "A+" for area in areas)
     payload = {
         "schema_version": SCORECARD_SCHEMA_VERSION,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "strict": bool(args.strict),
         "all_a_plus": all_a_plus,
         "area_count": len(areas),

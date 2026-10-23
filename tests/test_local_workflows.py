@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -15,7 +15,7 @@ from docpull.cli import main
 from docpull.local_workflows import LocalWorkflowError, audit_pack, refresh_pack
 from tests.pack_fixtures import write_context_pack
 
-AUDIT_NOW = datetime(2026, 3, 10, tzinfo=timezone.utc)
+AUDIT_NOW = datetime(2026, 3, 10, tzinfo=UTC)
 
 
 def _aged_record(suffix: str) -> dict[str, Any]:

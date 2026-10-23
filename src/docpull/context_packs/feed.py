@@ -8,7 +8,7 @@ import html
 import json
 import re
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 from functools import partial
 from pathlib import Path
@@ -847,8 +847,8 @@ def _normalize_datetime(value: str | None) -> str | None:
     if parsed is None:
         return text
     if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(timezone.utc).isoformat()
+        parsed = parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC).isoformat()
 
 
 def _parse_iso_datetime(value: Any) -> datetime | None:
@@ -862,8 +862,8 @@ def _parse_iso_datetime(value: Any) -> datetime | None:
     except ValueError:
         return None
     if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(timezone.utc)
+        parsed = parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
 
 
 def _html_to_text(value: str) -> str:

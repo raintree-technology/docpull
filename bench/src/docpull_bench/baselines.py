@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from statistics import median
 from typing import Any
@@ -20,7 +20,7 @@ def update_baseline(report_path: Path, baseline_path: Path, *, reason: str) -> d
     previous_hash = _optional_hash(baseline_path)
     payload = {
         "schema_version": 2,
-        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": datetime.now(UTC).isoformat(),
         "reason": reason.strip(),
         "previous_sha256": previous_hash,
         "source_report_sha256": file_sha256(report_path),

@@ -7,10 +7,10 @@ import re
 import shutil
 import subprocess  # nosec B404
 import sys
+import tomllib
 from pathlib import Path
 from unittest import mock
 
-import tomllib
 import yaml
 
 from docpull.mcp.sources import default_docs_dir
@@ -332,7 +332,7 @@ def test_plugin_launcher_reports_actionable_setup_when_docpull_is_missing(
     )
 
     assert proc.returncode == 127
-    assert proc.stderr == "pipx install 'docpull[mcp]==6.7.0'\n"
+    assert proc.stderr == "pipx install 'docpull[mcp]==6.8.0'\n"
 
     (tmp_path / "docpull").mkdir()
     proc = subprocess.run(  # nosec B603
@@ -345,7 +345,7 @@ def test_plugin_launcher_reports_actionable_setup_when_docpull_is_missing(
     )
 
     assert proc.returncode == 127
-    assert proc.stderr == "pipx install 'docpull[mcp]==6.7.0'\n"
+    assert proc.stderr == "pipx install 'docpull[mcp]==6.8.0'\n"
 
 
 def test_codex_plugin_default_prompt_fits_host_limit() -> None:
