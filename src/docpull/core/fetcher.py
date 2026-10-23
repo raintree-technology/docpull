@@ -365,6 +365,7 @@ class Fetcher:
             url_validator=self._url_validator,
             allow_insecure_tls=self.config.network.insecure_tls,
         )
+        self._http_client.redirect_allowed = self._robots_checker.is_allowed
         self._apply_robots_crawl_delay()
 
         output_dir = self.config.output.directory.resolve()
@@ -733,19 +734,19 @@ class Fetcher:
             message=f"Starting fetch of {self.config.url}",
         )
 
-        # Resume short-circuits both modes — the URL list is already known.
-        resume_urls = self._resume_urls()
-        if resume_urls is not None:
-            yield FetchEvent(
-                type=EventType.RESUMED,
-                total=len(resume_urls),
-                message=f"Resuming with {len(resume_urls)} pending URLs",
-            )
-            async for event in self._fetch_collected(resume_urls):
-                yield event
-            return
-
         try:
+            # Resume short-circuits both modes — the URL list is already known.
+            resume_urls = self._resume_urls()
+            if resume_urls is not None:
+                yield FetchEvent(
+                    type=EventType.RESUMED,
+                    total=len(resume_urls),
+                    message=f"Resuming with {len(resume_urls)} pending URLs",
+                )
+                async for event in self._fetch_collected(resume_urls):
+                    yield event
+                return
+
             if self.config.crawl.streaming_discovery:
                 async for event in self._run_streaming():
                     yield event
@@ -914,6 +915,7 @@ class Fetcher:
         event_queue: asyncio.Queue[FetchEvent | None] = asyncio.Queue()
 
         progress_counter = {"processed": 0, "saved": 0, "skipped": 0, "failed": 0}
+        worker_errors: list[Exception] = []
 
         async def discover_into_queue() -> None:
             discovered_for_resume: list[str] = []
@@ -963,8 +965,12 @@ class Fetcher:
         async def worker() -> None:
             while True:
                 url = await url_queue.get()
-                if url is None or self._cancelled:
+                if url is None:
                     return
+                if self._cancelled:
+                    # Keep draining so the discoverer's blocked put()s and
+                    # sentinels can finish; the URL stays pending in the frontier.
+                    continue
                 output_path = self._compute_output_path(url)
                 if self.config.dry_run:
                     await event_queue.put(
@@ -1014,7 +1020,13 @@ class Fetcher:
                 for ev in local_events:
                     await event_queue.put(ev)
 
-                self._record_result(url, output_path, ctx)
+                try:
+                    self._record_result(url, output_path, ctx)
+                except Exception as err:  # noqa: BLE001
+                    # A dead worker would leave the discoverer blocked on a full queue.
+                    worker_errors.append(err)
+                    self._cancelled = True
+                    continue
                 self._update_progress_counts(progress_counter, ctx)
                 total_so_far = self._stats.urls_discovered or progress_counter["processed"]
                 await event_queue.put(self._progress_event(url, progress_counter, total_so_far))
@@ -1023,9 +1035,11 @@ class Fetcher:
         worker_tasks = [asyncio.create_task(worker()) for _ in range(worker_count)]
 
         async def wait_for_drain() -> None:
-            await discover_task
-            await asyncio.gather(*worker_tasks, return_exceptions=True)
-            await event_queue.put(None)
+            try:
+                await discover_task
+            finally:
+                await asyncio.gather(*worker_tasks, return_exceptions=True)
+                await event_queue.put(None)
 
         drain_task = asyncio.create_task(wait_for_drain())
 
@@ -1036,11 +1050,20 @@ class Fetcher:
                     break
                 yield event
         finally:
-            await drain_task
+            try:
+                await drain_task
+            except Exception:
+                self._clear_resume_state_if_nothing_pending()
+                raise
 
+        if worker_errors:
+            self._clear_resume_state_if_nothing_pending()
+            raise worker_errors[0]
         self._stats.duration_seconds = time.monotonic() - self._start_time
-        if self._cache_manager and self._stats.pages_failed == 0:
+        if self._cache_manager and self._stats.pages_failed == 0 and not self._cancelled:
             self._cache_manager.clear_discovered_urls()
+        elif self._cancelled:
+            self._clear_resume_state_if_nothing_pending()
         if self._cancelled:
             yield FetchEvent(
                 type=EventType.CANCELLED,
@@ -1055,6 +1078,15 @@ class Fetcher:
                 f"{self._stats.pages_failed} failed"
             ),
         )
+
+    def _clear_resume_state_if_nothing_pending(self) -> None:
+        """After an interrupted run, keep unfinished URLs for --resume.
+
+        With none left, the snapshot would resume as an empty "completed" run and
+        silently drop whatever discovery had not reached, so start fresh instead.
+        """
+        if self._cache_manager and not self._cache_manager.frontier.pending_urls():
+            self._cache_manager.clear_discovered_urls()
 
     def _record_result(self, url: str, output_path: Path, ctx: PageContext) -> None:
         """Update stats + cache from a finished pipeline run.
@@ -1077,15 +1109,17 @@ class Fetcher:
         self._stats.pages_fetched += 1
         self._stats.bytes_downloaded += ctx.bytes_downloaded
         self._stats.files_saved += 1
-        if self._cache_manager and ctx.markdown:
-            self._cache_manager.update_cache(
-                url=url,
-                content=ctx.markdown,
-                file_path=ctx.persisted_path or output_path,
-                etag=ctx.etag,
-                last_modified=ctx.last_modified,
-                run_fingerprint=self._run_fingerprint(),
-            )
+        if self._cache_manager:
+            content = ctx.markdown if ctx.markdown is not None else ctx.html
+            if content:
+                self._cache_manager.update_cache(
+                    url=url,
+                    content=content,
+                    file_path=ctx.persisted_path or output_path,
+                    etag=ctx.etag,
+                    last_modified=ctx.last_modified,
+                    run_fingerprint=self._run_fingerprint(),
+                )
             self._cache_manager.mark_fetched(url)
 
 

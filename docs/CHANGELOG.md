@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fetch runs: a failed URL emits one `FETCH_FAILED` event, not two. Cancelling
+  a streaming run keeps unfinished URLs for `--resume`. A cancel while the URL
+  queue is full, a discovery error, or a frontier write error no longer hangs
+  the run. A resume error emits `FAILED`. Pages saved without Markdown are no
+  longer refetched on resume.
+- Crawling: resume no longer refetches pages finished before the first
+  frontier snapshot. A robots-disallowed start URL is not fetched. Redirect
+  targets are checked against robots.txt. Per-host limits ignore hostname case.
+  Adaptive rate limiting never drops below a robots Crawl-delay. Sitemap index
+  loops are fetched once.
+- Projects: only a complete, successful, full sync moves `docpull.lock`. Dry
+  runs, failed runs, `sync --source`, syncs that lose a source, and
+  `export --run` keep the previous pin. Config and JSON state are written
+  atomically.
+- Monitor and refresh: a URL that failed to fetch is no longer reported as
+  removed. HTTP 404 and 410 still are.
+
+### Added
+
+- Statecharts and model-checked protocol models for the fetch, crawl,
+  cache/lock, and jobs/monitor flows in `docs/formal/` and
+  `tests/test_model_*.py`.
+
 ## [6.7.0] - 2026-10-22
 
 ### Added

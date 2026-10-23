@@ -209,15 +209,23 @@ class FetchPipeline:
             PipelineResult with terminal status and final context.
         """
         ctx = PageContext(url=url, output_path=output_path)
+        failure_emitted = False
+
+        def tracking_emit(event: FetchEvent) -> None:
+            nonlocal failure_emitted
+            if event.type == EventType.FETCH_FAILED:
+                failure_emitted = True
+            if emit:
+                emit(event)
 
         for step in self.steps:
             try:
-                ctx = await step.execute(ctx, emit)
+                ctx = await step.execute(ctx, tracking_emit if emit else None)
             except Exception as e:
                 ctx.mark_failed(f"{step.name}: {e}")
 
-                # Emit failure event
-                if emit:
+                # Fetch/save steps emit their own detailed FETCH_FAILED before re-raising.
+                if emit and not failure_emitted:
                     emit(
                         FetchEvent(
                             type=EventType.FETCH_FAILED,
