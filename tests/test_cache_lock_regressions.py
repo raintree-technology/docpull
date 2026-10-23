@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
+from urllib.parse import urlparse
 
 import pytest
 
@@ -148,7 +149,7 @@ def test_sync_that_loses_a_source_keeps_previous_lock(
     original = project_module._sync_source
 
     async def flaky(**kwargs: Any) -> Any:  # noqa: ANN401
-        if "b.example.com" in kwargs["source"].url:
+        if urlparse(kwargs["source"].url).hostname == "b.example.com":
             raise OSError("network down")
         return await original(**kwargs)
 
