@@ -52,7 +52,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.11.15", "3.12.13", "3.13.14", "3.14.6"]
+        python-version: ["3.11.17", "3.12.15", "3.13.17", "3.14.9"]
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
@@ -71,15 +71,15 @@ jobs:
         run: uv sync --locked --all-extras
 
       - name: Run tests
-        if: matrix.python-version != '3.11.15'
+        if: matrix.python-version != '3.11.17'
         run: uv run --locked --all-extras python -m pytest -q
 
       - name: Run tests with coverage
-        if: matrix.python-version == '3.11.15'
+        if: matrix.python-version == '3.11.17'
         run: uv run --locked --all-extras python -m pytest --cov=docpull --cov-report=xml --cov-report=term -q
 
       - name: Upload coverage XML
-        if: matrix.python-version == '3.11.15'
+        if: matrix.python-version == '3.11.17'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: coverage-xml
