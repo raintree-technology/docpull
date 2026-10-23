@@ -76,6 +76,46 @@
       ]
     },
     {
+      "area": "Web search",
+      "claim": "Web search uses an explicitly chosen SearXNG, Marginalia, or offline discovery index backend, and optional result content is fetched through the local pipeline.",
+      "references": [
+        {"type": "code", "path": "src/docpull/web_search.py"},
+        {"type": "code", "path": "src/docpull/discovery_index.py"},
+        {"type": "test", "path": "tests/test_web_search.py"},
+        {"type": "test", "path": "tests/test_discovery_index.py"},
+        {"type": "doc", "path": "docs/cli-recipes.md"}
+      ]
+    },
+    {
+      "area": "Research",
+      "claim": "Research answers return ranked passages with exact spans and source citations, and an optional model rewrite is kept only when every citation names a real source.",
+      "references": [
+        {"type": "code", "path": "src/docpull/research.py"},
+        {"type": "test", "path": "tests/test_research.py"},
+        {"type": "doc", "path": "docs/cli-recipes.md"}
+      ]
+    },
+    {
+      "area": "Registry",
+      "claim": "Registry recipes contain public sources, pinned page URLs, and per-page content hashes without fetched content, and recipe downloads are checked against their sha256 before syncing.",
+      "references": [
+        {"type": "code", "path": "src/docpull/registry.py"},
+        {"type": "test", "path": "tests/test_registry.py"},
+        {"type": "doc", "path": "docs/cli-recipes.md"}
+      ]
+    },
+    {
+      "area": "Compatible server",
+      "claim": "The compatible server serves Tavily, Exa, Firecrawl, and Parallel request shapes from local fetching, and network binds require an API key environment variable.",
+      "references": [
+        {"type": "code", "path": "src/docpull/compat_api.py"},
+        {"type": "code", "path": "src/docpull/compat_jobs.py"},
+        {"type": "test", "path": "tests/test_compat_api.py"},
+        {"type": "test", "path": "tests/test_compat_jobs.py"},
+        {"type": "doc", "path": "docs/alternatives.md"}
+      ]
+    },
+    {
       "area": "Graph",
       "claim": "Local graph workflows build, query, inspect neighbors, report status, and refresh cited graph sidecars.",
       "references": [
