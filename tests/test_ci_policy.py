@@ -55,8 +55,8 @@ def test_mcp_extra_excludes_incompatible_major_versions() -> None:
     mcp_requirements = project["optional-dependencies"]["mcp"]
     all_requirements = project["optional-dependencies"]["all"]
 
-    assert "mcp>=1.28.1,<2" in mcp_requirements
-    assert "mcp>=1.28.1,<2" in all_requirements
+    assert "mcp>=1.30.0,<2" in mcp_requirements
+    assert "mcp>=1.30.0,<2" in all_requirements
 
 
 def test_github_actions_are_pinned_to_full_commit_shas() -> None:
