@@ -1,0 +1,22 @@
+name: Dependabot Auto-merge
+
+# Dependabot here opens security-update PRs only (version updates are disabled
+# in dependabot.yml). Queue them for squash auto-merge; the ruleset's required
+# checks still gate the merge.
+on:
+  pull_request:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    if: github.event.pull_request.user.login == 'dependabot[bot]' && github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Enable auto-merge
+        run: gh pr merge --auto --squash "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

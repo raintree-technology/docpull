@@ -1,6 +1,8 @@
 version: 2
 updates:
   # Security updates only: version-update PRs are disabled by the zero limit.
+  # Grouping keeps each directory's fixes in one PR so they do not fall behind
+  # each other under the up-to-date branch rule.
   # Using the bun ecosystem keeps bun.lock in sync with package.json.
   - package-ecosystem: bun
     directories:
@@ -8,3 +10,18 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 0
+    groups:
+      security:
+        applies-to: security-updates
+        patterns: ["*"]
+  - package-ecosystem: uv
+    directories:
+      - /
+      - /bench
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+    groups:
+      security:
+        applies-to: security-updates
+        patterns: ["*"]
