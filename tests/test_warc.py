@@ -12,7 +12,7 @@ import hashlib
 import json
 import re
 import zlib
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -24,7 +24,7 @@ from docpull.security.robots import RobotsChecker
 from docpull.security.url_validator import UrlValidator
 from docpull.warc import WARC_FILENAME, WarcWriter, payload_digest, read_warc_records
 
-FETCHED_AT = datetime(2026, 7, 21, 12, 0, 0, tzinfo=timezone.utc)
+FETCHED_AT = datetime(2026, 7, 21, 12, 0, 0, tzinfo=UTC)
 
 PAGE_HTML = b"""<!doctype html><html><body><article>
 <h1>Hello</h1><p>Archived page</p>

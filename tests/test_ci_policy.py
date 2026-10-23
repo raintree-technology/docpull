@@ -7,10 +7,10 @@ import re
 import shutil
 import subprocess  # nosec B404
 import sys
+import tomllib
 from pathlib import Path
 from unittest import mock
 
-import tomllib
 import yaml
 
 from docpull.mcp.sources import default_docs_dir

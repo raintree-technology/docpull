@@ -11,7 +11,7 @@ import gzip
 import hashlib
 import uuid
 from collections.abc import Iterator
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from http.client import responses as _http_reason_phrases
 from pathlib import Path
 from typing import IO, TYPE_CHECKING
@@ -59,7 +59,7 @@ def _new_record_id() -> str:
 
 def _warc_date(moment: datetime) -> str:
     """Format a datetime as the UTC ``Z``-suffixed timestamp WARC requires."""
-    return moment.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return moment.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _build_record(warc_headers: list[tuple[str, str]], block: bytes) -> bytes:

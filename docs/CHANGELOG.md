@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- Drop Python 3.10 support. Python 3.10 reaches end of life in October 2026,
+  and the patched Pillow 13 release requires Python 3.11 or newer. DocPull
+  6.7.0 remains installable on Python 3.10.
+
 ### Security
 
 - Raise the `mcp` floor to 1.30.0 and the `pypdf` floor to 6.21.1 for their

@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 
 def utc_now() -> datetime:
     """Return the current instant as a timezone-aware UTC datetime."""
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def utc_now_iso() -> str:
@@ -25,5 +25,5 @@ def parse_persisted_datetime(value: str) -> datetime:
     normalized = value[:-1] + "+00:00" if value.endswith("Z") else value
     parsed = datetime.fromisoformat(normalized)
     if parsed.tzinfo is None:
-        return parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(timezone.utc)
+        return parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)

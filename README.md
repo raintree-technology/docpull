@@ -12,7 +12,7 @@ DocPull turns changing public web sources into cited, reproducible context for A
 agents and retrieval pipelines. Use it when your application needs to know which
 sources it used, whether they changed, and how to rebuild the same context later.
 
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![PyPI version](https://img.shields.io/pypi/v/docpull.svg?label=package)](https://pypi.org/project/docpull/)
 [![License: MIT](https://img.shields.io/github/license/raintree-technology/docpull)](LICENSE)
 

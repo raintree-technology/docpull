@@ -22,7 +22,7 @@ import subprocess
 import sys
 import urllib.error
 import urllib.request
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from html import escape
 from pathlib import Path
 
@@ -143,7 +143,7 @@ def download_series(pepy: dict, *, days: int = 90) -> list[tuple[date, int]]:
         if isinstance(versions, dict):
             totals[day_key] = sum(int(v or 0) for v in versions.values())
 
-    end = max(totals) if totals else datetime.now(timezone.utc).date()
+    end = max(totals) if totals else datetime.now(UTC).date()
     start = end - timedelta(days=days - 1)
     return [(start + timedelta(days=i), totals.get(start + timedelta(days=i), 0)) for i in range(days)]
 
@@ -225,7 +225,7 @@ def render_download_chart(daily_series: list[tuple[date, int]], *, total_downloa
         f"Cumulative downloads, last {len(series)} days · +{fmt(total_window)} in window · "
         f"{fmt(total_downloads)} all time"
     )
-    generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    generated_at = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
     svg_lines = [
         (
             f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" '
@@ -278,7 +278,7 @@ def write_download_chart(pepy: dict) -> None:
 
 
 def main() -> int:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     timestamp = now.strftime("%Y-%m-%d %H:%M UTC")
 
     critical_errors: list[str] = []
