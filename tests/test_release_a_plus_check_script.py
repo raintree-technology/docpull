@@ -64,6 +64,15 @@ def test_release_a_plus_has_no_standalone_web_gates() -> None:
     assert all(not name.startswith("web_") for name in module._planned_command_names(ROOT))
 
 
+def test_release_a_plus_area_gates_are_all_planned() -> None:
+    module = _load_scorecard_module()
+
+    planned = {"real_feature_smoke", *module._planned_command_names(ROOT)}
+    required = {gate for gates in module.AREA_GATES.values() for gate in gates}
+
+    assert required <= planned, f"area gates with no command: {sorted(required - planned)}"
+
+
 def test_release_a_plus_writes_reports_from_existing_smoke(tmp_path: Path) -> None:
     smoke = tmp_path / "smoke.json"
     smoke.write_text(
