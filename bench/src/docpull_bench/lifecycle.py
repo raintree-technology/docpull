@@ -15,7 +15,7 @@ import time
 import uuid
 from collections.abc import Callable
 from contextvars import ContextVar
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
 
@@ -220,7 +220,7 @@ def run_lifecycle_benchmark(*, output_dir: Path) -> tuple[LifecycleReport, Path]
     passed_count = sum(check.passed for check in checks)
     report = LifecycleReport(
         system_version=_docpull_version(),
-        created_at=datetime.now(timezone.utc).isoformat(),
+        created_at=datetime.now(UTC).isoformat(),
         python_version=platform.python_version(),
         platform=platform.platform(),
         check_count=len(checks),
@@ -329,7 +329,7 @@ def publish_lifecycle_report(report: LifecycleReport, *, output_dir: Path) -> Pa
         "suite_version": report.suite_version,
         "system": report.system,
         "system_version": report.system_version,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "files": files,
     }
     (output_dir / "publication.manifest.json").write_text(

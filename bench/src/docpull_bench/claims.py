@@ -12,7 +12,7 @@ import hashlib
 import json
 import subprocess
 from collections import Counter, defaultdict
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from itertools import combinations
 from pathlib import Path
 from typing import Annotated, Any, Literal
@@ -567,7 +567,7 @@ def check_claim_readiness(
         add("latency.comparable", len(classes) == 1, f"environment_cache_classes={len(classes)}")
 
     return ClaimReadinessReport(
-        generated_at=datetime.now(timezone.utc).isoformat(),
+        generated_at=datetime.now(UTC).isoformat(),
         policy=policy.name,
         policy_sha256=policy_sha256,
         evidence_sha256=evidence_sha256,
@@ -658,17 +658,17 @@ def _parse_timestamp(value: str) -> datetime | None:
         parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
     except ValueError:
         try:
-            parsed = datetime.combine(date.fromisoformat(value), datetime.min.time(), tzinfo=timezone.utc)
+            parsed = datetime.combine(date.fromisoformat(value), datetime.min.time(), tzinfo=UTC)
         except ValueError:
             return None
     if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(timezone.utc)
+        parsed = parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
 
 
 def _timestamp_is_not_future(value: str) -> bool:
     parsed = _parse_timestamp(value)
-    return bool(parsed and parsed <= datetime.now(timezone.utc))
+    return bool(parsed and parsed <= datetime.now(UTC))
 
 
 def _ordered_timestamps(*values: str) -> bool:

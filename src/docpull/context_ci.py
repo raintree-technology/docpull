@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from functools import partial
 from pathlib import Path
 from typing import Any, Literal
@@ -618,7 +618,7 @@ def _max_age_gate(pack_dir: Path, thresholds: CIThresholds) -> dict[str, Any]:
     if not fetched:
         return _gate("max_age_days", "warn", "No fetched_at metadata was available for age checks.")
     oldest = min(fetched)
-    age_days = (datetime.now(timezone.utc) - oldest).total_seconds() / 86400
+    age_days = (datetime.now(UTC) - oldest).total_seconds() / 86400
     return _gate(
         "max_age_days",
         "pass" if age_days <= thresholds.max_age_days else "fail",
@@ -642,8 +642,8 @@ def _parse_datetime(value: Any) -> datetime | None:
     except ValueError:
         return None
     if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(timezone.utc)
+        parsed = parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
 
 
 def _threshold_gate(name: str, message: str, *, value: int, threshold: int) -> dict[str, Any]:

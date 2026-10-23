@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from bs4 import BeautifulSoup
@@ -360,7 +360,7 @@ class ConvertStep:
                 if headings:
                     extra["headings"] = headings
                 # ISO 8601 UTC timestamp so re-runs can be diffed by date.
-                extra["crawled_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+                extra["crawled_at"] = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
                 frontmatter = self._frontmatter_builder.build(
                     title=ctx.title,
                     url=ctx.url,

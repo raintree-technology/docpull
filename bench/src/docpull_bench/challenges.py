@@ -8,7 +8,7 @@ import os
 import shutil
 import subprocess
 from collections import Counter, defaultdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
 
@@ -153,7 +153,7 @@ def export_blinded_challenge(
     os.chmod(gold_path, 0o600)
     manifest = UnsignedChallengeManifest(
         status="unsigned-unencrypted-not-claim-evidence",
-        generated_at=datetime.now(timezone.utc).isoformat(),
+        generated_at=datetime.now(UTC).isoformat(),
         suite_sha256=_file_sha256(suite_path),
         challenge_sha256=challenge_sha256,
         gold_file_sha256=_file_sha256(gold_path),
@@ -241,7 +241,7 @@ def seal_blinded_gold(
 
     artifact = SealedChallengeArtifact(
         status="encrypted-requires-external-signature",
-        encrypted_at=datetime.now(timezone.utc).isoformat(),
+        encrypted_at=datetime.now(UTC).isoformat(),
         gold_file_sha256=_file_sha256(gold_path),
         ciphertext_sha256=_file_sha256(ciphertext_path),
         ciphertext_path=str(ciphertext_path),
