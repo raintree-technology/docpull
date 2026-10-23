@@ -8,6 +8,7 @@ import logging
 import re
 import secrets
 import socket
+from collections.abc import Callable
 from dataclasses import dataclass
 from types import TracebackType
 from typing import cast
@@ -183,6 +184,8 @@ class AsyncHttpClient:
         self._auth_scope_hosts = {host.lower() for host in auth_scope_hosts} if auth_scope_hosts else None
         self._download_policy = download_policy or SafeDownloadPolicy()
         self._log_retry_warnings = log_retry_warnings
+        # Set by the fetcher to its robots.txt check so redirect hops honor robots too.
+        self.redirect_allowed: Callable[[str], bool] | None = None
 
         if allow_insecure_tls:
             raise ValueError("Insecure TLS is not supported; certificate verification is always enforced")
@@ -291,6 +294,8 @@ class AsyncHttpClient:
         """Resolve a redirect target relative to the current URL."""
         redirect_url = urljoin(current_url, location)
         self._validate_url(redirect_url)
+        if self.redirect_allowed is not None and not self.redirect_allowed(redirect_url):
+            raise ValueError(f"Redirect target blocked by robots.txt: {redirect_url}")
         return redirect_url
 
     def _headers_for_redirect(

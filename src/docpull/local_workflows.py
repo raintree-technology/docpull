@@ -186,6 +186,15 @@ def refresh_pack(
         if fetch_result["record_count"]
         else _empty_diff(pack_dir, refreshed_dir)
     )
+    # A URL we could not re-fetch is unknown, not removed. Only 404/410 mean gone.
+    _drop_unverified_urls(
+        diff_payload,
+        {
+            str(item["url"])
+            for item in (*fetch_result["errors"], *fetch_result["skips"])
+            if item.get("reason") not in _GONE_REASONS
+        },
+    )
     payload = {
         "schema_version": REFRESH_SCHEMA_VERSION,
         "generated_at": generated_at,
@@ -576,6 +585,26 @@ def _unique_record_urls(records: list[dict[str, Any]]) -> list[str]:
 def _default_refresh_output_dir(pack_dir: Path) -> Path:
     safe_stamp = re.sub(r"[^0-9A-Za-z]+", "-", utc_now_iso()).strip("-")
     return pack_dir.parent / f"{pack_dir.name}.refresh-{safe_stamp}"
+
+
+_GONE_REASONS = frozenset({"HTTP 404", "HTTP 410"})
+
+
+def _drop_unverified_urls(diff: dict[str, Any], urls: set[str]) -> None:
+    diff["removed_urls"] = [u for u in diff.get("removed_urls", []) if u not in urls]
+    if "change_events" in diff:
+        diff["change_events"] = [e for e in diff["change_events"] if e.get("url") not in urls]
+        diff["change_event_count"] = len(diff["change_events"])
+    semantic = diff.get("semantic_diff")
+    if isinstance(semantic, dict):
+        removed = semantic["categories"]["removed_section"]
+        kept = [item for item in removed if item.get("url") not in urls]
+        dropped = len(removed) - len(kept)
+        semantic["categories"]["removed_section"] = kept
+        summary = semantic["summary"]
+        summary["removed_section"] = len(kept)
+        summary["removed_count"] = len(diff["removed_urls"])
+        summary["total_candidate_count"] -= dropped
 
 
 def _empty_diff(old_pack_dir: Path, new_pack_dir: Path) -> dict[str, Any]:

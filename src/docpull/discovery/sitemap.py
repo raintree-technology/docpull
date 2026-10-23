@@ -63,6 +63,7 @@ class SitemapDiscoverer:
         self._filter = pattern_filter
         self._robots = robots_checker
         self._seen = SeenUrlTracker()
+        self._seen_sitemaps = SeenUrlTracker()
         self._domain_filter: DomainFilter | None = None
 
     def _is_in_scope(self, url: str) -> bool:
@@ -204,6 +205,10 @@ class SitemapDiscoverer:
             logger.warning(f"Max sitemap depth exceeded at {sitemap_url}")
             return
 
+        # A sitemap index may point back at itself or at siblings; fetch each sitemap once.
+        if not self._seen_sitemaps.add(sitemap_url):
+            return
+
         content = await self._fetch_sitemap(sitemap_url)
         if content is None:
             return
@@ -268,6 +273,7 @@ class SitemapDiscoverer:
             Discovered URLs
         """
         self._seen.clear()
+        self._seen_sitemaps.clear()
         self._domain_filter = DomainFilter(start_url, allow_subdomains=False)
 
         # If URL looks like a sitemap, use it directly

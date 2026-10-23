@@ -184,8 +184,11 @@ class LinkCrawler:
         effective_max_depth = max_depth if max_depth is not None else self._max_depth
 
         queue: deque[tuple[str, int]] = deque()
-        queue.append((start_url, 0))
         self._seen.add(start_url)
+        # A start URL that fails SSRF or robots checks must not be fetched for links either.
+        # (Pattern filters only decide whether it is yielded, not whether its links are read.)
+        if self._validator.is_valid(start_url) and self._robots.is_allowed(start_url):
+            queue.append((start_url, 0))
 
         count = 0
 

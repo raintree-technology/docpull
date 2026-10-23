@@ -49,7 +49,7 @@ class PerHostRateLimiter:
         """
         self.default_delay = default_delay
         self.default_concurrent = default_concurrent
-        self.host_configs = host_configs or {}
+        self.host_configs = {h.lower(): cfg for h, cfg in (host_configs or {}).items()}
 
         # Per-host state
         self._semaphores: dict[str, asyncio.Semaphore] = {}
@@ -58,10 +58,11 @@ class PerHostRateLimiter:
 
     def _get_host(self, url: str) -> str:
         """Extract host from URL."""
-        return urlparse(url).netloc
+        return urlparse(url).netloc.lower()
 
     def _get_config(self, host: str) -> tuple[float, int]:
         """Get delay and concurrency for a specific host."""
+        host = host.lower()
         if host in self.host_configs:
             cfg = self.host_configs[host]
             return (
@@ -136,6 +137,7 @@ class PerHostRateLimiter:
             Changes to concurrent won't affect existing semaphores.
             For safety, set host configs before starting requests.
         """
+        host = host.lower()
         if host not in self.host_configs:
             self.host_configs[host] = {}
 
@@ -202,7 +204,22 @@ class AdaptiveRateLimiter(PerHostRateLimiter):
         # Adaptive state (protected by _adaptive_lock)
         self._success_counts: dict[str, int] = {}
         self._current_delays: dict[str, float] = {}
+        # Delays set from outside (robots.txt Crawl-delay) are a floor adaptation may not undercut.
+        self._floors: dict[str, float] = {}
         self._adaptive_lock = asyncio.Lock()
+
+    def update_host_config(
+        self,
+        host: str,
+        delay: float | None = None,
+        concurrent: int | None = None,
+    ) -> None:
+        if delay is not None:
+            self._floors[host.lower()] = delay
+        super().update_host_config(host, delay=delay, concurrent=concurrent)
+
+    def _set_adapted_delay(self, host: str, delay: float) -> None:
+        super().update_host_config(host, delay=delay)
 
     async def record_rate_limit(self, url: str, retry_after: int | None = None) -> None:
         """
@@ -215,7 +232,7 @@ class AdaptiveRateLimiter(PerHostRateLimiter):
         host = self._get_host(url)
 
         async with self._adaptive_lock:
-            current = self._current_delays.get(host, self.default_delay)
+            current = self._current_delays.get(host, self._get_config(host)[0])
 
             if retry_after is not None and retry_after > 0:
                 # Use Retry-After if provided
@@ -224,9 +241,10 @@ class AdaptiveRateLimiter(PerHostRateLimiter):
                 # Exponential backoff
                 new_delay = min(current * self._backoff_factor, self._max_delay)
 
+            new_delay = max(new_delay, self._floors.get(host, 0.0))
             self._current_delays[host] = new_delay
             self._success_counts[host] = 0
-            self.update_host_config(host, delay=new_delay)
+            self._set_adapted_delay(host, new_delay)
 
         logger.info(f"Rate limited by {host}, increasing delay to {new_delay:.1f}s")
 
@@ -243,12 +261,12 @@ class AdaptiveRateLimiter(PerHostRateLimiter):
             self._success_counts[host] = self._success_counts.get(host, 0) + 1
 
             if self._success_counts[host] >= self._success_threshold:
-                current = self._current_delays.get(host, self.default_delay)
-                new_delay = max(current / self._backoff_factor, self._min_delay)
+                current = self._current_delays.get(host, self._get_config(host)[0])
+                new_delay = max(current / self._backoff_factor, self._min_delay, self._floors.get(host, 0.0))
 
                 if new_delay < current:
                     self._current_delays[host] = new_delay
-                    self.update_host_config(host, delay=new_delay)
+                    self._set_adapted_delay(host, new_delay)
                     self._success_counts[host] = 0
                     logger.debug(f"Reducing delay for {host} to {new_delay:.1f}s")
 

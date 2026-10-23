@@ -266,7 +266,7 @@ def run_monitor_once(
     if not dry_run and refreshed_pack_dir.exists() and (refreshed_pack_dir / "documents.ndjson").exists():
         audit = audit_pack(refreshed_pack_dir, markdown_path=run_dir / "PACK_AUDIT.md")
         diff_path = run_dir / "pack.diff.json"
-        project_diff = diff_packs(pack_dir, refreshed_pack_dir)
+        project_diff = diff_payload
         _write_json(diff_path, project_diff)
         project_diff_path = run_dir / "project.diff.json"
         project_diff_markdown_path = run_dir / "PROJECT_DIFF.md"

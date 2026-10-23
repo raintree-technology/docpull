@@ -1084,7 +1084,7 @@ def sync_project(
         raise ProjectError("Project has no sources. Add one with `docpull add URL`.")
     selected = _selected_sources(config, source_name)
     discovery_refresh_names = [source.name for source in selected if source.discover]
-    if update_discovery or discovery_refresh_names:
+    if not dry_run and (update_discovery or discovery_refresh_names):
         refresh_names = [source.name for source in selected] if update_discovery else discovery_refresh_names
         config = _refresh_project_discovery(project_root, config, source_names=refresh_names)
         save_project_config(project_root, config)
@@ -1200,6 +1200,7 @@ def sync_project(
         source_health=source_health,
         fetch_stats=fetch_stats,
         update_discovery=update_discovery,
+        pin_lock=source_name is None and not any(e.get("type") == "source_sync_failed" for e in errors),
     )
 
 
@@ -1406,10 +1407,12 @@ def export_context_pack(
         "output_dir": str(out),
         "manifest_path": str(manifest_path),
     }
+    pinned = _read_context_lock(paths.context_lock)
     _write_context_lock(
         project_root=project_root,
         config=config,
-        run_id=selected_run_id,
+        # Exporting records the export; it never pins a run (an unpinned lock stays a skeleton).
+        run_id=(pinned or {}).get("run_id"),
         export={
             "target": target_name,
             "run_id": selected_run_id,
@@ -2038,6 +2041,7 @@ def _finalize_project_run(
     source_health: list[dict[str, Any]],
     fetch_stats: dict[str, int],
     update_discovery: bool,
+    pin_lock: bool = True,
 ) -> dict[str, Any]:
     paths = project_paths(project_root)
     finished_at = utc_now_iso()
@@ -2115,15 +2119,18 @@ def _finalize_project_run(
                 "artifacts": publish_payload.get("artifacts", {}),
             }
     _write_json(run_dir / "run.json", run_payload)
-    lock_payload = _write_context_lock(
-        project_root=project_root,
-        config=config,
-        run_id=run_id if status != "dry_run" else None,
-        records=records,
-    )
-    run_payload["context_lock_hash"] = lock_payload.get("lock_hash")
-    _write_json(run_dir / "run.json", run_payload)
-    if status != "dry_run":
+    # Only a successful, complete run may move the lock; dry, failed, scoped and
+    # source-dropping runs keep the previous pin so it never loses pinned evidence.
+    if status == "success" and pin_lock:
+        lock_payload = _write_context_lock(
+            project_root=project_root,
+            config=config,
+            run_id=run_id,
+            records=records,
+        )
+        run_payload["context_lock_hash"] = lock_payload.get("lock_hash")
+        _write_json(run_dir / "run.json", run_payload)
+    if status == "success":
         paths.latest_run.write_text(run_id + "\n", encoding="utf-8")
     _index_run(project_root, config, run_payload, records, chunks, errors, source_health)
     return run_payload
@@ -2192,10 +2199,8 @@ def load_project_config(root: Path) -> ProjectConfig:
 
 def save_project_config(root: Path, config: ProjectConfig) -> None:
     paths = project_paths(root)
-    paths.config.write_text(
-        yaml.safe_dump(config.model_dump(mode="json"), sort_keys=False),
-        encoding="utf-8",
-    )
+    text = yaml.safe_dump(config.model_dump(mode="json"), sort_keys=False)
+    _replace_atomically(paths.config, lambda target: target.write_text(text, encoding="utf-8"))
 
 
 def ensure_project_index(root: Path, config: ProjectConfig | None = None) -> Path:
@@ -4007,7 +4012,20 @@ def _records_by_url(records: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
 _read_json = partial(read_json, error=ProjectError, required=False)
 
 
-_write_json = partial(write_json, sort_keys=True)
+def _replace_atomically(path: Path, write: Callable[[Path], object]) -> None:
+    """Write via a sibling temp file so a crash never leaves a truncated ``path``."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(f".{path.name}.tmp")
+    try:
+        write(temporary)
+        os.replace(temporary, path)
+    except BaseException:
+        temporary.unlink(missing_ok=True)
+        raise
+
+
+def _write_json(path: Path, payload: Any) -> None:
+    _replace_atomically(path, lambda target: write_json(target, payload, sort_keys=True))
 
 
 def _read_jsonl(path: Path) -> list[dict[str, Any]]:

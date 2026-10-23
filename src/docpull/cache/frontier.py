@@ -89,6 +89,7 @@ class FrontierStore:
         self.created_at: str | None = None
         self.updated_at: str | None = None
         self._journal_needs_separator = False
+        self._loaded_from_disk = False
         self._load()
 
     def _load(self) -> None:
@@ -100,6 +101,7 @@ class FrontierStore:
             else:
                 self._load_snapshot(data)
         self._replay_journal()
+        self._loaded_from_disk = bool(self.entries)
 
     def _load_snapshot(self, data: object) -> None:
         if not isinstance(data, dict) or data.get("schema_version") != FRONTIER_SCHEMA_VERSION:
@@ -197,7 +199,11 @@ class FrontierStore:
             self.save()
 
     def initialize(self, *, start_url: str, run_fingerprint: dict[str, object]) -> None:
-        if self.start_url != start_url or self.run_fingerprint != run_fingerprint:
+        stale = self.start_url != start_url or self.run_fingerprint != run_fingerprint
+        # A never-initialized store holding entries from this process (streaming workers
+        # finish pages before the first snapshot) keeps them; entries read from disk are
+        # from an unknown crawl and are dropped.
+        if stale and (self.start_url is not None or self._loaded_from_disk):
             self.entries.clear()
             self.created_at = utc_now_iso()
         self.start_url = start_url
@@ -259,3 +265,4 @@ class FrontierStore:
         self.created_at = None
         self.updated_at = None
         self._journal_needs_separator = False
+        self._loaded_from_disk = False
