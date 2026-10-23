@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Any
 
 from .surface import PUBLIC_SDK_EXPORTS
 
-__version__ = "6.7.0"
+__version__ = "6.8.0"
 
 _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
     "query_context": (".context_query", "query_context"),
