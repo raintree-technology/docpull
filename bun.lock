@@ -10,7 +10,7 @@
     },
     "sdk/js": {
       "name": "@raintree-technology/docpull-sdk",
-      "version": "6.6.0",
+      "version": "6.7.0",
       "devDependencies": {
         "@types/node": "^25.9.1",
         "typescript": "^6.0.3",

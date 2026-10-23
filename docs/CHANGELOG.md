@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.7.0] - 2026-10-22
+
 ### Added
 
 - Serve Tavily `/extract`, Exa `/contents`, and Firecrawl `/v1/scrape` and
@@ -54,6 +56,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `freshdocs`, and `evalgen` commands, plus unused internal helpers.
 - Remove the unsupported TypeScript MCP lab under `mcp/`. The Python
   `docpull mcp` stdio server remains the supported MCP server.
+
+### Security
+
+- Raise the aiohttp floor to 3.14.4 for its 2026 request-parsing advisories.
+- Build and test with Bun 1.4.4, Node 24.22.1, and uv 0.13.4. These fix a Brotli
+  decoder RCE and TLS hostname verification bypasses, and stop trusting the
+  emSign ECC Root CA - G3 after the eMudhra intermediate key compromise.
 
 ### Fixed
 
