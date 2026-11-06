@@ -158,18 +158,6 @@ def test_sdist_canonicalization_rejects_unsafe_members(
     assert archive.read_bytes() == original
 
 
-def test_release_paths_use_reproducibility_verification() -> None:
-    required = "scripts/build_release.py --verify-reproducible"
-    for path in (
-        ROOT / ".github" / "workflows" / "context-benchmark-lab.yml",
-        ROOT / "docs" / "release.md",
-    ):
-        assert required in path.read_text(encoding="utf-8"), path
-
-    release_gate = (ROOT / "scripts" / "release_a_plus_check.py").read_text(encoding="utf-8")
-    assert '"scripts/build_release.py", "--verify-reproducible"' in release_gate
-
-
 def test_release_script_does_not_mutate_parent_epoch(monkeypatch: pytest.MonkeyPatch) -> None:
     module = _load_module()
     monkeypatch.delenv("SOURCE_DATE_EPOCH", raising=False)

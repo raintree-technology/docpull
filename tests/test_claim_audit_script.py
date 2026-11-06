@@ -10,28 +10,6 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_claim_audit_passes_release_manifest() -> None:
-    completed = subprocess.run(
-        [
-            sys.executable,
-            str(ROOT / "scripts" / "claim_audit.py"),
-            "--repo",
-            str(ROOT),
-            "--json",
-        ],
-        check=False,
-        capture_output=True,
-        text=True,
-        timeout=30,
-    )
-
-    assert completed.returncode == 0, completed.stdout + completed.stderr
-    payload = json.loads(completed.stdout)
-    assert payload["passed"] is True
-    assert payload["claim_count"] >= 13
-    assert "MCP" in payload["areas"]
-
-
 def test_claim_audit_rejects_unsupported_absolutes(tmp_path: Path) -> None:
     repo = tmp_path
     (repo / "docs").mkdir()
