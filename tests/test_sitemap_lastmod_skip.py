@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import html
 import json
 from datetime import timedelta
 from pathlib import Path
@@ -56,7 +57,9 @@ async def site(monkeypatch):
         if state.etag and request.headers.get("If-None-Match") == state.etag:
             return web.Response(status=304, headers={"ETag": state.etag})
         headers = {"ETag": state.etag} if state.etag else {}
-        return web.Response(text=BODY.format(request.path), content_type="text/html", headers=headers)
+        return web.Response(
+            text=BODY.format(html.escape(request.path)), content_type="text/html", headers=headers
+        )
 
     app = web.Application()
     app.router.add_get("/sitemap.xml", sitemap)
