@@ -207,6 +207,9 @@ include = ["docpull*"]
 docpull = ["py.typed", "fixtures/*.json", "schemas/*.schema.json"]
 
 [tool.uv]
+# unstructured caps filelock below 4, which leaves the locked dev environment on
+# a vulnerable release. Drop this once unstructured allows filelock 4.
+override-dependencies = ["filelock>=4.2.1"]
 constraint-dependencies = [
     "h2>=4.4.1",
     "multidict>=6.9.1",
