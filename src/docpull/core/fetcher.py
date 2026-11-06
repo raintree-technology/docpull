@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import re
 import time
 from collections.abc import AsyncIterator, Callable
@@ -39,6 +40,8 @@ from ..security.download_policy import SafeDownloadPolicy
 from ..security.robots import RobotsChecker
 from ..security.url_validator import UrlValidator
 from ..warc import WARC_FILENAME, WarcWriter, WarcWriteStep
+
+logger = logging.getLogger(__name__)
 
 
 def _url_to_filename(url: str, base_url: str | None = None) -> str:
@@ -234,6 +237,7 @@ class Fetcher:
         self._save_step: SaveStep | None = None
         self._warc_writer: WarcWriter | None = None
         self._output_was_used = False
+        self._sitemap_lastmods: dict[str, str] = {}
 
     def _run_fingerprint(self) -> dict[str, object]:
         return self.run_identity.fingerprint()
@@ -354,6 +358,7 @@ class Fetcher:
             download_policy=SafeDownloadPolicy(
                 allowed_remote_document_types=allowed_remote_document_types,
             ),
+            not_modified_delay=self.config.crawl.not_modified_delay,
         )
         await self._http_client.__aenter__()
 
@@ -412,6 +417,13 @@ class Fetcher:
                     skip_unchanged=self.config.cache.skip_unchanged,
                     allowed_remote_document_types=allowed_remote_document_types,
                     capture_raw=self.config.warc_output,
+                    # Other formats rewrite one file per run, so a page skipped
+                    # without a request would vanish from their output.
+                    sitemap_lastmods=(
+                        self._sitemap_lastmods if self.config.output.format == "markdown" else None
+                    ),
+                    max_age_days=self.config.cache.max_age_days,
+                    run_fingerprint=self._run_fingerprint(),
                 )
             )
             if render_mode == "fallback":
@@ -519,6 +531,7 @@ class Fetcher:
             url_validator=self._url_validator,
             pattern_filter=pattern_filter,
             robots_checker=self._robots_checker,
+            lastmods=self._sitemap_lastmods,
         )
 
         link_extractor = StaticLinkExtractor(http_client=self._http_client)
@@ -815,6 +828,7 @@ class Fetcher:
             message=f"Discovered {len(discovered)} URLs",
         )
         self._stats.urls_discovered = len(discovered)
+        self._handle_removed_urls(discovered)
 
         if self._cancelled:
             yield FetchEvent(type=EventType.CANCELLED, message="Fetch cancelled by user")
@@ -917,8 +931,9 @@ class Fetcher:
         progress_counter = {"processed": 0, "saved": 0, "skipped": 0, "failed": 0}
         worker_errors: list[Exception] = []
 
+        discovered_for_resume: list[str] = []
+
         async def discover_into_queue() -> None:
-            discovered_for_resume: list[str] = []
             await event_queue.put(
                 FetchEvent(
                     type=EventType.DISCOVERY_STARTED,
@@ -1059,6 +1074,7 @@ class Fetcher:
         if worker_errors:
             self._clear_resume_state_if_nothing_pending()
             raise worker_errors[0]
+        self._handle_removed_urls(discovered_for_resume)
         self._stats.duration_seconds = time.monotonic() - self._start_time
         if self._cache_manager and self._stats.pages_failed == 0 and not self._cancelled:
             self._cache_manager.clear_discovered_urls()
@@ -1105,6 +1121,11 @@ class Fetcher:
             self._stats.pages_skipped += 1
             if self._cache_manager:
                 self._cache_manager.frontier.mark_skipped(url)
+                if ctx.skip_code == SkipReason.CACHE_UNCHANGED:
+                    if ctx.status_code == 304:
+                        self._cache_manager.mark_verified(url, self._sitemap_lastmods.get(url))
+                    if self._save_step is not None:
+                        self._save_step.retain_url(url)
             return
         self._stats.pages_fetched += 1
         self._stats.bytes_downloaded += ctx.bytes_downloaded
@@ -1119,8 +1140,53 @@ class Fetcher:
                     etag=ctx.etag,
                     last_modified=ctx.last_modified,
                     run_fingerprint=self._run_fingerprint(),
+                    sitemap_lastmod=self._sitemap_lastmods.get(url),
                 )
             self._cache_manager.mark_fetched(url)
+
+    def _handle_removed_urls(self, discovered: list[str]) -> None:
+        """Report, and optionally prune, saved pages that left the sitemap.
+
+        Runs only after a complete sitemap listing: a capped, crawled, or
+        partly unreadable discovery says nothing about what was removed.
+        """
+        cache = self._cache_manager
+        if (
+            cache is None
+            or self._discoverer is None
+            or not getattr(self._discoverer, "complete", False)
+            or self.config.dry_run
+            or self._cancelled
+        ):
+            return
+        current = set(discovered)
+        fingerprint = self._run_fingerprint()
+        # The fingerprint pins start URL and filters, so a shared cache directory
+        # or a narrowed --include-paths is never mistaken for a removal.
+        known = [url for url, entry in cache.manifest.items() if entry.get("run_fingerprint") == fingerprint]
+        removed = sorted(url for url in known if url not in current)
+        self._stats.removed_urls = removed
+        if not removed or not self.config.cache.prune_removed:
+            return
+        # A broken sitemap deploy can look like most of a site disappearing.
+        if len(removed) > len(current):
+            logger.warning(
+                "Not pruning: %d URLs left the sitemap and only %d remain, which looks like a bad sitemap",
+                len(removed),
+                len(current),
+            )
+            return
+        output_dir = self.config.output.directory.resolve()
+        for url in removed:
+            saved_path = cache.manifest[url].get("file_path")
+            if saved_path:
+                resolved = Path(saved_path).resolve()
+                if not resolved.is_relative_to(output_dir):
+                    logger.warning("Not pruning %s: outside the output directory", resolved)
+                    continue
+                resolved.unlink(missing_ok=True)
+            cache.forget(url)
+            self._stats.pruned_urls.append(url)
 
 
 def fetch_one(url: str, **kwargs: object) -> PageContext:

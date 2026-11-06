@@ -217,6 +217,23 @@ localhost. Exposing it with `--host 0.0.0.0 --allow-network-bind` also requires
 `x-api-key`. Only Markdown output is served. Other Firecrawl formats return HTTP
 400.
 
+## Incremental Crawls
+
+With `--cache`, a repeat crawl skips a page without a request when its sitemap
+`lastmod` is unchanged and the saved Markdown file still exists. Pages without
+`lastmod` use conditional GET.
+
+```bash
+docpull https://docs.example.com --cache --max-age 14d
+docpull https://docs.example.com --cache --prune-removed
+docpull https://docs.example.com --cache --not-modified-delay 0.1
+```
+
+`--max-age` revalidates skipped pages over HTTP after that many days; `0`
+disables lastmod skipping. It should stay below `--cache-ttl`, which discards
+entries outright. Other output formats always revalidate, since they rewrite
+one file per run. `--prune-removed` acts only after a complete sitemap listing.
+
 ## Rendering
 
 Rendering is off by default. Explicit rendering uses the canonical

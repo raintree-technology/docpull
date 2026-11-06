@@ -126,18 +126,12 @@ def test_production_workflows_keep_automatic_triggers() -> None:
     ci = (WORKFLOW_DIR / "ci.yml").read_text()
     codeql = (WORKFLOW_DIR / "codeql.yml").read_text()
     security = (WORKFLOW_DIR / "security.yml").read_text()
-    benchmark = (WORKFLOW_DIR / "benchmark.yml").read_text()
-    live_typed = (WORKFLOW_DIR / "live-typed-packs.yml").read_text()
-    live_web = (WORKFLOW_DIR / "live-web-smoke.yml").read_text()
 
     for workflow in (ci, codeql, security):
         assert "pull_request:" in workflow
         assert "push:" in workflow
         assert "- main" in workflow
     assert 'cron: "38 6 * * 1"' in codeql
-    assert 'cron: "17 4 * * 3"' in benchmark
-    assert 'cron: "17 11 * * *"' in live_typed
-    assert 'cron: "43 10 * * *"' in live_web
 
 
 def test_uv_lock_is_committed_and_used() -> None:

@@ -151,6 +151,7 @@ class AsyncHttpClient:
         require_pinned_dns: bool = False,
         download_policy: SafeDownloadPolicy | None = None,
         log_retry_warnings: bool = True,
+        not_modified_delay: float | None = None,
     ) -> None:
         """
         Initialize the HTTP client.
@@ -163,6 +164,7 @@ class AsyncHttpClient:
             user_agent: Custom User-Agent string
             proxy: Proxy URL (http:// or socks5://)
             default_timeout: Default request timeout in seconds
+            not_modified_delay: Seconds to wait after a 304 instead of the host delay
             auth_headers: Authentication headers to include in all requests
             download_policy: Policy that rejects file-like responses before
                 they can be buffered, converted, or saved
@@ -171,6 +173,7 @@ class AsyncHttpClient:
                 missing guessed resources are expected.
         """
         self._rate_limiter = rate_limiter
+        self._not_modified_delay = not_modified_delay
         self._max_retries = max_retries
         self._retry_base_delay = retry_base_delay
         self._max_content_size = max_content_size
@@ -626,6 +629,11 @@ class AsyncHttpClient:
                                 await asyncio.sleep(delay)
                                 break
                             response.raise_for_status()
+
+                        if response.status == 304 and self._not_modified_delay is not None:
+                            shorten = getattr(self._rate_limiter, "shorten_next_delay", None)
+                            if shorten is not None:
+                                shorten(current_url, self._not_modified_delay)
 
                         if response.status == 304 or 400 <= response.status < 500:
                             return HttpResponse(

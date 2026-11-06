@@ -21,7 +21,7 @@ The plugin wraps the `docpull` CLI. Install the MCP extra first:
 
 ```bash
 pipx install 'docpull[mcp]==6.8.0'
-docpull --version                   # should print 6.8.0 or newer
+docpull --version                   # should print 6.9.0 or newer
 docpull mcp --help
 ```
 

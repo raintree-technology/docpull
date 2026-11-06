@@ -117,6 +117,17 @@ class PerHostRateLimiter:
 
             yield
 
+    def shorten_next_delay(self, url: str, delay: float) -> None:
+        """Let the next request to this host wait ``delay`` instead of the full delay.
+
+        Hosts with an explicit limit (robots.txt Crawl-delay, per-host config,
+        adaptive backoff) keep it.
+        """
+        host = self._get_host(url)
+        if host in self.host_configs or host not in self._last_request:
+            return
+        self._last_request[host] -= max(0.0, self.default_delay - delay)
+
     def update_host_config(
         self,
         host: str,

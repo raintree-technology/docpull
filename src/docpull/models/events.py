@@ -181,6 +181,8 @@ class FetchStats:
     bytes_downloaded: int = 0
     files_saved: int = 0
     duration_seconds: float = 0.0
+    removed_urls: list[str] = field(default_factory=list)
+    pruned_urls: list[str] = field(default_factory=list)
 
     @property
     def success_rate(self) -> float:

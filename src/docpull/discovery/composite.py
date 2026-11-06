@@ -51,6 +51,8 @@ class CompositeDiscoverer:
         self._crawler = link_crawler
         self._fallback_threshold = fallback_threshold
         self._seen = SeenUrlTracker()
+        # True only after a run whose URL list came whole from readable sitemaps.
+        self.complete = False
 
     async def discover(
         self,
@@ -74,6 +76,7 @@ class CompositeDiscoverer:
             Discovered URLs (deduplicated)
         """
         self._seen.clear()
+        self.complete = False
         count = 0
 
         # Phase 1: Sitemap discovery
@@ -93,6 +96,9 @@ class CompositeDiscoverer:
                 return
 
         logger.debug(f"Sitemap discovery yielded {sitemap_count} URLs")
+        self.complete = getattr(self._sitemap, "complete", False) and sitemap_count >= max(
+            1, self._fallback_threshold
+        )
 
         # Phase 2: Crawl fallback (if enabled and needed)
         if self._crawler is None:

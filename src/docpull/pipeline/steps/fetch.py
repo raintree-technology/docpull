@@ -1,6 +1,8 @@
 """FetchStep - HTTP fetching pipeline step."""
 
 import logging
+from collections.abc import Mapping
+from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -11,6 +13,7 @@ from ...security.download_policy import (
     is_allowed_document_content_type,
 )
 from ...security.optout import evaluate_optout, parse_x_robots_tag
+from ...time_utils import parse_persisted_datetime, utc_now
 from ..base import EventEmitter, PageContext
 
 if TYPE_CHECKING:
@@ -73,6 +76,9 @@ class FetchStep:
         capture_raw: bool = False,
         respect_ai_optout: bool = True,
         respect_noindex: bool = False,
+        sitemap_lastmods: Mapping[str, str] | None = None,
+        max_age_days: int = 0,
+        run_fingerprint: dict[str, object] | None = None,
     ) -> None:
         """
         Initialize the fetch step.
@@ -96,6 +102,12 @@ class FetchStep:
             respect_noindex: Also treat ``noindex`` / ``none`` as opt-outs
                 (stricter than the default; those directives govern search
                 indexing, not reuse).
+            sitemap_lastmods: This run's URL to ``<lastmod>`` map. An unchanged
+                date skips the request entirely.
+            max_age_days: How long an unchanged ``<lastmod>`` may stand in for
+                a server check. 0 disables lastmod skipping.
+            run_fingerprint: Cache entries from another configuration are not
+                skipped, since their saved output would not match this run.
         """
         self._client = http_client
         self._validate_content_type = validate_content_type
@@ -105,6 +117,34 @@ class FetchStep:
         self._capture_raw = capture_raw
         self._respect_ai_optout = respect_ai_optout
         self._respect_noindex = respect_noindex
+        self._sitemap_lastmods = sitemap_lastmods
+        self._max_age_days = max_age_days
+        self._run_fingerprint = run_fingerprint
+
+    def _lastmod_unchanged(self, url: str) -> bool:
+        """True when the sitemap date proves the saved page needs no request."""
+        if (
+            self._cache_manager is None
+            or self._sitemap_lastmods is None
+            or not self._skip_unchanged
+            or self._max_age_days <= 0
+        ):
+            return False
+        lastmod = self._sitemap_lastmods.get(url)
+        entry = self._cache_manager.manifest.get(url)
+        if not lastmod or not entry or entry.get("sitemap_lastmod") != lastmod:
+            return False
+        if entry.get("run_fingerprint") != self._run_fingerprint:
+            return False
+        saved_path = entry.get("file_path")
+        checked_at = entry.get("verified_at") or entry.get("fetched_at")
+        if not saved_path or not checked_at or not Path(saved_path).exists():
+            return False
+        try:
+            age = utc_now() - parse_persisted_datetime(checked_at)
+        except ValueError:
+            return False
+        return age < timedelta(days=self._max_age_days)
 
     def _is_valid_content_type(self, content_type: str) -> bool:
         """
@@ -181,6 +221,21 @@ class FetchStep:
             PageContext with html, status_code, content_type populated
         """
         url = ctx.url
+
+        if self._lastmod_unchanged(url):
+            message = "Unchanged (sitemap lastmod)"
+            ctx.mark_skipped(message, SkipReason.CACHE_UNCHANGED)
+            logger.debug(f"Sitemap lastmod unchanged: {url}")
+            if emit:
+                emit(
+                    FetchEvent(
+                        type=EventType.FETCH_SKIPPED,
+                        url=url,
+                        message=message,
+                        skip_reason=SkipReason.CACHE_UNCHANGED,
+                    )
+                )
+            return ctx
 
         # Emit start event
         if emit:
