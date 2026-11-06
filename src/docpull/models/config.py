@@ -94,6 +94,14 @@ class CrawlConfig(BaseModel):
     per_host_concurrent: int = Field(3, ge=1, description="Maximum concurrent requests per host")
     include_paths: list[str] = Field(default_factory=list, description="URL path patterns to include")
     exclude_paths: list[str] = Field(default_factory=list, description="URL path patterns to exclude")
+    not_modified_delay: float | None = Field(
+        None,
+        ge=0,
+        description=(
+            "Seconds to wait after a 304 response instead of rate_limit. Never undercuts "
+            "robots.txt Crawl-delay or per-host limits (None = use rate_limit)"
+        ),
+    )
     adaptive_rate_limit: bool = Field(
         False,
         description="Automatically adjust rate limits based on server responses (429s)",
@@ -668,6 +676,18 @@ class CacheConfig(BaseModel):
     resume: bool = Field(
         False,
         description="Resume from previous interrupted run (requires caching enabled)",
+    )
+    max_age_days: int = Field(
+        14,
+        ge=0,
+        description=(
+            "Trust an unchanged sitemap lastmod for this many days after a page was "
+            "last verified, then revalidate it over HTTP (0 = never skip on lastmod)"
+        ),
+    )
+    prune_removed: bool = Field(
+        False,
+        description="Delete local files for URLs that left a complete sitemap",
     )
 
     model_config = {"extra": "forbid"}

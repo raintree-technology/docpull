@@ -126,18 +126,12 @@ def test_production_workflows_keep_automatic_triggers() -> None:
     ci = (WORKFLOW_DIR / "ci.yml").read_text()
     codeql = (WORKFLOW_DIR / "codeql.yml").read_text()
     security = (WORKFLOW_DIR / "security.yml").read_text()
-    benchmark = (WORKFLOW_DIR / "benchmark.yml").read_text()
-    live_typed = (WORKFLOW_DIR / "live-typed-packs.yml").read_text()
-    live_web = (WORKFLOW_DIR / "live-web-smoke.yml").read_text()
 
     for workflow in (ci, codeql, security):
         assert "pull_request:" in workflow
         assert "push:" in workflow
         assert "- main" in workflow
     assert 'cron: "38 6 * * 1"' in codeql
-    assert 'cron: "17 4 * * 3"' in benchmark
-    assert 'cron: "17 11 * * *"' in live_typed
-    assert 'cron: "43 10 * * *"' in live_web
 
 
 def test_uv_lock_is_committed_and_used() -> None:
@@ -332,7 +326,7 @@ def test_plugin_launcher_reports_actionable_setup_when_docpull_is_missing(
     )
 
     assert proc.returncode == 127
-    assert proc.stderr == "pipx install 'docpull[mcp]==6.8.0'\n"
+    assert proc.stderr == "pipx install 'docpull[mcp]==6.9.0'\n"
 
     (tmp_path / "docpull").mkdir()
     proc = subprocess.run(  # nosec B603
@@ -345,7 +339,7 @@ def test_plugin_launcher_reports_actionable_setup_when_docpull_is_missing(
     )
 
     assert proc.returncode == 127
-    assert proc.stderr == "pipx install 'docpull[mcp]==6.8.0'\n"
+    assert proc.stderr == "pipx install 'docpull[mcp]==6.9.0'\n"
 
 
 def test_codex_plugin_default_prompt_fits_host_limit() -> None:

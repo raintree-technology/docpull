@@ -2028,8 +2028,8 @@ def search_pack(
 
 
 def diff_packs(old_pack_dir: Path, new_pack_dir: Path) -> dict[str, Any]:
-    old_records = _records_by_url(_read_ndjson(old_pack_dir / "documents.ndjson"))
-    new_records = _records_by_url(_read_ndjson(new_pack_dir / "documents.ndjson"))
+    old_records = _records_by_url(_read_pack_records(old_pack_dir))
+    new_records = _records_by_url(_read_pack_records(new_pack_dir))
 
     old_urls = set(old_records)
     new_urls = set(new_records)

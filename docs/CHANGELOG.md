@@ -7,7 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.9.0] - 2026-11-06
+
+### Added
+
+- `--cache` now skips pages without a request when the sitemap `<lastmod>` is
+  unchanged and the saved Markdown file still exists. New and changed URLs fetch
+  as normal; URLs without `<lastmod>` keep using conditional GET. Sites with no
+  `<lastmod>` see no change.
+- `--max-age DAYS` (default 14, `0` disables) limits how long an unchanged
+  `<lastmod>` is trusted before a page is revalidated over HTTP, which catches
+  pages that change without a new date.
+- Runs report URLs that left a complete sitemap. `--prune-removed` deletes their
+  local files. It refuses when more URLs left than remain, and does
+  nothing after a capped, crawled, or partly unreadable discovery.
+- `--not-modified-delay SECONDS` shortens the wait after a 304. Off by default;
+  never undercuts robots.txt Crawl-delay or per-host limits.
+
+### Changed
+
+- A 304 now counts as verification: it extends the cache entry's TTL.
+
 ### Fixed
+
+- `corpus.manifest.json` keeps cache-skipped pages on incremental Markdown runs
+  instead of listing only pages saved that run.
+- A cached run where nothing changed exits 0 instead of reporting an empty pack.
+- `docpull refresh` works on Markdown packs without `documents.ndjson`.
 
 - Fetch runs: a failed URL emits one `FETCH_FAILED` event, not two. Cancelling
   a streaming run keeps unfinished URLs for `--resume`. A cancel while the URL

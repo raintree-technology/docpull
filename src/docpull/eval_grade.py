@@ -446,8 +446,10 @@ def classify_semantic_diff(
 ) -> dict[str, Any]:
     old_pack_dir = old_pack_dir.resolve()
     new_pack_dir = new_pack_dir.resolve()
-    old_records = _records_by_url(_read_ndjson(old_pack_dir / "documents.ndjson"))
-    new_records = _records_by_url(_read_ndjson(new_pack_dir / "documents.ndjson"))
+    from .pack_tools import _read_pack_records
+
+    old_records = _records_by_url(_read_pack_records(old_pack_dir))
+    new_records = _records_by_url(_read_pack_records(new_pack_dir))
     if diff_payload is None:
         diff_payload = _simple_diff_payload(old_records, new_records)
 

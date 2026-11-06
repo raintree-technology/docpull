@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -11,6 +12,8 @@ from ..models.run import RunIdentity
 from ..output_contract import OUTPUT_CONTRACT_SCHEMA_VERSION, write_raw_contract_sidecars
 from ..time_utils import utc_now_iso
 from ..warc import WARC_FILENAME
+
+logger = logging.getLogger(__name__)
 
 
 class CorpusManifest:
@@ -30,6 +33,29 @@ class CorpusManifest:
         self._run_identity = run_identity
         self._records: list[dict[str, Any]] = []
         self._seen: set[str] = set()
+        self._retained_urls: set[str] = set()
+
+    def retain_url(self, url: str) -> None:
+        """Keep this URL's records from the previous manifest when finalizing."""
+        self._retained_urls.add(url)
+
+    def _carry_forward_retained(self) -> None:
+        """Keep cache-skipped pages listed, or an incremental run would drop them."""
+        if not self._retained_urls or not self._path.exists():
+            return
+        try:
+            previous = json.loads(self._path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as err:
+            logger.warning("Could not read previous manifest %s: %s", self._path, err)
+            return
+        saved_urls = {item.get("url") for item in self._records}
+        records = previous.get("records") if isinstance(previous, dict) else None
+        for item in records if isinstance(records, list) else []:
+            if not isinstance(item, dict):
+                continue
+            url = item.get("url")
+            if url in self._retained_urls and url not in saved_urls:
+                self._records.append(item)
 
     def add_record(self, record: DocumentRecord, output_path: Path | str | None = None) -> None:
         record_key = record.chunk_id or record.document_id
@@ -101,6 +127,7 @@ class CorpusManifest:
 
     def finalize(self) -> Path:
         self._base_dir.mkdir(parents=True, exist_ok=True)
+        self._carry_forward_retained()
         payload = {
             "schema_version": OUTPUT_CONTRACT_SCHEMA_VERSION,
             "output_contract_version": OUTPUT_CONTRACT_SCHEMA_VERSION,

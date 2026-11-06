@@ -252,6 +252,11 @@ class SaveStep:
                 )
             raise
 
+    def retain_url(self, url: str) -> None:
+        """Keep a cache-skipped page in the corpus manifest."""
+        if self._manifest is not None:
+            self._manifest.retain_url(url)
+
     def finalize(self) -> None:
         """Write agent skill/rule files if a skill name was configured.
 

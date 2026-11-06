@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import AsyncIterator
+from datetime import UTC, datetime
 from urllib.parse import urlparse
 
 from defusedxml import ElementTree
@@ -18,6 +19,19 @@ logger = logging.getLogger(__name__)
 
 # Sitemap XML namespace
 SITEMAP_NS = {"ns": "http://www.sitemaps.org/schemas/sitemap/0.9"}
+
+
+def normalize_lastmod(value: str | None) -> str | None:
+    """Return a sitemap ``<lastmod>`` as a UTC ISO string, or None if unusable."""
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.strip())
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC).isoformat()
 
 
 class SitemapDiscoverer:
@@ -48,6 +62,7 @@ class SitemapDiscoverer:
         url_validator: UrlValidator,
         pattern_filter: PatternFilter | None = None,
         robots_checker: RobotsChecker | None = None,
+        lastmods: dict[str, str] | None = None,
     ):
         """
         Initialize the sitemap discoverer.
@@ -57,6 +72,7 @@ class SitemapDiscoverer:
             url_validator: URL validator for security checks
             pattern_filter: Optional pattern filter for URLs
             robots_checker: Optional robots.txt checker for sitemap discovery
+            lastmods: Optional dict filled with each URL's normalized ``<lastmod>``
         """
         self._client = http_client
         self._validator = url_validator
@@ -65,6 +81,11 @@ class SitemapDiscoverer:
         self._seen = SeenUrlTracker()
         self._seen_sitemaps = SeenUrlTracker()
         self._domain_filter: DomainFilter | None = None
+        self.lastmods: dict[str, str] = lastmods if lastmods is not None else {}
+        # False once a sitemap we were told about could not be read, so callers
+        # never read a partial listing as "these pages were removed".
+        self.complete = True
+        self._required_sitemaps: set[str] = set()
 
     def _is_in_scope(self, url: str) -> bool:
         """Keep sitemap discovery aligned with the crawl origin."""
@@ -171,9 +192,16 @@ class SitemapDiscoverer:
             ns = SITEMAP_NS if use_ns else {}
             prefix = "ns:" if use_ns else ""
 
-            for url_elem in root.findall(f".//{prefix}url/{prefix}loc", ns):
-                if url_elem.text:
-                    page_urls.append(url_elem.text.strip())
+            for url_elem in root.findall(f".//{prefix}url", ns):
+                loc = url_elem.find(f"{prefix}loc", ns)
+                if loc is None or not loc.text:
+                    continue
+                page_url = loc.text.strip()
+                page_urls.append(page_url)
+                lastmod_elem = url_elem.find(f"{prefix}lastmod", ns)
+                lastmod = normalize_lastmod(lastmod_elem.text if lastmod_elem is not None else None)
+                if lastmod:
+                    self.lastmods[page_url] = lastmod
 
             for sitemap_elem in root.findall(f".//{prefix}sitemap/{prefix}loc", ns):
                 if sitemap_elem.text:
@@ -209,11 +237,16 @@ class SitemapDiscoverer:
         if not self._seen_sitemaps.add(sitemap_url):
             return
 
+        required = depth > 0 or sitemap_url in self._required_sitemaps
         content = await self._fetch_sitemap(sitemap_url)
         if content is None:
+            if required:
+                self.complete = False
             return
 
         page_urls, nested_sitemaps = self._parse_sitemap(content)
+        if not page_urls and not nested_sitemaps:
+            self.complete = False
 
         logger.debug(f"Sitemap {sitemap_url}: {len(page_urls)} URLs, {len(nested_sitemaps)} nested sitemaps")
 
@@ -275,15 +308,20 @@ class SitemapDiscoverer:
         self._seen.clear()
         self._seen_sitemaps.clear()
         self._domain_filter = DomainFilter(start_url, allow_subdomains=False)
+        self.lastmods.clear()
+        self.complete = True
+        self._required_sitemaps = set()
 
         # If URL looks like a sitemap, use it directly
         if start_url.endswith(".xml"):
+            self._required_sitemaps = {start_url}
             async for url in self._discover_from_sitemap(start_url, max_urls=max_urls):
                 yield url
             return
 
         # Try robots.txt first (authoritative source)
         sitemap_urls = self._get_sitemaps_from_robots(start_url)
+        self._required_sitemaps = set(sitemap_urls)
 
         # Fall back to guessing common locations
         if not sitemap_urls:

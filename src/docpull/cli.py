@@ -80,6 +80,14 @@ def _core_dependencies_available() -> bool:
     return True
 
 
+def _parse_max_age(value: str) -> int:
+    """Parse ``--max-age`` as whole days, with an optional ``d`` suffix."""
+    digits = value[:-1] if value.lower().endswith("d") else value
+    if not digits.isdigit():
+        raise argparse.ArgumentTypeError(f"expected days such as 14 or 14d, got {value!r}")
+    return int(digits)
+
+
 def _write_fetch_accounting(
     *,
     config: DocpullConfig,
@@ -436,6 +444,16 @@ Examples:
         help="Maximum concurrent requests per host",
     )
     crawl_group.add_argument(
+        "--not-modified-delay",
+        type=float,
+        default=None,
+        metavar="SECONDS",
+        help=(
+            "Wait this long after a 304 instead of --rate-limit. "
+            "Never undercuts robots.txt Crawl-delay (default: off)"
+        ),
+    )
+    crawl_group.add_argument(
         "--rate-limit",
         "-r",
         type=float,
@@ -610,6 +628,22 @@ Examples:
         help="Re-fetch pages even if unchanged",
     )
     cache_group.add_argument(
+        "--max-age",
+        type=_parse_max_age,
+        default=None,
+        metavar="DAYS",
+        help=(
+            "Skip pages with an unchanged sitemap lastmod for this many days after they "
+            "were last verified, then revalidate over HTTP. Markdown output only; "
+            "0 disables (default: 14)"
+        ),
+    )
+    cache_group.add_argument(
+        "--prune-removed",
+        action="store_true",
+        help="Delete local files for URLs that left a complete sitemap (implies --cache)",
+    )
+    cache_group.add_argument(
         "--resume",
         action="store_true",
         help="Resume from previous interrupted run (requires --cache)",
@@ -766,6 +800,8 @@ def run_fetcher(args: argparse.Namespace) -> int:
         crawl_kwargs["per_host_concurrent"] = args.per_host_concurrent
     if args.rate_limit is not None:
         crawl_kwargs["rate_limit"] = args.rate_limit
+    if args.not_modified_delay is not None:
+        crawl_kwargs["not_modified_delay"] = args.not_modified_delay
     if args.adaptive_rate_limit:
         crawl_kwargs["adaptive_rate_limit"] = True
     if args.no_streaming_discovery:
@@ -869,8 +905,12 @@ def run_fetcher(args: argparse.Namespace) -> int:
         config_kwargs["budget"] = {"maximum_paid_cost_usd": args.budget}
 
     cache_kwargs: dict = {}
-    if args.cache or args.resume:
+    if args.cache or args.resume or args.prune_removed:
         cache_kwargs["enabled"] = True
+    if args.prune_removed:
+        cache_kwargs["prune_removed"] = True
+    if args.max_age is not None:
+        cache_kwargs["max_age_days"] = args.max_age
     if args.cache_dir:
         cache_kwargs["directory"] = args.cache_dir
     if args.cache_ttl is not None:
@@ -1105,6 +1145,16 @@ def run_fetcher(args: argparse.Namespace) -> int:
                     console.print(f"  Pages skipped: {stats.pages_skipped}")
                     console.print(f"  Pages failed: {stats.pages_failed}")
                     console.print(f"  Duration: {stats.duration_seconds:.1f}s")
+                    removed_urls = getattr(stats, "removed_urls", [])
+                    if removed_urls:
+                        pruned_urls = getattr(stats, "pruned_urls", [])
+                        console.print(
+                            f"  URLs removed from sitemap: {len(removed_urls)} ({len(pruned_urls)} pruned)"
+                        )
+                        for url in removed_urls[:20]:
+                            console.print(f"    {escape(url)}")
+                        if not pruned_urls:
+                            console.print("  Use --prune-removed to delete their local files.")
 
                     # Print skip reason summary if there were skips
                     if skip_counts:
@@ -1116,7 +1166,8 @@ def run_fetcher(args: argparse.Namespace) -> int:
                 exit_code = _fetch_exit_code(
                     stats,
                     config.output.directory,
-                    allow_empty=args.dry_run,
+                    # Nothing new because nothing changed is a successful update.
+                    allow_empty=args.dry_run or skip_counts.get(SkipReason.CACHE_UNCHANGED, 0) > 0,
                     exit_policy=args.exit_policy,
                 )
                 if exit_code and not args.quiet and stats.pages_fetched == 0 and stats.pages_failed == 0:

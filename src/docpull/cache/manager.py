@@ -28,6 +28,8 @@ class ManifestEntry(TypedDict, total=False):
     size: int
     etag: str
     last_modified: str
+    sitemap_lastmod: str
+    verified_at: str
     schema_version: int
     run_fingerprint: dict[str, Any]
 
@@ -136,7 +138,15 @@ class CacheManager:
                         logger.warning("Skipping invalid cache manifest entry for %r", url)
                         continue
                     entry: ManifestEntry = {}
-                    for key in ("checksum", "file_path", "fetched_at", "etag", "last_modified"):
+                    for key in (
+                        "checksum",
+                        "file_path",
+                        "fetched_at",
+                        "etag",
+                        "last_modified",
+                        "sitemap_lastmod",
+                        "verified_at",
+                    ):
                         value = raw_entry.get(key)
                         if isinstance(value, str):
                             entry[key] = value  # type: ignore[literal-required]
@@ -277,6 +287,7 @@ class CacheManager:
         etag: str | None = None,
         last_modified: str | None = None,
         run_fingerprint: dict[str, Any] | None = None,
+        sitemap_lastmod: str | None = None,
     ) -> None:
         """Update cache entry for a URL.
 
@@ -286,6 +297,7 @@ class CacheManager:
             file_path: Path where content was saved
             etag: HTTP ETag header
             last_modified: HTTP Last-Modified header
+            sitemap_lastmod: Normalized sitemap ``<lastmod>`` seen for this URL
 
         Note:
             Changes are batched. Call flush() to persist to disk.
@@ -304,8 +316,28 @@ class CacheManager:
             self.manifest[url]["etag"] = etag
         if last_modified:
             self.manifest[url]["last_modified"] = last_modified
+        if sitemap_lastmod:
+            self.manifest[url]["sitemap_lastmod"] = sitemap_lastmod
 
         self._manifest_dirty = True
+
+    def mark_verified(self, url: str, sitemap_lastmod: str | None = None) -> None:
+        """Record that the server just confirmed a cached page is still current."""
+        entry = self.manifest.get(url)
+        if entry is None:
+            return
+        entry["verified_at"] = utc_now_iso()
+        if sitemap_lastmod:
+            entry["sitemap_lastmod"] = sitemap_lastmod
+        self._manifest_dirty = True
+
+    def forget(self, url: str) -> None:
+        """Drop a URL from the manifest and state."""
+        self.manifest.pop(url, None)
+        self._state.fetched_urls.discard(url)
+        self._state.failed_urls.discard(url)
+        self._manifest_dirty = True
+        self._state_dirty = True
 
     def mark_fetched(self, url: str) -> None:
         """Mark URL as successfully fetched.
@@ -369,10 +401,10 @@ class CacheManager:
         to_remove = []
 
         for url, entry in self.manifest.items():
-            fetched_at = entry.get("fetched_at")
-            if fetched_at:
+            checked_at = entry.get("verified_at") or entry.get("fetched_at")
+            if checked_at:
                 try:
-                    entry_time = parse_persisted_datetime(fetched_at)
+                    entry_time = parse_persisted_datetime(checked_at)
                     if entry_time < cutoff:
                         to_remove.append(url)
                 except ValueError as err:
