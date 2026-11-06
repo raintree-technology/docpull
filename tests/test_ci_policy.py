@@ -223,7 +223,7 @@ def test_security_workflow_uses_locked_dependencies_without_a_web_app_job() -> N
     release_requirements = (REPO_ROOT / "requirements-release.txt").read_text()
 
     assert "uv sync --locked --extra dev" in security
-    assert "setuptools==83.0.0" in release_requirements
+    assert "setuptools==84.2.1" in release_requirements
     assert "working-directory: web" not in security
     assert "web-security:" not in security
 
