@@ -92,24 +92,33 @@ def redact_pack(
         shutil.rmtree(output_root)
     shutil.copytree(source, output_root)
     findings: list[dict[str, Any]] = []
-    for path in sorted(output_root.rglob("*")):
-        if not path.is_file() or path.suffix.lower() not in TEXT_SUFFIXES:
-            continue
-        try:
-            text = path.read_text(encoding="utf-8")
-        except UnicodeDecodeError:
-            continue
-        matches = _matches_for_text(text, rules=rules, backend=selected_backend, presidio=presidio)
-        redacted, file_counts = _redact_text(text, matches)
-        if matches:
-            path.write_text(redacted, encoding="utf-8")
-            findings.append(
-                {
-                    "path": str(path.relative_to(output_root)),
-                    "matches": file_counts,
-                    "match_count": sum(file_counts.values()),
-                }
-            )
+    dropped: list[str] = []
+    try:
+        for path in sorted(output_root.rglob("*")):
+            if not path.is_file() or path.suffix.lower() not in TEXT_SUFFIXES:
+                continue
+            try:
+                text = path.read_text(encoding="utf-8")
+            except UnicodeDecodeError:
+                # Fail closed: a text file we cannot scan must not ship unredacted.
+                path.unlink()
+                dropped.append(str(path.relative_to(output_root)))
+                continue
+            matches = _matches_for_text(text, rules=rules, backend=selected_backend, presidio=presidio)
+            redacted, file_counts = _redact_text(text, matches)
+            if matches:
+                path.write_text(redacted, encoding="utf-8")
+                findings.append(
+                    {
+                        "path": str(path.relative_to(output_root)),
+                        "matches": file_counts,
+                        "match_count": sum(file_counts.values()),
+                    }
+                )
+    except BaseException:
+        # Fail closed: never leave a partially redacted copy behind.
+        shutil.rmtree(output_root, ignore_errors=True)
+        raise
     report = {
         "schema_version": REDACTION_SCHEMA_VERSION,
         "generated_at": utc_now_iso(),
@@ -120,6 +129,7 @@ def redact_pack(
         "finding_count": len(findings),
         "match_count": sum(sum(item["matches"].values()) for item in findings),
         "findings": findings,
+        "dropped_unreadable_files": dropped,
         "policy_path": str(policy_path) if policy_path else None,
     }
     (output_root / "redaction.report.json").write_text(

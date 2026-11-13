@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 from pathlib import Path
@@ -13,10 +14,11 @@ from rich.markup import escape
 
 from .local_workflows import LocalWorkflowError, audit_pack, refresh_pack
 from .pack_tools import PackToolError, _artifact_ref, _write_json, diff_packs
+from .state_paths import resolve_default_state_path
 from .time_utils import utc_now_iso
 
 MONITOR_SCHEMA_VERSION = 1
-DEFAULT_MONITOR_STATE_DIR = Path(".docpull/monitors")
+DEFAULT_MONITOR_STATE_DIR = resolve_default_state_path(".docpull/monitors")
 
 
 class MonitorError(RuntimeError):
@@ -251,7 +253,14 @@ def run_monitor_once(
     config = _read_monitor_config(state_dir, name)
     if config.get("paused"):
         raise MonitorError(f"Monitor is paused: {name}")
-    pack_dir = Path(str(config["pack_dir"])).resolve()
+    configured_pack_dir = Path(str(config["pack_dir"])).resolve()
+    # After a successful check the refreshed pack becomes the baseline, so the
+    # same upstream changes are not reported on every poll.
+    baseline_raw = config.get("baseline_pack_dir")
+    baseline = Path(str(baseline_raw)).resolve() if baseline_raw else None
+    pack_dir = (
+        baseline if baseline is not None and (baseline / "documents.ndjson").exists() else configured_pack_dir
+    )
     run_dir = _monitor_dir(state_dir, str(config["name"])) / "runs" / _run_stamp()
     run_dir.mkdir(parents=True, exist_ok=True)
     refreshed_pack_dir = run_dir / "refreshed-pack"
@@ -295,7 +304,8 @@ def run_monitor_once(
         "name": config["name"],
         "dry_run": dry_run,
         "trigger": trigger,
-        "pack_dir": str(pack_dir),
+        "pack_dir": str(configured_pack_dir),
+        "baseline_pack_dir": str(pack_dir),
         "run_dir": str(run_dir),
         "summary": {
             "changed_count": len(diff_payload.get("changed_urls", [])),
@@ -323,15 +333,59 @@ def run_monitor_once(
             "evals": _artifact_ref(run_dir, evals_path) if evals_path else None,
         },
     }
-    if github_issue_file:
+    # Re-check pause state: the monitor may have been paused while refreshing.
+    current = _read_monitor_config(state_dir, name)
+    if current.get("paused"):
+        raise MonitorError(f"Monitor is paused: {name}")
+    refreshed = not dry_run and audit is not None and (refreshed_pack_dir / "documents.ndjson").exists()
+    fingerprint = _change_fingerprint(
+        str(config.get("dedupe_key", "url+content_hash")), diff_payload, refreshed_pack_dir
+    )
+    has_changes = any(diff_payload.get(key) for key in ("changed_urls", "added_urls", "removed_urls"))
+    duplicate = has_changes and fingerprint == current.get("last_reported_fingerprint")
+    payload["summary"]["change_fingerprint"] = fingerprint
+    payload["summary"]["deduplicated"] = duplicate
+    if github_issue_file and not duplicate:
         github_issue_file.parent.mkdir(parents=True, exist_ok=True)
         github_issue_file.write_text(_monitor_markdown(payload), encoding="utf-8")
         payload["notification_outputs"]["github_issue_file"] = str(github_issue_file)
+    if refreshed:
+        current["baseline_pack_dir"] = str(refreshed_pack_dir.resolve())
+        current["last_checked_at"] = utc_now_iso()
+        if has_changes:
+            current["last_reported_fingerprint"] = fingerprint
+        _write_json(_monitor_dir(state_dir, str(current["name"])) / "monitor.json", current)
     report_path = run_dir / "monitor.report.json"
     markdown_path = run_dir / "MONITOR_REPORT.md"
     _write_json(report_path, payload)
     markdown_path.write_text(_monitor_markdown(payload), encoding="utf-8")
     return payload
+
+
+def _change_fingerprint(dedupe_key: str, diff_payload: dict[str, Any], refreshed_pack_dir: Path) -> str:
+    """Hash the reported change set using the monitor's ``dedupe_key`` fields."""
+    parts: dict[str, Any] = {
+        key: sorted(str(url) for url in diff_payload.get(key) or [])
+        for key in ("changed_urls", "added_urls", "removed_urls")
+    }
+    if "content_hash" in dedupe_key:
+        wanted = set(parts["changed_urls"]) | set(parts["added_urls"])
+        hashes: dict[str, str] = {}
+        documents = refreshed_pack_dir / "documents.ndjson"
+        if wanted and documents.exists():
+            for line in documents.read_text(encoding="utf-8").splitlines():
+                try:
+                    record = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                url = record.get("url") if isinstance(record, dict) else None
+                if url in wanted:
+                    hashes[str(url)] = str(
+                        record.get("content_hash") or hashlib.sha256(line.encode("utf-8")).hexdigest()
+                    )
+        parts["content_hashes"] = dict(sorted(hashes.items()))
+    blob = json.dumps({"dedupe_key": dedupe_key, **parts}, sort_keys=True)
+    return hashlib.sha256(blob.encode("utf-8")).hexdigest()
 
 
 def set_monitor_paused(

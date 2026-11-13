@@ -177,15 +177,6 @@
         {"type": "test", "path": "tests/test_surface_contract.py"},
         {"type": "doc", "path": "docs/surface-contract.md"}
       ]
-    },
-    {
-      "area": "Release hygiene",
-      "claim": "Strict release readiness fails unless generated release metadata is synchronized and the working tree is clean.",
-      "references": [
-        {"type": "code", "path": "scripts/release_a_plus_check.py"},
-        {"type": "test", "path": "tests/test_release_a_plus_check_script.py"},
-        {"type": "doc", "path": "README.md"}
-      ]
     }
   ]
 }

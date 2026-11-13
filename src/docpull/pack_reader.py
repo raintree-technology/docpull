@@ -333,7 +333,7 @@ def _read_documents(
     for path in _structured_record_candidates(pack_dir, manifest, metadata):
         if not path.exists():
             continue
-        if path.suffix == ".ndjson":
+        if path.suffix in {".ndjson", ".jsonl"}:
             return _coerce_records(_read_ndjson(path)), _relative_display(pack_dir, path), None
         if path.suffix == ".json":
             return _coerce_records(_read_documents_json(path)), _relative_display(pack_dir, path), None
@@ -344,8 +344,8 @@ def _read_documents(
     if records:
         return _coerce_records(records), "corpus.manifest.json", None
     raise PackReadError(
-        f"No readable documents found in {pack_dir}; expected documents.ndjson, documents.json, "
-        "documents.db, or manifest records with output_path files."
+        f"No readable documents found in {pack_dir}; expected documents.ndjson, documents.jsonl, "
+        "documents.json, documents.db, or manifest records with output_path files."
     )
 
 
@@ -369,6 +369,7 @@ def _structured_record_candidates(
     candidates.extend(
         [
             pack_dir / "documents.ndjson",
+            pack_dir / "documents.jsonl",
             pack_dir / "documents.json",
             pack_dir / "documents.db",
         ]
@@ -380,7 +381,7 @@ def _structured_record_candidates(
             if not isinstance(item, dict):
                 continue
             resolved = resolve_pack_path(pack_dir, item.get("output_path"))
-            if resolved is not None and resolved.suffix in {".ndjson", ".json", ".db"}:
+            if resolved is not None and resolved.suffix in {".ndjson", ".jsonl", ".json", ".db"}:
                 candidates.append(resolved)
 
     unique: list[Path] = []
@@ -402,7 +403,7 @@ def _read_manifest_files(pack_dir: Path, manifest: dict[str, Any]) -> list[dict[
         if not isinstance(item, dict):
             continue
         output_path = resolve_pack_path(pack_dir, item.get("output_path"))
-        if output_path is None or output_path.suffix in {".db", ".json", ".ndjson"}:
+        if output_path is None or output_path.suffix in {".db", ".json", ".ndjson", ".jsonl"}:
             continue
         if not output_path.exists() or not output_path.is_file():
             continue
@@ -414,17 +415,23 @@ def _read_manifest_files(pack_dir: Path, manifest: dict[str, Any]) -> list[dict[
 
 def _read_ndjson(path: Path) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
-    for index, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
-        if not line.strip():
-            continue
-        try:
-            value = json.loads(line)
-        except json.JSONDecodeError as err:
-            raise PackReadError(f"Invalid NDJSON in {path} line {index}: {err}") from err
-        if not isinstance(value, dict):
-            raise PackReadError(f"Invalid NDJSON in {path} line {index}: expected object")
-        records.append(value)
+    # Stream line by line so large corpora are never held twice (text + split list).
+    with path.open(encoding="utf-8") as handle:
+        for index, line in enumerate(handle, start=1):
+            if not line.strip():
+                continue
+            records.append(_parse_ndjson_line(path, index, line))
     return records
+
+
+def _parse_ndjson_line(path: Path, index: int, line: str) -> dict[str, Any]:
+    try:
+        value = json.loads(line)
+    except json.JSONDecodeError as err:
+        raise PackReadError(f"Invalid NDJSON in {path} line {index}: {err}") from err
+    if not isinstance(value, dict):
+        raise PackReadError(f"Invalid NDJSON in {path} line {index}: expected object")
+    return value
 
 
 def _read_documents_json(path: Path) -> list[dict[str, Any]]:

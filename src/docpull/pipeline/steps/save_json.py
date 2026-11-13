@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import contextlib
 import json
 import logging
 import os
@@ -193,7 +192,12 @@ class JsonSaveStep:
                 self._temp_file.close()
                 self._temp_file = None
             if self._temp_path and os.path.exists(self._temp_path):
-                os.unlink(self._temp_path)
+                try:
+                    os.unlink(self._temp_path)
+                except OSError:
+                    logger.warning(
+                        "Could not remove temporary JSON output %s", self._temp_path, exc_info=True
+                    )
             raise
 
         return self._output_file
@@ -201,11 +205,15 @@ class JsonSaveStep:
     def __del__(self) -> None:
         """Clean up temp file if not finalized."""
         if self._temp_file:
-            with contextlib.suppress(Exception):
+            try:
                 self._temp_file.close()
+            except Exception:  # noqa: BLE001 - finalizers must not raise
+                logger.warning("Could not close temporary JSON output %s", self._temp_path, exc_info=True)
         if self._temp_path and os.path.exists(self._temp_path):
-            with contextlib.suppress(Exception):
+            try:
                 os.unlink(self._temp_path)
+            except OSError:
+                logger.warning("Could not remove temporary JSON output %s", self._temp_path, exc_info=True)
 
     @property
     def document_count(self) -> int:

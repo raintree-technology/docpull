@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { readFile } from "node:fs/promises";
 
 import {
   DocpullCliError,
@@ -134,5 +135,16 @@ describe("fetchToPack", () => {
   test("rejects empty url and outputDir", () => {
     expect(() => fetchToPack("", "./packs/example")).toThrow("non-empty url");
     expect(() => fetchToPack("https://example.com", "  ")).toThrow("non-empty outputDir");
+  });
+});
+
+describe("Python CLI flag parity", () => {
+  // fetchToPack builds `docpull <url> -o <dir> --budget <n>`; fail fast if the
+  // Python CLI renames or drops either flag.
+  test("src/docpull/cli.py still defines -o/--output-dir and --budget", async () => {
+    const cliPath = new URL("../../../src/docpull/cli.py", import.meta.url);
+    const source = await readFile(cliPath, "utf8");
+    expect(source).toMatch(/add_argument\(\s*"--output-dir",\s*"-o",/);
+    expect(source).toMatch(/add_argument\(\s*"--budget",/);
   });
 });

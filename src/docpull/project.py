@@ -9,9 +9,11 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import contextlib
 import hashlib
 import html
 import json
+import logging
 import os
 import re
 import shutil
@@ -32,6 +34,7 @@ from pydantic import BaseModel, Field, ValidationError, field_validator, model_v
 from rich.console import Console
 from rich.markup import escape
 
+from ._fileutil import atomic_write_text, file_lock
 from ._jsonutil import dict_value as _dict_value
 from ._jsonutil import read_json, write_json
 from .accounting import RunAccounting
@@ -93,6 +96,10 @@ def _fetcher_class() -> Any:
 
 
 _RUN_ID_RE = re.compile(r"^[0-9A-Za-z_.-]+$")
+_STALE_FETCH_SECONDS = 24 * 60 * 60
+_SYNC_LOCK_FILENAME = "sync.lock"
+
+logger = logging.getLogger(__name__)
 
 SourceType = Literal[
     "auto",
@@ -590,7 +597,12 @@ def run_sync_cli(argv: list[str] | None = None) -> int:
             f"{payload['run_id']} docs={summary['document_count']} "
             f"chunks={summary['chunk_count']} failed={summary['failed_count']}"
         )
-    return 0
+    if payload.get("status") == "dry_run":
+        return 0
+    # Failed or partial syncs (any source error or degraded) must not look green.
+    failed = int((payload.get("summary") or {}).get("failed_count") or 0)
+    ok = payload.get("status") == "success" and payload.get("complete", True) and failed == 0
+    return 0 if ok else 1
 
 
 def run_diff_cli(argv: list[str] | None = None) -> int:
@@ -1016,7 +1028,7 @@ def _install_frozen_project(
                     pending_run.rename(run_dir)
             _index_run(project_root, config, run, records, chunks, errors, health["sources"])
             _write_json(paths.manifests / f"{run_id}.json", manifest)
-            paths.latest_run.write_text(run_id + "\n", encoding="utf-8")
+            atomic_write_text(paths.latest_run, run_id + "\n")
     except (FrozenArtifactError, OSError) as err:
         raise ProjectError(str(err)) from err
     return {
@@ -1079,19 +1091,44 @@ def sync_project(
     root: Path | None = None,
 ) -> dict[str, Any]:
     project_root = find_project_root(root or Path.cwd())
+    paths = ensure_project_dirs(project_root)
+    # One sync per project at a time: runs, the lockfile, latest-run and the index
+    # are written as a set and must not interleave across processes.
+    with file_lock(paths.state / _SYNC_LOCK_FILENAME):
+        return _sync_project_locked(
+            project_root=project_root,
+            source_name=source_name,
+            run_id=run_id,
+            dry_run=dry_run,
+            update_discovery=update_discovery,
+        )
+
+
+def _sync_project_locked(
+    *,
+    project_root: Path,
+    source_name: str | None,
+    run_id: str | None,
+    dry_run: bool,
+    update_discovery: bool,
+) -> dict[str, Any]:
     config = load_project_config(project_root)
     if not config.sources:
         raise ProjectError("Project has no sources. Add one with `docpull add URL`.")
     selected = _selected_sources(config, source_name)
     discovery_refresh_names = [source.name for source in selected if source.discover]
+    pending_config: ProjectConfig | None = None
     if not dry_run and (update_discovery or discovery_refresh_names):
         refresh_names = [source.name for source in selected] if update_discovery else discovery_refresh_names
         config = _refresh_project_discovery(project_root, config, source_names=refresh_names)
-        save_project_config(project_root, config)
+        # docpull.yaml is persisted only with a successful run, together with the lock.
+        pending_config = config
         selected = _selected_sources(config, source_name)
     _validate_auth_ready(selected)
     paths = ensure_project_dirs(project_root)
     ensure_project_index(project_root, config)
+    _cleanup_stale_fetch_dirs(paths)
+    _reconcile_locked_run(project_root, config)
     current_run_id = _safe_run_id(run_id or _new_run_id())
     run_dir = paths.runs / current_run_id
     if run_dir.exists():
@@ -1201,6 +1238,7 @@ def sync_project(
         fetch_stats=fetch_stats,
         update_discovery=update_discovery,
         pin_lock=source_name is None and not any(e.get("type") == "source_sync_failed" for e in errors),
+        pending_config=pending_config,
     )
 
 
@@ -1280,6 +1318,8 @@ def project_status(*, root: Path | None = None) -> dict[str, Any]:
     config = load_project_config(project_root)
     paths = ensure_project_dirs(project_root)
     ensure_project_index(project_root, config)
+    with file_lock(paths.state / _SYNC_LOCK_FILENAME):
+        _reconcile_locked_run(project_root, config)
     latest = _latest_run_id(project_root)
     latest_run = _run_payload(paths.runs / latest) if latest else None
     diff_payload = _latest_diff_payload(paths.runs / latest) if latest else None
@@ -1432,7 +1472,7 @@ def project_history(*, limit: int = 20, root: Path | None = None) -> dict[str, A
     config = load_project_config(project_root)
     paths = ensure_project_dirs(project_root)
     ensure_project_index(project_root, config)
-    conn = sqlite3.connect(paths.index)
+    conn = _connect_index(paths.index)
     conn.row_factory = sqlite3.Row
     try:
         rows = conn.execute(
@@ -2042,6 +2082,7 @@ def _finalize_project_run(
     fetch_stats: dict[str, int],
     update_discovery: bool,
     pin_lock: bool = True,
+    pending_config: ProjectConfig | None = None,
 ) -> dict[str, Any]:
     paths = project_paths(project_root)
     finished_at = utc_now_iso()
@@ -2068,7 +2109,7 @@ def _finalize_project_run(
     )
     _write_json(run_dir / "manifest.json", manifest)
     _write_json(run_dir / "corpus.manifest.json", _corpus_manifest(manifest, records, source_entries))
-    (run_dir / "sources.md").write_text(_sources_markdown(source_entries), encoding="utf-8")
+    atomic_write_text(run_dir / "sources.md", _sources_markdown(source_entries))
     _write_json(run_dir / "local.pack.json", _local_pack(config, records, source_entries))
     accounting = _run_accounting(config, fetch_stats)
     _write_json(run_dir / "accounting.json", accounting)
@@ -2118,9 +2159,17 @@ def _finalize_project_run(
                 "status": "completed",
                 "artifacts": publish_payload.get("artifacts", {}),
             }
+    run_payload["complete"] = (
+        status == "success" and not errors and all(item.get("status") == "ok" for item in source_health)
+    )
     _write_json(run_dir / "run.json", run_payload)
+    # Refreshed discovery reaches docpull.yaml only with a successful run, written
+    # immediately before the lock so a failed sync leaves both untouched.
+    if status == "success" and pending_config is not None:
+        save_project_config(project_root, pending_config)
     # Only a successful, complete run may move the lock; dry, failed, scoped and
     # source-dropping runs keep the previous pin so it never loses pinned evidence.
+    # A crash after this point is reconciled by ``_reconcile_locked_run``.
     if status == "success" and pin_lock:
         lock_payload = _write_context_lock(
             project_root=project_root,
@@ -2131,9 +2180,90 @@ def _finalize_project_run(
         run_payload["context_lock_hash"] = lock_payload.get("lock_hash")
         _write_json(run_dir / "run.json", run_payload)
     if status == "success":
-        paths.latest_run.write_text(run_id + "\n", encoding="utf-8")
+        atomic_write_text(paths.latest_run, run_id + "\n")
     _index_run(project_root, config, run_payload, records, chunks, errors, source_health)
     return run_payload
+
+
+def _cleanup_stale_fetch_dirs(
+    paths: ProjectPaths, *, max_age_seconds: float = _STALE_FETCH_SECONDS
+) -> list[str]:
+    """Remove ``runs/<id>/_fetch`` left by crashed syncs (no run.json, older than the cutoff)."""
+
+    removed: list[str] = []
+    if not paths.runs.is_dir():
+        return removed
+    cutoff = time.time() - max_age_seconds
+    for run_dir in paths.runs.iterdir():
+        fetch_dir = run_dir / "_fetch"
+        if not run_dir.is_dir() or (run_dir / "run.json").exists() or not fetch_dir.is_dir():
+            continue
+        try:
+            if fetch_dir.stat().st_mtime > cutoff:
+                continue
+            shutil.rmtree(fetch_dir)
+            if not any(run_dir.iterdir()):
+                run_dir.rmdir()
+        except OSError as err:
+            logger.warning("Could not remove stale fetch directory %s: %s", fetch_dir, err)
+            continue
+        removed.append(run_dir.name)
+    return removed
+
+
+def _reconcile_locked_run(project_root: Path, config: ProjectConfig) -> str | None:
+    """Repair latest-run and the index when a crash interrupted run finalization.
+
+    The lockfile is written before latest-run and the SQLite index, so a lock that
+    names a completed run the index does not know, or that is newer than latest-run,
+    means finalization stopped part way. Rebuild the lagging state from run files,
+    mirroring frozen install. Returns the reconciled run ID, if any.
+    """
+
+    paths = project_paths(project_root)
+    lock = _read_context_lock(paths.context_lock)
+    run_id = lock.get("run_id") if isinstance(lock, dict) else None
+    if not isinstance(run_id, str) or not _RUN_ID_RE.fullmatch(run_id):
+        return None
+    run_dir = paths.runs / run_id
+    run = _run_payload(run_dir)
+    if not run or run.get("run_id") != run_id or run.get("status") != "success":
+        return None
+    latest = paths.latest_run.read_text(encoding="utf-8").strip() if paths.latest_run.exists() else ""
+    latest_run = _run_payload(paths.runs / latest) if latest and _RUN_ID_RE.fullmatch(latest) else None
+    latest_lags = latest_run is None or str(latest_run.get("started_at") or "") < str(
+        run.get("started_at") or ""
+    )
+    indexed = False
+    if paths.index.exists():
+        conn = _connect_index(paths.index)
+        try:
+            indexed = conn.execute("SELECT 1 FROM runs WHERE run_id = ?", (run_id,)).fetchone() is not None
+        except sqlite3.Error:
+            indexed = False
+        finally:
+            conn.close()
+    if indexed and not latest_lags and run.get("context_lock_hash"):
+        return None
+    logger.warning("Reconciling interrupted finalization of run %s", run_id)
+    if not run.get("context_lock_hash") and lock and lock.get("lock_hash"):
+        run["context_lock_hash"] = lock["lock_hash"]
+        _write_json(run_dir / "run.json", run)
+    if not indexed:
+        health = _read_json(run_dir / "source-health.json", default={"sources": []})
+        sources = health.get("sources") if isinstance(health, dict) else None
+        _index_run(
+            project_root,
+            config,
+            run,
+            _read_jsonl(run_dir / "documents.jsonl"),
+            _read_jsonl(run_dir / "chunks.jsonl"),
+            _read_jsonl(run_dir / "errors.jsonl"),
+            sources if isinstance(sources, list) else [],
+        )
+    if latest_lags:
+        atomic_write_text(paths.latest_run, run_id + "\n")
+    return run_id
 
 
 def project_paths(root: Path) -> ProjectPaths:
@@ -2205,7 +2335,7 @@ def save_project_config(root: Path, config: ProjectConfig) -> None:
 
 def ensure_project_index(root: Path, config: ProjectConfig | None = None) -> Path:
     paths = ensure_project_dirs(root)
-    conn = sqlite3.connect(paths.index)
+    conn = _connect_index(paths.index)
     try:
         current_version = conn.execute("PRAGMA user_version").fetchone()[0]
         if int(current_version) < PROJECT_INDEX_USER_VERSION:
@@ -2452,7 +2582,7 @@ def _index_run(
     paths = project_paths(project_root)
     ensure_project_index(project_root, config)
     summary = _dict_value(run_payload.get("summary"))
-    conn = sqlite3.connect(paths.index)
+    conn = _connect_index(paths.index)
     try:
         conn.execute(
             """
@@ -2571,7 +2701,7 @@ def _index_diff(project_root: Path, payload: dict[str, Any]) -> None:
     paths = project_paths(project_root)
     summary = _dict_value(payload.get("summary"))
     diff_id = _stable_id("diff", str(payload["from_run_id"]), str(payload["to_run_id"]))
-    conn = sqlite3.connect(paths.index)
+    conn = _connect_index(paths.index)
     try:
         conn.execute(
             """
@@ -2609,7 +2739,7 @@ def _index_diff(project_root: Path, payload: dict[str, Any]) -> None:
 
 def _index_export(project_root: Path, payload: dict[str, Any]) -> None:
     paths = project_paths(project_root)
-    conn = sqlite3.connect(paths.index)
+    conn = _connect_index(paths.index)
     try:
         conn.execute(
             """
@@ -2632,7 +2762,7 @@ def _index_export(project_root: Path, payload: dict[str, Any]) -> None:
 def _index_review(project_root: Path, payload: dict[str, Any]) -> None:
     paths = project_paths(project_root)
     summary = _dict_value(payload.get("summary"))
-    conn = sqlite3.connect(paths.index)
+    conn = _connect_index(paths.index)
     try:
         conn.execute(
             """
@@ -2655,7 +2785,7 @@ def _index_review(project_root: Path, payload: dict[str, Any]) -> None:
 
 def _index_release(project_root: Path, payload: dict[str, Any]) -> None:
     paths = project_paths(project_root)
-    conn = sqlite3.connect(paths.index)
+    conn = _connect_index(paths.index)
     try:
         conn.execute(
             """
@@ -3058,15 +3188,27 @@ def _validate_context_lock(config: ProjectConfig, lock: dict[str, Any]) -> None:
         for item in locked_sources
         if isinstance(item, dict)
     ]
+    for item in locked:
+        alias_name = item.get("alias")
+        if alias_name and get_context_alias(str(alias_name)) is None:
+            if not item.get("url") or item["url"] == "None":
+                raise ProjectError(
+                    f"Context lockfile references unknown alias {alias_name!r} and records no URL; "
+                    "replace the source with an explicit URL (`docpull add URL`) and run `docpull sync`"
+                )
+            # The alias was retired from this DocPull version; the lock still records the
+            # resolved URL and discovery, which is all restoring the pin needs.
+            logger.warning(
+                "Context lockfile alias %r is unknown to this DocPull version; using locked URL %s",
+                alias_name,
+                item["url"],
+            )
+            item["alias"] = None
     if current != locked:
         raise ProjectError(
             "docpull.yaml diverges from .docpull/context.lock.json; run `docpull sync` "
             "or update dependencies intentionally"
         )
-    for item in locked:
-        alias_name = item.get("alias")
-        if alias_name and get_context_alias(str(alias_name)) is None:
-            raise ProjectError(f"Context lockfile references unknown alias: {alias_name}")
 
 
 def _context_lock_status(config: ProjectConfig, lock: dict[str, Any] | None) -> str:
@@ -3955,7 +4097,7 @@ def _run_ids(project_root: Path) -> list[str]:
     paths = project_paths(project_root)
     if not paths.index.exists():
         return []
-    conn = sqlite3.connect(paths.index)
+    conn = _connect_index(paths.index)
     try:
         rows = conn.execute(
             "SELECT run_id FROM runs WHERE status != 'dry_run' ORDER BY started_at, run_id"
@@ -4012,10 +4154,25 @@ def _records_by_url(records: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
 _read_json = partial(read_json, error=ProjectError, required=False)
 
 
+_SQLITE_TIMEOUT_SECONDS = 30.0
+
+
+def _connect_index(path: Path) -> sqlite3.Connection:
+    """Open the project index with WAL and a busy timeout so concurrent agents wait, not fail."""
+    conn = sqlite3.connect(path, timeout=_SQLITE_TIMEOUT_SECONDS)
+    conn.execute(f"PRAGMA busy_timeout = {int(_SQLITE_TIMEOUT_SECONDS * 1000)}")
+    # Read-only or exotic filesystems keep the default journal; the timeout still applies.
+    with contextlib.suppress(sqlite3.OperationalError):
+        conn.execute("PRAGMA journal_mode=WAL")
+    return conn
+
+
 def _replace_atomically(path: Path, write: Callable[[Path], object]) -> None:
-    """Write via a sibling temp file so a crash never leaves a truncated ``path``."""
+    """Write via a unique sibling temp file so a crash never leaves a truncated ``path``."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(f".{path.name}.tmp")
+    handle, name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
+    os.close(handle)
+    temporary = Path(name)
     try:
         write(temporary)
         os.replace(temporary, path)
@@ -4046,11 +4203,12 @@ def _read_jsonl(path: Path) -> list[dict[str, Any]]:
 
 
 def _write_jsonl(path: Path, records: list[dict[str, Any]]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        "".join(json.dumps(record, ensure_ascii=False) + "\n" for record in records),
-        encoding="utf-8",
-    )
+    def write(target: Path) -> None:
+        with target.open("w", encoding="utf-8") as handle:
+            for record in records:
+                handle.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+    _replace_atomically(path, write)
 
 
 def _new_run_id() -> str:

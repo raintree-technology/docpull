@@ -5,11 +5,14 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
 import tempfile
+import time
 from datetime import timedelta
 from pathlib import Path
 from typing import Any, TypedDict
 
+from .._fileutil import file_lock
 from ..time_utils import parse_persisted_datetime, utc_now, utc_now_iso
 from .frontier import FrontierStore
 
@@ -112,12 +115,31 @@ class CacheManager:
         self.frontier_file = self.cache_dir / "frontier.json"
         self.frontier = FrontierStore(self.frontier_file)
 
+        self.lock_file = self.cache_dir / ".cache.lock"
+
         self.manifest: dict[str, ManifestEntry] = self._load_manifest()
         self._state: _InternalState = _InternalState.from_cache_state(self._load_state())
 
         # Track if there are unsaved changes (for batched writes)
         self._manifest_dirty = False
         self._state_dirty = False
+        # Per-URL deltas since the last flush. flush() re-reads the on-disk
+        # files under an advisory lock and applies only these deltas, so
+        # concurrent processes sharing a cache dir don't drop each other's
+        # entries (last writer no longer wins wholesale).
+        self._touched: set[str] = set()
+        self._removed: set[str] = set()
+        self._state_ops: dict[str, str] = {}
+        self._last_run_set = False
+
+    def _backup_corrupt(self, path: Path, err: Exception) -> None:
+        """Move an unreadable cache file aside instead of silently losing it."""
+        backup = path.with_name(f"{path.name}.corrupt-{time.strftime('%Y%m%dT%H%M%S')}-{os.getpid()}")
+        try:
+            os.replace(path, backup)
+            logger.warning("Could not load %s (%s); moved it to %s and starting empty", path, err, backup)
+        except OSError as move_err:
+            logger.warning("Could not load %s (%s); backup to %s failed: %s", path, err, backup, move_err)
 
     def _load_manifest(self) -> dict[str, ManifestEntry]:
         """Load manifest from disk.
@@ -162,7 +184,7 @@ class CacheManager:
                     manifest[url] = entry
                 return manifest
             except Exception as e:
-                logger.warning(f"Could not load manifest: {e}")
+                self._backup_corrupt(self.manifest_file, e)
 
         return {}
 
@@ -188,14 +210,24 @@ class CacheManager:
             raise
 
     def _save_manifest(self) -> None:
-        """Save manifest to disk (internal, called by flush)."""
+        """Merge this process's manifest deltas into the on-disk manifest.
+
+        Called by flush() with the cache lock held. Write errors propagate.
+        """
         if not self._manifest_dirty:
             return
-        try:
-            self._write_json(self.manifest_file, self.manifest)
-            self._manifest_dirty = False
-        except Exception as e:
-            logger.error(f"Could not save manifest: {e}")
+        merged = self._load_manifest()
+        for url in self._removed:
+            merged.pop(url, None)
+        for url in self._touched:
+            entry = self.manifest.get(url)
+            if entry is not None:
+                merged[url] = entry
+        self._write_json(self.manifest_file, merged)
+        self.manifest = merged
+        self._touched.clear()
+        self._removed.clear()
+        self._manifest_dirty = False
 
     def _load_state(self) -> CacheState:
         """Load state from disk.
@@ -217,7 +249,7 @@ class CacheManager:
                     "last_run": last_run if isinstance(last_run, str) else None,
                 }
             except Exception as e:
-                logger.warning(f"Could not load state: {e}")
+                self._backup_corrupt(self.state_file, e)
 
         return {
             "fetched_urls": [],
@@ -229,21 +261,40 @@ class CacheManager:
         """Save state to disk (internal, called by flush)."""
         if not self._state_dirty:
             return
-        try:
-            state = self._state.to_cache_state()
-            self._write_json(self.state_file, state)
-            self._state_dirty = False
-        except Exception as e:
-            logger.error(f"Could not save state: {e}")
+        merged = _InternalState.from_cache_state(self._load_state())
+        for url, op in self._state_ops.items():
+            merged.fetched_urls.discard(url)
+            merged.failed_urls.discard(url)
+            if op == "fetched":
+                merged.fetched_urls.add(url)
+            elif op == "failed":
+                merged.failed_urls.add(url)
+        if self._last_run_set:
+            merged.last_run = self._state.last_run
+        self._write_json(self.state_file, merged.to_cache_state())
+        self._state = merged
+        self._state_ops.clear()
+        self._last_run_set = False
+        self._state_dirty = False
 
     def flush(self) -> None:
         """Flush all pending changes to disk.
 
         Call this after a batch of operations to persist changes.
         This is more efficient than saving after every operation.
+
+        Holds an advisory lock on ``.cache.lock`` and merges with what is on
+        disk, so concurrent processes sharing the cache dir keep each
+        other's entries. Write failures raise (they are not swallowed).
+
+        Ordering: the manifest is written before state. If the process dies
+        between the two, state is merely behind the manifest, which only
+        means some URLs are re-fetched (conditional GET) on resume. The
+        reverse order could mark a URL fetched with no manifest entry.
         """
-        self._save_manifest()
-        self._save_state()
+        with file_lock(self.lock_file):
+            self._save_manifest()
+            self._save_state()
         self.frontier.flush()
 
     def __enter__(self) -> CacheManager:
@@ -257,7 +308,14 @@ class CacheManager:
         exc_tb: object | None,
     ) -> None:
         """Context manager exit - auto-flush on exit."""
-        self.flush()
+        if exc_type is None:
+            self.flush()
+            return
+        # Don't mask the in-flight exception with a flush failure.
+        try:
+            self.flush()
+        except Exception:
+            logger.exception("Could not flush cache in %s", self.cache_dir)
 
     @staticmethod
     def compute_checksum(content: str | bytes) -> str:
@@ -319,6 +377,8 @@ class CacheManager:
         if sitemap_lastmod:
             self.manifest[url]["sitemap_lastmod"] = sitemap_lastmod
 
+        self._touched.add(url)
+        self._removed.discard(url)
         self._manifest_dirty = True
 
     def mark_verified(self, url: str, sitemap_lastmod: str | None = None) -> None:
@@ -329,6 +389,7 @@ class CacheManager:
         entry["verified_at"] = utc_now_iso()
         if sitemap_lastmod:
             entry["sitemap_lastmod"] = sitemap_lastmod
+        self._touched.add(url)
         self._manifest_dirty = True
 
     def forget(self, url: str) -> None:
@@ -336,6 +397,9 @@ class CacheManager:
         self.manifest.pop(url, None)
         self._state.fetched_urls.discard(url)
         self._state.failed_urls.discard(url)
+        self._touched.discard(url)
+        self._removed.add(url)
+        self._state_ops[url] = "forget"
         self._manifest_dirty = True
         self._state_dirty = True
 
@@ -350,6 +414,7 @@ class CacheManager:
         """
         self._state.fetched_urls.add(url)
         self._state.failed_urls.discard(url)
+        self._state_ops[url] = "fetched"
         self.frontier.mark_succeeded(url)
         self._state_dirty = True
 
@@ -364,6 +429,7 @@ class CacheManager:
         """
         self._state.failed_urls.add(url)
         self._state.fetched_urls.discard(url)
+        self._state_ops[url] = "failed"
         self.frontier.mark_failed(url)
         self._state_dirty = True
 
@@ -382,6 +448,7 @@ class CacheManager:
             Changes are batched. Call flush() to persist to disk.
         """
         self._state.last_run = utc_now_iso()
+        self._last_run_set = True
         self._state_dirty = True
 
     def evict_expired(self, ttl_days: int | None = None) -> int:
@@ -417,6 +484,9 @@ class CacheManager:
             for url in to_remove:
                 self._state.fetched_urls.discard(url)
                 self._state.failed_urls.discard(url)
+                self._touched.discard(url)
+                self._removed.add(url)
+                self._state_ops[url] = "forget"
             self._manifest_dirty = True
             self._state_dirty = True
             logger.info(f"Evicted {len(to_remove)} expired cache entries")
@@ -455,11 +525,10 @@ class CacheManager:
                 self.frontier.initialize(start_url=start_url, run_fingerprint=config_fingerprint)
         self.frontier.add_many(urls, source="discovery")
         self.frontier.save()
-        try:
-            self._write_json(self.discovered_urls_file, data)
-            logger.info(f"Saved {len(urls)} discovered URLs for resume capability")
-        except Exception as e:
-            logger.error(f"Could not save discovered URLs: {e}")
+        # Write errors propagate: a silently missing resume snapshot would
+        # make --resume restart from scratch without telling anyone.
+        self._write_json(self.discovered_urls_file, data)
+        logger.info(f"Saved {len(urls)} discovered URLs for resume capability")
 
     def load_discovered_urls(
         self,
@@ -497,7 +566,7 @@ class CacheManager:
             logger.info(f"Loaded {len(urls)} discovered URLs from previous run")
             return urls
         except Exception as e:
-            logger.warning(f"Could not load discovered URLs: {e}")
+            self._backup_corrupt(self.discovered_urls_file, e)
             return None
 
     def get_pending_urls(

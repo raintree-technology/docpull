@@ -42,6 +42,22 @@ recommended source type, and default discovery preference. Aliases cannot
 define auth or credentials. For private sources, add an explicit HTTPS URL with
 the existing environment-backed auth options.
 
+## Intent vs. resolved state
+
+The two project files have different owners and must not be confused:
+
+- `docpull.yaml` is **intent**: the sources, aliases, and settings you want.
+  You edit it by hand or with `docpull add`, and you commit it.
+- `.docpull/context.lock.json` is **resolved state**: what a sync actually
+  resolved and fetched (URLs, content hashes, run ID, archive digest). DocPull
+  writes it; do not edit it by hand. Commit it when you want reproducible
+  installs.
+
+Change intent in `docpull.yaml`, then run `docpull sync` to update the lock.
+Default local state directories (`.docpull-cache`, typed-pack caches, skill
+exports) resolve against `DOCPULL_HOME` when set, otherwise against the
+directory holding the nearest `docpull.yaml`, otherwise the current directory.
+
 ## Lockfile
 
 `docpull sync` writes `.docpull/context.lock.json`. `docpull install` validates

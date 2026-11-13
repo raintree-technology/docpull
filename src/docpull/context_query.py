@@ -16,6 +16,7 @@ from contextlib import closing
 from pathlib import Path
 from typing import Any
 
+from ._fileutil import file_lock
 from .frozen import FrozenArtifactError, _digest, stage_run_artifact
 from .pack_tools import _search_score, _term_count
 from .project import (
@@ -233,29 +234,13 @@ def build_query_index(state: Path, lock: dict[str, Any]) -> bool:
         target = _index_path(state, lock["artifact"]["sha256"])
         if target.is_file():
             return True
-        rows = [
-            tuple(passage[key] for key in _PASSAGE_KEYS)
-            for index, record in _artifact_records(lock, state / "artifacts")
-            for passage in _record_passages(index, record)
-        ]
         target.parent.mkdir(parents=True, exist_ok=True)
-        with tempfile.NamedTemporaryFile(dir=target.parent, suffix=".tmp", delete=False) as handle:
-            temporary = Path(handle.name)
-        try:
-            with closing(sqlite3.connect(temporary)) as conn, conn:
-                conn.execute("CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
-                conn.execute(f"CREATE TABLE passages ({', '.join(_PASSAGE_KEYS)})")
-                conn.execute(
-                    "CREATE VIRTUAL TABLE passages_fts USING fts5(text, content='passages', "
-                    "content_rowid='rowid', tokenize='unicode61 remove_diacritics 2')"
-                )
-                conn.execute("INSERT INTO meta VALUES ('lock', ?)", (_index_key(lock),))
-                conn.executemany("INSERT INTO passages VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", rows)
-                conn.execute("INSERT INTO passages_fts(passages_fts) VALUES ('rebuild')")
-                conn.execute(f"PRAGMA user_version = {_INDEX_SCHEMA}")
-            os.replace(temporary, target)
-        finally:
-            temporary.unlink(missing_ok=True)
+        # Cold agents serialize on a per-artifact lock; whoever waits re-checks and
+        # reuses the index the first builder published instead of rebuilding it.
+        with file_lock(target.with_name(target.name + ".lock")):
+            if target.is_file():
+                return True
+            _write_query_index(target, lock, state)
     except (
         ContextQueryError,
         FrozenArtifactError,
@@ -268,6 +253,43 @@ def build_query_index(state: Path, lock: dict[str, Any]) -> bool:
         _log.warning("Skipped query index for %s: %s", state, err)
         return False
     return True
+
+
+_INDEX_BATCH_SIZE = 1000
+
+
+def _write_query_index(target: Path, lock: dict[str, Any], state: Path) -> None:
+    rows = (
+        tuple(passage[key] for key in _PASSAGE_KEYS)
+        for index, record in _artifact_records(lock, state / "artifacts")
+        for passage in _record_passages(index, record)
+    )
+    with tempfile.NamedTemporaryFile(dir=target.parent, suffix=".tmp", delete=False) as handle:
+        temporary = Path(handle.name)
+    try:
+        with closing(sqlite3.connect(temporary)) as conn, conn:
+            conn.execute("CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
+            conn.execute(f"CREATE TABLE passages ({', '.join(_PASSAGE_KEYS)})")
+            conn.execute(
+                "CREATE VIRTUAL TABLE passages_fts USING fts5(text, content='passages', "
+                "content_rowid='rowid', tokenize='unicode61 remove_diacritics 2')"
+            )
+            conn.execute("INSERT INTO meta VALUES ('lock', ?)", (_index_key(lock),))
+            insert = "INSERT INTO passages VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+            # Stream passages in bounded batches instead of materializing every row.
+            batch: list[tuple[Any, ...]] = []
+            for row in rows:
+                batch.append(row)
+                if len(batch) >= _INDEX_BATCH_SIZE:
+                    conn.executemany(insert, batch)
+                    batch.clear()
+            if batch:
+                conn.executemany(insert, batch)
+            conn.execute("INSERT INTO passages_fts(passages_fts) VALUES ('rebuild')")
+            conn.execute(f"PRAGMA user_version = {_INDEX_SCHEMA}")
+        os.replace(temporary, target)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def _indexed_passages(path: Path, lock: dict[str, Any], terms: list[str]) -> list[dict[str, Any]] | None:

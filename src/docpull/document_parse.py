@@ -8,6 +8,7 @@ import contextlib
 import hashlib
 import importlib
 import json
+import logging
 import math
 import mimetypes
 import os
@@ -27,6 +28,8 @@ from .models.document import DocumentRecord
 from .output_contract import default_rights_state, validate_pack_contract, validation_report_text
 from .pipeline.manifest import CorpusManifest
 from .time_utils import utc_now_iso
+
+logger = logging.getLogger(__name__)
 
 ParseBackend = Literal["auto", "pypdf", "markitdown", "unstructured", "text"]
 RemoteDocumentErrorCode = Literal[
@@ -840,7 +843,8 @@ def _parse_pypdf(path: Path) -> tuple[str, dict[str, Any]]:
         image_count += _pypdf_page_image_count(page)
         try:
             text = page.extract_text() or ""
-        except Exception:  # noqa: BLE001
+        except Exception:  # noqa: BLE001 - pypdf raises arbitrary errors on bad pages
+            logger.debug("pypdf text extraction failed for %s page %d", path, page_index, exc_info=True)
             warnings.append(f"page {page_index}: text extraction failed")
             continue
         if text.strip():
@@ -887,7 +891,8 @@ def _pypdf_page_image_count(page: Any) -> int:
         resources = page.get("/Resources") or {}
         xobjects = resources.get("/XObject") or {}
         return sum(1 for value in xobjects.values() if value.get_object().get("/Subtype") == "/Image")
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001 - image counting is best-effort metadata
+        logger.debug("pypdf image count failed", exc_info=True)
         return 0
 
 

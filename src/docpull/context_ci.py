@@ -236,17 +236,23 @@ def _resolve_target(path: Path | None) -> dict[str, Any]:
     if (start / "docpull.yaml").exists():
         return _project_target(start)
     if path is None:
-        try:
-            from .project import find_project_root
+        from .project import ProjectError, find_project_root
 
-            return _project_target(find_project_root(start))
-        except Exception:
+        try:
+            project_root = find_project_root(start)
+        except OSError as err:
+            raise ContextCIError(f"Could not resolve DocPull project from {start}: {err}") from err
+        except ProjectError as err:
+            if "No docpull.yaml found" not in str(err):
+                raise ContextCIError(f"Could not resolve DocPull project from {start}: {err}") from err
+            # Only "no project here" falls back to treating cwd as a pack.
             return {
                 "mode": "pack",
                 "input_path": str(start),
                 "pack_dir": str(start),
                 "report_dir": str(start),
             }
+        return _project_target(project_root)
     try:
         from .project import find_project_root
 
@@ -281,14 +287,17 @@ def _resolve_thresholds(
     config_values: dict[str, Any] = {}
     config_fields: set[str] = set()
     if target["mode"] == "project":
-        try:
-            from .project import load_project_config
+        from .project import ProjectError, load_project_config, project_paths
 
-            project_config = load_project_config(Path(target["project_root"]))
+        project_root = Path(target["project_root"])
+        if project_paths(project_root).config.exists():
+            try:
+                project_config = load_project_config(project_root)
+            except (ProjectError, OSError) as err:
+                # A broken docpull.yaml must not silently fall back to default thresholds.
+                raise ContextCIError(f"Could not load {project_paths(project_root).config}: {err}") from err
             config_values = project_config.ci.model_dump(mode="json")
             config_fields = set(project_config.ci.model_fields_set)
-        except Exception:
-            config_values = {}
 
     require_rights = tuple(cli.get("require_rights") or config_values.get("require_rights") or ())
     config_context_pass_rate = (

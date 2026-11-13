@@ -7,13 +7,23 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Literal
 
+from .state_paths import resolve_default_state_path
+
 SkillAgent = Literal["claude", "codex", "cursor"]
 
 SKILL_AGENTS: tuple[SkillAgent, ...] = ("claude", "codex", "cursor")
 
 
 def default_skill_root(skill_name: str, agents: Sequence[SkillAgent]) -> Path:
-    """Return the default root for a generated skill export."""
+    """Return the default root for a generated skill export.
+
+    The root is anchored to ``DOCPULL_HOME`` or the ``docpull.yaml`` project
+    root when one is found; otherwise it stays relative to the cwd.
+    """
+    return resolve_default_state_path(_relative_skill_root(skill_name, agents))
+
+
+def _relative_skill_root(skill_name: str, agents: Sequence[SkillAgent]) -> Path:
     normalized = tuple(agents or ("claude",))
     if len(normalized) > 1 or "cursor" in normalized:
         return Path(".docpull/skills") / skill_name

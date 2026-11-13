@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { readCorpusManifest, readDocuments, readPack, type DocumentRecord } from "./pack.js";
 
@@ -65,7 +66,7 @@ const DOCUMENTS: DocumentRecord[] = [
 async function writePack(documentsFile: string): Promise<string> {
   const packDir = await mkdtemp(join(tmpdir(), "docpull-sdk-test-"));
   await writeFile(join(packDir, "corpus.manifest.json"), JSON.stringify(MANIFEST), "utf8");
-  const ndjson = DOCUMENTS.map((record) => JSON.stringify(record)).join("\n") + "\n";
+  const ndjson = `${DOCUMENTS.map((record) => JSON.stringify(record)).join("\n")}\n`;
   await writeFile(join(packDir, documentsFile), ndjson, "utf8");
   return packDir;
 }
@@ -129,13 +130,73 @@ describe("readDocuments", () => {
 
   test("rejects invalid ndjson lines with the line number", async () => {
     const packDir = await mkdtemp(join(tmpdir(), "docpull-sdk-test-"));
-    await writeFile(join(packDir, "documents.ndjson"), '{"ok": true}\nnot-json\n', "utf8");
+    await writeFile(join(packDir, "documents.ndjson"), `${JSON.stringify(DOCUMENTS[0])}\nnot-json\n`, "utf8");
     const iterate = async () => {
       for await (const _record of readDocuments(packDir)) {
         // Consume the iterator so the error surfaces.
       }
     };
     await expect(iterate()).rejects.toThrow("line 2");
+  });
+});
+
+describe("runtime validation", () => {
+  async function iterateAll(packDir: string): Promise<void> {
+    for await (const _record of readDocuments(packDir)) {
+      // Consume the iterator so the error surfaces.
+    }
+  }
+
+  test("rejects an unknown manifest schema major", async () => {
+    const packDir = await writePack("documents.ndjson");
+    await writeFile(join(packDir, "corpus.manifest.json"), JSON.stringify({ ...MANIFEST, schema_version: 4 }), "utf8");
+    await expect(readCorpusManifest(packDir)).rejects.toThrow("schema_version 4");
+  });
+
+  test("rejects a manifest without schema_version", async () => {
+    const packDir = await writePack("documents.ndjson");
+    const { schema_version: _omit, ...rest } = MANIFEST;
+    await writeFile(join(packDir, "corpus.manifest.json"), JSON.stringify(rest), "utf8");
+    await expect(readCorpusManifest(packDir)).rejects.toThrow("schema_version must be a number");
+  });
+
+  test("rejects manifest records missing required fields", async () => {
+    const packDir = await writePack("documents.ndjson");
+    const broken = { ...MANIFEST, records: [{ document_id: "doc_x", url: "https://example.com/x" }] };
+    await writeFile(join(packDir, "corpus.manifest.json"), JSON.stringify(broken), "utf8");
+    await expect(readCorpusManifest(packDir)).rejects.toThrow('records[0]: required field "content_hash"');
+  });
+
+  test("rejects document records missing content", async () => {
+    const packDir = await mkdtemp(join(tmpdir(), "docpull-sdk-test-"));
+    const { content: _omit, ...rest } = { ...DOCUMENTS[0] };
+    await writeFile(join(packDir, "documents.ndjson"), `${JSON.stringify(rest)}\n`, "utf8");
+    await expect(iterateAll(packDir)).rejects.toThrow('line 1: required field "content"');
+  });
+
+  test("rejects document records with an unknown schema major", async () => {
+    const packDir = await mkdtemp(join(tmpdir(), "docpull-sdk-test-"));
+    await writeFile(join(packDir, "documents.jsonl"), `${JSON.stringify({ ...DOCUMENTS[0], schema_version: 2 })}\n`, "utf8");
+    await expect(iterateAll(packDir)).rejects.toThrow("schema_version 2");
+  });
+});
+
+describe("Python-produced pack fixture", () => {
+  // Written by docpull's own NDJSON/manifest writers (synthetic content only).
+  const fixtureDir = fileURLToPath(new URL("../test-fixtures/python-pack", import.meta.url));
+
+  test("reads the manifest and documents written by the Python packer", async () => {
+    const pack = await readPack(fixtureDir);
+    expect(pack.manifest.schema_version).toBe(3);
+    expect(pack.manifest.output_contract_version).toBe(3);
+    expect(pack.manifest.records).toHaveLength(pack.manifest.record_count);
+    expect(pack.documents).toHaveLength(pack.manifest.record_count);
+    expect(pack.documents.map((doc) => doc.document_id)).toEqual(
+      pack.manifest.records.map((record) => record.document_id),
+    );
+    expect(pack.documents[0]?.url).toBe("https://docs.example.test/auth");
+    expect(pack.documents[0]?.content).toContain("bearer tokens");
+    expect(pack.documents[0]?.content_hash).toBe(pack.manifest.records[0]?.content_hash);
   });
 });
 

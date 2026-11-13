@@ -11,11 +11,13 @@ server wires them up at startup.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
 import shutil
 import time
+import uuid
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -25,6 +27,7 @@ from urllib.parse import urlsplit
 import regex
 import yaml
 
+from .._fileutil import atomic_write_text, file_lock
 from ..accounting import default_route_steps
 from ..models.config import ContentFilterConfig, CrawlConfig, DocpullConfig, OutputConfig, ProfileName
 from ..models.schema import MCP_META_SCHEMA_VERSION
@@ -49,10 +52,10 @@ GREP_TIMEOUT_SECONDS = 10.0
 GREP_LINE_TIMEOUT_SECONDS = 0.05
 MAX_READ_DOC_BYTES = 1_000_000
 
-# Opt-in token-efficient responses: when enabled, fetch_url/grep_docs/read_doc
-# return a short text summary and keep the full payload in structuredContent
-# instead of duplicating it in both places. Default OFF because many hosts
-# render only the text content.
+# Opt-in token-efficient responses: when enabled, grep_docs returns a short
+# text summary (full hits in structuredContent) and fetch_url/read_doc drop
+# their decorative headers. Document content always stays in text because
+# many hosts render only the text content. Default OFF.
 COMPACT_TEXT_ENV_VAR = "DOCPULL_MCP_COMPACT_TEXT"
 
 # Provider key names surfaced by explain_routes. Names and set/unset status
@@ -161,27 +164,24 @@ def _write_meta(
     *,
     profile: str,
     max_pages: int | None,
+    partial: bool = False,
 ) -> None:
-    """Atomic-ish meta write: tmp file + rename so a crash mid-write
+    """Atomic meta write via a unique per-writer temp file + ``os.replace``,
+    so concurrent writers never share a temp name and a crash mid-write
     never leaves a half-parsed JSON behind."""
-    meta_path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = meta_path.with_suffix(meta_path.suffix + ".tmp")
-    tmp.write_text(
-        json.dumps(
-            {
-                "source": source,
-                "url": url,
-                "schema_version": MCP_META_SCHEMA_VERSION,
-                "profile": profile,
-                "max_pages": max_pages,
-                "fetched_at_epoch": time.time(),
-                "fetched_at": utc_now_iso(),
-                "page_count": pages,
-            },
-            indent=2,
-        )
-    )
-    os.replace(tmp, meta_path)
+    payload: dict[str, Any] = {
+        "source": source,
+        "url": url,
+        "schema_version": MCP_META_SCHEMA_VERSION,
+        "profile": profile,
+        "max_pages": max_pages,
+        "fetched_at_epoch": time.time(),
+        "fetched_at": utc_now_iso(),
+        "page_count": pages,
+    }
+    if partial:
+        payload["partial"] = True
+    atomic_write_text(meta_path, json.dumps(payload, indent=2))
 
 
 def _write_partial_meta(
@@ -194,25 +194,42 @@ def _write_partial_meta(
     max_pages: int | None,
 ) -> None:
     """Mark a fetch as partial. ``_cache_fresh`` treats partial as stale."""
-    meta_path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = meta_path.with_suffix(meta_path.suffix + ".tmp")
-    tmp.write_text(
-        json.dumps(
-            {
-                "source": source,
-                "url": url,
-                "schema_version": MCP_META_SCHEMA_VERSION,
-                "profile": profile,
-                "max_pages": max_pages,
-                "fetched_at_epoch": time.time(),
-                "fetched_at": utc_now_iso(),
-                "page_count": pages,
-                "partial": True,
-            },
-            indent=2,
-        )
-    )
-    os.replace(tmp, meta_path)
+    _write_meta(meta_path, source, url, pages, profile=profile, max_pages=max_pages, partial=True)
+
+
+# Single-flight for ensure_docs: one asyncio lock per source in this process,
+# plus an advisory file lock so separate processes also crawl a source once.
+_SOURCE_LOCKS: dict[str, asyncio.Lock] = {}
+
+
+def _source_lock(source: str) -> asyncio.Lock:
+    lock = _SOURCE_LOCKS.get(source)
+    if lock is None:
+        lock = asyncio.Lock()
+        _SOURCE_LOCKS[source] = lock
+    return lock
+
+
+def _lock_path(docs_dir: Path, source: str) -> Path:
+    return docs_dir / f".{source}.lock"
+
+
+def _swap_in_staging(staging: Path, target_dir: Path) -> None:
+    """Replace ``target_dir`` with ``staging`` so pages removed upstream
+    don't survive a refresh. The old tree is renamed aside first, so the
+    window with no ``target_dir`` is two renames long."""
+    old: Path | None = None
+    if target_dir.exists():
+        old = target_dir.with_name(f".{target_dir.name}.old-{uuid.uuid4().hex}")
+        os.replace(target_dir, old)
+    try:
+        os.replace(staging, target_dir)
+    except BaseException:
+        if old is not None:
+            os.replace(old, target_dir)
+        raise
+    if old is not None:
+        shutil.rmtree(old, ignore_errors=True)
 
 
 # Profiles the MCP server exposes. CUSTOM is intentionally excluded — it is
@@ -288,66 +305,139 @@ async def ensure_docs(
     meta_path = _meta_path(docs_dir, source)
     profile_name = profile_enum.value
 
-    files = list(target_dir.rglob("*.md")) if target_dir.exists() else []
-    if (
-        not force
-        and files
-        and _cache_fresh(
+    def cached_result() -> ToolResult | None:
+        files = list(target_dir.rglob("*.md")) if target_dir.exists() else []
+        if files and _cache_fresh(
             meta_path,
             expected_url=resolved.url,
             expected_profile=profile_name,
             expected_max_pages=resolved.max_pages,
-        )
-    ):
-        return ToolResult(
-            f"Cached: {source} ({len(files)} files at {target_dir}). Call with force=true to refresh.",
-            data={
-                "source": source,
-                "cached": True,
-                "file_count": len(files),
-                "target_dir": str(target_dir),
-            },
-        )
+        ):
+            return ToolResult(
+                f"Cached: {source} ({len(files)} files at {target_dir}). Call with force=true to refresh.",
+                data={
+                    "source": source,
+                    "cached": True,
+                    "file_count": len(files),
+                    "target_dir": str(target_dir),
+                },
+            )
+        return None
 
+    if not force:
+        hit = cached_result()
+        if hit is not None:
+            return hit
+
+    # Record the pre-lock meta mtime: if another caller refreshes while we
+    # wait, a forced call can reuse that fresh result instead of re-crawling.
+    def meta_mtime() -> float | None:
+        try:
+            return meta_path.stat().st_mtime_ns
+        except OSError:
+            return None
+
+    mtime_before = meta_mtime()
+    async with _source_lock(source):
+        docs_dir.mkdir(parents=True, exist_ok=True)
+        flock = file_lock(_lock_path(docs_dir, source))
+        acquire = asyncio.ensure_future(asyncio.to_thread(flock.__enter__))
+        try:
+            await asyncio.shield(acquire)
+        except BaseException:
+            # Cancelled while waiting: release once the thread gets the lock.
+            def _release(fut: asyncio.Future[None]) -> None:
+                if not fut.cancelled() and fut.exception() is None:
+                    flock.__exit__(None, None, None)
+
+            acquire.add_done_callback(_release)
+            raise
+        try:
+            if not force or meta_mtime() != mtime_before:
+                hit = cached_result()
+                if hit is not None:
+                    return hit
+            return await _crawl_source(
+                source,
+                resolved_url=resolved.url,
+                max_pages=resolved.max_pages,
+                profile_enum=profile_enum,
+                docs_dir=docs_dir,
+                target_dir=target_dir,
+                meta_path=meta_path,
+                on_progress=on_progress,
+            )
+        finally:
+            flock.__exit__(None, None, None)
+
+
+async def _crawl_source(
+    source: str,
+    *,
+    resolved_url: str,
+    max_pages: int | None,
+    profile_enum: ProfileName,
+    docs_dir: Path,
+    target_dir: Path,
+    meta_path: Path,
+    on_progress: Callable[[int, int | None], Awaitable[None]] | None,
+) -> ToolResult:
+    """Crawl into a private staging dir, then swap it over ``target_dir``.
+
+    Staging means a refresh drops pages deleted upstream and readers never
+    see a half-written tree. Any interruption (exception, cancellation,
+    KeyboardInterrupt) keeps the previous tree and writes a partial meta so
+    the cache is treated as stale.
+    """
+    profile_name = profile_enum.value
+    staging = docs_dir / f".{source}.staging-{uuid.uuid4().hex}"
     config = DocpullConfig(
-        url=resolved.url,
+        url=resolved_url,
         profile=profile_enum,
-        crawl=CrawlConfig(max_pages=resolved.max_pages) if resolved.max_pages else CrawlConfig(),
-        output=OutputConfig(directory=target_dir),
+        crawl=CrawlConfig(max_pages=max_pages) if max_pages else CrawlConfig(),
+        output=OutputConfig(directory=staging),
     )
     fetched = 0
-    crashed = False
+    completed = False
     try:
         async with _fetcher_class()(config) as fetcher:
             async for event in fetcher.run():
                 if event.type.value == "fetch_completed":
                     fetched += 1
                     if on_progress is not None:
-                        await on_progress(fetched, resolved.max_pages)
+                        await on_progress(fetched, max_pages)
             stats = fetcher.stats
-    except Exception:
-        crashed = True
-        # Mark whatever made it to disk as a partial fetch so future
-        # ensure_docs calls re-fetch instead of trusting half a crawl.
-        _write_partial_meta(
-            meta_path,
-            source,
-            resolved.url,
-            fetched,
-            profile=profile_name,
-            max_pages=resolved.max_pages,
-        )
-        raise
-
-    if not crashed:
+        staging.mkdir(parents=True, exist_ok=True)
+        _swap_in_staging(staging, target_dir)
+        page_count = sum(1 for _ in target_dir.rglob("*.md"))
         _write_meta(
             meta_path,
             source,
-            resolved.url,
-            stats.pages_fetched,
+            resolved_url,
+            page_count,
             profile=profile_name,
-            max_pages=resolved.max_pages,
+            max_pages=max_pages,
         )
+        completed = True
+    finally:
+        if not completed:
+            shutil.rmtree(staging, ignore_errors=True)
+            # Mark the cache stale so future ensure_docs calls re-fetch
+            # instead of trusting an interrupted crawl. page_count reflects
+            # the (previous) tree still on disk.
+            on_disk = sum(1 for _ in target_dir.rglob("*.md")) if target_dir.exists() else 0
+            try:
+                _write_partial_meta(
+                    meta_path,
+                    source,
+                    resolved_url,
+                    on_disk,
+                    profile=profile_name,
+                    max_pages=max_pages,
+                )
+            except OSError:
+                logger.exception("Could not write partial meta for %s", source)
+
     return ToolResult(
         f"Fetched {source}: {stats.pages_fetched} pages saved to {target_dir} "
         f"({stats.pages_skipped} skipped, {stats.pages_failed} failed).",
@@ -413,9 +503,10 @@ async def fetch_url(
     header = f"# {ctx.title or url}\n_source: {url}_ _type: {ctx.source_type or 'generic'}_{chunks_meta}\n\n"
     full = header + body
     if _compact_text_enabled():
+        # Text-only hosts never see structuredContent, so the content itself
+        # must stay in text even in compact mode.
         return ToolResult(
-            f"Fetched {url}: {len(full)} chars (~{len(full) // 4} tokens). "
-            "Full Markdown is in structuredContent.markdown.",
+            full,
             data={
                 "url": url,
                 "title": ctx.title or url,
@@ -850,13 +941,9 @@ def read_doc(
     if line_start is None and line_end is None:
         text = target.read_text(errors="replace")
         total_lines = text.count("\n") + 1 if text else 0
-        if _compact_text_enabled():
-            rendered_text = (
-                f"{library}/{path}: {total_lines} lines ({len(text)} chars). "
-                "Content is in structuredContent.text."
-            )
-        else:
-            rendered_text = f"# {library}/{path}\n\n{text}"
+        # Compact drops only the heading; content stays in text for hosts
+        # that render text content only.
+        rendered_text = text if _compact_text_enabled() else f"# {library}/{path}\n\n{text}"
         return ToolResult(
             rendered_text,
             data={
@@ -906,10 +993,7 @@ def read_doc(
         )
     sliced = "\n".join(lines)
     if _compact_text_enabled():
-        rendered_slice = (
-            f"{library}/{path}: lines {start}-{end} of {total_lines} ({len(sliced)} chars). "
-            "Content is in structuredContent.text."
-        )
+        rendered_slice = sliced
     else:
         rendered_slice = f"# {library}/{path} (lines {start}–{end} of {total_lines})\n\n" + sliced
     return ToolResult(
@@ -941,10 +1025,7 @@ def _write_user_sources(path: Path, entries: dict[str, dict[str, Any]]) -> None:
     """Atomic write of the user sources.yaml. Last writer wins — there is
     no cross-process lock; that's fine for the single-process MCP server
     but worth knowing if anyone else is editing the file by hand."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(yaml.safe_dump({"sources": entries}, sort_keys=True))
-    os.replace(tmp, path)
+    atomic_write_text(path, yaml.safe_dump({"sources": entries}, sort_keys=True))
 
 
 def _read_user_sources_raw(path: Path) -> dict[str, dict[str, Any]]:

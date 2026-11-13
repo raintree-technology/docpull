@@ -1,7 +1,14 @@
 """Async job routes for the compatible server: crawl, task runs, and research.
 
 Jobs run as background tasks in the server process and live in memory, so they
-are lost when the server stops.
+are lost when the server stops. Limitations of the in-memory store: jobs and
+idempotency keys do not survive a restart, are not shared between server
+processes or workers, and expire after ``JOB_TTL`` or when ``MAX_JOBS`` is hit.
+Clients that need durable jobs should persist results themselves.
+
+Create requests accept an optional ``idempotencyKey`` (or ``idempotency_key``)
+body field; a retried POST with the same key and job kind returns the existing
+job instead of starting a duplicate.
 """
 
 from __future__ import annotations
@@ -61,16 +68,37 @@ class Job:
         return round((self.finished or time.perf_counter()) - self.started, 3)
 
 
+def idempotency_key(body: dict[str, Any]) -> str | None:
+    """Return the optional client idempotency key from a create request body."""
+    value = body.get("idempotencyKey", body.get("idempotency_key"))
+    if value is None:
+        return None
+    if not isinstance(value, str) or not value.strip() or len(value) > 255:
+        raise JobRequestError("idempotencyKey must be a non-empty string of at most 255 characters")
+    return value.strip()
+
+
 class JobStore:
     def __init__(self) -> None:
         self._jobs: dict[str, Job] = {}
+        self._idempotency: dict[tuple[str, str], str] = {}
 
-    def add(self, kind: str, request: dict[str, Any], prefix: str) -> Job:
+    def find_idempotent(self, kind: str, key: str | None) -> Job | None:
+        """Return the live job created earlier with ``key`` for ``kind``, if any."""
+        if key is None:
+            return None
+        self._expire()
+        job_id = self._idempotency.get((kind, key))
+        return self._jobs.get(job_id) if job_id else None
+
+    def add(self, kind: str, request: dict[str, Any], prefix: str, key: str | None = None) -> Job:
         self._expire()
         if len(self._jobs) >= MAX_JOBS:
             raise JobRequestError(f"Too many running jobs; at most {MAX_JOBS} are kept")
         job = Job(id=f"{prefix}{uuid.uuid4().hex}", kind=kind, request=request)
         self._jobs[job.id] = job
+        if key is not None:
+            self._idempotency[(kind, key)] = job.id
         return job
 
     def get(self, job_id: str, kind: str) -> Job | None:
@@ -88,21 +116,26 @@ class JobStore:
             : max(0, len(self._jobs) - MAX_JOBS + 1)
         ]:
             del self._jobs[job.id]
+        live = set(self._jobs)
+        self._idempotency = {k: v for k, v in self._idempotency.items() if v in live}
 
 
 def start(job: Job, work: Callable[[Job], Awaitable[None]]) -> None:
     async def run() -> None:
+        if job.status == "cancelled":
+            return
         job.touch("running")
         try:
             await work(job)
-            job.touch("completed")
+            if job.status != "cancelled":
+                job.touch("completed")
         except Exception as err:  # noqa: BLE001 - the job reports any failure as its status
             job.error = str(err) or type(err).__name__
             job.touch("failed")
 
     def finish(task: asyncio.Task[None]) -> None:
         # Runs even when the task is cancelled before its body starts.
-        if task.cancelled():
+        if task.cancelled() or job.status == "cancelled":
             job.touch("cancelled")
         job.finished = time.perf_counter()
         job.done.set()
@@ -120,7 +153,7 @@ async def crawl_site(
     on_page: Callable[[Page], None],
 ) -> int:
     """Discover up to ``limit`` URLs from ``url`` and fetch them locally; returns the total."""
-    from .compat_api import page_from_context
+    from .compat_api import Page, page_from_context
     from .core.fetcher import Fetcher
     from .models.config import CrawlConfig, DocpullConfig
 
@@ -136,7 +169,17 @@ async def crawl_site(
                 ctx = await fetcher.fetch_one(item, save=False)
             on_page(page_from_context(item, ctx))
 
-        await asyncio.gather(*(one(item) for item in urls))
+        # return_exceptions keeps sibling fetches running to completion when one
+        # page raises, so no orphan tasks outlive the crawl; failures become
+        # per-page errors instead of failing the whole job.
+        results = await asyncio.gather(*(one(item) for item in urls), return_exceptions=True)
+        for item, outcome in zip(urls, results, strict=True):
+            if isinstance(outcome, asyncio.CancelledError):
+                raise outcome
+            if isinstance(outcome, BaseException):
+                if not isinstance(outcome, Exception):
+                    raise outcome
+                on_page(Page(url=item, error=f"{type(outcome).__name__}: {outcome}"))
     return len(urls)
 
 
@@ -181,7 +224,11 @@ async def create_crawl(app: CompatASGIApp, body: dict[str, Any], base: str) -> t
         raise JobRequestError("maxDiscoveryDepth must be a non-negative integer")
     include = _patterns(body.get("includePaths"), "includePaths")
     exclude = _patterns(body.get("excludePaths"), "excludePaths")
-    job = app.jobs.add("crawl", body, "")
+    key = idempotency_key(body)
+    existing = app.jobs.find_idempotent("crawl", key)
+    if existing is not None:
+        return 200, {"success": True, "id": existing.id, "url": f"{base}/{existing.id}"}
+    job = app.jobs.add("crawl", body, "", key)
 
     async def work(job: Job) -> None:
         job.total = await app.crawl(url.strip(), limit, max(1, raw_depth), include, exclude, job.pages.append)
@@ -209,7 +256,7 @@ def crawl_status(app: CompatASGIApp, job_id: str) -> tuple[int, dict[str, Any]]:
         for page in fetched
     ]
     payload: dict[str, Any] = {
-        "success": job.status != "failed",
+        "success": job.status not in {"failed", "cancelled"},
         "status": status,
         "total": max(job.total, len(job.pages)),
         "completed": len(fetched),
@@ -227,9 +274,13 @@ def cancel_crawl(app: CompatASGIApp, job_id: str) -> tuple[int, dict[str, Any]]:
     job = app.jobs.get(job_id, "crawl")
     if job is None:
         return 404, {"success": False, "error": "Crawl job not found"}
-    if job.task and not job.done.is_set():
+    if job.done.is_set() or job.status in {"completed", "failed", "cancelled"}:
+        # Already finished: report the real terminal status, never overwrite it.
+        return 200, {"success": job.status == "cancelled", "status": job.status}
+    if job.task is not None:
         job.task.cancel()
-    return 200, {"status": "cancelled"}
+    job.touch("cancelled")
+    return 200, {"success": True, "status": "cancelled"}
 
 
 # Shared research work for Parallel task runs and Tavily research ---------------
@@ -274,7 +325,11 @@ def _task_run(job: Job) -> dict[str, Any]:
 async def create_task_run(app: CompatASGIApp, body: dict[str, Any]) -> tuple[int, dict[str, Any]]:
     query = _question(body.get("input"))
     app.require_search()
-    job = app.jobs.add("task", body, "trun_")
+    key = idempotency_key(body)
+    existing = app.jobs.find_idempotent("task", key)
+    if existing is not None:
+        return 200, _task_run(existing)
+    job = app.jobs.add("task", body, "trun_", key)
     start(job, _research_work(app, query))
     return 200, _task_run(job)
 
@@ -320,8 +375,11 @@ async def task_run_result(app: CompatASGIApp, job_id: str, timeout: float) -> tu
 async def create_research(app: CompatASGIApp, body: dict[str, Any]) -> tuple[int, dict[str, Any]]:
     query = _question(body.get("input"))
     app.require_search()
-    job = app.jobs.add("research", body, "")
-    start(job, _research_work(app, query, body.get("include_domains"), body.get("exclude_domains")))
+    key = idempotency_key(body)
+    job = app.jobs.find_idempotent("research", key)
+    if job is None:
+        job = app.jobs.add("research", body, "", key)
+        start(job, _research_work(app, query, body.get("include_domains"), body.get("exclude_domains")))
     return 201, {
         "request_id": job.id,
         "created_at": _iso(job.created_at),

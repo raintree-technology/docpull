@@ -1,4 +1,4 @@
-"""Public surface registry for DocPull v3.
+"""Public surface registry for the DocPull CLI, Python SDK, and MCP server.
 
 This module is intentionally data-only. CLI help, SDK exports, MCP surface
 checks, and docs/tests should read from here instead of duplicating command

@@ -1438,7 +1438,7 @@ async def _dispatch_tool(
         result = ToolResult(str(err), is_error=True)
     except Exception as err:  # noqa: BLE001
         logger.exception("Tool %s raised", name)
-        result = ToolResult(f"Tool error: {err}", is_error=True)
+        result = ToolResult(f"Tool error: {type(err).__name__}: {err}", is_error=True)
     return result
 
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from collections import Counter
 from pathlib import Path
 from typing import Any, Literal
@@ -12,6 +13,8 @@ from ._jsonutil import dict_value as _dict_value
 from ._jsonutil import list_value as _list_value
 from ._jsonutil import write_json as _write_json
 from .time_utils import utc_now_iso
+
+logger = logging.getLogger(__name__)
 
 OUTPUT_CONTRACT_SCHEMA_VERSION = 3
 RAW_REQUIRED_ARTIFACTS = (
@@ -128,7 +131,8 @@ def ensure_agent_contract_sidecars(
 ) -> dict[str, Path]:
     """Write minimal agent-level sidecars when a local pack lacks them."""
     pack_dir = pack_dir.resolve()
-    records = records if records is not None else _read_records(pack_dir)
+    read_issues: list[dict[str, Any]] = []
+    records = records if records is not None else _read_records(pack_dir, issues=read_issues)
     artifacts: dict[str, Path] = {}
 
     context_lock = pack_dir / "context.lock.json"
@@ -141,6 +145,8 @@ def ensure_agent_contract_sidecars(
             "record_count": len(records),
             "sources": _source_summary(records),
         }
+        if read_issues:
+            payload["issues"] = read_issues
         _write_json(context_lock, payload)
     artifacts["context_lock"] = context_lock
 
@@ -160,6 +166,8 @@ def ensure_agent_contract_sidecars(
             "routes": [{"route": "pack-records", "fetched_count": len(records), "skip_counts": {}}],
             "recommendations": [],
         }
+        if read_issues:
+            payload["issues"] = read_issues
         _write_json(coverage, payload)
     artifacts["coverage_report"] = coverage
 
@@ -484,22 +492,28 @@ def _acquisition_routes(records: list[dict[str, Any]], *, output_format: str) ->
     }
 
 
-def _read_records(pack_dir: Path) -> list[dict[str, Any]]:
-    ndjson = pack_dir / "documents.ndjson"
-    if ndjson.exists():
-        records: list[dict[str, Any]] = []
-        for line in ndjson.read_text(encoding="utf-8").splitlines():
-            if line.strip():
-                item = json.loads(line)
-                if isinstance(item, dict):
-                    records.append(item)
-        return records
+def _read_records(pack_dir: Path, *, issues: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
+    for name in ("documents.ndjson", "documents.jsonl"):
+        records_path = pack_dir / name
+        if records_path.exists():
+            records: list[dict[str, Any]] = []
+            for line in records_path.read_text(encoding="utf-8").splitlines():
+                if line.strip():
+                    item = json.loads(line)
+                    if isinstance(item, dict):
+                        records.append(item)
+            return records
     try:
         from .pack_reader import load_pack
 
         pack = load_pack(pack_dir)
-    except Exception:  # noqa: BLE001
+    except Exception as err:  # noqa: BLE001 - any loader failure is reported as an issue
         pack = None
+        logger.debug("Pack could not be loaded from %s: %s", pack_dir, err, exc_info=True)
+        if issues is not None:
+            issues.append(
+                _issue("pack_load_failed", f"Pack could not be loaded: {type(err).__name__}: {err}")
+            )
     if pack is not None:
         return [record.model_dump(mode="json", exclude_none=True) for record in pack.documents]
     manifest = _read_json(pack_dir / "corpus.manifest.json", required=False)
