@@ -1,4 +1,4 @@
-.PHONY: clean clean-pyc clean-build clean-test help test test-inventory test-all-local benchmark contracts-check contracts-sync license-year metadata-check metadata-sync lint format release-pr release-publish release-publish-replace-tag release-dispatch
+.PHONY: clean clean-pyc clean-build clean-test help test test-inventory test-all-local benchmark contracts-check contracts-sync license-year metrics metadata-check metadata-sync lint format release-pr release-publish release-publish-replace-tag release-dispatch
 
 PYTHON ?= .venv/bin/python
 VERSION_ARG := $(if $(VERSION),--version $(VERSION),)
@@ -22,6 +22,7 @@ help:
 	@echo "test-all-local - run PR-safe Python, coverage, benchmark, and Bun MCP gates"
 	@echo "benchmark - run gated synthetic 10k localhost benchmark"
 	@echo "license-year - refresh license copyright years"
+	@echo "metrics - refresh METRICS.md and the downloads chart from live APIs"
 	@echo "metadata-check - fail if generated release/plugin metadata is stale"
 	@echo "metadata-sync - refresh generated release/plugin metadata from source"
 	@echo "contracts-check - fail if bundled contract schemas are stale"
@@ -94,6 +95,9 @@ license-year:
 	@for file in $(COPYRIGHT_FILES); do \
 		perl -0pi -e 's/^Copyright \(c\) [0-9]{4}(?:-(?:[0-9]{4}|present))? \Q$(COPYRIGHT_HOLDER)\E$$/$(COPYRIGHT_NOTICE)/m' "$$file"; \
 	done
+
+metrics:
+	$(PYTHON) .github/scripts/update_metrics.py
 
 metadata-check:
 	$(PYTHON) scripts/sync_release_metadata.py --check
