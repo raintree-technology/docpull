@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.10.0] - 2026-11-12
+
+### Added
+
+- `DOCPULL_HOME` sets where default state lives. Without it, default cache,
+  typed-pack, skill, and monitor paths resolve against the nearest folder with
+  `docpull.yaml`, then the current folder.
+- Compat crawl jobs accept an `idempotencyKey` so a retried POST returns the
+  existing job instead of starting a second crawl.
+- The JS SDK checks the pack `schema_version` and required record fields, and
+  reads packs with `documents.jsonl` as well as `documents.ndjson` (Python now
+  accepts both too).
+
+### Changed
+
+- `docpull sync` exits 1 when any source fails or degrades. A failed sync no
+  longer writes `docpull.yaml` without the lockfile.
+- Context CI fails when `docpull.yaml` exists but cannot be loaded, instead of
+  running with default thresholds.
+- Cloud rendering checks the budget against per-render cost times `max_pages`
+  and stops once cumulative spend would exceed it.
+- Compact MCP mode keeps document content in `read_doc` and `fetch_url`.
+- MCP tool errors include the exception type.
+- Monitors advance their baseline after a successful check and apply
+  `dedupe_key`, so the same changes are not reported on every poll.
+
+### Fixed
+
+- Concurrent CLI and MCP processes no longer overwrite each other's cache
+  manifest, temp files, or project syncs (advisory locks, unique temp files,
+  merge-on-flush, SQLite WAL with a busy timeout).
+- Cancelling `ensure_docs` marks the source partial instead of fresh. Forced
+  refreshes drop pages removed upstream. Concurrent requests for one source
+  crawl once.
+- An interrupted sync is reconciled on the next sync or status call.
+- Cache save failures raise instead of reporting success. Corrupt cache files
+  are backed up before loading as empty.
+- Redaction drops files it cannot read and removes partial output on error.
+- Compat job cancel reports the real status; cancelled jobs are not `success`.
+- `rendered_pages.ndjson` keeps one row per URL across re-runs.
+- Bounded the fetcher event queue, batched the query index build, streamed
+  NDJSON reads, and capped diff cost on large pages.
+- Release metadata sync covers `__init__.py` and the JS SDK, and publish fails
+  if `docpull --version` does not match the tag.
+
 ## [6.9.0] - 2026-11-06
 
 ### Added
