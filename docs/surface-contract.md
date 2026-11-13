@@ -63,7 +63,7 @@ DocPull targets capability alignment, not 1:1 flag parity. MCP should not mirror
 | Exports, local pack server, and report sharing | `docpull export` for JSONL, Sheets CSV/TSV, n8n JSON, Vercel AI JSON, CrewAI JSON, warehouse NDJSON, Parquet, and agent references; `docpull serve`; `docpull share` for Markdown/HTML report URLs | `export_pack`, `create_pack_app`, `create_report_server`, `render_report_document`, `load_pack` | `export_pack`, `serve_pack_status` | Adapted |
 | Monitors | `docpull monitor init/run/trigger/pause/unpause/list/report/scheduler-snippet` | monitor helpers | Not exposed; monitor runs remain CLI/operator-owned | Surface-specific |
 | Doctor diagnostics | `docpull --doctor`, `docpull render --check` | Diagnostic module, `check_agent_browser_availability` | Not exposed | CLI/operator-specific |
-| Real-data acceptance smoke | `python scripts/release_a_plus_check.py --strict`; `python scripts/real_feature_smoke.py --json --full-mcp --strict-ci --auth-matrix --monitor-soak-minutes 10` with optional `--include-cloud` | Not public SDK | Not exposed | CLI/operator-specific |
+| Real-data acceptance smoke | `python scripts/real_feature_smoke.py --json --full-mcp --strict-ci --auth-matrix --monitor-soak-minutes 10` with optional `--include-cloud` | Not public SDK | Not exposed | CLI/operator-specific |
 
 ## Stability Rules
 

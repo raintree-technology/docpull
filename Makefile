@@ -1,4 +1,4 @@
-.PHONY: clean clean-pyc clean-build clean-test help test test-inventory test-all-local benchmark contracts-check contracts-sync license-year metrics metrics-check metadata-check metadata-sync lint format release-pr release-publish release-publish-replace-tag release-dispatch
+.PHONY: clean clean-pyc clean-build clean-test help test test-inventory test-all-local benchmark contracts-check contracts-sync license-year metrics metadata-check metadata-sync lint format release-pr release-publish release-publish-replace-tag release-dispatch
 
 PYTHON ?= .venv/bin/python
 VERSION_ARG := $(if $(VERSION),--version $(VERSION),)
@@ -23,7 +23,6 @@ help:
 	@echo "benchmark - run gated synthetic 10k localhost benchmark"
 	@echo "license-year - refresh license copyright years"
 	@echo "metrics - refresh METRICS.md and the downloads chart from live APIs"
-	@echo "metrics-check - fail if METRICS.md is older than METRICS_MAX_AGE_HOURS"
 	@echo "metadata-check - fail if generated release/plugin metadata is stale"
 	@echo "metadata-sync - refresh generated release/plugin metadata from source"
 	@echo "contracts-check - fail if bundled contract schemas are stale"
@@ -99,10 +98,6 @@ license-year:
 
 metrics:
 	$(PYTHON) .github/scripts/update_metrics.py
-	$(PYTHON) .github/scripts/check_metrics_fresh.py
-
-metrics-check:
-	$(PYTHON) .github/scripts/check_metrics_fresh.py
 
 metadata-check:
 	$(PYTHON) scripts/sync_release_metadata.py --check

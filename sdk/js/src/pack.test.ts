@@ -65,7 +65,7 @@ const DOCUMENTS: DocumentRecord[] = [
 async function writePack(documentsFile: string): Promise<string> {
   const packDir = await mkdtemp(join(tmpdir(), "docpull-sdk-test-"));
   await writeFile(join(packDir, "corpus.manifest.json"), JSON.stringify(MANIFEST), "utf8");
-  const ndjson = DOCUMENTS.map((record) => JSON.stringify(record)).join("\n") + "\n";
+  const ndjson = `${DOCUMENTS.map((record) => JSON.stringify(record)).join("\n")}\n`;
   await writeFile(join(packDir, documentsFile), ndjson, "utf8");
   return packDir;
 }

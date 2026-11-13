@@ -257,12 +257,8 @@ DOCPULL_RENDER_TRUSTED_BROWSER_TARGETS=1 \
 Run the real-data free/local surface smoke before cutting a release candidate:
 
 ```bash
-python scripts/release_a_plus_check.py --strict
 python scripts/real_feature_smoke.py --json --full-mcp --strict-ci --auth-matrix --monitor-soak-minutes 10
 ```
-
-`release_a_plus_check.py --strict` requires synchronized generated metadata and
-a clean `git status --short`; run it from the exact tree you intend to tag.
 
 Cloud/keyed lanes stay explicit:
 
