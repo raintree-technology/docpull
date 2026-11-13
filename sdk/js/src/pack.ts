@@ -102,7 +102,7 @@ export async function readCorpusManifest(packDir: string): Promise<CorpusManifes
   } catch (error) {
     throw new Error(`Invalid JSON in ${manifestPath}: ${errorMessage(error)}`);
   }
-  if (!isRecord(parsed) || !Array.isArray(parsed["records"])) {
+  if (!isRecord(parsed) || !Array.isArray(parsed.records)) {
     throw new Error(`Invalid corpus manifest at ${manifestPath}: expected an object with a records array`);
   }
   return parsed as CorpusManifest;
