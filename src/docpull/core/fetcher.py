@@ -926,7 +926,12 @@ class Fetcher:
 
         worker_count = max(1, self.config.crawl.max_concurrent)
         url_queue: asyncio.Queue[str | None] = asyncio.Queue(maxsize=worker_count * 4)
-        event_queue: asyncio.Queue[FetchEvent | None] = asyncio.Queue()
+        # Bounded so a slow consumer applies backpressure to workers instead
+        # of letting events pile up in RAM. Producers ``await put`` (nothing
+        # is dropped, terminal/error events included); if the consumer stops
+        # iterating early, the finally block below drains the queue so
+        # producers can't deadlock on a full queue.
+        event_queue: asyncio.Queue[FetchEvent | None] = asyncio.Queue(maxsize=max(64, worker_count * 16))
 
         progress_counter = {"processed": 0, "saved": 0, "skipped": 0, "failed": 0}
         worker_errors: list[Exception] = []
@@ -1058,6 +1063,11 @@ class Fetcher:
 
         drain_task = asyncio.create_task(wait_for_drain())
 
+        async def discard_events() -> None:
+            while True:
+                if await event_queue.get() is None:
+                    return
+
         try:
             while True:
                 event = await event_queue.get()
@@ -1065,11 +1075,17 @@ class Fetcher:
                     break
                 yield event
         finally:
+            discarder: asyncio.Task[None] | None = None
+            if not drain_task.done():
+                discarder = asyncio.create_task(discard_events())
             try:
                 await drain_task
             except Exception:
                 self._clear_resume_state_if_nothing_pending()
                 raise
+            finally:
+                if discarder is not None:
+                    discarder.cancel()
 
         if worker_errors:
             self._clear_resume_state_if_nothing_pending()

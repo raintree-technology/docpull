@@ -1,4 +1,12 @@
-"""Content-addressed local archives for frozen project installation."""
+"""Content-addressed run archives behind frozen project installs.
+
+When DocPull writes ``.docpull/context.lock.json`` it snapshots the locked run
+into a ZIP named by its SHA-256 digest (:func:`create_run_artifact`).
+``docpull install --frozen`` verifies that digest before staging the archive
+back into place (:func:`stage_run_artifact`), restoring the locked context
+without refetching. "Frozen" refers
+to this install mode, not to immutable Python objects.
+"""
 
 from __future__ import annotations
 

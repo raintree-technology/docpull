@@ -11,6 +11,8 @@ from urllib.parse import urlparse
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from ..state_paths import resolve_default_state_path
+
 DEFAULT_CLOUD_ARTIFACT_PATH = str(Path(tempfile.gettempdir()) / "docpull-render-result.json")
 
 
@@ -663,7 +665,12 @@ class CacheConfig(BaseModel):
     """Configuration for caching and incremental updates."""
 
     enabled: bool = Field(False, description="Enable caching for incremental updates")
-    directory: Path = Field(Path(".docpull-cache"), description="Cache directory")
+    directory: Path = Field(
+        default_factory=lambda: resolve_default_state_path(".docpull-cache"),
+        description=(
+            "Cache directory (default .docpull-cache, anchored to DOCPULL_HOME or the docpull.yaml root)"
+        ),
+    )
     ttl_days: int | None = Field(
         30,
         ge=1,

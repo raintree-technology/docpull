@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 from typing import Any, Literal
 
+from ._fileutil import atomic_write_text
 from .contracts import ChangeEvent, ReplayConfiguration, canonical_sha256, stable_id
 from .evidence import evidence_span
 
@@ -41,7 +42,9 @@ def build_change_events(
         new_primary = new_items[0] if new_items else None
         old_text = _combined_content(old_items)
         new_text = _combined_content(new_items)
-        classifications = _classifications(old_text, new_text, url)
+        # One lowercase haystack per event, shared by classification and confidence.
+        haystack = f"{url}\n{old_text}\n{new_text}".lower()
+        classifications = _classifications(haystack)
         structural = _structural_changes(old_items, new_items)
         textual = _textual_changes(old_text, new_text)
         old_evidence = _record_evidence(old_primary, old_text) if old_primary else []
@@ -57,7 +60,7 @@ def build_change_events(
             {
                 "classification": item,
                 "status": "candidate",
-                "confidence": _classification_confidence(item, old_text, new_text, url),
+                "confidence": _classification_confidence(item, haystack),
                 "requires_review": True,
             }
             for item in classifications
@@ -90,10 +93,9 @@ def build_change_events(
 
 
 def write_change_events(path: Path, events: list[dict[str, Any]]) -> Path:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
+    atomic_write_text(
+        path,
         "".join(json.dumps(event, ensure_ascii=False, sort_keys=True) + "\n" for event in events),
-        encoding="utf-8",
     )
     return path
 
@@ -140,9 +142,8 @@ def _structural_changes(
 def _textual_changes(old_text: str, new_text: str) -> list[dict[str, Any]]:
     old_lines = old_text.splitlines()
     new_lines = new_text.splitlines()
-    matcher = difflib.SequenceMatcher(a=old_lines, b=new_lines, autojunk=False)
     changes: list[dict[str, Any]] = []
-    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+    for tag, i1, i2, j1, j2 in _line_opcodes(old_lines, new_lines):
         if tag == "equal":
             continue
         before = "\n".join(old_lines[i1:i2])[:1000]
@@ -165,8 +166,44 @@ def _textual_changes(old_text: str, new_text: str) -> list[dict[str, Any]]:
     return changes
 
 
-def _classifications(old_text: str, new_text: str, url: str) -> list[ChangeClassification]:
-    haystack = f"{url}\n{old_text}\n{new_text}".lower()
+# SequenceMatcher(autojunk=False) is quadratic in line counts; above this many
+# line-pair comparisons the diff falls back to a bounded prefix/suffix scan.
+_MAX_DIFF_LINE_PRODUCT = 4_000_000
+
+
+def _line_opcodes(old_lines: list[str], new_lines: list[str]) -> list[tuple[str, int, int, int, int]]:
+    if len(old_lines) * len(new_lines) <= _MAX_DIFF_LINE_PRODUCT:
+        matcher = difflib.SequenceMatcher(a=old_lines, b=new_lines, autojunk=False)
+        return list(matcher.get_opcodes())
+    # Large documents: trim the shared head and tail (linear), then diff the middle
+    # only if it is small enough, otherwise report it as one replaced block.
+    prefix = 0
+    limit = min(len(old_lines), len(new_lines))
+    while prefix < limit and old_lines[prefix] == new_lines[prefix]:
+        prefix += 1
+    suffix = 0
+    while (
+        suffix < limit - prefix
+        and old_lines[len(old_lines) - 1 - suffix] == new_lines[len(new_lines) - 1 - suffix]
+    ):
+        suffix += 1
+    old_end = len(old_lines) - suffix
+    new_end = len(new_lines) - suffix
+    old_mid = old_lines[prefix:old_end]
+    new_mid = new_lines[prefix:new_end]
+    if not old_mid and not new_mid:
+        return []
+    if old_mid and new_mid and len(old_mid) * len(new_mid) <= _MAX_DIFF_LINE_PRODUCT:
+        matcher = difflib.SequenceMatcher(a=old_mid, b=new_mid, autojunk=False)
+        return [
+            (tag, i1 + prefix, i2 + prefix, j1 + prefix, j2 + prefix)
+            for tag, i1, i2, j1, j2 in matcher.get_opcodes()
+        ]
+    tag = "replace" if old_mid and new_mid else ("delete" if old_mid else "insert")
+    return [(tag, prefix, old_end, prefix, new_end)]
+
+
+def _classifications(haystack: str) -> list[ChangeClassification]:
     output = [
         classification
         for classification, terms in _CLASSIFICATION_TERMS.items()
@@ -175,14 +212,8 @@ def _classifications(old_text: str, new_text: str, url: str) -> list[ChangeClass
     return output or ["other"]
 
 
-def _classification_confidence(
-    classification: ChangeClassification,
-    old_text: str,
-    new_text: str,
-    url: str,
-) -> float:
+def _classification_confidence(classification: ChangeClassification, haystack: str) -> float:
     terms = _CLASSIFICATION_TERMS.get(classification, ())
-    haystack = f"{url}\n{old_text}\n{new_text}".lower()
     hits = sum(1 for term in terms if term in haystack)
     return min(0.95, 0.5 + hits * 0.1) if terms else 0.4
 

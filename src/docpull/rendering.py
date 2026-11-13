@@ -13,6 +13,8 @@ import re
 import shlex
 import shutil
 import tempfile
+import threading
+import weakref
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass, field, replace
 from pathlib import Path
@@ -911,6 +913,70 @@ def _call_e2b_create(create: Callable[..., Any], *, template: str | None, timeou
     return create()
 
 
+class CloudSpendTracker:
+    """Thread-safe cumulative estimated cloud render spend for one run.
+
+    ``reserve`` atomically checks ``spent + next_cost`` against the budget and
+    records the spend, so concurrent renders cannot jointly overshoot it.
+    Reserved spend is never refunded: a started cloud render may bill even if
+    it later fails, so the tracker stays conservative.
+    """
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._spent = 0.0
+        self._renders = 0
+
+    @property
+    def spent_usd(self) -> float:
+        with self._lock:
+            return self._spent
+
+    @property
+    def renders(self) -> int:
+        with self._lock:
+            return self._renders
+
+    def reserve(self, backend: str, cost_usd: float, budget_usd: float | None) -> None:
+        with self._lock:
+            if budget_usd is not None and self._spent + cost_usd > budget_usd + 1e-9:
+                raise RenderError(
+                    f"{backend} cumulative estimated render cost ${self._spent + cost_usd:.4f} "
+                    f"({self._renders} prior render(s) at ${self._spent:.4f}) would exceed "
+                    f"cloud_max_estimated_cost_usd=${budget_usd:.4f}."
+                )
+            self._spent += cost_usd
+            self._renders += 1
+
+
+_SPEND_TRACKERS: dict[int, CloudSpendTracker] = {}
+_SPEND_TRACKERS_LOCK = threading.Lock()
+
+
+def cloud_spend_tracker(config: RenderConfig) -> CloudSpendTracker:
+    """Return the per-run spend tracker bound to this ``RenderConfig`` instance.
+
+    A run shares one ``RenderConfig`` object across pages (renderers may be
+    created per page), so spend is keyed by the config object's lifetime.
+    """
+    key = id(config)
+    with _SPEND_TRACKERS_LOCK:
+        tracker = _SPEND_TRACKERS.get(key)
+        if tracker is None:
+            tracker = CloudSpendTracker()
+            _SPEND_TRACKERS[key] = tracker
+            weakref.finalize(config, _SPEND_TRACKERS.pop, key, None)
+        return tracker
+
+
+def estimate_cloud_run_cost_usd(
+    backend: CloudSandboxBackend, config: RenderConfig, max_pages: int | None
+) -> float:
+    """Preflight estimate: per-render cost times the page cap (one page when uncapped)."""
+    pages = max(1, int(max_pages)) if max_pages is not None else 1
+    return round(estimate_cloud_render_cost_usd(backend, config) * pages, 4)
+
+
 def _ensure_cloud_budget(backend: CloudSandboxBackend, config: RenderConfig) -> None:
     if config.cloud_max_estimated_cost_usd is None:
         return
@@ -920,6 +986,7 @@ def _ensure_cloud_budget(backend: CloudSandboxBackend, config: RenderConfig) -> 
             f"{backend} estimated render cost ${estimate:.4f} exceeds "
             f"cloud_max_estimated_cost_usd=${config.cloud_max_estimated_cost_usd:.4f}."
         )
+    cloud_spend_tracker(config).reserve(backend, estimate, config.cloud_max_estimated_cost_usd)
 
 
 def _cloud_result_transport(backend: CloudSandboxBackend, config: RenderConfig) -> Literal["stdout", "file"]:
@@ -957,7 +1024,7 @@ def append_rendered_page_record(
     artifact_path: Path | None = None,
     screenshot_path: Path | None = None,
 ) -> Path:
-    """Append one rendered-page provenance record to ``rendered_pages.ndjson``."""
+    """Upsert one rendered-page provenance record (keyed by URL) in ``rendered_pages.ndjson``."""
     output_dir.mkdir(parents=True, exist_ok=True)
     sidecar_path = output_dir / "rendered_pages.ndjson"
     record = {
@@ -987,9 +1054,37 @@ def append_rendered_page_record(
             record["screenshot_path"] = str(screenshot_path.resolve().relative_to(output_dir.resolve()))
         except ValueError:
             record["screenshot_path"] = str(screenshot_path)
-    with sidecar_path.open("a", encoding="utf-8") as fh:
-        fh.write(json.dumps(record, ensure_ascii=False, sort_keys=True) + "\n")
+    _upsert_rendered_page_record(sidecar_path, record)
     return sidecar_path
+
+
+_SIDECAR_LOCK = threading.Lock()
+
+
+def _upsert_rendered_page_record(sidecar_path: Path, record: dict[str, Any]) -> None:
+    """Rewrite the sidecar atomically with one record per URL (latest wins)."""
+    with _SIDECAR_LOCK:
+        records: dict[str, str] = {}
+        if sidecar_path.exists():
+            for line in sidecar_path.read_text(encoding="utf-8").splitlines():
+                if not line.strip():
+                    continue
+                try:
+                    url = json.loads(line).get("url")
+                except (json.JSONDecodeError, AttributeError):
+                    continue
+                if isinstance(url, str):
+                    records[url] = line
+        records[str(record["url"])] = json.dumps(record, ensure_ascii=False, sort_keys=True)
+        fd, tmp_name = tempfile.mkstemp(dir=sidecar_path.parent, prefix=".rendered_pages.", suffix=".tmp")
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                fh.write("".join(line + "\n" for line in records.values()))
+            os.replace(tmp_name, sidecar_path)
+        except BaseException:
+            with contextlib.suppress(OSError):
+                os.unlink(tmp_name)
+            raise
 
 
 def effective_allowed_domains(url: str, config: RenderConfig) -> list[str]:

@@ -1,4 +1,12 @@
-"""Localhost-only ASGI app for serving DocPull packs as JSON."""
+"""HTTP server for ``docpull serve``: a built pack as a read-only JSON API.
+
+:func:`create_pack_app` exposes one local pack over ``/health``, ``/manifest``,
+``/documents``, ``/search``, ``/citations``, and ``/sources``, bound to loopback
+unless network binding is explicitly allowed. ``docpull serve --compat`` instead
+starts the Tavily/Exa/Firecrawl-compatible shims from :mod:`docpull.compat_api`.
+This is unrelated to :mod:`docpull.mcp.server`, the stdio MCP tool server behind
+``docpull mcp``.
+"""
 
 from __future__ import annotations
 

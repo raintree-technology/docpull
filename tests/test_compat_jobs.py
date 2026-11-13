@@ -78,7 +78,7 @@ async def test_crawl_cancel_and_failure_status() -> None:
     _, running = await _post(app, f"/v1/crawl/{created['id']}", {}, method="GET")
     assert running["status"] == "scraping"
     _, cancelled = await _post(app, f"/v1/crawl/{created['id']}", {}, method="DELETE")
-    assert cancelled == {"status": "cancelled"}
+    assert cancelled == {"success": True, "status": "cancelled"}
     await _settle(app)
     assert (await _post(app, f"/v1/crawl/{created['id']}", {}, method="GET"))[1]["status"] == "cancelled"
 

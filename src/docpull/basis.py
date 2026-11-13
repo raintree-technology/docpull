@@ -1,4 +1,11 @@
-"""Shared local evidence basis records."""
+"""Evidence basis records: which cited sources support each claim in a pack.
+
+A basis record ties one claim path to citation IDs, source URLs, and excerpts,
+with a confidence and an evidence state (supported, partial, insufficient). This
+module builds and normalizes those records, writes and reads ``basis.ndjson``,
+and summarizes them into ``basis.report.json`` and Markdown for eval-grade packs
+and context CI. It is local and offline; "basis" means evidentiary basis.
+"""
 
 from __future__ import annotations
 

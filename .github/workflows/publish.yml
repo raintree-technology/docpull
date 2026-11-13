@@ -93,10 +93,17 @@ jobs:
         run: uv run --locked --with-requirements requirements-release.txt python -m twine check dist/*
 
       - name: Smoke install built wheel
+        env:
+          EXPECTED_VERSION: ${{ steps.meta.outputs.version }}
         run: |
           uv venv .release-smoke
           uv pip install --python .release-smoke/bin/python dist/*.whl
-          .release-smoke/bin/docpull --version
+          INSTALLED="$(.release-smoke/bin/docpull --version)"
+          echo "$INSTALLED"
+          if [ "$INSTALLED" != "docpull $EXPECTED_VERSION" ]; then
+            echo "::error::Installed wheel reports '$INSTALLED', expected 'docpull $EXPECTED_VERSION'"
+            exit 1
+          fi
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:

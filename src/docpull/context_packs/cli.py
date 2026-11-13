@@ -11,6 +11,7 @@ from rich.console import Console
 from rich.markup import escape
 
 from ..policy import PolicyError
+from ..state_paths import resolve_default_state_path
 from .common import ContextPackError
 from .dataset import DEFAULT_DATASET_OUTPUT_DIR, build_dataset_pack
 from .feed import DEFAULT_FEED_OUTPUT_DIR, build_feed_pack
@@ -275,7 +276,9 @@ def _add_typed_common_args(
     parser.add_argument("--prepare", action="store_true", help="Also write agent-level sidecars")
     parser.add_argument("--eval-grade", action="store_true", help="Also write eval-grade sidecars")
     parser.add_argument("--cache", action="store_true", help="Cache typed remote metadata/API responses")
-    parser.add_argument("--cache-dir", type=Path, default=Path(".docpull-cache/typed-packs"))
+    parser.add_argument(
+        "--cache-dir", type=Path, default=resolve_default_state_path(".docpull-cache/typed-packs")
+    )
     parser.add_argument("--cache-ttl", type=_positive_int, default=7, help="Typed remote cache TTL in days")
     parser.add_argument("--json", action="store_true", dest="json_output")
 

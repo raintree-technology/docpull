@@ -1,0 +1,71 @@
+{
+  "schema_version": 3,
+  "output_contract_version": 3,
+  "generated_at": "2026-11-13T01:46:33.588240+00:00",
+  "output_format": "ndjson",
+  "run": null,
+  "document_count": 2,
+  "record_count": 2,
+  "chunk_count": 0,
+  "records": [
+    {
+      "schema_version": 3,
+      "document_id": "doc_239cd2ffa65d711fa8a440a9",
+      "url": "https://docs.example.test/auth",
+      "title": "Authentication",
+      "content_hash": "799c0e60e243edae2893d19e8345e8273eaa8e29e135abf5e9300d7c498d418a",
+      "fetched_at": "2026-01-01T00:00:00+00:00",
+      "content_type": "text/markdown",
+      "mime_type": "text/markdown",
+      "token_count": 6,
+      "route": {
+        "name": "unknown"
+      },
+      "rights": {
+        "status": "unknown",
+        "allowed_use": {
+          "internal_indexing": "unknown",
+          "redistribution": "unknown",
+          "model_training": "unknown",
+          "eval_generation": "unknown"
+        },
+        "obligations": [],
+        "basis": "conservative_default"
+      },
+      "source_type": "synthetic_fixture",
+      "output_path": "sources/01.md"
+    },
+    {
+      "schema_version": 3,
+      "document_id": "doc_ad40e02f9d647d9501c65070",
+      "url": "https://docs.example.test/limits",
+      "title": "Rate limits",
+      "content_hash": "b8d7e987c550b2df0e70d9cd5231916505caab1737ca7d0d481b9f11776dd0c1",
+      "fetched_at": "2026-01-01T00:00:00+00:00",
+      "content_type": "text/markdown",
+      "mime_type": "text/markdown",
+      "token_count": 6,
+      "route": {
+        "name": "unknown"
+      },
+      "rights": {
+        "status": "unknown",
+        "allowed_use": {
+          "internal_indexing": "unknown",
+          "redistribution": "unknown",
+          "model_training": "unknown",
+          "eval_generation": "unknown"
+        },
+        "obligations": [],
+        "basis": "conservative_default"
+      },
+      "source_type": "synthetic_fixture",
+      "output_path": "sources/02.md"
+    }
+  ],
+  "token_metrics": {
+    "total_tokens": 12,
+    "page_count": 2,
+    "tokens_per_page": 6.0
+  }
+}

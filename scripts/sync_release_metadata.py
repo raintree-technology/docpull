@@ -20,6 +20,9 @@ PLUGIN_MANIFESTS = (
     ROOT / "plugin" / ".claude-plugin" / "plugin.json",
 )
 MCP_REGISTRY_MANIFEST = ROOT / "server.json"
+PACKAGE_INIT = ROOT / "src" / "docpull" / "__init__.py"
+# The JS SDK is released in lockstep with the Python package.
+JS_SDK_PACKAGE = ROOT / "sdk" / "js" / "package.json"
 
 SECTION_RE = re.compile(r"^\[[^\]]+]")
 PROJECT_VERSION_RE = re.compile(r'^version\s*=\s*"([^"]+)"(?:\s*#.*)?$')
@@ -29,6 +32,8 @@ MCP_TOOLS_BLOCK_RE = re.compile(
     rf"{re.escape(MCP_TOOLS_START)}\n.*?\n{re.escape(MCP_TOOLS_END)}",
     re.DOTALL,
 )
+INIT_VERSION_RE = re.compile(r'^__version__ = "[^"]*"$', re.MULTILINE)
+JSON_TOP_VERSION_RE = re.compile(r'^(  "version": )"[^"]*"', re.MULTILINE)
 VERSION_HINT_RE = re.compile(r"(docpull --version\s+# should print )[^\n]+")
 
 
@@ -170,6 +175,13 @@ def expected_mcp_registry_manifest(current: str, version: str) -> str:
     return f"{json.dumps(manifest, indent=2)}\n"
 
 
+def replace_once(pattern: re.Pattern[str], replacement: str, current: str, label: str) -> str:
+    updated, count = pattern.subn(replacement, current, count=1)
+    if count != 1:
+        raise RuntimeError(f"{label} must contain exactly one version declaration")
+    return updated
+
+
 def expected_files() -> dict[Path, str]:
     version = project_version()
     tools = mcp_tools()
@@ -181,6 +193,15 @@ def expected_files() -> dict[Path, str]:
     }
     for manifest_path in PLUGIN_MANIFESTS:
         files[manifest_path] = expected_manifest(manifest_path.read_text(encoding="utf-8"), version)
+    files[PACKAGE_INIT] = replace_once(
+        INIT_VERSION_RE, f'__version__ = "{version}"', PACKAGE_INIT.read_text(encoding="utf-8"), "__init__.py"
+    )
+    files[JS_SDK_PACKAGE] = replace_once(
+        JSON_TOP_VERSION_RE,
+        rf'\g<1>"{version}"',
+        JS_SDK_PACKAGE.read_text(encoding="utf-8"),
+        "sdk/js/package.json",
+    )
     return files
 
 

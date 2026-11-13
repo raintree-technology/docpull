@@ -704,7 +704,7 @@ def run_fetcher(args: argparse.Namespace) -> int:
     )
     from .models.config import DocpullConfig, ProfileName
     from .models.events import EventType, FetchStats, SkipReason
-    from .rendering import estimate_cloud_render_cost_usd
+    from .rendering import estimate_cloud_run_cost_usd
     from .skill_export import default_skill_root, expand_skill_agents
     from .time_utils import utc_now_iso
 
@@ -937,10 +937,13 @@ def run_fetcher(args: argparse.Namespace) -> int:
     budget_limit = config.budget.maximum_paid_cost_usd
     render_is_cloud = config.render.enabled and config.render.backend in {"vercel-sandbox", "e2b-sandbox"}
     render_is_local = config.render.enabled and config.render.backend == "agent-browser"
+    # Preflight: a cloud crawl can render every page, so scale the per-render
+    # estimate by the page cap. The renderer also enforces cumulative spend.
     render_estimated_cost = (
-        estimate_cloud_render_cost_usd(
+        estimate_cloud_run_cost_usd(
             cast(Literal["vercel-sandbox", "e2b-sandbox"], config.render.backend),
             config.render,
+            config.crawl.max_pages,
         )
         if render_is_cloud
         else 0.0
