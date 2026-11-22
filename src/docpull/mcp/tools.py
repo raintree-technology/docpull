@@ -457,7 +457,7 @@ async def fetch_url(
     *,
     max_tokens: int | None = None,
     remote_documents: Literal["off", "pdf"] = "off",
-    remote_document_backend: Literal["auto", "pypdf", "markitdown", "unstructured"] = "auto",
+    remote_document_backend: Literal["auto", "pypdf", "pdfplumber", "markitdown", "unstructured"] = "auto",
     remote_document_timeout_seconds: int = 60,
     remote_document_memory_mib: int = 1024,
 ) -> ToolResult:

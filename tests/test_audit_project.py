@@ -105,7 +105,8 @@ def test_partial_sync_exits_non_zero(tmp_path: Path, monkeypatch: pytest.MonkeyP
     monkeypatch.chdir(tmp_path)
     assert run_sync_cli(["--json"]) == 1
     run = json.loads(next(project_paths(tmp_path).runs.glob("*/run.json")).read_text())
-    assert run["status"] == "success"
+    # Status and exit code agree: a partial run is never reported as success.
+    assert run["status"] == "partial"
     assert run["complete"] is False
 
 

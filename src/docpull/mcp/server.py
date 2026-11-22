@@ -726,8 +726,10 @@ async def _dispatch_tool(
             if remote_documents not in {"off", "pdf"}:
                 raise ValueError("'remote_documents' must be off or pdf")
             remote_document_backend = arguments.get("remote_document_backend", "auto")
-            if remote_document_backend not in {"auto", "pypdf", "markitdown", "unstructured"}:
-                raise ValueError("'remote_document_backend' must be auto, pypdf, markitdown, or unstructured")
+            if remote_document_backend not in {"auto", "pypdf", "pdfplumber", "markitdown", "unstructured"}:
+                raise ValueError(
+                    "'remote_document_backend' must be auto, pypdf, pdfplumber, markitdown, or unstructured"
+                )
             remote_document_timeout_seconds = _coerce_int(
                 arguments.get("remote_document_timeout_seconds"),
                 name="remote_document_timeout_seconds",
@@ -743,7 +745,7 @@ async def _dispatch_tool(
                 max_tokens=max_tokens or None,
                 remote_documents=cast(Literal["off", "pdf"], remote_documents),
                 remote_document_backend=cast(
-                    Literal["auto", "pypdf", "markitdown", "unstructured"],
+                    Literal["auto", "pypdf", "pdfplumber", "markitdown", "unstructured"],
                     remote_document_backend,
                 ),
                 remote_document_timeout_seconds=remote_document_timeout_seconds,
@@ -1499,7 +1501,7 @@ async def _run_stdio() -> int:
                         },
                         "remote_document_backend": {
                             "type": "string",
-                            "enum": ["auto", "pypdf", "markitdown", "unstructured"],
+                            "enum": ["auto", "pypdf", "pdfplumber", "markitdown", "unstructured"],
                             "default": "auto",
                             "description": "Local parser backend for explicitly enabled remote PDFs",
                         },

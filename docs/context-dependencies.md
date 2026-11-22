@@ -26,6 +26,52 @@ workflow owns sync, diff, review, release, and export behavior. Typed project
 sources use the same lifecycle, but sync them directly through the matching
 pack lane instead of link discovery.
 
+## Single documents and PDFs
+
+To track one document (a tax revenue procedure, form instructions, a rate page)
+rather than a site, make the source single-URL. Sync then fetches exactly that
+URL: no sitemap, no link crawl.
+
+```bash
+docpull add https://www.irs.gov/pub/irs-drop/rp-25-32.pdf --type pdf \
+  --remote-document-backend pdfplumber
+docpull add https://tax.illinois.gov/research/taxrates/income.html --single
+docpull sync
+docpull diff --json
+```
+
+```yaml
+sources:
+- name: rp-25-32
+  url: https://www.irs.gov/pub/irs-drop/rp-25-32.pdf
+  type: pdf                          # single + remote_documents: pdf by default
+  remote_document_backend: pdfplumber
+- name: il-income-rates
+  url: https://tax.illinois.gov/research/taxrates/income.html
+  single: true
+- name: guides
+  url: https://docs.example.com/guides
+  max_pages: 50                      # per-source cap; overrides crawl.max_pages
+crawl:
+  max_pages: 500
+  remote_documents: off              # project-wide PDF opt-in; sources may override
+  remote_document_backend: auto
+```
+
+- `single` defaults to on for `type: pdf` and for URLs ending in `.pdf`; set
+  `single: false` to crawl from such a URL anyway.
+- `max_pages` caps one source; `crawl.max_pages` is only the default.
+- Remote PDFs stay off unless allowed: `type: pdf` allows them for that
+  source, `crawl.remote_documents: pdf` allows them project-wide, and a source's
+  `remote_documents: off` opts it out. Parsing always runs in the local,
+  resource-limited worker.
+- `remote_document_backend: pdfplumber` (install `docpull[tables]`) renders
+  ruled tables as Markdown tables, so bracket rows stay on one line and
+  side-by-side tables do not interleave. The default `auto` backend is
+  unchanged.
+- `docpull sync` reports `success`, `partial` (some documents landed but a page
+  or source failed), or `failed`, and exits 0 only on `success`.
+
 ## Alias Catalog
 
 The bundled catalog includes high-value public docs sources such as `stripe`,

@@ -132,8 +132,13 @@ unstructured = [
 pdf = [
     "pypdf>=6.21.1",
 ]
+tables = [
+    "pypdf>=6.21.1",
+    "pdfplumber>=0.11.10",
+]
 parse = [
     "pypdf>=6.21.1",
+    "pdfplumber>=0.11.10",
     "markitdown[docx,pdf]>=0.1.0",
     "unstructured[all-docs]>=0.24.1; python_version >= '3.11' and python_version < '3.14'",
 ]
@@ -163,6 +168,7 @@ all = [
     "uvicorn>=0.30.0",
     "pyarrow>=16.0.0",
     "pypdf>=6.21.1",
+    "pdfplumber>=0.11.10",
     "markitdown[docx,pdf]>=0.1.0",
     "unstructured[all-docs]>=0.24.1; python_version >= '3.11' and python_version < '3.14'",
     "presidio-analyzer>=2.2.0",

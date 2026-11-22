@@ -6,8 +6,11 @@ import argparse
 import hashlib
 import json
 import re
+import urllib.error
+import urllib.request
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 from rich.console import Console
 from rich.markup import escape
@@ -39,6 +42,16 @@ def create_monitor_parser() -> argparse.ArgumentParser:
     init.add_argument("--schedule", default="manual")
     init.add_argument("--policy", type=Path, help="Optional policy file recorded by path")
     init.add_argument("--dedupe-key", default="url+content_hash", help="Local dedupe strategy label")
+    init.add_argument(
+        "--remote-documents",
+        choices=["off", "pdf"],
+        help="Allow refetching remote PDFs (default: inferred from the pack's PDF records)",
+    )
+    init.add_argument(
+        "--remote-document-backend",
+        choices=["auto", "pypdf", "pdfplumber", "markitdown", "unstructured"],
+        help="Local PDF parser for refetches (default: the parser that built the pack)",
+    )
 
     run = subparsers.add_parser("run", help="Run one monitor refresh cycle")
     run.add_argument("name")
@@ -46,14 +59,22 @@ def create_monitor_parser() -> argparse.ArgumentParser:
     run.add_argument("--dry-run", action="store_true")
     run.add_argument("--json", action="store_true", dest="json_output")
     run.add_argument("--github-issue-file", type=Path)
-    run.add_argument("--slack-webhook", help="Webhook URL to use for this run only; not persisted")
+    run.add_argument(
+        "--slack-webhook",
+        help="HTTPS Slack incoming-webhook URL; posts a summary when there are changes or failures. "
+        "Used for this run only; never persisted or written to reports",
+    )
 
     trigger = subparsers.add_parser("trigger", help="Alias for a single manual monitor run")
     trigger.add_argument("name")
     trigger.add_argument("--dry-run", action="store_true")
     trigger.add_argument("--json", action="store_true", dest="json_output")
     trigger.add_argument("--github-issue-file", type=Path)
-    trigger.add_argument("--slack-webhook", help="Webhook URL to use for this run only; not persisted")
+    trigger.add_argument(
+        "--slack-webhook",
+        help="HTTPS Slack incoming-webhook URL; posts a summary when there are changes or failures. "
+        "Used for this run only; never persisted or written to reports",
+    )
 
     pause = subparsers.add_parser("pause", help="Pause a monitor config")
     pause.add_argument("name")
@@ -95,6 +116,8 @@ def run_monitor_cli(argv: list[str] | None = None) -> int:
                 schedule=args.schedule,
                 policy_path=args.policy,
                 dedupe_key=args.dedupe_key,
+                remote_documents=args.remote_documents,
+                remote_document_backend=args.remote_document_backend,
             )
             console.print(f"[green]Monitor initialized:[/green] {payload['name']} -> {payload['path']}")
             return 0
@@ -106,35 +129,19 @@ def run_monitor_cli(argv: list[str] | None = None) -> int:
                 state_dir=args.state_dir,
                 dry_run=args.dry_run,
                 github_issue_file=args.github_issue_file,
-                slack_webhook_supplied=bool(args.slack_webhook),
+                slack_webhook=args.slack_webhook,
             )
-            if args.json_output:
-                console.print_json(data=payload)
-            else:
-                console.print(
-                    "[green]Monitor run:[/green] "
-                    f"{payload['name']} changed={payload['summary'].get('changed_count')} "
-                    f"report={payload['artifacts']['json']}"
-                )
-            return 0
+            return _print_run_result(console, payload, label="Monitor run", json_output=args.json_output)
         if args.command == "trigger":
             payload = run_monitor_once(
                 args.name,
                 state_dir=args.state_dir,
                 dry_run=args.dry_run,
                 github_issue_file=args.github_issue_file,
-                slack_webhook_supplied=bool(args.slack_webhook),
+                slack_webhook=args.slack_webhook,
                 trigger="manual",
             )
-            if args.json_output:
-                console.print_json(data=payload)
-            else:
-                console.print(
-                    "[green]Monitor trigger:[/green] "
-                    f"{payload['name']} changed={payload['summary'].get('changed_count')} "
-                    f"report={payload['artifacts']['json']}"
-                )
-            return 0
+            return _print_run_result(console, payload, label="Monitor trigger", json_output=args.json_output)
         if args.command == "pause":
             payload = set_monitor_paused(args.name, True, state_dir=args.state_dir)
             if args.json_output:
@@ -181,6 +188,25 @@ def run_monitor_cli(argv: list[str] | None = None) -> int:
     return 1
 
 
+def _print_run_result(console: Console, payload: dict[str, Any], *, label: str, json_output: bool) -> int:
+    """Print a monitor run; exit 1 when any URL could not be refetched."""
+    summary = payload["summary"]
+    if json_output:
+        console.print_json(data=payload)
+    else:
+        failed = int(summary.get("failed_count") or 0)
+        color = "red" if failed else "green"
+        console.print(
+            f"[{color}]{label} ({escape(str(summary.get('status')))}):[/{color}] "
+            f"{payload['name']} changed={summary.get('changed_count')} "
+            f"added={summary.get('added_count')} removed={summary.get('removed_count')} "
+            f"failed={failed} report={payload['artifacts']['json']}"
+        )
+        for item in summary.get("failures") or []:
+            console.print(f"- [red]failed[/red] {escape(str(item['url']))}: {escape(str(item['reason']))}")
+    return 1 if summary.get("status") == "failed" else 0
+
+
 def init_monitor(
     name: str,
     pack_dir: Path,
@@ -189,6 +215,8 @@ def init_monitor(
     schedule: str = "manual",
     policy_path: Path | None = None,
     dedupe_key: str = "url+content_hash",
+    remote_documents: str | None = None,
+    remote_document_backend: str | None = None,
 ) -> dict[str, Any]:
     monitor_name = _safe_monitor_name(name)
     pack_path = pack_dir.resolve()
@@ -204,6 +232,8 @@ def init_monitor(
         "schedule": schedule,
         "policy_path": str(policy_path.resolve()) if policy_path else None,
         "dedupe_key": dedupe_key,
+        "remote_documents": remote_documents,
+        "remote_document_backend": remote_document_backend,
         "paused": False,
         "state_dir": str(state_dir.resolve()),
     }
@@ -247,9 +277,21 @@ def run_monitor_once(
     state_dir: Path = DEFAULT_MONITOR_STATE_DIR,
     dry_run: bool = False,
     github_issue_file: Path | None = None,
+    slack_webhook: str | None = None,
     slack_webhook_supplied: bool = False,
     trigger: str = "scheduled",
+    slack_post: Any = None,
 ) -> dict[str, Any]:
+    """Run one refresh cycle.
+
+    ``summary.status`` is ``failed`` when any URL could not be refetched (those
+    URLs are listed in ``summary.failures`` and never counted as unchanged),
+    else ``changed`` or ``unchanged``. A failed cycle does not advance the
+    baseline, so the next run diffs against the last fully verified snapshot.
+    """
+    if slack_webhook:
+        _validate_slack_webhook(slack_webhook)
+        slack_webhook_supplied = True
     config = _read_monitor_config(state_dir, name)
     if config.get("paused"):
         raise MonitorError(f"Monitor is paused: {name}")
@@ -269,7 +311,18 @@ def run_monitor_once(
         output_dir=refreshed_pack_dir,
         dry_run=dry_run,
         markdown_path=run_dir / "refresh.report.md",
+        remote_documents=config.get("remote_documents"),
+        remote_document_backend=config.get("remote_document_backend"),
     )
+    failures = [
+        {
+            "url": str(item.get("url")),
+            "reason": str(item.get("error") or item.get("reason") or "fetch failed"),
+            "kind": "fetch_failed" if item in refresh.get("errors", []) else "fetch_skipped",
+        }
+        for item in (*refresh.get("errors", []), *refresh.get("skips", []))
+        if str(item.get("url")) in set(refresh.get("summary", {}).get("unverified_urls") or [])
+    ]
     diff_raw = refresh.get("diff")
     diff_payload: dict[str, Any] = diff_raw if isinstance(diff_raw, dict) else {}
     if not dry_run and refreshed_pack_dir.exists() and (refreshed_pack_dir / "documents.ndjson").exists():
@@ -312,6 +365,8 @@ def run_monitor_once(
             "added_count": len(diff_payload.get("added_urls", [])),
             "removed_count": len(diff_payload.get("removed_urls", [])),
             "unchanged_count": len(diff_payload.get("unchanged_urls", [])),
+            "failed_count": len(failures),
+            "failures": failures,
             "audit_score": audit.get("score") if isinstance(audit, dict) else None,
             "slack_webhook_supplied": slack_webhook_supplied,
             "dedupe_key": config.get("dedupe_key", "url+content_hash"),
@@ -337,7 +392,14 @@ def run_monitor_once(
     current = _read_monitor_config(state_dir, name)
     if current.get("paused"):
         raise MonitorError(f"Monitor is paused: {name}")
-    refreshed = not dry_run and audit is not None and (refreshed_pack_dir / "documents.ndjson").exists()
+    # A cycle with failed refetches never becomes the baseline: the refreshed
+    # pack lacks those URLs, so the next run would misreport them as added.
+    refreshed = (
+        not dry_run
+        and not failures
+        and audit is not None
+        and (refreshed_pack_dir / "documents.ndjson").exists()
+    )
     fingerprint = _change_fingerprint(
         str(config.get("dedupe_key", "url+content_hash")), diff_payload, refreshed_pack_dir
     )
@@ -345,10 +407,18 @@ def run_monitor_once(
     duplicate = has_changes and fingerprint == current.get("last_reported_fingerprint")
     payload["summary"]["change_fingerprint"] = fingerprint
     payload["summary"]["deduplicated"] = duplicate
+    payload["summary"]["status"] = "failed" if failures else ("changed" if has_changes else "unchanged")
     if github_issue_file and not duplicate:
         github_issue_file.parent.mkdir(parents=True, exist_ok=True)
         github_issue_file.write_text(_monitor_markdown(payload), encoding="utf-8")
         payload["notification_outputs"]["github_issue_file"] = str(github_issue_file)
+    if slack_webhook:
+        payload["notification_outputs"]["slack"] = _notify_slack(
+            slack_webhook,
+            payload,
+            should_send=not dry_run and (bool(failures) or (has_changes and not duplicate)),
+            post=slack_post or _post_json,
+        )
     if refreshed:
         current["baseline_pack_dir"] = str(refreshed_pack_dir.resolve())
         current["last_checked_at"] = utc_now_iso()
@@ -360,6 +430,49 @@ def run_monitor_once(
     _write_json(report_path, payload)
     markdown_path.write_text(_monitor_markdown(payload), encoding="utf-8")
     return payload
+
+
+def _validate_slack_webhook(url: str) -> None:
+    parsed = urlparse(url)
+    if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password:
+        raise MonitorError("--slack-webhook must be an https URL without embedded credentials")
+
+
+def _post_json(url: str, body: dict[str, Any]) -> int:
+    request = urllib.request.Request(  # noqa: S310 - scheme validated as https above
+        url,
+        data=json.dumps(body).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(request, timeout=15) as response:  # noqa: S310
+        return int(response.status)
+
+
+def _notify_slack(url: str, payload: dict[str, Any], *, should_send: bool, post: Any) -> dict[str, Any]:
+    """Post a short summary. The webhook URL is a secret: never returned or logged."""
+    if not should_send:
+        return {"status": "skipped", "reason": "no new changes or failures"}
+    summary = payload["summary"]
+    lines = [
+        f"DocPull monitor `{payload['name']}`: {summary.get('status')}",
+        f"changed={summary.get('changed_count')} added={summary.get('added_count')} "
+        f"removed={summary.get('removed_count')} failed={summary.get('failed_count')}",
+    ]
+    diff = payload.get("refresh", {}).get("diff") or {}
+    for key, label in (("changed_urls", "changed"), ("added_urls", "added"), ("removed_urls", "removed")):
+        lines.extend(f"- {label}: {url}" for url in (diff.get(key) or [])[:10])
+    lines.extend(
+        f"- failed: {item['url']} ({item['reason']})" for item in (summary.get("failures") or [])[:10]
+    )
+    try:
+        status = post(url, {"text": "\n".join(lines)})
+    except (urllib.error.URLError, OSError, ValueError) as err:
+        reason = getattr(err, "reason", None) or type(err).__name__
+        return {"status": "error", "error": str(reason)[:200]}
+    if not 200 <= int(status) < 300:
+        return {"status": "error", "error": f"HTTP {status}"}
+    return {"status": "sent", "http_status": int(status)}
 
 
 def _change_fingerprint(dedupe_key: str, diff_payload: dict[str, Any], refreshed_pack_dir: Path) -> str:

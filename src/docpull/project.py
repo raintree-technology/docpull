@@ -47,6 +47,7 @@ from .models.config import (
     AuthType,
     BudgetConfig,
     CacheConfig,
+    ContentFilterConfig,
     CrawlConfig,
     DocpullConfig,
     OutputConfig,
@@ -128,6 +129,9 @@ OutputFormat = Literal["markdown", "ndjson", "sqlite", "context-pack"]
 SemanticMode = Literal["auto", "off", "on"]
 ContextTarget = Literal["cursor", "claude", "codex", "openai", "llamaindex", "langchain"]
 SourceAuthType = Literal["bearer_env", "basic_env", "cookie_env", "header_env"]
+RemoteDocumentsMode = Literal["off", "pdf"]
+RemoteDocumentBackend = Literal["auto", "pypdf", "pdfplumber", "markitdown", "unstructured"]
+REMOTE_DOCUMENT_BACKENDS: tuple[str, ...] = ("auto", "pypdf", "pdfplumber", "markitdown", "unstructured")
 
 CRAWL_SOURCE_TYPES: tuple[str, ...] = ("auto", "html", "pdf", "markdown", "github", "sitemap")
 TYPED_PROJECT_SOURCE_TYPES: tuple[str, ...] = (
@@ -198,8 +202,38 @@ class ProjectSource(BaseModel):
     discovered_urls: list[str] = Field(default_factory=list)
     discovered_at: str | None = None
     auth: ProjectSourceAuth | None = None
+    # Fetch exactly ``url`` with no sitemap discovery or link crawling. ``None``
+    # means "infer": on for ``type: pdf`` and for URLs whose path ends in .pdf.
+    single: bool | None = None
+    # Per-source page cap; overrides ``crawl.max_pages`` for this source only.
+    max_pages: int | None = Field(None, ge=1)
+    # Per-source overrides of ``crawl.remote_documents`` / ``crawl.remote_document_backend``.
+    # ``type: pdf`` implies ``remote_documents: pdf`` unless set to ``off`` here.
+    remote_documents: RemoteDocumentsMode | None = None
+    remote_document_backend: RemoteDocumentBackend | None = None
 
     model_config = {"extra": "forbid"}
+
+    @property
+    def is_single(self) -> bool:
+        if self.single is not None:
+            return self.single
+        return self.type == "pdf" or urlparse(self.url).path.lower().endswith(".pdf")
+
+    def effective_max_pages(self, crawl: ProjectCrawlConfig) -> int | None:
+        if self.is_single:
+            return 1
+        return self.max_pages if self.max_pages is not None else crawl.max_pages
+
+    def effective_remote_documents(self, crawl: ProjectCrawlConfig) -> RemoteDocumentsMode:
+        if self.remote_documents is not None:
+            return self.remote_documents
+        if self.type == "pdf":
+            return "pdf"
+        return crawl.remote_documents
+
+    def effective_remote_document_backend(self, crawl: ProjectCrawlConfig) -> RemoteDocumentBackend:
+        return self.remote_document_backend or crawl.remote_document_backend
 
     @field_validator("name")
     @classmethod
@@ -226,7 +260,16 @@ class ProjectSource(BaseModel):
         if self.type in CRAWL_SOURCE_TYPES:
             if parsed.scheme != "https" or not parsed.netloc:
                 raise ValueError("crawl source url must be an absolute https URL")
+            if self.single and self.discover:
+                raise ValueError("single-URL sources cannot use discovery")
             return self
+        if (
+            self.single is not None
+            or self.max_pages is not None
+            or self.remote_documents is not None
+            or self.remote_document_backend is not None
+        ):
+            raise ValueError("single, max_pages, and remote_documents apply to crawl sources only")
         if self.type not in TYPED_PROJECT_SOURCE_TYPES:
             raise ValueError(f"unsupported source type: {self.type}")
         if not _typed_project_source_spec_allowed(self.type, self.url):
@@ -264,6 +307,10 @@ class ProjectCrawlConfig(BaseModel):
     include_paths: list[str] = Field(default_factory=list)
     exclude_paths: list[str] = Field(default_factory=list)
     streaming_discovery: bool = True
+    # Explicit opt-in to download and locally parse remote PDFs (same switch as
+    # `docpull URL --remote-documents pdf`). Sources may override it.
+    remote_documents: RemoteDocumentsMode = "off"
+    remote_document_backend: RemoteDocumentBackend = "auto"
 
     model_config = {"extra": "forbid"}
 
@@ -434,12 +481,39 @@ def run_add_cli(argv: list[str] | None = None) -> int:
         default="explicit-private",
     )
     parser.add_argument("--auth-header-name", help="Header name for --auth header-env")
+    parser.add_argument(
+        "--single",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Fetch exactly this URL (no sitemap or link crawl). Default: on for --type pdf and .pdf URLs",
+    )
+    parser.add_argument("--max-pages", type=int, help="Page cap for this source (overrides crawl.max_pages)")
+    parser.add_argument(
+        "--remote-documents",
+        choices=["off", "pdf"],
+        help="Allow downloading and locally parsing remote PDFs for this source (--type pdf implies pdf)",
+    )
+    parser.add_argument(
+        "--remote-document-backend",
+        choices=REMOTE_DOCUMENT_BACKENDS,
+        help="Local PDF parser for this source; pdfplumber keeps tables as Markdown tables",
+    )
     args = parser.parse_args(argv)
+    fetch_options = {
+        key: value
+        for key, value in {
+            "single": args.single,
+            "max_pages": args.max_pages,
+            "remote_documents": args.remote_documents,
+            "remote_document_backend": args.remote_document_backend,
+        }.items()
+        if value is not None
+    }
     if len(args.sources) == 1 and _infer_typed_source_type(args.sources[0]) is None:
         from .registry import REF, run_add_recipe_cli
 
         if REF.fullmatch(args.sources[0].strip()):
-            if args.name or args.type != "auto" or args.discover or args.auth:
+            if args.name or args.type != "auto" or args.discover or args.auth or fetch_options:
                 Console().print(
                     "[red]Project error:[/red] registry packs take no --name, --type, --discover, or --auth"
                 )
@@ -459,6 +533,7 @@ def run_add_cli(argv: list[str] | None = None) -> int:
             source_type=args.type,
             discover=args.discover,
             auth=auth,
+            **fetch_options,
         )
     except ProjectError as err:
         console.print("[red]Project error:[/red] " + escape(str(err)))
@@ -592,17 +667,22 @@ def run_sync_cli(argv: list[str] | None = None) -> int:
         console.print_json(data=payload)
     else:
         summary = payload["summary"]
+        run_status = str(payload.get("status") or "")
+        color = (
+            "green"
+            if run_status in {"success", "dry_run"}
+            else ("yellow" if run_status == "partial" else "red")
+        )
         console.print(
-            "[green]Project sync:[/green] "
+            f"[{color}]Project sync ({escape(run_status)}):[/{color}] "
             f"{payload['run_id']} docs={summary['document_count']} "
             f"chunks={summary['chunk_count']} failed={summary['failed_count']}"
         )
     if payload.get("status") == "dry_run":
         return 0
-    # Failed or partial syncs (any source error or degraded) must not look green.
-    failed = int((payload.get("summary") or {}).get("failed_count") or 0)
-    ok = payload.get("status") == "success" and payload.get("complete", True) and failed == 0
-    return 0 if ok else 1
+    # Exit status follows the reported status: only "success" exits 0. Failed or
+    # partial syncs (any source error) report a non-success status and exit 1.
+    return 0 if payload.get("status") == "success" else 1
 
 
 def run_diff_cli(argv: list[str] | None = None) -> int:
@@ -821,16 +901,26 @@ def add_source(
     discover: bool = False,
     auth: ProjectSourceAuth | dict[str, Any] | None = None,
     root: Path | None = None,
+    single: bool | None = None,
+    max_pages: int | None = None,
+    remote_documents: str | None = None,
+    remote_document_backend: str | None = None,
 ) -> dict[str, Any]:
     project_root = find_project_root(root or Path.cwd())
     config = load_project_config(project_root)
     try:
-        source = ProjectSource(
-            name=name or _unique_source_name(config.sources, _source_name_from_url(url)),
-            url=url,
-            type=_source_type(source_type),
-            discover=discover,
-            auth=ProjectSourceAuth.model_validate(auth) if auth else None,
+        source = ProjectSource.model_validate(
+            {
+                "name": name or _unique_source_name(config.sources, _source_name_from_url(url)),
+                "url": url,
+                "type": _source_type(source_type),
+                "discover": discover,
+                "auth": ProjectSourceAuth.model_validate(auth) if auth else None,
+                "single": single,
+                "max_pages": max_pages,
+                "remote_documents": remote_documents,
+                "remote_document_backend": remote_document_backend,
+            }
         )
     except ValidationError as err:
         raise ProjectError(f"Invalid source: {err}") from err
@@ -861,6 +951,10 @@ def add_sources(
     discover: bool = False,
     auth: ProjectSourceAuth | dict[str, Any] | None = None,
     root: Path | None = None,
+    single: bool | None = None,
+    max_pages: int | None = None,
+    remote_documents: str | None = None,
+    remote_document_backend: str | None = None,
 ) -> dict[str, Any]:
     """Add one or more URL or alias sources to a project."""
 
@@ -887,6 +981,10 @@ def add_sources(
             discover=(discover if not spec["alias"] else False),
             auth=auth,
             root=project_root,
+            single=single,
+            max_pages=max_pages,
+            remote_documents=remote_documents,
+            remote_document_backend=remote_document_backend,
         )
         if spec["alias"] and (discover or bool(spec["discover"])):
             config = load_project_config(project_root)
@@ -1223,7 +1321,9 @@ def _sync_project_locked(
         for item in source_health
     ]
 
-    status = "success" if records or not errors else "failed"
+    # "partial": some documents landed but a page or source failed. It is kept as
+    # the latest run (so diffs still work) but never reported, or exited, as green.
+    status = ("partial" if errors else "success") if records or not errors else "failed"
     return _finalize_project_run(
         project_root=project_root,
         config=config,
@@ -1730,11 +1830,12 @@ async def _sync_source(
     errors: list[dict[str, Any]] = []
     skips: list[dict[str, Any]] = []
     robots_blocked = 0
+    max_pages = source.effective_max_pages(config.crawl)
     async with _fetcher_class()(fetch_config) as fetcher:
-        if source.discovered_urls:
-            urls = _unique_urls([source.url, *source.discovered_urls])
-            if config.crawl.max_pages is not None:
-                urls = urls[: config.crawl.max_pages]
+        if source.is_single or source.discovered_urls:
+            urls = [source.url] if source.is_single else _unique_urls([source.url, *source.discovered_urls])
+            if max_pages is not None:
+                urls = urls[:max_pages]
             for url in urls:
                 ctx = await fetcher.fetch_one(url, save=True)
                 if ctx.error:
@@ -1980,7 +2081,7 @@ def _refresh_project_discovery(
         if source.name not in requested:
             updated_sources.append(source)
             continue
-        if source.type in TYPED_PROJECT_SOURCE_TYPES:
+        if source.type in TYPED_PROJECT_SOURCE_TYPES or source.is_single:
             updated_sources.append(
                 source.model_copy(
                     update={
@@ -2042,7 +2143,7 @@ def _fetch_config(
         profile=ProfileName.CUSTOM,
         url=source.url,
         crawl=CrawlConfig(
-            max_pages=config.crawl.max_pages,
+            max_pages=source.effective_max_pages(config.crawl),
             max_depth=config.crawl.max_depth,
             max_concurrent=config.crawl.max_concurrent,
             per_host_concurrent=config.crawl.per_host_concurrent,
@@ -2061,6 +2162,10 @@ def _fetch_config(
             enabled=True,
             directory=project_paths(project_root).cache / source.name,
             skip_unchanged=False,
+        ),
+        content_filter=ContentFilterConfig(
+            remote_documents=source.effective_remote_documents(config.crawl),
+            remote_document_backend=source.effective_remote_document_backend(config.crawl),
         ),
         budget=BudgetConfig(maximum_paid_cost_usd=config.budget.maximum_paid_cost_usd),
         auth=_resolve_source_auth(source),
@@ -2159,18 +2264,19 @@ def _finalize_project_run(
                 "status": "completed",
                 "artifacts": publish_payload.get("artifacts", {}),
             }
+    usable = status in {"success", "partial"}
     run_payload["complete"] = (
         status == "success" and not errors and all(item.get("status") == "ok" for item in source_health)
     )
     _write_json(run_dir / "run.json", run_payload)
     # Refreshed discovery reaches docpull.yaml only with a successful run, written
     # immediately before the lock so a failed sync leaves both untouched.
-    if status == "success" and pending_config is not None:
+    if usable and pending_config is not None:
         save_project_config(project_root, pending_config)
     # Only a successful, complete run may move the lock; dry, failed, scoped and
     # source-dropping runs keep the previous pin so it never loses pinned evidence.
     # A crash after this point is reconciled by ``_reconcile_locked_run``.
-    if status == "success" and pin_lock:
+    if usable and pin_lock:
         lock_payload = _write_context_lock(
             project_root=project_root,
             config=config,
@@ -2179,7 +2285,7 @@ def _finalize_project_run(
         )
         run_payload["context_lock_hash"] = lock_payload.get("lock_hash")
         _write_json(run_dir / "run.json", run_payload)
-    if status == "success":
+    if usable:
         atomic_write_text(paths.latest_run, run_id + "\n")
     _index_run(project_root, config, run_payload, records, chunks, errors, source_health)
     return run_payload
@@ -2227,7 +2333,7 @@ def _reconcile_locked_run(project_root: Path, config: ProjectConfig) -> str | No
         return None
     run_dir = paths.runs / run_id
     run = _run_payload(run_dir)
-    if not run or run.get("run_id") != run_id or run.get("status") != "success":
+    if not run or run.get("run_id") != run_id or run.get("status") not in {"success", "partial"}:
         return None
     latest = paths.latest_run.read_text(encoding="utf-8").strip() if paths.latest_run.exists() else ""
     latest_run = _run_payload(paths.runs / latest) if latest and _RUN_ID_RE.fullmatch(latest) else None
@@ -2329,7 +2435,13 @@ def load_project_config(root: Path) -> ProjectConfig:
 
 def save_project_config(root: Path, config: ProjectConfig) -> None:
     paths = project_paths(root)
-    text = yaml.safe_dump(config.model_dump(mode="json"), sort_keys=False)
+    data = config.model_dump(mode="json")
+    for source in data.get("sources") or []:
+        # Keep docpull.yaml tidy: unset per-source fetch options are omitted.
+        for field in _SOURCE_FETCH_OPTION_FIELDS:
+            if source.get(field) is None:
+                source.pop(field, None)
+    text = yaml.safe_dump(data, sort_keys=False)
     _replace_atomically(paths.config, lambda target: target.write_text(text, encoding="utf-8"))
 
 
@@ -3048,11 +3160,26 @@ def _context_dependency_payload(source: ProjectSource) -> dict[str, Any]:
         "discovered_at": source.discovered_at,
         "auth": _source_auth_public_payload(source),
     }
+    fetch_options = _source_fetch_options(source)
+    if fetch_options:
+        payload["fetch"] = fetch_options
     if alias:
         payload["alias"] = alias.name
         payload["alias_title"] = alias.title
         payload["alias_homepage"] = alias.homepage
     return payload
+
+
+_SOURCE_FETCH_OPTION_FIELDS = ("single", "max_pages", "remote_documents", "remote_document_backend")
+
+
+def _source_fetch_options(source: ProjectSource) -> dict[str, Any]:
+    """Explicit per-source fetch options; omitted when unset so older locks stay valid."""
+    return {
+        field: getattr(source, field)
+        for field in _SOURCE_FETCH_OPTION_FIELDS
+        if getattr(source, field) is not None
+    }
 
 
 def _content_hash_summary(records: list[dict[str, Any]]) -> dict[str, Any]:
@@ -3174,6 +3301,7 @@ def _validate_context_lock(config: ProjectConfig, lock: dict[str, Any]) -> None:
                 "discover": source.discover,
                 "discovered_urls": list(source.discovered_urls),
                 "alias": alias.name if alias else None,
+                "fetch": _source_fetch_options(source) or None,
             }
         )
     locked = [
@@ -3184,6 +3312,7 @@ def _validate_context_lock(config: ProjectConfig, lock: dict[str, Any]) -> None:
             "discover": bool(item.get("discover")),
             "discovered_urls": list(item.get("discovered_urls") or []),
             "alias": item.get("alias"),
+            "fetch": item.get("fetch") or None,
         }
         for item in locked_sources
         if isinstance(item, dict)

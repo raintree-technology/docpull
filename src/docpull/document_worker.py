@@ -101,7 +101,7 @@ def _read_request(path: Path) -> _WorkerRequest:
     memory_mib = payload.get("memory_mib")
     source_url = payload.get("source_url")
     timeout_seconds = payload.get("timeout_seconds")
-    if backend not in {"auto", "pypdf", "markitdown", "unstructured"}:
+    if backend not in {"auto", "pypdf", "pdfplumber", "markitdown", "unstructured"}:
         raise DocumentParseError("Invalid worker backend.")
     if not isinstance(maximum, int) or isinstance(maximum, bool) or maximum <= 0:
         raise DocumentParseError("Invalid worker output limit.")

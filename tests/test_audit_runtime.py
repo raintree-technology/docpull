@@ -197,7 +197,9 @@ async def test_crawl_site_records_per_page_errors(monkeypatch: pytest.MonkeyPatc
 
 
 def _fake_refresh(changed: list[str]) -> Any:
-    def refresh(pack_dir: Path, *, output_dir: Path, dry_run: bool, markdown_path: Path) -> dict[str, Any]:
+    def refresh(
+        pack_dir: Path, *, output_dir: Path, dry_run: bool, markdown_path: Path, **_fetch_options: Any
+    ) -> dict[str, Any]:
         shutil.copytree(pack_dir, output_dir)
         return {"diff": {"changed_urls": changed, "added_urls": [], "removed_urls": [], "unchanged_urls": []}}
 

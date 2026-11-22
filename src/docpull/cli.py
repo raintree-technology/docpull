@@ -398,9 +398,12 @@ Examples:
     )
     parser.add_argument(
         "--remote-document-backend",
-        choices=["auto", "pypdf", "markitdown", "unstructured"],
+        choices=["auto", "pypdf", "pdfplumber", "markitdown", "unstructured"],
         default=None,
-        help="Local parser backend for --remote-documents (default: auto)",
+        help=(
+            "Local parser backend for --remote-documents; "
+            "pdfplumber keeps PDF tables as Markdown tables (default: auto)"
+        ),
     )
     parser.add_argument(
         "--remote-document-timeout-seconds",
@@ -1654,6 +1657,9 @@ def _renderer_for_render_cli_backend(
 def main(argv: list[str] | None = None) -> int:
     """Main entry point."""
     raw_argv = list(argv) if argv is not None else sys.argv[1:]
+    if raw_argv and raw_argv[0] == "help":
+        # `docpull help monitor run` -> `docpull monitor run --help`
+        return main([*raw_argv[1:], "--help"])
     if raw_argv and raw_argv[0] in PRUNED_CLI_COMMANDS:
         command = raw_argv[0]
         print(

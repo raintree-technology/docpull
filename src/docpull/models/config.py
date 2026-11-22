@@ -157,7 +157,7 @@ class ContentFilterConfig(BaseModel):
             "Off by default; never enables browser or cloud parsing."
         ),
     )
-    remote_document_backend: Literal["auto", "pypdf", "markitdown", "unstructured"] = Field(
+    remote_document_backend: Literal["auto", "pypdf", "pdfplumber", "markitdown", "unstructured"] = Field(
         "auto",
         description="Local parser backend used when remote_documents is enabled",
     )
