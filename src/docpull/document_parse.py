@@ -31,7 +31,7 @@ from .time_utils import utc_now_iso
 
 logger = logging.getLogger(__name__)
 
-ParseBackend = Literal["auto", "pypdf", "markitdown", "unstructured", "text"]
+ParseBackend = Literal["auto", "pypdf", "pdfplumber", "markitdown", "unstructured", "text"]
 RemoteDocumentErrorCode = Literal[
     "encrypted",
     "empty",
@@ -55,7 +55,7 @@ _REMOTE_RESULT_REQUIRED_KEYS = {
     "status",
     "title",
 }
-_REMOTE_BACKENDS = {"auto", "pypdf", "markitdown", "unstructured"}
+_REMOTE_BACKENDS = {"auto", "pypdf", "pdfplumber", "markitdown", "unstructured"}
 _REMOTE_ERROR_CODES = {
     "encrypted",
     "empty",
@@ -268,7 +268,7 @@ def _create_parse_parser() -> argparse.ArgumentParser:
     parser.add_argument("-o", "--output-dir", required=True, help="Directory for the generated pack")
     parser.add_argument(
         "--backend",
-        choices=["auto", "pypdf", "markitdown", "unstructured", "text"],
+        choices=["auto", "pypdf", "pdfplumber", "markitdown", "unstructured", "text"],
         default="auto",
         help="Parser backend (default: auto)",
     )
@@ -337,6 +337,20 @@ def parse_one_document(
             backend="pypdf",
             source_mime_type=source_mime_type,
             metadata=metadata,
+        )
+    if backend == "pdfplumber":
+        if source_mime_type != "application/pdf":
+            raise DocumentParseError("The pdfplumber backend only supports PDF inputs.")
+        structure = _validate_pdf_structure(path)
+        content, metadata = _parse_pdfplumber(path)
+        return _parsed_document(
+            path,
+            source_url=source_url,
+            title=title or _metadata_title(structure),
+            content=content,
+            backend="pdfplumber",
+            source_mime_type=source_mime_type,
+            metadata={**structure, **metadata},
         )
     if backend == "markitdown":
         structure = _validate_pdf_structure(path) if source_mime_type == "application/pdf" else {}
@@ -660,7 +674,7 @@ def _read_remote_worker_result(request: _RemoteDocumentRequest) -> ParsedDocumen
         raise DocumentParseError("Remote document worker returned invalid field types.")
     if not isinstance(metadata, dict) or not all(isinstance(key, str) for key in metadata):
         raise DocumentParseError("Remote document worker returned invalid metadata.")
-    if parsed_backend not in {"pypdf", "markitdown", "unstructured"}:
+    if parsed_backend not in {"pypdf", "pdfplumber", "markitdown", "unstructured"}:
         raise DocumentParseError("Remote document worker returned an invalid parser identity.")
     if request.backend != "auto" and parsed_backend != request.backend:
         raise DocumentParseError("Remote document worker returned a conflicting parser identity.")
@@ -894,6 +908,106 @@ def _pypdf_page_image_count(page: Any) -> int:
     except Exception:  # noqa: BLE001 - image counting is best-effort metadata
         logger.debug("pypdf image count failed", exc_info=True)
         return 0
+
+
+def _parse_pdfplumber(path: Path) -> tuple[str, dict[str, Any]]:
+    """Table-aware PDF text: ruled tables become Markdown tables in reading order.
+
+    Text inside a detected table's bounding box is emitted only once, as table
+    rows, so side-by-side tables do not interleave and multi-line cells stay in
+    one row.
+    """
+    _preflight_pdf_container(path)
+    try:
+        module = importlib.import_module("pdfplumber")
+    except ImportError as err:
+        raise DocumentParseError(
+            "pdfplumber parsing requires the optional dependency. "
+            "Install it with `pip install 'docpull[tables]'`."
+        ) from err
+    blocks: list[str] = []
+    warnings: list[str] = []
+    table_count = 0
+    try:
+        pdf = module.open(str(path))
+    except Exception as err:  # noqa: BLE001
+        raise DocumentParseError("Malformed or truncated PDF container.", code="malformed") from err
+    with pdf:
+        if not pdf.pages:
+            raise DocumentParseError("PDF contains no pages.", code="empty")
+        for page_index, page in enumerate(pdf.pages, start=1):
+            try:
+                page_blocks, page_tables = _pdfplumber_page_blocks(page)
+            except Exception:  # noqa: BLE001 - pdfplumber raises arbitrary errors on bad pages
+                logger.debug("pdfplumber extraction failed for %s page %d", path, page_index, exc_info=True)
+                warnings.append(f"page {page_index}: text extraction failed")
+                continue
+            table_count += page_tables
+            blocks.extend(page_blocks)
+            # Free cached layout objects; large PDFs otherwise grow without bound.
+            page.close()
+        page_count = len(pdf.pages)
+    return "\n\n".join(blocks), {
+        "bytes_read": path.stat().st_size,
+        "page_count": page_count,
+        "table_count": table_count,
+        "extraction_warnings": warnings,
+    }
+
+
+def _pdfplumber_page_blocks(page: Any) -> tuple[list[str], int]:
+    tables = [table for table in page.find_tables() if table.bbox]
+    if not tables:
+        text = (page.extract_text() or "").strip()
+        return ([text] if text else []), 0
+    bboxes = [table.bbox for table in tables]
+
+    def outside_tables(obj: dict[str, Any]) -> bool:
+        x = (float(obj.get("x0", 0)) + float(obj.get("x1", 0))) / 2
+        y = (float(obj.get("top", 0)) + float(obj.get("bottom", 0))) / 2
+        return not any(x0 <= x <= x1 and top <= y <= bottom for x0, top, x1, bottom in bboxes)
+
+    # (top, left, text) pieces: running text outside tables plus each table.
+    pieces: list[tuple[float, float, str]] = []
+    text_page = page.filter(outside_tables)
+    for line in text_page.extract_text_lines():
+        text = str(line.get("text") or "").strip()
+        if text:
+            pieces.append((float(line.get("top", 0)), float(line.get("x0", 0)), text))
+    for table in tables:
+        markdown = _markdown_table(table.extract())
+        if markdown:
+            pieces.append((float(table.bbox[1]), float(table.bbox[0]), markdown))
+    # Top to bottom; tables that share a top (side by side) read left to right.
+    pieces.sort(key=lambda item: (round(item[0]), item[1]))
+    blocks: list[str] = []
+    paragraph: list[str] = []
+    for _top, _left, text in pieces:
+        if text.startswith("|"):
+            if paragraph:
+                blocks.append("\n".join(paragraph))
+                paragraph = []
+            blocks.append(text)
+        else:
+            paragraph.append(text)
+    if paragraph:
+        blocks.append("\n".join(paragraph))
+    return blocks, len(tables)
+
+
+def _markdown_table(rows: list[list[str | None]] | None) -> str:
+    cleaned = [
+        [" ".join(str(cell or "").split()).replace("|", "\\|") for cell in row]
+        for row in rows or []
+        if row and any((cell or "").strip() for cell in row)
+    ]
+    if not cleaned:
+        return ""
+    width = max(len(row) for row in cleaned)
+    cleaned = [row + [""] * (width - len(row)) for row in cleaned]
+    lines = ["| " + " | ".join(cleaned[0]) + " |", "|" + " --- |" * width]
+    lines.extend("| " + " | ".join(row) + " |" for row in cleaned[1:])
+    return "\n".join(lines)
 
 
 def _parse_markitdown(path: Path) -> tuple[str, dict[str, Any]]:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -84,8 +85,11 @@ def test_monitor_does_not_classify_failed_fetch_as_disappeared(pack_dir: Path, t
     types = {(c["url"], c["change_type"]) for c in payload["change_classes"]["classifications"]}
     assert (ERROR_URL, "source_disappeared") not in types
     assert (SKIP_URL, "source_disappeared") not in types
-    project_diff = Path(payload["run_dir"], payload["artifacts"]["project_diff"]).read_text()
-    assert ERROR_URL not in project_diff
+    project_diff = json.loads(Path(payload["run_dir"], payload["artifacts"]["project_diff"]).read_text())
+    assert ERROR_URL not in project_diff["removed_urls"]
+    # Not removed, and not silently "unchanged" either: it is reported as a failure.
+    assert ERROR_URL not in project_diff["unchanged_urls"]
+    assert ERROR_URL in project_diff["unverified_urls"]
 
 
 def test_refresh_still_reports_404_as_removed(pack_dir: Path, tmp_path: Path, monkeypatch) -> None:

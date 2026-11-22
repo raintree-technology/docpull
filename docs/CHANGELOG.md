@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Single-URL project sources: `single: true` (or `docpull add --single`) fetches
+  exactly the source URL with no sitemap or crawl. On by default for
+  `type: pdf` and `.pdf` URLs.
+- Per-source `max_pages` in `docpull.yaml` and `docpull add --max-pages`.
+- Project-level `crawl.remote_documents` / `crawl.remote_document_backend` and
+  per-source overrides; `type: pdf` now allows remote PDF parsing for that
+  source.
+- `pdfplumber` remote-document and `docpull parse` backend (`docpull[tables]`):
+  ruled PDF tables become Markdown tables in reading order.
+- `docpull monitor run|trigger --slack-webhook` now posts a summary when there
+  are new changes or failed refetches. The URL is never persisted or written
+  to reports.
+- `docpull help <command> [subcommand]` prints that command's help.
+
+### Changed
+
+- `docpull sync` reports status `partial` when some documents landed but a
+  page or source failed (previously `success` while exiting 1). Exit code is 0
+  only for `success`.
+- `docpull monitor` and `docpull refresh` refetch with the PDF settings the pack
+  was built with (override with `--remote-documents` / `--remote-document-backend`).
+- A monitor or refresh URL that cannot be refetched is reported in
+  `summary.failures` / `unverified_urls`, is no longer counted as unchanged,
+  sets `summary.status: failed`, exits 1, and does not advance the baseline.
+
 ## [6.10.0] - 2026-11-12
 
 ### Added

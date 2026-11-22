@@ -212,6 +212,7 @@ async def test_stdio_server_lists_and_calls_tools(tmp_path):
         assert fetch_tool.inputSchema["properties"]["remote_document_backend"]["enum"] == [
             "auto",
             "pypdf",
+            "pdfplumber",
             "markitdown",
             "unstructured",
         ]

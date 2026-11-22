@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any
 from rich.console import Console
 from rich.markup import escape
 
-from .models.config import DocpullConfig, ProfileName
+from .models.config import ContentFilterConfig, DocpullConfig, ProfileName
 from .models.document import DocumentRecord
 from .models.run import RunIdentity
 from .pack_tools import (
@@ -86,6 +86,16 @@ def create_refresh_parser() -> argparse.ArgumentParser:
         type=Path,
         help="Markdown report path (default: <pack>/refresh.report.md)",
     )
+    parser.add_argument(
+        "--remote-documents",
+        choices=["off", "pdf"],
+        help="Allow refetching remote PDFs (default: inferred from the pack's PDF records)",
+    )
+    parser.add_argument(
+        "--remote-document-backend",
+        choices=["auto", "pypdf", "pdfplumber", "markitdown", "unstructured"],
+        help="Local PDF parser (default: the parser that built the pack's PDF records)",
+    )
     return parser
 
 
@@ -100,6 +110,8 @@ def run_refresh_cli(argv: list[str] | None = None) -> int:
             changed_only=args.changed_only,
             dry_run=args.dry_run,
             markdown_path=args.markdown,
+            remote_documents=args.remote_documents,
+            remote_document_backend=args.remote_document_backend,
         )
         if payload["dry_run"]:
             console.print(
@@ -112,6 +124,14 @@ def run_refresh_cli(argv: list[str] | None = None) -> int:
                 f"{payload['artifacts']['json']} "
                 f"(changed {len(payload['diff'].get('changed_urls', []))})"
             )
+            unverified = payload["summary"].get("unverified_urls") or []
+            if unverified:
+                console.print(f"[red]Refresh could not refetch {len(unverified)} URL(s):[/red]")
+                for item in payload.get("errors", []) + payload.get("skips", []):
+                    if item.get("url") in unverified:
+                        reason = item.get("error") or item.get("reason") or "unknown"
+                        console.print(f"- {escape(str(item['url']))}: {escape(str(reason))}")
+                return 1
         return 0
     except (LocalWorkflowError, PackToolError) as err:
         console.print("[red]Refresh error:[/red] " + escape(str(err)))
@@ -128,8 +148,15 @@ def refresh_pack(
     changed_only: bool = False,
     dry_run: bool = False,
     markdown_path: Path | None = None,
+    remote_documents: str | None = None,
+    remote_document_backend: str | None = None,
 ) -> dict[str, Any]:
-    """Refresh the URLs in a local pack and write refresh report sidecars."""
+    """Refresh the URLs in a local pack and write refresh report sidecars.
+
+    PDF handling defaults to what built the pack: when it holds records parsed
+    from remote PDFs, the refetch allows PDFs again with the same parser, so a
+    PDF source is not silently re-requested under a config that rejects it.
+    """
     pack_dir = pack_dir.resolve()
     records = _read_pack_records(pack_dir)
     if not records:
@@ -180,21 +207,33 @@ def refresh_pack(
 
     refreshed_dir = (output_dir or _default_refresh_output_dir(pack_dir)).resolve()
     refreshed_dir.mkdir(parents=True, exist_ok=True)
-    fetch_result = asyncio.run(_fetch_urls_to_pack(urls, refreshed_dir, old_pack_metadata))
+    content_filter = _refresh_content_filter(
+        records,
+        remote_documents=remote_documents,
+        remote_document_backend=remote_document_backend,
+    )
+    fetch_result = asyncio.run(
+        _fetch_urls_to_pack(urls, refreshed_dir, old_pack_metadata, content_filter=content_filter)
+    )
     diff_payload = (
         diff_packs(pack_dir, refreshed_dir)
         if fetch_result["record_count"]
         else _empty_diff(pack_dir, refreshed_dir)
     )
     # A URL we could not re-fetch is unknown, not removed. Only 404/410 mean gone.
-    _drop_unverified_urls(
-        diff_payload,
+    unverified_urls = sorted(
         {
             str(item["url"])
             for item in (*fetch_result["errors"], *fetch_result["skips"])
             if item.get("reason") not in _GONE_REASONS
-        },
+        }
     )
+    _drop_unverified_urls(diff_payload, set(unverified_urls))
+    # Unknown is not "unchanged": a failed refetch must never read as no change.
+    diff_payload["unchanged_urls"] = [
+        url for url in diff_payload.get("unchanged_urls", []) if url not in set(unverified_urls)
+    ]
+    diff_payload["unverified_urls"] = unverified_urls
     payload = {
         "schema_version": REFRESH_SCHEMA_VERSION,
         "generated_at": generated_at,
@@ -211,6 +250,10 @@ def refresh_pack(
             "added_count": len(diff_payload.get("added_urls", [])),
             "removed_count": len(diff_payload.get("removed_urls", [])),
             "unchanged_count": len(diff_payload.get("unchanged_urls", [])),
+            "unverified_count": len(unverified_urls),
+            "unverified_urls": unverified_urls,
+            "status": "failed" if unverified_urls else "ok",
+            "remote_documents": content_filter.remote_documents,
             "expected_domains": _expected_domains(old_pack_metadata),
         },
         "diff": diff_payload,
@@ -231,14 +274,21 @@ async def _fetch_urls_to_pack(
     urls: list[str],
     output_dir: Path,
     old_pack_metadata: dict[str, Any],
+    *,
+    content_filter: ContentFilterConfig | None = None,
 ) -> dict[str, Any]:
     records: list[DocumentRecord] = []
     source_entries: list[dict[str, Any]] = []
     errors: list[dict[str, Any]] = []
     skips: list[dict[str, Any]] = []
-    run_identity = RunIdentity.from_config(DocpullConfig(url=urls[0], profile=ProfileName.CUSTOM))
+    fetch_config = DocpullConfig(
+        url=urls[0],
+        profile=ProfileName.CUSTOM,
+        content_filter=content_filter or ContentFilterConfig(),
+    )
+    run_identity = RunIdentity.from_config(fetch_config)
 
-    async with _fetcher_class()(DocpullConfig(url=urls[0], profile=ProfileName.CUSTOM)) as fetcher:
+    async with _fetcher_class()(fetch_config) as fetcher:
         for index, url in enumerate(urls, start=1):
             ctx = await fetcher.fetch_one(url, save=False)
             if ctx.error:
@@ -588,6 +638,33 @@ def _default_refresh_output_dir(pack_dir: Path) -> Path:
 
 
 _GONE_REASONS = frozenset({"HTTP 404", "HTTP 410"})
+_PDF_PARSERS = frozenset({"pypdf", "pdfplumber", "markitdown", "unstructured"})
+
+
+def _refresh_content_filter(
+    records: list[dict[str, Any]],
+    *,
+    remote_documents: str | None,
+    remote_document_backend: str | None,
+) -> ContentFilterConfig:
+    """Fetch options for a refresh: explicit values win, else infer from the pack."""
+    pdf_parsers: list[str] = []
+    for record in records:
+        if str(record.get("source_type") or "") != "remote_pdf":
+            continue
+        for container in (record.get("extraction"), record.get("metadata")):
+            if isinstance(container, dict):
+                parser = container.get("parser") or container.get("parse_backend")
+                if isinstance(parser, str) and parser in _PDF_PARSERS:
+                    pdf_parsers.append(parser)
+                    break
+        else:
+            pdf_parsers.append("auto")
+    mode = remote_documents or ("pdf" if pdf_parsers else "off")
+    backend = remote_document_backend or (
+        Counter(pdf_parsers).most_common(1)[0][0] if pdf_parsers else "auto"
+    )
+    return ContentFilterConfig.model_validate({"remote_documents": mode, "remote_document_backend": backend})
 
 
 def _drop_unverified_urls(diff: dict[str, Any], urls: set[str]) -> None:
